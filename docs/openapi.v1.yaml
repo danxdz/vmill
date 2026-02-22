@@ -1,0 +1,265 @@
+openapi: 3.1.0
+info:
+  title: VMill Control API
+  version: 0.1.0
+  description: |
+    Starter API contract for VMill.
+    Note: this spec describes a planned HTTP layer; current app is local UI + WASM core.
+servers:
+  - url: http://localhost:8787
+paths:
+  /api/v1/state:
+    get:
+      summary: Get current machine state snapshot
+      operationId: getState
+      responses:
+        '200':
+          description: Current state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MachineState'
+  /api/v1/command:
+    post:
+      summary: Send a machine/UI command
+      operationId: postCommand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandEnvelope'
+      responses:
+        '202':
+          description: Accepted
+  /api/v1/program/load:
+    post:
+      summary: Load program text into a channel
+      operationId: loadProgram
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channelIndex, code]
+              properties:
+                channelIndex:
+                  type: integer
+                  minimum: 0
+                code:
+                  type: string
+      responses:
+        '200':
+          description: Loaded
+  /api/v1/program/control:
+    post:
+      summary: Control execution (start/pause/reset/step)
+      operationId: controlProgram
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channelIndex, action]
+              properties:
+                channelIndex:
+                  type: integer
+                  minimum: 0
+                action:
+                  type: string
+                  enum: [start, pause_toggle, reset, step_once]
+      responses:
+        '200':
+          description: Action applied
+  /api/v1/config/view:
+    get:
+      summary: Get view setup (WCS/MCS refs and scene)
+      operationId: getViewConfig
+      responses:
+        '200':
+          description: Current view config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewConfig'
+    put:
+      summary: Update view setup
+      operationId: putViewConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ViewConfig'
+      responses:
+        '200':
+          description: Updated
+components:
+  schemas:
+    ReferenceVisualMode:
+      type: string
+      enum: [off, dot, gizmo]
+    AxisState:
+      type: object
+      required: [id, physical_name, position, target, homed]
+      properties:
+        id:
+          type: integer
+        physical_name:
+          type: string
+        position:
+          type: number
+        target:
+          type: number
+        homed:
+          type: boolean
+    ChannelState:
+      type: object
+      required: [id, is_running, paused, active_pc, current_motion, cutter_comp, tool_radius, tool_length]
+      properties:
+        id:
+          type: integer
+        is_running:
+          type: boolean
+        paused:
+          type: boolean
+        active_pc:
+          type: integer
+        current_motion:
+          type: integer
+        cutter_comp:
+          type: integer
+          enum: [40, 41, 42]
+        tool_radius:
+          type: number
+        length_comp_active:
+          type: boolean
+        tool_length:
+          type: number
+    WorkOffset:
+      type: object
+      required: [label, offsets]
+      properties:
+        label:
+          type: string
+        offsets:
+          type: array
+          items:
+            type: object
+            required: [axis_id, value]
+            properties:
+              axis_id:
+                type: integer
+              value:
+                type: number
+    MachineState:
+      type: object
+      required: [axes, channels, active_wcs, work_offsets, estop]
+      properties:
+        axes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AxisState'
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChannelState'
+        active_wcs:
+          type: integer
+        work_offsets:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkOffset'
+        estop:
+          type: boolean
+    JogCommand:
+      type: object
+      required: [type, axisId, delta]
+      properties:
+        type:
+          type: string
+          enum: [machine.jog]
+        axisId:
+          type: integer
+        delta:
+          type: number
+    HomeAllCommand:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [machine.home_all]
+    SetActiveWcsCommand:
+      type: object
+      required: [type, wcsIndex]
+      properties:
+        type:
+          type: string
+          enum: [wcs.set_active]
+        wcsIndex:
+          type: integer
+    SetWcsRefCommand:
+      type: object
+      required: [type, mode]
+      properties:
+        type:
+          type: string
+          enum: [ui.set_wcs_reference_visual, ui.set_mcs_reference_visual]
+        mode:
+          $ref: '#/components/schemas/ReferenceVisualMode'
+    CommandEnvelope:
+      oneOf:
+        - $ref: '#/components/schemas/JogCommand'
+        - $ref: '#/components/schemas/HomeAllCommand'
+        - $ref: '#/components/schemas/SetActiveWcsCommand'
+        - $ref: '#/components/schemas/SetWcsRefCommand'
+    SceneConfig:
+      type: object
+      required:
+        - backgroundColor
+        - fogColor
+        - fogDensity
+        - ambientIntensity
+        - keyIntensity
+        - fillIntensity
+        - floorIntensity
+        - gridMajorColor
+        - gridMinorColor
+        - gizmoScale
+        - uiScale
+      properties:
+        backgroundColor:
+          type: string
+        fogColor:
+          type: string
+        fogDensity:
+          type: number
+        ambientIntensity:
+          type: number
+        keyIntensity:
+          type: number
+        fillIntensity:
+          type: number
+        floorIntensity:
+          type: number
+        gridMajorColor:
+          type: string
+        gridMinorColor:
+          type: string
+        gizmoScale:
+          type: number
+        uiScale:
+          type: number
+    ViewConfig:
+      type: object
+      required: [wcsReferenceVisual, mcsReferenceVisual, scene]
+      properties:
+        wcsReferenceVisual:
+          $ref: '#/components/schemas/ReferenceVisualMode'
+        mcsReferenceVisual:
+          $ref: '#/components/schemas/ReferenceVisualMode'
+        scene:
+          $ref: '#/components/schemas/SceneConfig'

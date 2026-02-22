@@ -1,0 +1,16 @@
+[package]
+name = "machine-core"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+# This tells Rust to create a library that can be loaded by JavaScript
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+# Add this to allow Rust to talk to the browser console
+web-sys = { version = "0.3", features = ["console"] }
+
+serde = { version = "1.0", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
