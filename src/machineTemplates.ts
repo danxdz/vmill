@@ -99,7 +99,7 @@ export const MACHINE_TEMPLATES: MachineTemplate[] = [
     axes: [
       { name: 'X', label: 'X', kind: 'Linear', side: 'tool', channel: 1, min: -400, max: 400, accel: 3000, homeDir: -1 },
       { name: 'Y', label: 'Y', kind: 'Linear', side: 'tool', channel: 1, min: -300, max: 300, accel: 3000, homeDir: -1 },
-      { name: 'Z', label: 'Z', kind: 'Linear', side: 'tool', channel: 1, min: -200, max: 50,  accel: 1500, homeDir:  1 },
+      { name: 'Z', label: 'Z', kind: 'Linear', side: 'tool', channel: 1, min: -400, max: 0,  accel: 1500, homeDir:  1, machineZero: 400 },
     ],
   },
 

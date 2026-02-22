@@ -143,31 +143,31 @@ export function useMachineConfig(): UseMachineConfig {
 
   const [machines, setMachines] = useState<MachineConfig[]>(() => {
     const stored = loadAll();
-    // Seed with default VMC4 if nothing saved yet
+    // Seed with default VMC3 if nothing saved yet
     if (stored.length === 0) {
-      const vmc4Base = MACHINE_TEMPLATES.find(t => t.id === 'vmc4')!;
-      const vmc4 = resolveTemplateSpindle(vmc4Base, templateSpindleDefaults);
+      const vmc3Base = MACHINE_TEMPLATES.find(t => t.id === 'vmc3') ?? MACHINE_TEMPLATES[0];
+      const vmc3 = resolveTemplateSpindle(vmc3Base, templateSpindleDefaults);
       const defaultMachine: MachineConfig = {
         id: uid(),
-        name: vmc4.name,
-        description: vmc4.description,
-        templateId: vmc4.id,
+        name: vmc3.name,
+        description: vmc3.description,
+        templateId: vmc3.id,
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        spindleDiameter: clampSpindleValue(vmc4.spindleDiameter, DEFAULT_SPINDLE_DIAMETER),
-        spindleLength: clampSpindleValue(vmc4.spindleLength, DEFAULT_SPINDLE_LENGTH),
-        spindleNoseDiameter: clampSpindleValue(vmc4.spindleNoseDiameter, DEFAULT_SPINDLE_NOSE_DIAMETER),
-        spindleNoseLength: clampSpindleValue(vmc4.spindleNoseLength, DEFAULT_SPINDLE_NOSE_LENGTH),
-        spindleCapDiameter: clampSpindleValue(vmc4.spindleCapDiameter, DEFAULT_SPINDLE_CAP_DIAMETER),
-        spindleCapLength: clampSpindleValue(vmc4.spindleCapLength, DEFAULT_SPINDLE_CAP_LENGTH),
-        spindleUp: vmc4.spindleUp ?? true,
-        spindleOffsetX: toFinite(vmc4.spindleOffsetX, 0),
-        spindleOffsetY: toFinite(vmc4.spindleOffsetY, 0),
-        spindleOffsetZ: toFinite(vmc4.spindleOffsetZ, 0),
-        spindleRotX: toFinite(vmc4.spindleRotX, 0),
-        spindleRotY: toFinite(vmc4.spindleRotY, 0),
-        spindleRotZ: toFinite(vmc4.spindleRotZ, 0),
-        axes: vmc4.axes.map(a => ({ ...a, id: uid() })),
+        spindleDiameter: clampSpindleValue(vmc3.spindleDiameter, DEFAULT_SPINDLE_DIAMETER),
+        spindleLength: clampSpindleValue(vmc3.spindleLength, DEFAULT_SPINDLE_LENGTH),
+        spindleNoseDiameter: clampSpindleValue(vmc3.spindleNoseDiameter, DEFAULT_SPINDLE_NOSE_DIAMETER),
+        spindleNoseLength: clampSpindleValue(vmc3.spindleNoseLength, DEFAULT_SPINDLE_NOSE_LENGTH),
+        spindleCapDiameter: clampSpindleValue(vmc3.spindleCapDiameter, DEFAULT_SPINDLE_CAP_DIAMETER),
+        spindleCapLength: clampSpindleValue(vmc3.spindleCapLength, DEFAULT_SPINDLE_CAP_LENGTH),
+        spindleUp: vmc3.spindleUp ?? true,
+        spindleOffsetX: toFinite(vmc3.spindleOffsetX, 0),
+        spindleOffsetY: toFinite(vmc3.spindleOffsetY, 0),
+        spindleOffsetZ: toFinite(vmc3.spindleOffsetZ, 0),
+        spindleRotX: toFinite(vmc3.spindleRotX, 0),
+        spindleRotY: toFinite(vmc3.spindleRotY, 0),
+        spindleRotZ: toFinite(vmc3.spindleRotZ, 0),
+        axes: vmc3.axes.map(a => ({ ...a, id: uid() })),
       };
       saveAll([defaultMachine]);
       return [defaultMachine];

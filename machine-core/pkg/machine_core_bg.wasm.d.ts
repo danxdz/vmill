@@ -10,6 +10,7 @@ export const machinebrain_get_full_state: (a: number) => any;
 export const machinebrain_home_all: (a: number) => void;
 export const machinebrain_home_all_ordered: (a: number, b: number, c: number, d: number) => void;
 export const machinebrain_home_axis: (a: number, b: number) => void;
+export const machinebrain_home_axis_ordered: (a: number, b: number, c: number, d: number) => void;
 export const machinebrain_jog_axis: (a: number, b: number, c: number) => void;
 export const machinebrain_jog_axis_feed: (a: number, b: number, c: number, d: number) => void;
 export const machinebrain_jog_axis_rapid: (a: number, b: number, c: number) => void;

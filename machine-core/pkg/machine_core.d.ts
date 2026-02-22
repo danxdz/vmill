@@ -17,6 +17,7 @@ export class MachineBrain {
     home_all(): void;
     home_all_ordered(primary_axis_id: number, rapid: boolean, feed: number): void;
     home_axis(axis_id: number): void;
+    home_axis_ordered(axis_id: number, rapid: boolean, feed: number): void;
     jog_axis(axis_id: number, delta: number): void;
     jog_axis_feed(axis_id: number, delta: number, feed: number): void;
     jog_axis_rapid(axis_id: number, delta: number): void;
@@ -57,6 +58,7 @@ export interface InitOutput {
     readonly machinebrain_home_all: (a: number) => void;
     readonly machinebrain_home_all_ordered: (a: number, b: number, c: number, d: number) => void;
     readonly machinebrain_home_axis: (a: number, b: number) => void;
+    readonly machinebrain_home_axis_ordered: (a: number, b: number, c: number, d: number) => void;
     readonly machinebrain_jog_axis: (a: number, b: number, c: number) => void;
     readonly machinebrain_jog_axis_feed: (a: number, b: number, c: number, d: number) => void;
     readonly machinebrain_jog_axis_rapid: (a: number, b: number, c: number) => void;

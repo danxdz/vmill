@@ -78,6 +78,14 @@ export class MachineBrain {
     }
     /**
      * @param {number} axis_id
+     * @param {boolean} rapid
+     * @param {number} feed
+     */
+    home_axis_ordered(axis_id, rapid, feed) {
+        wasm.machinebrain_home_axis_ordered(this.__wbg_ptr, axis_id, rapid, feed);
+    }
+    /**
+     * @param {number} axis_id
      * @param {number} delta
      */
     jog_axis(axis_id, delta) {

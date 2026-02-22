@@ -233,6 +233,62 @@ const DEFAULT_TOOL_VISUAL_PROFILE: ToolVisualProfile = {
   holderOpacity: 1,
   stickout: 36,
 };
+const HIDDEN_TOOL_VISUAL_PROFILE: ToolVisualProfile = {
+  l1: 0,
+  d1: 1,
+  l2: 0,
+  d2: 1,
+  l3: 0,
+  d3: 1,
+  useHolder: false,
+  stickout: 0.5,
+};
+
+function profileFromLengthRadius(length: number, radius: number): ToolVisualProfile {
+  const total = Math.max(12, Number.isFinite(length) ? length : 28);
+  const l1 = Math.max(2, total * 0.35);
+  const l2 = Math.max(2, total * 0.25);
+  const l3 = Math.max(2, total - l1 - l2);
+  const d1 = Math.max(1, radius > 0 ? radius * 2 : 8);
+  const d2 = Math.max(1, d1 * 1.4);
+  const d3 = Math.max(1, d1 * 1.9);
+  return {
+    l1,
+    d1,
+    l2,
+    d2,
+    l3,
+    d3,
+    useHolder: false,
+    holderLength: 18,
+    holderDiameter: Math.max(12, d3 * 1.2),
+    stickout: total,
+  };
+}
+
+function getStationToolVisualBySlot(slot: number): ToolVisualProfile | null {
+  if (!Number.isFinite(slot) || slot < 1) return null;
+  const station = parseJson<{ slots?: Array<string | null> }>(localStorage.getItem(TOOL_STATIONS_KEY));
+  const id = Array.isArray(station?.slots) ? station!.slots[slot - 1] : null;
+  if (!id) return null;
+
+  const assemblies = parseJson<Array<{ id: string; visual?: ToolVisualProfile; length?: number; radius?: number }>>(
+    localStorage.getItem(TOOL_ASSEMBLY_KEY)
+  ) ?? [];
+  const asm = assemblies.find((a) => a && String(a.id) === String(id));
+  if (asm) {
+    if (asm.visual) return asm.visual;
+    return profileFromLengthRadius(Number(asm.length ?? 50), Number(asm.radius ?? 4));
+  }
+
+  const tools = parseJson<Array<{ id: string; kind?: string; visual?: ToolVisualProfile; length?: number; radius?: number }>>(
+    localStorage.getItem(TOOL_LIBRARY_KEY)
+  ) ?? [];
+  const tool = tools.find((t) => t && String(t.id) === String(id));
+  if (!tool) return null;
+  if (tool.visual) return tool.visual;
+  return profileFromLengthRadius(Number(tool.length ?? 50), Number(tool.radius ?? 4));
+}
 
 function parseJson<T>(raw: string | null): T | null {
   if (!raw) return null;
@@ -430,19 +486,9 @@ function syncToolTableFromStorage(core: MachineBrain, channelIndex: number) {
     if (!Number.isFinite(length) || !Number.isFinite(radius)) return;
     (core as any)?.set_tool_table_entry?.(channelIndex, Math.floor(slot), length, Math.max(0, radius));
   };
-
-  const explicit = new Set<number>();
-  const overrides = parseJson<Record<string, { h?: number; d?: number }>>(localStorage.getItem(TOOL_TABLE_KEY));
-  if (overrides) {
-    Object.entries(overrides).forEach(([k, v]) => {
-      const slot = Number(k);
-      const h = Number(v?.h);
-      const d = Number(v?.d);
-      if (!Number.isFinite(slot) || !Number.isFinite(h) || !Number.isFinite(d)) return;
-      explicit.add(Math.floor(slot));
-      setEntry(slot, h, d);
-    });
-  }
+  const overrides = parseJson<Record<string, { h?: number; d?: number; assignedId?: string | null }>>(
+    localStorage.getItem(TOOL_TABLE_KEY)
+  ) ?? {};
 
   const assignables = new Map<string, { length: number; radius: number }>();
   const tools = parseJson<any[]>(localStorage.getItem(TOOL_LIBRARY_KEY)) ?? [];
@@ -467,13 +513,64 @@ function syncToolTableFromStorage(core: MachineBrain, channelIndex: number) {
     });
   });
 
-  const station = parseJson<{ slots?: Array<string | null> }>(localStorage.getItem(TOOL_STATIONS_KEY));
+  const station = parseJson<{ slotCount?: number; activeSlot?: number; slots?: Array<string | null> }>(
+    localStorage.getItem(TOOL_STATIONS_KEY)
+  );
   const slots = Array.isArray(station?.slots) ? station!.slots : [];
+  const slotCountRaw = Number(station?.slotCount ?? slots.length);
+  const slotCount = Math.max(slots.length, Number.isFinite(slotCountRaw) ? Math.max(0, Math.floor(slotCountRaw)) : 0);
+  const syncedBySlot = new Map<number, { length: number; radius: number; assignedId: string | null }>();
+
+  for (let idx = 0; idx < slotCount; idx += 1) {
+    const slot = idx + 1;
+    const assignedId = slots[idx] ?? null;
+    const item = assignedId ? assignables.get(assignedId) : undefined;
+    const ov = overrides[String(slot)];
+    const hasOvAssignedId = typeof ov?.assignedId === 'string' || ov?.assignedId === null;
+    // Only use overrides tied to the same assigned tool/assembly.
+    // Legacy overrides without assignedId are ignored when a station slot is populated,
+    // so startup table values always follow current station assignments.
+    const allowOverride = !!ov && (hasOvAssignedId ? ov.assignedId === assignedId : !assignedId);
+    const hOverride = Number(ov?.h);
+    const dOverride = Number(ov?.d);
+    const length = allowOverride && Number.isFinite(hOverride)
+      ? hOverride
+      : (item?.length ?? NaN);
+    const radius = allowOverride && Number.isFinite(dOverride)
+      ? Math.max(0, dOverride)
+      : (item?.radius ?? NaN);
+    if (!Number.isFinite(length) || !Number.isFinite(radius)) continue;
+    setEntry(slot, length, radius);
+    syncedBySlot.set(slot, { length, radius, assignedId });
+  }
+
+  // Restore active spindle tool from station state on app boot.
+  const activeSlot = Number(station?.activeSlot);
+  if (Number.isFinite(activeSlot)) {
+    const toolNumber = Math.floor(activeSlot) + 1;
+    const activeData = syncedBySlot.get(toolNumber);
+    if (activeData && activeData.assignedId) {
+      (core as any)?.set_active_tool?.(channelIndex, toolNumber);
+      (core as any)?.set_tool_length?.(channelIndex, activeData.length);
+      (core as any)?.set_tool_radius?.(channelIndex, activeData.radius);
+    } else {
+      (core as any)?.set_active_tool?.(channelIndex, 0);
+      (core as any)?.set_tool_length?.(channelIndex, 0);
+      (core as any)?.set_tool_radius?.(channelIndex, 0);
+    }
+  } else if (!slots.some((id) => !!id)) {
+    (core as any)?.set_active_tool?.(channelIndex, 0);
+    (core as any)?.set_tool_length?.(channelIndex, 0);
+    (core as any)?.set_tool_radius?.(channelIndex, 0);
+  }
+
   slots.forEach((id, idx) => {
-    if (!id || explicit.has(idx + 1)) return;
+    if (!id) return;
+    const slot = idx + 1;
+    if (syncedBySlot.has(slot)) return;
     const item = assignables.get(id);
     if (!item) return;
-    setEntry(idx + 1, item.length, item.radius);
+    setEntry(slot, item.length, item.radius);
   });
 }
 
@@ -579,6 +676,7 @@ export default function App() {
   const previewJobRef = useRef(0);
   const previewSigRef = useRef<string>('');
   const postBootSyncVersionRef = useRef<number>(-1);
+  const lastVisualToolRef = useRef<number>(-1);
 
   const appStateSnapshot = useMemo<PersistedAppState>(() => ({
     showScene3d,
@@ -635,6 +733,52 @@ export default function App() {
       setAlarmMessage('');
     }
   }, [state?.estop, alarmMessage]);
+
+  useEffect(() => {
+    const activeTool = Math.max(0, Number(state?.channels?.[0]?.active_tool ?? 0));
+    if (!Number.isFinite(activeTool)) return;
+    if (lastVisualToolRef.current === activeTool) return;
+    lastVisualToolRef.current = activeTool;
+
+    if (activeTool <= 0) {
+      setToolVisualProfile(HIDDEN_TOOL_VISUAL_PROFILE);
+      return;
+    }
+
+    const profileFromStation = getStationToolVisualBySlot(activeTool);
+    if (profileFromStation) {
+      setToolVisualProfile(profileFromStation);
+    } else {
+      const ch0 = state?.channels?.[0];
+      setToolVisualProfile(
+        profileFromLengthRadius(
+          Number(ch0?.tool_length ?? 50),
+          Number(ch0?.tool_radius ?? 4)
+        )
+      );
+    }
+
+    const station = parseJson<{ mode?: string; slotCount?: number; activeSlot?: number; slots?: Array<string | null> }>(
+      localStorage.getItem(TOOL_STATIONS_KEY)
+    );
+    if (station && Array.isArray(station.slots)) {
+      const nextActiveSlot = Math.max(0, activeTool - 1);
+      if (Number(station.activeSlot) !== nextActiveSlot) {
+        localStorage.setItem(
+          TOOL_STATIONS_KEY,
+          JSON.stringify({
+            mode: station.mode === 'turret' ? 'turret' : 'magazine',
+            slotCount: Number.isFinite(Number(station.slotCount))
+              ? Math.max(1, Math.floor(Number(station.slotCount)))
+              : Math.max(1, station.slots.length),
+            activeSlot: nextActiveSlot,
+            slots: station.slots,
+          })
+        );
+        window.dispatchEvent(new CustomEvent('vmill:tool-stations-changed'));
+      }
+    }
+  }, [state?.channels]);
 
   const buildRuntimeSnapshot = useMemo<RuntimeRestoreSnapshot | null>(() => {
     if (!state) return null;
@@ -997,21 +1141,20 @@ export default function App() {
           const sz = -toScene(st, 'Y', my);
           const controlLen = ch.length_comp_active ? Number(ch.tool_length ?? 0) : 0;
           const tcpPoint = { x: sx, y: sy - controlLen, z: sz };
-          if (isFeedMotion || lineMode === 'lead_in' || lineMode === 'lead_out') {
+          if (lineMode === 'lead_in') {
+            if (prevMode !== 'lead_in') {
+              leadInTcp.length = 0;
+            }
+            pushPoint(leadInTcp, tcpPoint, pcChanged);
+          } else if (lineMode === 'lead_out') {
+            if (prevMode !== 'lead_out') {
+              leadOutTcp.length = 0;
+            }
+            pushPoint(leadOutTcp, tcpPoint, pcChanged);
+          } else if (isFeedMotion) {
             pushPoint(tcp, tcpPoint, pcChanged);
           } else if (isRapidMotion) {
             pushPoint(tcpRapid, tcpPoint, pcChanged);
-          }
-          if (lineMode === 'lead_in' && prevMode !== 'lead_in') {
-            leadInTcp.length = 0;
-          }
-          if (lineMode === 'lead_out' && prevMode !== 'lead_out') {
-            leadOutTcp.length = 0;
-          }
-          if (lineMode === 'lead_in') {
-            pushPoint(leadInTcp, tcpPoint, pcChanged);
-          } else if (lineMode === 'lead_out') {
-            pushPoint(leadOutTcp, tcpPoint, pcChanged);
           }
           prevMode = lineMode;
 
@@ -1027,7 +1170,7 @@ export default function App() {
               y: toScene(st, 'Z', pmZ),
               z: -toScene(st, 'Y', pmY),
             };
-            if (isFeedMotion || lineMode === 'lead_in' || lineMode === 'lead_out') {
+            if (isFeedMotion && lineMode === null) {
               pushPoint(program, programPoint, pcChanged);
             } else if (isRapidMotion) {
               pushPoint(programRapid, programPoint, pcChanged);

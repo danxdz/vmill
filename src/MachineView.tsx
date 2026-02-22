@@ -2255,7 +2255,7 @@ export default function MachineView({
         else recordPath(r.path2, spindlePoint, pcChanged);
       }
       // TCP live trace records cutting and comp transitions; pure rapid kept separate.
-      if (isFeedMotion || isLeadIn || isLeadOut) {
+      if (isFeedMotion && !isLeadIn && !isLeadOut) {
         recordPath(r.path1, controlPoint, pcChanged);
       } else if (isRapidMotion) {
         recordPath(r.path1Rapid, controlPoint, pcChanged);
@@ -2592,7 +2592,7 @@ export default function MachineView({
         -toSceneMotion('Y', pmY)
       );
       if (livePreviewEnabled) {
-        if (isFeedMotion || isLeadIn || isLeadOut) {
+        if (isFeedMotion && !isLeadIn && !isLeadOut) {
           recordPath(r.pathProgram, programPoint, pcChanged);
         } else if (isRapidMotion) {
           recordPath(r.pathProgramRapid, programPoint, pcChanged);
