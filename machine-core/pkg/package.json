@@ -1,0 +1,15 @@
+{
+  "name": "machine-core",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "machine_core_bg.wasm",
+    "machine_core.js",
+    "machine_core.d.ts"
+  ],
+  "main": "machine_core.js",
+  "types": "machine_core.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

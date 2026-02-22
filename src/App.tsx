@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState, useRef } from 'react';
-import { MachineBrain, AxisType } from '../machine-core/pkg/';
+import { MachineBrain, AxisType } from 'machine-core';
 import MachineView from './MachineView';
 import ZeroPanel from './ZeroPanel';
 import BottomControlBar from './BottomControlBar';

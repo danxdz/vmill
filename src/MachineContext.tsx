@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import init, { AxisType, MachineBrain } from '../machine-core/pkg/';
+import init, { AxisType, MachineBrain } from 'machine-core';
 import { useMachineConfig } from './useMachineConfig';
 import type { UseMachineConfig } from './useMachineConfig';
 
