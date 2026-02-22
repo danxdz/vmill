@@ -690,6 +690,10 @@ impl MachineBrain {
         self.homing_index = 0;
         self.homing_rapid = rapid;
         self.homing_feed = feed.max(1.0);
+        // Start homing from a clean motion state so selected feed/rapid is respected.
+        for ax in self.axes.iter_mut() {
+            ax.velocity = 0.0;
+        }
     }
 
     fn machine_target_with_limits(&self, axis_id: u32, machine_target: f64) -> f64 {
@@ -1018,6 +1022,22 @@ impl MachineBrain {
             ax.homed = false;
         }
         self.start_homing_sequence(vec![axis_id], false, 300.0);
+    }
+
+    pub fn home_axis_ordered(&mut self, axis_id: u32, rapid: bool, feed: f64) {
+        if self.estop { return; }
+        if (axis_id as usize) >= self.axes.len() { return; }
+        if let Some(ax) = self.axes.get_mut(axis_id as usize) {
+            ax.target = 0.0;
+            ax.homed = false;
+        }
+        self.start_homing_sequence(vec![axis_id], rapid, feed);
+        console_log!(
+            "Homing axis {}: rapid={}, feed={}",
+            axis_id,
+            rapid,
+            feed
+        );
     }
 
     // ── Jogging ───────────────────────────────────────────────────────────

@@ -153,6 +153,13 @@ export default function ViewPanel({ runtime }: SidebarModuleProps) {
         >
           STOCK {cfg.stockBooleanEngine === 'manifold' ? 'MANIFOLD' : 'STATIC'}
         </button>
+        <button
+          style={{ ...s.btn, ...(cfg.stockCollisionDetection ? s.btnOn : {}) }}
+          onClick={() => patchScene({ stockCollisionDetection: !cfg.stockCollisionDetection })}
+          title="Toggle collision detection when non-cut tool body touches stock"
+        >
+          COLLISION {cfg.stockCollisionDetection ? 'ON' : 'OFF'}
+        </button>
       </div>
       <div style={s.grid2}>
         <button

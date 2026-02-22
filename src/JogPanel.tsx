@@ -58,7 +58,15 @@ export default function JogPanel({ runtime }: SidebarModuleProps) {
           <button
             key={ax.id}
             style={s.homeAxisBtn}
-            onClick={() => can.emit('command', { type: 'machine.home_axis', axisId: ax.id })}
+            onClick={() => {
+              const feedVal = Math.max(1, Number.parseFloat(feed.replace(',', '.')) || 1200);
+              can.emit('command', {
+                type: 'machine.home_axis',
+                axisId: ax.id,
+                rapid: rapidMode,
+                feed: feedVal,
+              });
+            }}
           >
             {ax.physical_name}
           </button>

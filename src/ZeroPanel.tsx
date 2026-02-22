@@ -125,7 +125,15 @@ export default function ZeroPanel({
           (brain as any)?.home_all_ordered?.(cmd.primaryAxisId, cmd.rapid, cmd.feed);
           break;
         case 'machine.home_axis':
-          brain?.home_axis(cmd.axisId);
+          if (typeof (brain as any)?.home_axis_ordered === 'function') {
+            (brain as any).home_axis_ordered(
+              cmd.axisId,
+              !!cmd.rapid,
+              Number.isFinite(cmd.feed) ? Number(cmd.feed) : 300.0
+            );
+          } else {
+            brain?.home_axis(cmd.axisId);
+          }
           break;
         case 'machine.jog':
           brain?.jog_axis(cmd.axisId, cmd.delta);

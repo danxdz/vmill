@@ -54,6 +54,7 @@ interface SceneSetupConfig {
   shadowsEnabled: boolean;
   reflectionsEnabled: boolean;
   stockBooleanEngine: 'none' | 'manifold';
+  stockCollisionDetection: boolean;
   showStockGhost: boolean;
   stockGhostOpacity: number;
   showStockCutterDebug: boolean;
@@ -164,6 +165,7 @@ const DEFAULT_SCENE_CONFIG: SceneSetupConfig = {
   shadowsEnabled: false,
   reflectionsEnabled: false,
   stockBooleanEngine: 'manifold',
+  stockCollisionDetection: true,
   showStockGhost: false,
   stockGhostOpacity: 0.5,
   showStockCutterDebug: false,
@@ -1206,6 +1208,26 @@ export default function App() {
                   title="Reset stock to initial block"
                 >
                   RST STOCK
+                </button>
+                <button
+                  style={{ ...s.pathToggleBtn, ...(sceneConfig.stockBooleanEngine === 'manifold' ? s.pathToggleOn : {}) }}
+                  onClick={() => setSceneConfig((prev) => ({
+                    ...prev,
+                    stockBooleanEngine: prev.stockBooleanEngine === 'manifold' ? 'none' : 'manifold',
+                  }))}
+                  title="Toggle stock material removal"
+                >
+                  STOCK CUT {sceneConfig.stockBooleanEngine === 'manifold' ? 'ON' : 'OFF'}
+                </button>
+                <button
+                  style={{ ...s.pathToggleBtn, ...(sceneConfig.stockCollisionDetection ? s.pathToggleOn : {}) }}
+                  onClick={() => setSceneConfig((prev) => ({
+                    ...prev,
+                    stockCollisionDetection: !prev.stockCollisionDetection,
+                  }))}
+                  title="Toggle stock collision detection (non-cut tool body contact)"
+                >
+                  COLLISION {sceneConfig.stockCollisionDetection ? 'ON' : 'OFF'}
                 </button>
               </div>
             )}

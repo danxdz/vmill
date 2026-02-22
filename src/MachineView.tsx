@@ -123,6 +123,7 @@ interface SceneSetupConfig {
   shadowsEnabled: boolean;
   reflectionsEnabled: boolean;
   stockBooleanEngine: 'none' | 'manifold';
+  stockCollisionDetection: boolean;
   showStockGhost: boolean;
   stockGhostOpacity: number;
   showStockCutterDebug: boolean;
@@ -173,6 +174,7 @@ const DEFAULT_SCENE_CONFIG: SceneSetupConfig = {
   shadowsEnabled: false,
   reflectionsEnabled: false,
   stockBooleanEngine: 'manifold',
+  stockCollisionDetection: true,
   showStockGhost: true,
   stockGhostOpacity: 0.5,
   showStockCutterDebug: false,
@@ -2315,6 +2317,10 @@ export default function MachineView({
         !isLeadIn
         && !isLeadOut
         && (isFeedMotion || (!!axesMoving && !channelsRunning));
+      if (!sceneConfig.stockCollisionDetection) {
+        sb.collisionLatched = false;
+        clearGroupMeshes(r.stockCollisionDebugGroup);
+      }
       if (!canCutNow) {
         // Re-anchor segment start while not cutting to avoid long jump cuts.
         sb.lastPoint = cutPointLocal.clone();
@@ -2423,6 +2429,7 @@ export default function MachineView({
           if (
             sb.api
             && sb.solid
+            && !!sceneConfig.stockCollisionDetection
             && !sb.collisionLatched
             && (now - Number(sb.lastCollisionAt ?? 0)) >= STOCK_COLLISION_INTERVAL_MS
           ) {

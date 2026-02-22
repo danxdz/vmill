@@ -32,6 +32,7 @@ export interface SceneSetupConfig {
   shadowsEnabled: boolean;
   reflectionsEnabled: boolean;
   stockBooleanEngine: StockBooleanEngine;
+  stockCollisionDetection: boolean;
   showStockGhost: boolean;
   stockGhostOpacity: number;
   showStockCutterDebug: boolean;
@@ -123,7 +124,7 @@ export interface ModuleTelemetry {
 export type ModuleCommand =
   | { type: 'machine.home_all' }
   | { type: 'machine.home_all_ordered'; primaryAxisId: number; rapid: boolean; feed: number }
-  | { type: 'machine.home_axis'; axisId: number }
+  | { type: 'machine.home_axis'; axisId: number; rapid?: boolean; feed?: number }
   | { type: 'machine.jog'; axisId: number; delta: number }
   | { type: 'machine.jog_feed'; axisId: number; delta: number; feed: number }
   | { type: 'machine.jog_rapid'; axisId: number; delta: number }
