@@ -2,6 +2,7 @@
 
 export type AxisKind = 'Linear' | 'Rotary';
 export type AxisSide = 'tool' | 'table'; // kinematic chain assignment
+export type SpindleAxis = '+X' | '-X' | '+Y' | '-Y' | '+Z' | '-Z';
 
 export interface AxisConfig {
   id: string;           // unique within machine (uuid-ish)
@@ -16,6 +17,7 @@ export interface AxisConfig {
   homeDir: -1 | 1;      // direction to home (-1 = negative, +1 = positive)
   machineZero?: number; // machine coordinate used as home/zero reference
   invert?: boolean;     // visual invert (used by MachineView)
+  linkAxis?: 'A' | 'B' | 'C'; // optional kinematic link target for custom rotary names
   color?: string;       // optional accent color for 3D view
 }
 
@@ -33,6 +35,7 @@ export interface MachineConfig {
   spindleCapDiameter: number;  // mm
   spindleCapLength: number;    // mm
   spindleUp: boolean;          // true = grows upward from machine-zero anchor
+  spindleAxis: SpindleAxis;    // spindle/tool axis in machine coordinates
   spindleOffsetX: number;      // mm (machine X)
   spindleOffsetY: number;      // mm (machine Y)
   spindleOffsetZ: number;      // mm (machine Z)
@@ -79,6 +82,7 @@ export interface MachineTemplate {
   spindleCapDiameter?: number;
   spindleCapLength?: number;
   spindleUp?: boolean;
+  spindleAxis?: SpindleAxis;
   spindleOffsetX?: number;
   spindleOffsetY?: number;
   spindleOffsetZ?: number;
@@ -96,6 +100,7 @@ export const MACHINE_TEMPLATES: MachineTemplate[] = [
     description: 'Standard vertical machining centre. X/Y table travel, Z spindle depth.',
     icon: '⬛',
     tags: ['milling', '3-axis', 'vertical'],
+    spindleAxis: '-Z',
     axes: [
       { name: 'X', label: 'X', kind: 'Linear', side: 'tool', channel: 1, min: -400, max: 400, accel: 3000, homeDir: -1 },
       { name: 'Y', label: 'Y', kind: 'Linear', side: 'tool', channel: 1, min: -300, max: 300, accel: 3000, homeDir: -1 },
@@ -110,6 +115,7 @@ export const MACHINE_TEMPLATES: MachineTemplate[] = [
     description: 'Vertical mill with 4th-axis rotary table on secondary channel. X/Y/Z tool + Z3 table travel + B rotation.',
     icon: '🔄',
     tags: ['milling', '4-axis', 'rotary', 'trunnion'],
+    spindleAxis: '-Z',
     axes: [
       { name: 'X',  label: 'X',  kind: 'Linear', side: 'tool',  channel: 1, min: -100, max: 500, accel: 3000, homeDir: -1 },
       { name: 'Y',  label: 'Y',  kind: 'Linear', side: 'tool',  channel: 1, min: -100, max: 400, accel: 3000, homeDir: -1 },
@@ -126,6 +132,7 @@ export const MACHINE_TEMPLATES: MachineTemplate[] = [
     description: 'Full 5-axis with A/C trunnion table. Tool moves X/Y/Z, table tilts A and rotates C.',
     icon: '⚙️',
     tags: ['milling', '5-axis', 'trunnion', 'simultaneous'],
+    spindleAxis: '-Z',
     axes: [
       { name: 'X', label: 'X', kind: 'Linear', side: 'tool',  channel: 1, min: -400, max: 400, accel: 4000, homeDir: -1 },
       { name: 'Y', label: 'Y', kind: 'Linear', side: 'tool',  channel: 1, min: -300, max: 300, accel: 4000, homeDir: -1 },
@@ -142,6 +149,7 @@ export const MACHINE_TEMPLATES: MachineTemplate[] = [
     description: 'Horizontal machining centre. Spindle horizontal, B rotary pallet.',
     icon: '↔️',
     tags: ['milling', '4-axis', 'horizontal', 'pallet'],
+    spindleAxis: '-Z',
     axes: [
       { name: 'X', label: 'X', kind: 'Linear', side: 'tool',  channel: 1, min: -500, max: 500, accel: 3500, homeDir: -1 },
       { name: 'Y', label: 'Y', kind: 'Linear', side: 'tool',  channel: 1, min: -400, max: 400, accel: 3500, homeDir: -1 },
@@ -157,6 +165,7 @@ export const MACHINE_TEMPLATES: MachineTemplate[] = [
     description: 'Turning centre. X cross-slide, Z carriage. Single channel.',
     icon: '🔩',
     tags: ['turning', '2-axis', 'lathe'],
+    spindleAxis: '-Z',
     axes: [
       { name: 'X', label: 'X', kind: 'Linear', side: 'tool', channel: 1, min: -150, max: 150, accel: 2000, homeDir: -1 },
       { name: 'Z', label: 'Z', kind: 'Linear', side: 'tool', channel: 1, min: -600, max:  50, accel: 2500, homeDir:  1 },
@@ -170,6 +179,7 @@ export const MACHINE_TEMPLATES: MachineTemplate[] = [
     description: 'Turning centre with Y-axis and C spindle for milling operations.',
     icon: '🌀',
     tags: ['turn-mill', '4-axis', 'lathe', 'live-tooling'],
+    spindleAxis: '-Z',
     axes: [
       { name: 'X', label: 'X', kind: 'Linear', side: 'tool',  channel: 1, min: -150, max: 150, accel: 2000, homeDir: -1 },
       { name: 'Y', label: 'Y', kind: 'Linear', side: 'tool',  channel: 1, min:  -60, max:  60, accel: 1500, homeDir: -1 },

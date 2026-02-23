@@ -1,6 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
+const FEED_OVERRIDE_STOPS = [0, 10, 20, 50, 75, 100, 200, 300, 500] as const;
+
+function nearestFeedOverrideStep(value: number): number {
+  let best = 0;
+  let bestDiff = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < FEED_OVERRIDE_STOPS.length; i += 1) {
+    const diff = Math.abs(Number(value) - FEED_OVERRIDE_STOPS[i]);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = i;
+    }
+  }
+  return best;
+}
+
 interface BottomControlBarProps {
   state: any;
   brain: any;
@@ -54,8 +69,13 @@ export default function BottomControlBar({
   const [feedHoldArmed, setFeedHoldArmed] = useState(false);
   const ch0 = state?.channels?.[0];
   const channels = state?.channels ?? [];
-  const isFeedHeld = channels.some((ch: any) => ch.is_running && ch.paused);
+  const feedHoldActive = !!state?.feed_hold;
+  const isFeedHeld = feedHoldActive || channels.some((ch: any) => ch.is_running && ch.paused);
   const hasRunning = channels.some((ch: any) => ch.is_running);
+  const axesMoving = (state?.axes ?? []).some(
+    (ax: any) => Math.abs(Number(ax?.position ?? 0) - Number(ax?.target ?? 0)) > 1e-3
+  );
+  const manualMotionActive = !!state?.is_homing || (!hasRunning && axesMoving);
   const motion = ch0?.current_motion;
   const cutterComp = ch0?.cutter_comp;
   const spindleMode = ch0?.spindle_mode ?? 5;
@@ -88,6 +108,7 @@ export default function BottomControlBar({
   const all3dOn = showScene3d && showMachineModel && showToolModel && showStockModel;
   const cycleRunning = hasRunning;
   const holdButtonActive = isFeedHeld || feedHoldArmed;
+  const feedOverrideStep = nearestFeedOverrideStep(feedOverride);
   const modalStates = [
     { label: motionLabel, tone: motion === 0 ? '#eab308' : '#22c55e' },
     { label: cutterLabel, tone: cutterComp === 40 ? '#64748b' : '#06b6d4' },
@@ -160,6 +181,7 @@ export default function BottomControlBar({
             onRewind();
             return;
           }
+          (brain as any)?.set_feed_hold?.(false);
           brain?.set_active_wcs(state.active_wcs ?? 0);
           codes.forEach((c, i) => brain?.load_program(i, c));
           for (let i = 0; i < channelCount; i++) {
@@ -180,9 +202,13 @@ export default function BottomControlBar({
         onClick={() => {
           if (state.estop) return;
           if (hasRunning) {
+            (brain as any)?.set_feed_hold?.(false);
             channels.forEach((ch: any, i: number) => {
               if (ch.is_running) brain?.toggle_pause(i);
             });
+            setFeedHoldArmed(false);
+          } else if (manualMotionActive || feedHoldActive) {
+            (brain as any)?.set_feed_hold?.(!feedHoldActive);
             setFeedHoldArmed(false);
           } else {
             setFeedHoldArmed((v) => !v);
@@ -226,11 +252,12 @@ export default function BottomControlBar({
         <input
           type="range"
           min={0}
-          max={100}
+          max={FEED_OVERRIDE_STOPS.length - 1}
           step={1}
-          value={feedOverride}
+          value={feedOverrideStep}
           onChange={(e) => {
-            const v = Number(e.target.value);
+            const stepIdx = Number(e.target.value);
+            const v = FEED_OVERRIDE_STOPS[Math.max(0, Math.min(FEED_OVERRIDE_STOPS.length - 1, stepIdx))];
             onFeedOverrideChange(v);
             for (let i = 0; i < channelCount; i++) {
               (brain as any)?.set_feed_override?.(i, v / 100);

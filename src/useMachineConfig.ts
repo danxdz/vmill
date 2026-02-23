@@ -10,7 +10,7 @@ import {
   DEFAULT_SPINDLE_CAP_DIAMETER,
   DEFAULT_SPINDLE_CAP_LENGTH,
 } from './machineTemplates';
-import type { MachineConfig, MachineTemplate, AxisConfig } from './machineTemplates';
+import type { MachineConfig, MachineTemplate, AxisConfig, SpindleAxis } from './machineTemplates';
 
 const STORAGE_KEY = 'vmill_machines';
 const ACTIVE_KEY  = 'vmill_active_machine';
@@ -25,6 +25,7 @@ type TemplateSpindleDefaults = Pick<
   | 'spindleCapDiameter'
   | 'spindleCapLength'
   | 'spindleUp'
+  | 'spindleAxis'
   | 'spindleOffsetX'
   | 'spindleOffsetY'
   | 'spindleOffsetZ'
@@ -43,7 +44,19 @@ function toFinite(v: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function normalizeSpindleAxis(v: unknown, fallback: SpindleAxis): SpindleAxis {
+  const raw = String(v ?? '').toUpperCase();
+  if (raw === '+X' || raw === '-X' || raw === '+Y' || raw === '-Y' || raw === '+Z' || raw === '-Z') {
+    return raw as SpindleAxis;
+  }
+  return fallback;
+}
+
 function normalizeMachine(m: MachineConfig): MachineConfig {
+  const spindleAxis = normalizeSpindleAxis(
+    (m as any).spindleAxis,
+    (typeof m.spindleUp === 'boolean' ? (m.spindleUp ? '-Z' : '+Z') : '-Z')
+  );
   return {
     ...m,
     spindleDiameter: clampSpindleValue(m.spindleDiameter, DEFAULT_SPINDLE_DIAMETER),
@@ -53,6 +66,7 @@ function normalizeMachine(m: MachineConfig): MachineConfig {
     spindleCapDiameter: clampSpindleValue(m.spindleCapDiameter, DEFAULT_SPINDLE_CAP_DIAMETER),
     spindleCapLength: clampSpindleValue(m.spindleCapLength, DEFAULT_SPINDLE_CAP_LENGTH),
     spindleUp: typeof m.spindleUp === 'boolean' ? m.spindleUp : true,
+    spindleAxis,
     spindleOffsetX: toFinite(m.spindleOffsetX, 0),
     spindleOffsetY: toFinite(m.spindleOffsetY, 0),
     spindleOffsetZ: toFinite(m.spindleOffsetZ, 0),
@@ -161,6 +175,7 @@ export function useMachineConfig(): UseMachineConfig {
         spindleCapDiameter: clampSpindleValue(vmc3.spindleCapDiameter, DEFAULT_SPINDLE_CAP_DIAMETER),
         spindleCapLength: clampSpindleValue(vmc3.spindleCapLength, DEFAULT_SPINDLE_CAP_LENGTH),
         spindleUp: vmc3.spindleUp ?? true,
+        spindleAxis: normalizeSpindleAxis(vmc3.spindleAxis, vmc3.spindleUp === false ? '+Z' : '-Z'),
         spindleOffsetX: toFinite(vmc3.spindleOffsetX, 0),
         spindleOffsetY: toFinite(vmc3.spindleOffsetY, 0),
         spindleOffsetZ: toFinite(vmc3.spindleOffsetZ, 0),
@@ -208,6 +223,7 @@ export function useMachineConfig(): UseMachineConfig {
       spindleCapDiameter: clampSpindleValue(template.spindleCapDiameter, DEFAULT_SPINDLE_CAP_DIAMETER),
       spindleCapLength: clampSpindleValue(template.spindleCapLength, DEFAULT_SPINDLE_CAP_LENGTH),
       spindleUp: template.spindleUp ?? true,
+      spindleAxis: normalizeSpindleAxis(template.spindleAxis, template.spindleUp === false ? '+Z' : '-Z'),
       spindleOffsetX: toFinite(template.spindleOffsetX, 0),
       spindleOffsetY: toFinite(template.spindleOffsetY, 0),
       spindleOffsetZ: toFinite(template.spindleOffsetZ, 0),
@@ -235,6 +251,7 @@ export function useMachineConfig(): UseMachineConfig {
       spindleCapDiameter: DEFAULT_SPINDLE_CAP_DIAMETER,
       spindleCapLength: DEFAULT_SPINDLE_CAP_LENGTH,
       spindleUp: true,
+      spindleAxis: '-Z',
       spindleOffsetX: 0,
       spindleOffsetY: 0,
       spindleOffsetZ: 0,
@@ -349,6 +366,7 @@ export function useMachineConfig(): UseMachineConfig {
       spindleCapDiameter: machine.spindleCapDiameter,
       spindleCapLength: machine.spindleCapLength,
       spindleUp: machine.spindleUp,
+      spindleAxis: machine.spindleAxis,
       spindleOffsetX: machine.spindleOffsetX,
       spindleOffsetY: machine.spindleOffsetY,
       spindleOffsetZ: machine.spindleOffsetZ,

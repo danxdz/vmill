@@ -6,7 +6,6 @@ import type { SidebarModuleDefinition, SidebarModuleRuntime } from './moduleType
 interface ModuleHostProps {
   modules: SidebarModuleDefinition[];
   runtime: SidebarModuleRuntime;
-  fps?: number;
 }
 
 const LAYOUT_KEY = 'vmill_sidebar_layout_v1';
@@ -52,7 +51,7 @@ function normalizeOrder(order: string[], validIds: string[]): string[] {
   return result;
 }
 
-export default function ModuleHost({ modules, runtime, fps = 0 }: ModuleHostProps) {
+export default function ModuleHost({ modules, runtime }: ModuleHostProps) {
   const enabledModules = useMemo(
     () => [...modules].filter((m) => m.enabled !== false).sort((a, b) => a.order - b.order),
     [modules]
@@ -130,39 +129,21 @@ export default function ModuleHost({ modules, runtime, fps = 0 }: ModuleHostProp
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div
-          style={{
-            padding: '2px 8px',
-            borderRadius: 4,
-            border: '1px solid #2a395a',
-            background: '#10192a',
-            color: '#9fb0cf',
-            fontSize: 11,
-            lineHeight: '16px',
-            minWidth: 56,
-            textAlign: 'center',
-          }}
-          title="Renderer FPS"
-        >
-          FPS {fps}
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+          <button style={topBtn} onClick={() => setAllCollapsed(false)} title="Expand all modules">
+            Max All
+          </button>
+          <button style={topBtn} onClick={() => setAllCollapsed(true)} title="Collapse all modules">
+            Min All
+          </button>
         </div>
         <button
-          style={{
-            width: 26,
-            height: 22,
-            borderRadius: 4,
-            border: '1px solid #2a395a',
-            background: '#10192a',
-            color: '#7b8cad',
-            cursor: 'pointer',
-            fontSize: 13,
-            padding: 0,
-          }}
+          style={hamburgerBtn}
           title="Modules menu"
           onClick={() => setMenuOpen((v) => !v)}
         >
-          ≡
+          {'\u2261'}
         </button>
         {menuOpen && (
           <div
@@ -189,14 +170,6 @@ export default function ModuleHost({ modules, runtime, fps = 0 }: ModuleHostProp
                 Hide All
               </button>
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button style={menuBtn} onClick={() => setAllCollapsed(false)}>
-                Expand
-              </button>
-              <button style={menuBtn} onClick={() => setAllCollapsed(true)}>
-                Min
-              </button>
-            </div>
             {sortedModules.map((mod, idx) => (
               <div key={mod.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, alignItems: 'center' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#9fb0cf' }}>
@@ -215,7 +188,7 @@ export default function ModuleHost({ modules, runtime, fps = 0 }: ModuleHostProp
                     onClick={() => moveModule(mod.id, -1)}
                     title="Move up"
                   >
-                    ↑
+                    {'\u2191'}
                   </button>
                   <button
                     style={miniBtn}
@@ -227,7 +200,7 @@ export default function ModuleHost({ modules, runtime, fps = 0 }: ModuleHostProp
                     onClick={() => moveModule(mod.id, 1)}
                     title="Move down"
                   >
-                    ↓
+                    {'\u2193'}
                   </button>
                 </div>
               </div>
@@ -262,6 +235,30 @@ const menuBtn: CSSProperties = {
   fontSize: 10,
   cursor: 'pointer',
   padding: '3px 4px',
+};
+
+const topBtn: CSSProperties = {
+  flex: 1,
+  border: '1px solid #2a395a',
+  background: '#13203a',
+  color: '#9fb0cf',
+  borderRadius: 4,
+  fontSize: 10,
+  cursor: 'pointer',
+  padding: '4px 6px',
+  fontWeight: 700,
+};
+
+const hamburgerBtn: CSSProperties = {
+  width: 26,
+  height: 22,
+  borderRadius: 4,
+  border: '1px solid #2a395a',
+  background: '#10192a',
+  color: '#7b8cad',
+  cursor: 'pointer',
+  fontSize: 13,
+  padding: 0,
 };
 
 const miniBtn: CSSProperties = {

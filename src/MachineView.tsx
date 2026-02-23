@@ -25,7 +25,7 @@ const DEFAULT_TOOL_LENGTH = 28;
 const STOCK_BOOLEAN_MIN_SEG_LEN = 0.12;
 const STOCK_BOOLEAN_INTERVAL_MS = 12;
 const STOCK_COLLISION_INTERVAL_MS = 36;
-const STOCK_BOOLEAN_CUTTER_SIDES = 28;
+const STOCK_BOOLEAN_CUTTER_SIDES_DEFAULT = 6;
 const DEFAULT_TOOL_VISUAL = {
   l1: 12,
   d1: 8,
@@ -98,6 +98,7 @@ interface StockConfig {
   shape: 'box';
   size: { x: number; y: number; z: number };
   position: { x: number; y: number; z: number };
+  mount?: 'table' | 'spindle';
   color: string;
   opacity: number;
 }
@@ -128,6 +129,7 @@ interface SceneSetupConfig {
   stockGhostOpacity: number;
   showStockCutterDebug: boolean;
   stockCutterDebugOpacity: number;
+  stockCutterSides: number;
   gridSize: number;
   gridDivisions: number;
   gridOpacity: number;
@@ -179,6 +181,7 @@ const DEFAULT_SCENE_CONFIG: SceneSetupConfig = {
   stockGhostOpacity: 0.5,
   showStockCutterDebug: false,
   stockCutterDebugOpacity: 0.35,
+  stockCutterSides: STOCK_BOOLEAN_CUTTER_SIDES_DEFAULT,
   gridSize: 1000,
   gridDivisions: 50,
   gridOpacity: 0.1,
@@ -560,6 +563,18 @@ function buildWorkpiece(stockConfig: StockConfig): THREE.Group {
   return g;
 }
 
+function spindleAxisMachineToScene(axis: '+X' | '-X' | '+Y' | '-Y' | '+Z' | '-Z'): THREE.Vector3 {
+  switch (axis) {
+    case '+X': return new THREE.Vector3(1, 0, 0);
+    case '-X': return new THREE.Vector3(-1, 0, 0);
+    case '+Y': return new THREE.Vector3(0, 0, -1);
+    case '-Y': return new THREE.Vector3(0, 0, 1);
+    case '+Z': return new THREE.Vector3(0, 1, 0);
+    case '-Z': return new THREE.Vector3(0, -1, 0);
+    default: return new THREE.Vector3(0, -1, 0);
+  }
+}
+
 type ManifoldApi = {
   setup: () => void;
   Manifold: any;
@@ -680,7 +695,8 @@ function buildAxisCylinderManifold(
   center: THREE.Vector3,
   axisDir: THREE.Vector3,
   length: number,
-  radius: number
+  radius: number,
+  sides: number
 ): any | null {
   const len = Number(length ?? 0);
   if (!Number.isFinite(len) || len < STOCK_BOOLEAN_MIN_SEG_LEN) return null;
@@ -688,7 +704,8 @@ function buildAxisCylinderManifold(
   if (dir.lengthSq() < 1e-10) return null;
   dir.normalize();
   const r = Math.max(0.1, Number(radius || 0.1));
-  const cyl = api.Manifold.cylinder(len, r, r, STOCK_BOOLEAN_CUTTER_SIDES, true);
+  const sideCount = Math.max(3, Math.min(64, Math.round(Number(sides) || STOCK_BOOLEAN_CUTTER_SIDES_DEFAULT)));
+  const cyl = api.Manifold.cylinder(len, r, r, sideCount, true);
   const baseAxis = getManifoldCylinderAxis(api);
   const q = new THREE.Quaternion().setFromUnitVectors(baseAxis, dir);
   const m = new THREE.Matrix4().compose(center, q, new THREE.Vector3(1, 1, 1));
@@ -702,6 +719,7 @@ function buildSegmentCutterManifold(
   a: THREE.Vector3,
   b: THREE.Vector3,
   toolAxis: THREE.Vector3,
+  sides: number,
   fallbackRadius: number,
   profile?: ToolVisualProfile,
   cutLenOverride?: number,
@@ -790,7 +808,7 @@ function buildSegmentCutterManifold(
     const length = Math.max(STOCK_BOOLEAN_MIN_SEG_LEN, tMax - tMin);
     const ortho = a.clone().sub(axis.clone().multiplyScalar(a.dot(axis)));
     const center = ortho.add(axis.clone().multiplyScalar((tMin + tMax) * 0.5));
-    return buildAxisCylinderManifold(api, center, axis, length, cutRadius);
+    return buildAxisCylinderManifold(api, center, axis, length, cutRadius, sides);
   }
 
   // General linear move:
@@ -802,7 +820,7 @@ function buildSegmentCutterManifold(
     const t = i / steps;
     const p = a.clone().lerp(b, t);
     const c = p.clone().addScaledVector(axis, cutterCenterOffset);
-    const seg = buildAxisCylinderManifold(api, c, axis, cutterLen, cutRadius);
+    const seg = buildAxisCylinderManifold(api, c, axis, cutterLen, cutRadius, sides);
     if (!seg) continue;
     if (!out) {
       out = seg;
@@ -1054,6 +1072,7 @@ interface MachineViewProps {
   spindleCapDiameter?: number;
   spindleCapLength?: number;
   spindleUp?: boolean;
+  spindleAxis?: '+X' | '-X' | '+Y' | '-Y' | '+Z' | '-Z';
   spindleOffsetX?: number;
   spindleOffsetY?: number;
   spindleOffsetZ?: number;
@@ -1126,13 +1145,14 @@ export default function MachineView({
   spindleCapDiameter = DEFAULT_SPINDLE_CAP_DIAMETER,
   spindleCapLength = DEFAULT_SPINDLE_CAP_LENGTH,
   spindleUp = true,
+  spindleAxis,
   spindleOffsetX = 0,
   spindleOffsetY = 0,
   spindleOffsetZ = 0,
   spindleRotX = 0,
   spindleRotY = 0,
   spindleRotZ = 0,
-  stockConfig = { shape: 'box', size: { x: 40, y: 40, z: 40 }, position: { x: 0, y: 0, z: 20 }, color: '#3b82f6', opacity: 0.92 },
+  stockConfig = { shape: 'box', size: { x: 40, y: 40, z: 40 }, position: { x: 0, y: 0, z: 20 }, mount: 'table', color: '#3b82f6', opacity: 0.92 },
   showScene3d = true,
   showMachineModel = true,
   showToolModel = true,
@@ -1349,12 +1369,11 @@ export default function MachineView({
     const qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), rx);
     const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, -1), ry);
     const qz = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rz);
+    const axisMode = (spindleAxis ?? (spindleUp ? '-Z' : '+Z'));
+    const axisTargetScene = spindleAxisMachineToScene(axisMode);
+    const qAxis = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), axisTargetScene.normalize());
     spindle.quaternion.identity();
-    spindle.quaternion.multiply(qx).multiply(qy).multiply(qz);
-    if (!spindleUp) {
-      // Flip local spindle axis so machine -Z is used as "up" reference.
-      spindle.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI));
-    }
+    spindle.quaternion.multiply(qx).multiply(qy).multiply(qz).multiply(qAxis);
     ch1Z.add(spindle);
     ch1Y.add(ch1Z);
     ch1X.add(ch1Y);
@@ -1623,9 +1642,11 @@ export default function MachineView({
     const stockCollisionDebugGroup = new THREE.Group();
     stockCollisionDebugGroup.userData.pickIgnore = true;
     stockCollisionDebugGroup.renderOrder = 1210;
-    ch2Rot.add(workpiece);
-    ch2Rot.add(stockCutterDebugGroup);
-    ch2Rot.add(stockCollisionDebugGroup);
+    const stockMountMode = stockConfig.mount === 'spindle' ? 'spindle' : 'table';
+    const stockMountParent = stockMountMode === 'spindle' ? spindle : ch2Rot;
+    stockMountParent.add(workpiece);
+    stockMountParent.add(stockCutterDebugGroup);
+    stockMountParent.add(stockCollisionDebugGroup);
     ch2Z3.add(ch2Rot);
     ch2Z3.position.set(0, 8, 0);
     ch2Z.add(ch2Z3);
@@ -1638,10 +1659,11 @@ export default function MachineView({
     const machineModelVisible = !!showScene3d && !!showMachineModel;
     const toolModelVisible = !!showScene3d && !!showToolModel;
     const stockModelVisible = !!showScene3d && !!showStockModel;
+    const stockMountedToSpindle = stockConfig.mount === 'spindle';
     machineStaticGroup.visible = machineModelVisible;
     machineMotionGroup.visible = machineModelVisible || stockModelVisible;
     if (stockMesh) stockMesh.visible = stockModelVisible;
-    ch1X.visible = toolModelVisible;
+    ch1X.visible = toolModelVisible || stockMountedToSpindle;
 
     const path1 = mkPath(scene, 0x22d3ee, { opacity: 0.68 }); // tool control point feed
     const path1Rapid = mkPath(scene, 0x67e8f9, { dashed: true, opacity: 0.52 }); // tool control point rapid
@@ -1828,6 +1850,8 @@ export default function MachineView({
         collisionLatched: false,
         initToken: `${Date.now()}_${Math.random()}`,
       },
+      wcsFollowLocal: null as THREE.Vector3 | null,
+      wcsFollowOffsetSig: '',
     };
     sceneRef.current.setStepPreview?.(stepPreviewEventRef.current);
     if (sceneRef.current.stockBoolean?.enabled && sceneRef.current.stockMesh) {
@@ -1893,6 +1917,7 @@ export default function MachineView({
     spindleCapDiameter,
     spindleCapLength,
     spindleUp,
+    spindleAxis,
     spindleOffsetX,
     spindleOffsetY,
     spindleOffsetZ,
@@ -2106,6 +2131,21 @@ export default function MachineView({
       return configAx?.invert ? -raw : raw;
     };
 
+    // Resolve rotary motion by logical kinematic link (A/B/C), so custom
+    // rotary axis names can still drive table rotations.
+    const getLinkedRotaryDisplay = (logical: 'A' | 'B' | 'C'): number => {
+      const linked = (configAxes ?? []).find((ca: any) => {
+        const kind = String(ca?.kind ?? '').toLowerCase();
+        const side = String(ca?.side ?? '').toLowerCase();
+        const name = String(ca?.physical_name ?? ca?.name ?? '').toUpperCase();
+        const link = String(ca?.linkAxis ?? '').toUpperCase();
+        return kind === 'rotary' && side === 'table' && (name === logical || link === logical);
+      });
+      if (!linked) return getRotaryDisplay(logical);
+      const axisName = String(linked?.physical_name ?? linked?.name ?? logical);
+      return getRotaryDisplay(axisName);
+    };
+
     const getOffsetByName = (axisName: string): number => {
       const ax = state.axes.find((a: any) => a.physical_name === axisName);
       if (!ax) return 0;
@@ -2157,10 +2197,20 @@ export default function MachineView({
     else if (r.ch2Z3) r.ch2Z3.position.z = yScene;
     if (getAxisSide('Z') === 'tool') r.ch1Z.position.y = zScene;
     else if (r.ch2Z) r.ch2Z.position.y = -zScene;
+    // Channel 2 table transforms must be applied before stock boolean math.
+    if (getAxisSide('Z3') === 'table' && r.ch2Z3) {
+      r.ch2Z3.position.z += -toSceneMotion('Z3', getAxisMachine('Z3'));
+    }
+    if (r.ch2Rot) {
+      r.ch2Rot.rotation.x = THREE.MathUtils.degToRad(getLinkedRotaryDisplay('A'));
+      r.ch2Rot.rotation.y = THREE.MathUtils.degToRad(getLinkedRotaryDisplay('B'));
+      r.ch2Rot.rotation.z = THREE.MathUtils.degToRad(getLinkedRotaryDisplay('C'));
+    }
 
     const machineModelVisible = !!showScene3d && !!showMachineModel;
     const toolModelVisible = !!showScene3d && !!showToolModel;
     const stockModelVisible = !!showScene3d && !!showStockModel;
+    const stockMountedToSpindle = stockConfig.mount === 'spindle';
     const stockCutterDebugVisible = stockModelVisible && !!sceneConfig.showStockCutterDebug;
     if (r.machineStaticGroup) r.machineStaticGroup.visible = machineModelVisible;
     if (r.machineMotionGroup) r.machineMotionGroup.visible = machineModelVisible || stockModelVisible;
@@ -2190,7 +2240,7 @@ export default function MachineView({
       }
     }
     const hasLoadedTool = Math.max(0, Number(ch0?.active_tool ?? 0)) > 0;
-    r.ch1X.visible = !!showScene3d && (machineModelVisible || toolModelVisible);
+    r.ch1X.visible = !!showScene3d && (machineModelVisible || toolModelVisible || (stockModelVisible && stockMountedToSpindle));
     if (r.spindleBodyGroup) r.spindleBodyGroup.visible = machineModelVisible;
     if (r.spindleToolingGroup) r.spindleToolingGroup.visible = toolModelVisible && hasLoadedTool;
     if (r.path1?.line) r.path1.line.visible = !!livePreviewEnabled;
@@ -2426,6 +2476,11 @@ export default function MachineView({
             }
           }
           let collisionTripped = false;
+          const stockCutterSides = THREE.MathUtils.clamp(
+            Math.round(Number(sceneConfig.stockCutterSides ?? STOCK_BOOLEAN_CUTTER_SIDES_DEFAULT)),
+            3,
+            64
+          );
           if (
             sb.api
             && sb.solid
@@ -2450,6 +2505,7 @@ export default function MachineView({
                 colStart,
                 colEnd,
                 axisLocal,
+                stockCutterSides,
                 Math.max(0.2, nonCutRadius),
                 toolVisualProfile,
                 nonCutLen > 0 ? nonCutLen : undefined,
@@ -2519,6 +2575,7 @@ export default function MachineView({
             start,
             end,
             axisLocal,
+            stockCutterSides,
             cutRadius,
             toolVisualProfile,
             visualCutLen > 0 ? visualCutLen : undefined,
@@ -2630,10 +2687,33 @@ export default function MachineView({
       const wx = toSceneLinear('X', getOffsetByName('X'));
       const wy = toSceneLinear('Y', getOffsetByName('Y'));
       const wz = toSceneLinear('Z', getOffsetByName('Z'));
-      r.activeWcsMarker.position.set(wx, wz, -wy);
+      const wcsWorld = new THREE.Vector3(wx, wz, -wy);
+      const stockFollowParent: THREE.Object3D | null =
+        stockConfig.mount === 'spindle'
+          ? (r.spindle ?? null)
+          : (r.ch2Rot ?? null);
+      const wcsSig = [
+        String(stockConfig.mount ?? 'table'),
+        Number(wx).toFixed(6),
+        Number(wy).toFixed(6),
+        Number(wz).toFixed(6),
+        Number(state.active_wcs ?? 0),
+      ].join('|');
+      if (stockFollowParent) {
+        if (!r.wcsFollowLocal || r.wcsFollowOffsetSig !== wcsSig) {
+          r.wcsFollowLocal = stockFollowParent.worldToLocal(wcsWorld.clone());
+          r.wcsFollowOffsetSig = wcsSig;
+        }
+        wcsWorld.copy(stockFollowParent.localToWorld(r.wcsFollowLocal.clone()));
+      } else {
+        r.wcsFollowLocal = null;
+        r.wcsFollowOffsetSig = '';
+      }
+
+      r.activeWcsMarker.position.copy(wcsWorld);
       r.activeWcsMarker.visible = wcsReferenceVisual === 'dot';
       if (r.activeWcsGizmo?.group) {
-        r.activeWcsGizmo.group.position.set(wx, wz, -wy);
+        r.activeWcsGizmo.group.position.copy(wcsWorld);
         r.activeWcsGizmo.group.visible = wcsReferenceVisual === 'gizmo';
       }
     }
@@ -2685,20 +2765,6 @@ export default function MachineView({
       r.applyStepPreviewVisualState?.();
       lastToolVisualProfileRef.current = toolVisualProfile;
       lastToolVisualRuntimeRef.current = { toolRadius: rawToolRadius, toolLength: rawToolLength };
-    }
-
-    // Channel 2 — table
-    if (getAxisSide('Z3') === 'table' && r.ch2Z3) {
-      r.ch2Z3.position.z += -toSceneMotion('Z3', getAxisMachine('Z3'));
-    }
-    if (getAxisSide('B') === 'table' && r.ch2Rot) {
-      r.ch2Rot.rotation.y = THREE.MathUtils.degToRad(getRotaryDisplay('B'));
-    }
-    if (getAxisSide('A') === 'table' && r.ch2Rot) {
-      r.ch2Rot.rotation.x = THREE.MathUtils.degToRad(getRotaryDisplay('A'));
-    }
-    if (getAxisSide('C') === 'table' && r.ch2Rot) {
-      r.ch2Rot.rotation.z = THREE.MathUtils.degToRad(getRotaryDisplay('C'));
     }
 
     const sceneSig = [

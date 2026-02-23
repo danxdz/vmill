@@ -8,9 +8,11 @@ type SceneNumKey =
   | 'fillIntensity'
   | 'floorIntensity'
   | 'stockCutterDebugOpacity'
+  | 'stockCutterSides'
   | 'gridOpacity'
   | 'gizmoScale'
-  | 'uiScale';
+  | 'uiScale'
+  | 'rightPanelWidth';
 
 function parseNum(raw: string): number | null {
   const v = Number.parseFloat(raw.replace(',', '.'));
@@ -20,9 +22,11 @@ function parseNum(raw: string): number | null {
 function clampValue(key: SceneNumKey, value: number): number {
   switch (key) {
     case 'stockCutterDebugOpacity': return Math.max(0, Math.min(1, value));
+    case 'stockCutterSides': return Math.max(3, Math.min(64, Math.round(value)));
     case 'gridOpacity': return Math.max(0, Math.min(1, value));
     case 'gizmoScale': return Math.max(0.25, Math.min(4, value));
     case 'uiScale': return Math.max(0.5, Math.min(2, value));
+    case 'rightPanelWidth': return Math.max(240, Math.min(560, value));
     default: return value;
   }
 }
@@ -41,6 +45,7 @@ function SliderField({
   step,
   onChange,
   displayValue,
+  disabled = false,
 }: {
   label: string;
   value: number;
@@ -49,6 +54,7 @@ function SliderField({
   step?: number;
   onChange: (v: number) => void;
   displayValue?: string;
+  disabled?: boolean;
 }) {
   const shown = displayValue ?? String(Number.isFinite(value) ? value : 0);
   return (
@@ -63,6 +69,7 @@ function SliderField({
           value={Number.isFinite(value) ? value : 0}
           onChange={(e) => onChange(Number.parseFloat(e.target.value) || 0)}
           style={s.slider}
+          disabled={disabled}
         />
         <input
           type="number"
@@ -76,6 +83,7 @@ function SliderField({
             onChange(n);
           }}
           style={s.input}
+          disabled={disabled}
         />
       </div>
     </label>
@@ -276,6 +284,17 @@ export default function ViewPanel({ runtime }: SidebarModuleProps) {
       </div>
 
       <div style={s.grid2}>
+        <button
+          style={{ ...s.btn, ...(cfg.rightPanelAutoFit ? s.btnOn : {}) }}
+          onClick={() => patchScene({ rightPanelAutoFit: !cfg.rightPanelAutoFit })}
+          title="Auto-fit right panel width to screen size"
+        >
+          PANEL AUTO {cfg.rightPanelAutoFit ? 'ON' : 'OFF'}
+        </button>
+        <div />
+      </div>
+
+      <div style={s.grid2}>
         <SliderField
           label="Ambient"
           value={Number(cfg.ambientIntensity ?? 0)}
@@ -318,6 +337,14 @@ export default function ViewPanel({ runtime }: SidebarModuleProps) {
           onChange={(v) => setNum('stockCutterDebugOpacity', v / 100)}
         />
         <SliderField
+          label="Cutter Faces"
+          value={Math.round(Number(cfg.stockCutterSides ?? 6))}
+          min={3}
+          max={64}
+          step={1}
+          onChange={(v) => setNum('stockCutterSides', v)}
+        />
+        <SliderField
           label="Grid Opacity"
           value={Math.round(Number(cfg.gridOpacity ?? 0) * 100)}
           min={0}
@@ -341,6 +368,16 @@ export default function ViewPanel({ runtime }: SidebarModuleProps) {
           max={2}
           step={0.01}
           onChange={(v) => setNum('uiScale', v)}
+        />
+        <SliderField
+          label="Panel Width"
+          value={Number(cfg.rightPanelWidth ?? 380)}
+          min={240}
+          max={560}
+          step={1}
+          displayValue={`${Math.round(Number(cfg.rightPanelWidth ?? 380))}px`}
+          onChange={(v) => setNum('rightPanelWidth', v)}
+          disabled={!!cfg.rightPanelAutoFit}
         />
       </div>
     </>

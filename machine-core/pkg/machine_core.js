@@ -189,6 +189,12 @@ export class MachineBrain {
         wasm.machinebrain_set_estop(this.__wbg_ptr, s);
     }
     /**
+     * @param {boolean} hold
+     */
+    set_feed_hold(hold) {
+        wasm.machinebrain_set_feed_hold(this.__wbg_ptr, hold);
+    }
+    /**
      * @param {number} channel_index
      * @param {number} ratio
      */

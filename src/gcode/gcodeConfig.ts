@@ -127,6 +127,70 @@ M5
 G49 T0
 M30`,
   },
+  {
+    label: '4X Indexing (B-axis)',
+    code: `G17 G90 G54 G40 G49 G80
+T1 M6
+S2200 M3
+M8
+G43 H1
+G0 Z120
+
+G0 B0
+G0 X-20 Y0
+G1 Z-5 F250
+G1 X20 F700
+G0 Z120
+
+G0 B90
+G0 X-20 Y0
+G1 Z-5 F250
+G1 X20 F700
+G0 Z120
+
+G0 B180
+G0 X-20 Y0
+G1 Z-5 F250
+G1 X20 F700
+G0 Z120
+
+M9
+M5
+G49 T0
+M30`,
+  },
+  {
+    label: '5X Positional (A/C)',
+    code: `G17 G90 G54 G40 G49 G80
+T1 M6
+S2400 M3
+M8
+G43 H1
+G0 Z140
+
+G0 A0 C0
+G0 X0 Y0
+G1 Z-4 F220
+G1 X30 F600
+G0 Z140
+
+G0 A25 C45
+G0 X0 Y0
+G1 Z-4 F220
+G1 X30 F600
+G0 Z140
+
+G0 A-25 C-45
+G0 X0 Y0
+G1 Z-4 F220
+G1 X30 F600
+G0 Z140
+
+M9
+M5
+G49 T0
+M30`,
+  },
 ];
 
 export const DEFAULT_GCODE_BY_CHANNEL: string[] = [

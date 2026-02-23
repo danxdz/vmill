@@ -514,6 +514,7 @@ pub struct MachineState {
     pub axes: Vec<Axis>,
     pub channels: Vec<ChannelStatus>,
     pub estop: bool,
+    pub feed_hold: bool,
     pub active_wcs: usize,
     pub work_offsets: Vec<WorkOffset>,
     pub is_homing: bool,
@@ -524,6 +525,7 @@ pub struct MachineBrain {
     axes: Vec<Axis>,
     channels: Vec<Channel>,
     estop: bool,
+    feed_hold: bool,
     work_offsets: Vec<WorkOffset>,
     active_wcs: usize,
     is_homing: bool,
@@ -651,6 +653,7 @@ impl MachineBrain {
             axes: Vec::new(),
             channels: Vec::new(),
             estop: false,
+            feed_hold: false,
             active_wcs: 0,
             is_homing: false,
             work_offsets: default_work_offsets(),
@@ -664,6 +667,7 @@ impl MachineBrain {
     pub fn clear_config(&mut self) {
         self.axes.clear();
         self.channels.clear();
+        self.feed_hold = false;
         self.work_offsets = default_work_offsets();
         self.active_wcs = 0;
         self.is_homing = false;
@@ -773,6 +777,7 @@ impl MachineBrain {
 
     pub fn load_program(&mut self, channel_index: usize, code: String) {
         if let Some(chan) = self.channels.get_mut(channel_index) {
+            self.feed_hold = false;
             chan.program = code.lines().map(|l| l.trim().to_uppercase()).collect();
             chan.pc = 0;
             chan.active_pc = -1;
@@ -809,7 +814,16 @@ impl MachineBrain {
 
     pub fn set_feed_override(&mut self, channel_index: usize, ratio: f64) {
         if let Some(chan) = self.channels.get_mut(channel_index) {
-            chan.feed_override = ratio.clamp(0.0, 2.0);
+            chan.feed_override = ratio.clamp(0.0, 5.0);
+        }
+    }
+
+    pub fn set_feed_hold(&mut self, hold: bool) {
+        self.feed_hold = hold;
+        if hold {
+            for ax in self.axes.iter_mut() {
+                ax.velocity = 0.0;
+            }
         }
     }
 
@@ -1055,17 +1069,19 @@ impl MachineBrain {
 
     pub fn jog_axis_feed(&mut self, axis_id: u32, delta: f64, feed: f64) {
         if self.estop { return; }
+        let f = feed.max(1.0);
         if let Some(ax) = self.axes.get_mut(axis_id as usize) {
             let next = ax.target + delta;
             ax.target = match ax.axis_type {
                 AxisType::Rotary => normalize_rotary_target(next),
                 AxisType::Linear => next.clamp(ax.min_range, ax.max_range),
             };
-            ax.velocity = ax.velocity.min(feed.max(1.0));
+            // Apply commanded jog feed immediately from panel.
+            ax.velocity = f;
         }
-        let f = feed.max(1.0);
         for chan in self.channels.iter_mut() {
             if chan.axis_map.iter().any(|m| m.axis_id == axis_id) && !chan.is_running {
+                chan.current_motion = 1;
                 chan.feed_rate = f;
             }
         }
@@ -1079,7 +1095,7 @@ impl MachineBrain {
             .unwrap_or(RAPID_LINEAR_MAX_MM_MIN);
         self.jog_axis_feed(axis_id, delta, rapid_feed);
         if let Some(ax) = self.axes.get_mut(axis_id as usize) {
-            ax.velocity = ax.velocity.max(rapid_feed);
+            ax.velocity = rapid_feed;
         }
         for chan in self.channels.iter_mut() {
             if chan.axis_map.iter().any(|m| m.axis_id == axis_id) && !chan.is_running {
@@ -1120,6 +1136,7 @@ impl MachineBrain {
     pub fn set_estop(&mut self, s: bool) {
         self.estop = s;
         if s {
+            self.feed_hold = false;
             for chan in self.channels.iter_mut() {
                 chan.is_running = false;
                 chan.paused = false;
@@ -1139,6 +1156,12 @@ impl MachineBrain {
 
     pub fn tick(&mut self, dt_ms: f64) {
     if self.estop || dt_ms <= 0.0 { return; }
+    if self.feed_hold {
+        for ax in self.axes.iter_mut() {
+            ax.velocity = 0.0;
+        }
+        return;
+    }
     let dt_sec = dt_ms / 1000.0;
 
     // ── Helper closure: trapezoidal move for one axis ──────────────────
@@ -1209,6 +1232,10 @@ impl MachineBrain {
             } else {
                 self.homing_feed.max(1.0)
             };
+            if ax.velocity < 1.0 {
+                // Avoid ultra-slow startup ramp; honor selected homing feed immediately.
+                ax.velocity = home_feed;
+            }
             let still_moving = move_axis(ax, home_feed, dt_sec, true);
             if !still_moving {
                 ax.homed = true;
@@ -2369,6 +2396,7 @@ fn parse_float_bytes(&self, bytes: &[u8]) -> (Option<f64>, usize) {
                 }).collect(),
             }).collect(),
             estop: self.estop,
+            feed_hold: self.feed_hold,
             active_wcs: self.active_wcs,
             work_offsets: self.work_offsets.clone(),
             is_homing: self.is_homing,

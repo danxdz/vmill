@@ -37,9 +37,12 @@ export interface SceneSetupConfig {
   stockGhostOpacity: number;
   showStockCutterDebug: boolean;
   stockCutterDebugOpacity: number;
+  stockCutterSides: number;
   gridSize: number;
   gridDivisions: number;
   gridOpacity: number;
+  rightPanelWidth: number;
+  rightPanelAutoFit: boolean;
   showSceneAxes: boolean;
   gridMajorColor: string;
   gridMinorColor: string;

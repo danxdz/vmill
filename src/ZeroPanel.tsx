@@ -9,6 +9,7 @@ interface ZeroPanelProps {
   state: any;
   brain: any;
   uiScale?: number;
+  panelWidth?: number | string;
   bottomInset?: number;
   showScene3d: boolean;
   showMachineModel: boolean;
@@ -18,7 +19,6 @@ interface ZeroPanelProps {
   wcsReferenceVisual: ReferenceVisualMode;
   mcsReferenceVisual: ReferenceVisualMode;
   spindlePointVisible: boolean;
-  fps: number;
   toolControlPointVisible: boolean;
   onWcsReferenceVisualChange: (mode: ReferenceVisualMode) => void;
   onMcsReferenceVisualChange: (mode: ReferenceVisualMode) => void;
@@ -40,6 +40,7 @@ export default function ZeroPanel({
   state,
   brain,
   uiScale = 1,
+  panelWidth = 380,
   bottomInset = 74,
   showScene3d,
   showMachineModel,
@@ -49,7 +50,6 @@ export default function ZeroPanel({
   wcsReferenceVisual,
   mcsReferenceVisual,
   spindlePointVisible,
-  fps,
   toolControlPointVisible,
   onWcsReferenceVisualChange,
   onMcsReferenceVisualChange,
@@ -239,9 +239,9 @@ export default function ZeroPanel({
   };
 
   return (
-    <aside style={{ ...s.panel, bottom: bottomInset }}>
+    <aside style={{ ...s.panel, width: panelWidth, bottom: bottomInset }}>
       <div style={{ ...s.content, zoom: uiScale }}>
-        <ModuleHost modules={sidebarModules} runtime={runtime} fps={fps} />
+        <ModuleHost modules={sidebarModules} runtime={runtime} />
       </div>
     </aside>
   );

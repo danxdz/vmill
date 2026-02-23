@@ -26,6 +26,7 @@ export const machinebrain_set_axis_invert: (a: number, b: number, c: number) => 
 export const machinebrain_set_axis_machine_zero: (a: number, b: number, c: number) => void;
 export const machinebrain_set_cutter_comp: (a: number, b: number, c: number) => void;
 export const machinebrain_set_estop: (a: number, b: number) => void;
+export const machinebrain_set_feed_hold: (a: number, b: number) => void;
 export const machinebrain_set_feed_override: (a: number, b: number, c: number) => void;
 export const machinebrain_set_single_block: (a: number, b: number, c: number) => void;
 export const machinebrain_set_tool_length: (a: number, b: number, c: number) => void;

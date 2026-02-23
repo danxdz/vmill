@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import type { ReactNode, CSSProperties, MouseEventHandler } from 'react';
 import * as THREE from 'three';
 import type { UseMachineConfig } from './useMachineConfig';
-import type { AxisConfig, AxisKind, AxisSide, MachineTemplate } from './machineTemplates';
+import type { AxisConfig, AxisKind, AxisSide, MachineTemplate, SpindleAxis } from './machineTemplates';
 
 interface StockConfig {
   shape: 'box';
   size: { x: number; y: number; z: number };
   position: { x: number; y: number; z: number };
+  mount?: 'table' | 'spindle';
   color: string;
   opacity: number;
 }
@@ -329,6 +330,25 @@ function AxisRow({ ax, machineId, cfg, isFirst, isLast, open, onToggle }: {
             <Select label="Home Dir" value={String(ax.homeDir) as any}
               onChange={v => up({ homeDir: parseInt(v) as -1 | 1 })}
               options={[{ value: '-1', label: '− Negative' }, { value: '1', label: '+ Positive' }]} />
+            {ax.kind === 'Rotary' && (
+              <Select
+                label="Link Rotary To"
+                value={(
+                  ax.linkAxis
+                  ?? (ax.name.toUpperCase() === 'A'
+                    ? 'A'
+                    : ax.name.toUpperCase() === 'B'
+                      ? 'B'
+                      : 'C')
+                ) as any}
+                onChange={v => up({ linkAxis: v as 'A' | 'B' | 'C' })}
+                options={[
+                  { value: 'A', label: 'A axis' },
+                  { value: 'B', label: 'B axis' },
+                  { value: 'C', label: 'C axis' },
+                ]}
+              />
+            )}
             {/* Invert direction toggle */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Invert Direction</label>
@@ -383,7 +403,7 @@ function AddAxisForm({ machineId, cfg, onDone }: {
 }) {
   const [form, setForm] = useState<Omit<AxisConfig, 'id'>>({
     name: '', label: '', kind: 'Linear', side: 'tool',
-    channel: 1, min: -100, max: 100, accel: 2000, homeDir: -1, machineZero: 0, invert: false,
+    channel: 1, min: -100, max: 100, accel: 2000, homeDir: -1, machineZero: 0, invert: false, linkAxis: 'B',
   });
   const set = (p: Partial<typeof form>) => setForm(prev => ({ ...prev, ...p }));
 
@@ -406,6 +426,18 @@ function AddAxisForm({ machineId, cfg, onDone }: {
         <Input label="Max" value={form.max} type="number" onChange={v => set({ max: v })} />
         <Input label="Accel" value={form.accel} type="number" step={100} onChange={v => set({ accel: v })} />
         <Input label="Machine Zero" value={form.machineZero ?? 0} type="number" step={0.001} onChange={v => set({ machineZero: v })} />
+        {form.kind === 'Rotary' && (
+          <Select
+            label="Link Rotary To"
+            value={(form.linkAxis ?? 'B') as any}
+            onChange={v => set({ linkAxis: v as 'A' | 'B' | 'C' })}
+            options={[
+              { value: 'A', label: 'A axis' },
+              { value: 'B', label: 'B axis' },
+              { value: 'C', label: 'C axis' },
+            ]}
+          />
+        )}
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
         <button style={btnPrimary} onClick={() => {
@@ -494,7 +526,7 @@ export default function MachineConfigPanel({
   const [editorOpen, setEditorOpen] = useState<EditorAccordion>('axes');
   const [openAxisId, setOpenAxisId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
-  const defaultStock: StockConfig = { shape: 'box', size: { x: 40, y: 40, z: 40 }, position: { x: 0, y: 0, z: 20 }, color: '#3b82f6', opacity: 0.92 };
+  const defaultStock: StockConfig = { shape: 'box', size: { x: 40, y: 40, z: 40 }, position: { x: 0, y: 0, z: 20 }, mount: 'table', color: '#3b82f6', opacity: 0.92 };
   const [stockDraft, setStockDraft] = useState<StockConfig>(
     { ...defaultStock, ...(stockConfig ?? {}) }
   );
@@ -847,26 +879,19 @@ export default function MachineConfigPanel({
                         step={0.1}
                         onChange={v => cfg.updateMachine(machine.id, { spindleCapLength: Math.max(1, Number(v) || 1) })}
                       />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Spindle Direction</label>
-                        <button
-                          onClick={() => cfg.updateMachine(machine.id, { spindleUp: !machine.spindleUp })}
-                          style={{
-                            padding: '7px 10px',
-                            borderRadius: 6,
-                            cursor: 'pointer',
-                            fontFamily: 'inherit',
-                            fontSize: 12,
-                            fontWeight: 600,
-                            border: `1px solid ${machine.spindleUp ? '#22c55e' : '#f59e0b'}`,
-                            background: machine.spindleUp ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)',
-                            color: machine.spindleUp ? '#22c55e' : '#f59e0b',
-                            textAlign: 'left',
-                          }}
-                        >
-                          {machine.spindleUp ? 'UP (+Z MCS)' : 'DOWN (-Z MCS)'}
-                        </button>
-                      </div>
+                      <Select
+                        label="Spindle Axis (MCS)"
+                        value={((machine as any).spindleAxis ?? (machine.spindleUp ? '-Z' : '+Z')) as SpindleAxis}
+                        onChange={(v) => cfg.updateMachine(machine.id, { spindleAxis: v as SpindleAxis })}
+                        options={[
+                          { value: '+X', label: '+X' },
+                          { value: '-X', label: '-X' },
+                          { value: '+Y', label: '+Y' },
+                          { value: '-Y', label: '-Y' },
+                          { value: '+Z', label: '+Z' },
+                          { value: '-Z', label: '-Z' },
+                        ]}
+                      />
                       <Input
                         label="Spindle Off X (mm)"
                         value={machine.spindleOffsetX}
@@ -1050,7 +1075,7 @@ export default function MachineConfigPanel({
             <div style={{ width: '100%', padding: 20, overflowY: 'auto' }}>
               <SectionLabel>Stock Setup</SectionLabel>
               <p style={{ fontSize: 12, color: '#64748b', marginTop: 0, marginBottom: 14 }}>
-                Configure stock size and center position in machine axes (X/Y/Z).
+                Configure stock size and center position. Mount to table for milling or spindle/chuck for turning.
               </p>
               <div style={{
                 background: '#0f1729',
@@ -1072,6 +1097,26 @@ export default function MachineConfigPanel({
                   fontSize: 12,
                 }}>
                   Box
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label="Stock Mount">
+                    <select
+                      style={inputStyle}
+                      value={stockDraft.mount ?? 'table'}
+                      onChange={(e) =>
+                        setStockDraft((prev) => ({
+                          ...prev,
+                          mount: (e.target.value === 'spindle' ? 'spindle' : 'table'),
+                        }))
+                      }
+                    >
+                      <option value="table">Table (milling)</option>
+                      <option value="spindle">Spindle/Chuck (turning)</option>
+                    </select>
+                  </Field>
+                  <div style={{ fontSize: 11, color: '#64748b', alignSelf: 'end', paddingBottom: 6 }}>
+                    Table mount follows table-side axes. Spindle mount follows spindle/tool head.
+                  </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field label="Stock Color">

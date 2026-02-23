@@ -18,6 +18,7 @@ interface StockConfig {
   shape: 'box';
   size: { x: number; y: number; z: number };
   position: { x: number; y: number; z: number };
+  mount?: 'table' | 'spindle';
   color: string;
   opacity: number;
 }
@@ -59,9 +60,12 @@ interface SceneSetupConfig {
   stockGhostOpacity: number;
   showStockCutterDebug: boolean;
   stockCutterDebugOpacity: number;
+  stockCutterSides: number;
   gridSize: number;
   gridDivisions: number;
   gridOpacity: number;
+  rightPanelWidth: number;
+  rightPanelAutoFit: boolean;
   showSceneAxes: boolean;
   gridMajorColor: string;
   gridMinorColor: string;
@@ -152,6 +156,7 @@ const DEFAULT_STOCK_CONFIG: StockConfig = {
   size: { x: 40, y: 40, z: 40 },
   // Machine-axis position (stock center): X, Y, Z.
   position: { x: 0, y: 0, z: 20 },
+  mount: 'table',
   color: '#3b82f6',
   opacity: 0.92,
 };
@@ -170,9 +175,12 @@ const DEFAULT_SCENE_CONFIG: SceneSetupConfig = {
   stockGhostOpacity: 0.5,
   showStockCutterDebug: false,
   stockCutterDebugOpacity: 0.35,
+  stockCutterSides: 6,
   gridSize: 1000,
   gridDivisions: 50,
   gridOpacity: 0.1,
+  rightPanelWidth: 380,
+  rightPanelAutoFit: true,
   showSceneAxes: false,
   gridMajorColor: '#1a2a3a',
   gridMinorColor: '#111820',
@@ -632,6 +640,8 @@ export default function App() {
   const areaRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const highRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [showSetup, setShowSetup] = useState(false);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const [viewport, setViewport] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
   const [showScene3d, setShowScene3d] = useState(() => persistedAppState?.showScene3d ?? true);
   const [showMachineModel, setShowMachineModel] = useState(() => persistedAppState?.showMachineModel ?? true);
   const [showToolModel, setShowToolModel] = useState(() => persistedAppState?.showToolModel ?? true);
@@ -664,9 +674,16 @@ export default function App() {
   const [stockConfig, setStockConfig] = useState<StockConfig>(
     () => persistedAppState?.stockConfig ?? DEFAULT_STOCK_CONFIG
   );
+  const defaultUiScale = (() => {
+    const saved = persistedAppState?.sceneConfig?.uiScale;
+    if (typeof saved === 'number' && Number.isFinite(saved)) return saved;
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) return 0.8;
+    return DEFAULT_SCENE_CONFIG.uiScale;
+  })();
   const [sceneConfig, setSceneConfig] = useState<SceneSetupConfig>(() => ({
     ...DEFAULT_SCENE_CONFIG,
     ...(persistedAppState?.sceneConfig ?? {}),
+    uiScale: defaultUiScale,
   }));
   const [codes, setCodes] = useState<string[]>(() => [...persistedCodes]);
   const [previewPath, setPreviewPath] = useState<PreviewPathData | null>(null);
@@ -733,6 +750,12 @@ export default function App() {
       setAlarmMessage('');
     }
   }, [state?.estop, alarmMessage]);
+
+  useEffect(() => {
+    const onResize = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     const activeTool = Math.max(0, Number(state?.channels?.[0]?.active_tool ?? 0));
@@ -911,6 +934,12 @@ export default function App() {
     }
 
     if (!allOffsetsZero) {
+      postBootSyncVersionRef.current = configVersion;
+      return;
+    }
+
+    if (stockConfig.mount === 'spindle') {
+      // When stock is mounted to spindle/chuck, do not auto-force WCS from table stock top.
       postBootSyncVersionRef.current = configVersion;
       return;
     }
@@ -1208,6 +1237,11 @@ export default function App() {
 
   if (!state) return <div style={s.loading}>BOOTING V-MILL KERNEL...</div>;
   const channelCount = state.channels.length;
+  const panelWidthPx = Math.round(Math.max(240, Math.min(560, Number(sceneConfig.rightPanelWidth ?? 380))));
+  const panelWidthCss = sceneConfig.rightPanelAutoFit ? 'clamp(220px, 30vw, 460px)' : `${panelWidthPx}px`;
+  const overlayRightCss = rightPanelCollapsed ? '20px' : `calc(${panelWidthCss} + 8px)`;
+  const panelToggleRight = rightPanelCollapsed ? '0px' : `calc(${panelWidthCss})`;
+  const panelToggleTop = (viewport.w <= 1100 || viewport.h <= 760) ? '38%' : '50%';
   const handleCollisionAlarm = (message: string) => {
     setAlarmMessage(message);
     if (!state?.estop) {
@@ -1231,6 +1265,7 @@ export default function App() {
           spindleCapDiameter={machineConfig.activeMachine?.spindleCapDiameter}
           spindleCapLength={machineConfig.activeMachine?.spindleCapLength}
           spindleUp={machineConfig.activeMachine?.spindleUp}
+          spindleAxis={machineConfig.activeMachine?.spindleAxis}
           spindleOffsetX={machineConfig.activeMachine?.spindleOffsetX}
           spindleOffsetY={machineConfig.activeMachine?.spindleOffsetY}
           spindleOffsetZ={machineConfig.activeMachine?.spindleOffsetZ}
@@ -1277,7 +1312,7 @@ export default function App() {
       </div>
 
       {/* OVERLAY: G-CODE PANELS */}
-      <div style={{ ...s.overlayContainer, zoom: sceneConfig.uiScale }}>
+      <div style={{ ...s.overlayContainer, right: overlayRightCss, zoom: sceneConfig.uiScale }}>
         {state.channels.map((ch: any, i: number) => (
           <div key={ch.id} style={s.floatingPane}>
             <div style={s.head}>
@@ -1398,38 +1433,48 @@ export default function App() {
         ))}
       </div>
 
+      <button
+        style={{ ...s.rightPanelToggle, right: panelToggleRight, top: panelToggleTop }}
+        onClick={() => setRightPanelCollapsed((v) => !v)}
+        title={rightPanelCollapsed ? 'Open right panel' : 'Hide right panel'}
+      >
+        {rightPanelCollapsed ? '\u2261' : '\u203A'}
+      </button>
+
       {/* SIDEBAR: ZERO CONTROL */}
-      <ZeroPanel 
-        state={state} 
-        brain={brain}
-        uiScale={sceneConfig.uiScale}
-        bottomInset={bottomBarHeight + 8}
-        showScene3d={showScene3d}
-        showMachineModel={showMachineModel}
-        showToolModel={showToolModel}
-        sceneConfig={sceneConfig}
-        toolVisualProfile={toolVisualProfile}
-        wcsReferenceVisual={wcsReferenceVisual}
-        mcsReferenceVisual={mcsReferenceVisual}
-        spindlePointVisible={spindlePointVisible}
-        fps={fps}
-        toolControlPointVisible={toolControlPointVisible}
-        onWcsReferenceVisualChange={setWcsReferenceVisual}
-        onMcsReferenceVisualChange={setMcsReferenceVisual}
-        onShowScene3dChange={setShowScene3d}
-        onShowMachineModelChange={setShowMachineModel}
-        onShowToolModelChange={setShowToolModel}
-        onSceneConfigPatch={(patch) => setSceneConfig((prev) => ({ ...prev, ...patch }))}
-        onToolVisualProfileChange={setToolVisualProfile}
-        onSpindlePointVisibleChange={setSpindlePointVisible}
-        onToolControlPointVisibleChange={setToolControlPointVisible}
-        onAxisPickStart={(axisId) => {
-          setPickedPosition(null);
-          setPickingAxisId(axisId);
-        }}
-        onAxisPickEnd={() => setPickingAxisId(null)}
-        pickedPosition={pickedPosition}
-      />
+      {!rightPanelCollapsed && (
+        <ZeroPanel 
+          state={state} 
+          brain={brain}
+          uiScale={sceneConfig.uiScale}
+          panelWidth={panelWidthCss}
+          bottomInset={bottomBarHeight + 8}
+          showScene3d={showScene3d}
+          showMachineModel={showMachineModel}
+          showToolModel={showToolModel}
+          sceneConfig={sceneConfig}
+          toolVisualProfile={toolVisualProfile}
+          wcsReferenceVisual={wcsReferenceVisual}
+          mcsReferenceVisual={mcsReferenceVisual}
+          spindlePointVisible={spindlePointVisible}
+          toolControlPointVisible={toolControlPointVisible}
+          onWcsReferenceVisualChange={setWcsReferenceVisual}
+          onMcsReferenceVisualChange={setMcsReferenceVisual}
+          onShowScene3dChange={setShowScene3d}
+          onShowMachineModelChange={setShowMachineModel}
+          onShowToolModelChange={setShowToolModel}
+          onSceneConfigPatch={(patch) => setSceneConfig((prev) => ({ ...prev, ...patch }))}
+          onToolVisualProfileChange={setToolVisualProfile}
+          onSpindlePointVisibleChange={setSpindlePointVisible}
+          onToolControlPointVisibleChange={setToolControlPointVisible}
+          onAxisPickStart={(axisId) => {
+            setPickedPosition(null);
+            setPickingAxisId(axisId);
+          }}
+          onAxisPickEnd={() => setPickingAxisId(null)}
+          pickedPosition={pickedPosition}
+        />
+      )}
 
       <BottomControlBar
         state={state}
@@ -1533,6 +1578,25 @@ const s: Record<string, any> = {
     letterSpacing: '0.02em',
   },
   overlayContainer: { position: 'absolute', top: 20, left: 20, bottom: 100, right: 340, display: 'flex', gap: '20px', zIndex: 10, pointerEvents: 'none' },
+  rightPanelToggle: {
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: 14,
+    height: 38,
+    borderRadius: '6px 0 0 6px',
+    border: '1px solid #2b3f63',
+    borderRight: 'none',
+    background: 'rgba(8, 16, 32, 0.86)',
+    color: '#7b8cad',
+    fontFamily: 'monospace',
+    fontWeight: 700,
+    fontSize: 11,
+    lineHeight: 1,
+    cursor: 'pointer',
+    zIndex: 21,
+    padding: 0,
+  },
   floatingPane: { width: '350px', display: 'flex', flexDirection: 'column', background: 'rgba(10,10,12,0.85)', backdropFilter: 'blur(8px)', border: '1px solid #333', borderRadius: '8px', pointerEvents: 'auto', overflow: 'hidden' },
   head: { padding: '10px', background: 'rgba(40,40,45,0.9)', display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 'bold', color: '#fff' },
   exampleRow: { padding: '6px 10px', display: 'flex', gap: '6px', background: 'rgba(20,20,25,0.9)', borderBottom: '1px solid #2b2f3b' },
