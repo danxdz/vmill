@@ -1,0 +1,3115 @@
+{
+  "meta": {
+    "createdAt": "2026-02-23T23:08:19Z",
+    "updatedAt": "2026-02-23T23:08:19Z"
+  },
+  "activeJobId": "7a1916ea-a52d-4ac0-a306-7888ca6cca06",
+  "stations": [
+    {
+      "id": "f928827d-5ee2-480b-bf31-6df44ce3907c",
+      "code": "S01",
+      "name": "Line A — Station 1"
+    },
+    {
+      "id": "80c3a9f4-c7dc-482b-a2a3-864d41202466",
+      "code": "S02",
+      "name": "Line B — Station 2"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "7a1916ea-a52d-4ac0-a306-7888ca6cca06",
+      "stationId": "f928827d-5ee2-480b-bf31-6df44ce3907c",
+      "name": "Pick / Place / Machine #1",
+      "allowancePct": 12,
+      "ratingPct": 105,
+      "elements": [
+        {
+          "id": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+          "name": "Pick components",
+          "type": "HUMAN"
+        },
+        {
+          "id": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+          "name": "Align & place",
+          "type": "HUMAN"
+        },
+        {
+          "id": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+          "name": "Machine cycle",
+          "type": "MACHINE"
+        },
+        {
+          "id": "35c0cdab-a04d-4271-9229-85d051d3e974",
+          "name": "Unload & inspect",
+          "type": "HUMAN"
+        }
+      ],
+      "cycles": [
+        {
+          "id": "6195d2ba-f7fb-4710-89db-0f593af49860",
+          "atIso": "2026-02-17T01:24:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1116.0941972399778
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1563.6546565574295
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2421.016382010063
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1287.055256528819
+            }
+          ],
+          "totalMs": 6387.820492336289,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "7dc1a27e-edec-4dcb-9431-6392f806b0ac",
+          "atIso": "2026-02-17T08:34:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1801.9895109308918
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 2427.262644567784
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 3314.911447602503
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 2015.8591233621305
+            }
+          ],
+          "totalMs": 9560.022726463309,
+          "tag": "Rework",
+          "note": "Auto sample: Rework"
+        },
+        {
+          "id": "7a2d96aa-26d6-4fe0-99c4-5419bbda1149",
+          "atIso": "2026-02-17T15:32:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1343.7412926605573
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1442.5956089505844
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 3072.638731704574
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1348.7457009718973
+            }
+          ],
+          "totalMs": 7207.721334287614,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "1f51687d-af17-47fd-81f8-0982d34ce2a1",
+          "atIso": "2026-02-17T19:14:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1471.5055262162143
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1855.0153265257688
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2918.280497573572
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 2161.474561506669
+            }
+          ],
+          "totalMs": 8406.275911822224,
+          "tag": "Training",
+          "note": "Auto sample: Training"
+        },
+        {
+          "id": "bea5edb4-79cd-4c86-ac13-96334f94ff2e",
+          "atIso": "2026-02-18T05:59:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1144.2672016998924
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1470.036542280936
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2802.056739300043
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1613.6375475377
+            }
+          ],
+          "totalMs": 7029.998030818571,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "9398f78e-431b-4680-a851-8e8ec82037ed",
+          "atIso": "2026-02-18T12:56:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1259.885854933537
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1431.618232856164
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2084.36974257091
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1514.8740685051953
+            }
+          ],
+          "totalMs": 6290.747898865807,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "0d394652-63dd-483a-bb94-d8d8f31ad414",
+          "atIso": "2026-02-18T21:35:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1167.644450469631
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1560.997652366929
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2139.0823018251303
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1726.0229842471724
+            }
+          ],
+          "totalMs": 6593.747388908863,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "de017813-3aa9-4f24-8e7c-356ea596454a",
+          "atIso": "2026-02-19T05:05:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1586.1868691875807
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 2116.2405752313957
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 4676.622247156713
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 2135.036836672597
+            }
+          ],
+          "totalMs": 10514.086528248285,
+          "tag": "Rework",
+          "note": "Auto sample: Rework"
+        },
+        {
+          "id": "555fa6d0-d22c-436f-b08b-c0c6803cb0f5",
+          "atIso": "2026-02-19T13:06:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1052.2132581954083
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1701.809768843447
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2453.4877069587183
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1586.0218186746795
+            }
+          ],
+          "totalMs": 6793.532552672254,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "ed75444f-be29-4794-bfdc-dd264f8aa47f",
+          "atIso": "2026-02-19T15:07:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1077.0404863185959
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1791.9484834837942
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2417.1982223850637
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1298.6796747880617
+            }
+          ],
+          "totalMs": 6584.866866975515,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "b50b14d5-f2f8-4f26-bcb4-5ff93ba8824a",
+          "atIso": "2026-02-19T15:30:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1481.6214128752083
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1365.704479911541
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 1951.947650433722
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1336.9256722165364
+            }
+          ],
+          "totalMs": 6136.199215437007,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "1200c3be-b957-4603-8269-a822921b08c9",
+          "atIso": "2026-02-19T18:30:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1328.8628553682001
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1711.462746728571
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2518.604949084571
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1618.9692392430575
+            }
+          ],
+          "totalMs": 7177.899790424399,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "e7195086-e4fb-457a-9e9f-7c30116acd4f",
+          "atIso": "2026-02-20T02:23:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1019.6145025701853
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1602.7869153444574
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 5437.843616292463
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1214.0559421139503
+            }
+          ],
+          "totalMs": 9274.300976321056,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "57ede980-1c5d-4ec8-a73f-1a28f67b7a4a",
+          "atIso": "2026-02-20T07:04:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1845.4461621078985
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1531.2486942770013
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2337.484768962446
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1399.164425027359
+            }
+          ],
+          "totalMs": 7113.344050374704,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "a2c4e45d-cdef-46d8-84a4-9947a9fdc48d",
+          "atIso": "2026-02-20T20:22:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1282.24636047242
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1764.4295098398163
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 3026.727257429088
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1835.1952613282558
+            }
+          ],
+          "totalMs": 7908.59838906958,
+          "tag": "Training",
+          "note": "Auto sample: Training"
+        },
+        {
+          "id": "ff32ebd8-eb04-492e-9423-bff91f1227d6",
+          "atIso": "2026-02-20T23:42:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 2236.2114761326166
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 3368.8133173441424
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 5651.516272527623
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 3202.102681689117
+            }
+          ],
+          "totalMs": 14458.643747693499,
+          "tag": "Disturbance",
+          "note": "Auto sample: Disturbance"
+        },
+        {
+          "id": "cad550b5-5d16-497b-8ba4-6496e90ddb9a",
+          "atIso": "2026-02-21T03:32:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 3179.742225805163
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 3155.5460535811285
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 14476.3609021391
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 3735.7707356397814
+            }
+          ],
+          "totalMs": 24547.41991716517,
+          "tag": "Disturbance",
+          "note": "Auto sample: Disturbance"
+        },
+        {
+          "id": "b153798f-8b03-4436-9cfb-ef7a6904ab3c",
+          "atIso": "2026-02-21T06:58:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1064.468979359671
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1838.9737390628884
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2335.6281736500764
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1328.585751797801
+            }
+          ],
+          "totalMs": 6567.656643870437,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "0ac8a15e-fbc8-4bfd-ae6a-bf77cad50ede",
+          "atIso": "2026-02-22T01:22:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 889.2951339561455
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1673.6882165177076
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 1782.0846792984023
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1450.826381843601
+            }
+          ],
+          "totalMs": 5795.894411615856,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "466ce2d1-bf8e-4536-8218-8553dce7e5b4",
+          "atIso": "2026-02-22T02:51:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1124.0274033198773
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1496.2047884338613
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 3051.7963844545393
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1287.6546510166852
+            }
+          ],
+          "totalMs": 6959.683227224963,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "796f8dc7-f744-4f89-98a5-cbb89b8a2182",
+          "atIso": "2026-02-22T10:15:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1360.7724816538712
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1586.7033928031224
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2033.7981247124067
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1488.1890010617374
+            }
+          ],
+          "totalMs": 6469.463000231137,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "8e93314d-9b8c-40cd-baed-555526e39236",
+          "atIso": "2026-02-22T22:24:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1098.4054056078833
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1696.5640641999114
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2337.821401070768
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1317.2140219326013
+            }
+          ],
+          "totalMs": 6450.004892811164,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "7ff1ad76-9b2d-4d83-a3a3-269a38dbdca6",
+          "atIso": "2026-02-23T07:04:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1319.2549393870775
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1474.004099757587
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2417.014807891396
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1591.3176680240074
+            }
+          ],
+          "totalMs": 6801.591515060068,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "5381db88-8dcf-41b2-a3e2-edc68d751a03",
+          "atIso": "2026-02-23T14:41:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1820.2829389412134
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 2683.18193493707
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 3740.841852146871
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 2099.751932459294
+            }
+          ],
+          "totalMs": 10344.05865848445,
+          "tag": "Rework",
+          "note": "Auto sample: Rework"
+        },
+        {
+          "id": "4941a183-6808-4e13-9da7-11af9e076337",
+          "atIso": "2026-02-23T15:41:19Z",
+          "laps": [
+            {
+              "elementId": "d7401abf-8dae-4650-a6e7-9af6a8a17c17",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1226.6968004594214
+            },
+            {
+              "elementId": "59355ff0-a017-4fdf-a49e-ca72582f2d32",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1760.868296307252
+            },
+            {
+              "elementId": "42e3dee4-fae6-4812-97e4-569d37e4183d",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2386.4803005932204
+            },
+            {
+              "elementId": "35c0cdab-a04d-4271-9229-85d051d3e974",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1679.2654597615008
+            }
+          ],
+          "totalMs": 7053.310857121395,
+          "tag": "Normal",
+          "note": ""
+        }
+      ]
+    },
+    {
+      "id": "da9f3e9b-15f7-402a-9e25-0aa2a02cce35",
+      "stationId": "f928827d-5ee2-480b-bf31-6df44ce3907c",
+      "name": "Tighten / Inspect / Pack #2",
+      "allowancePct": 12,
+      "ratingPct": 105,
+      "elements": [
+        {
+          "id": "2c814198-c014-4e24-8c3d-44d75a3da958",
+          "name": "Scan barcode",
+          "type": "HUMAN"
+        },
+        {
+          "id": "1061f035-df15-40f8-9d9d-69d6b675561c",
+          "name": "Torque tighten x4",
+          "type": "HUMAN+MACHINE"
+        },
+        {
+          "id": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+          "name": "Visual check",
+          "type": "HUMAN"
+        },
+        {
+          "id": "1419696d-e119-4d34-a970-a82875f81067",
+          "name": "Label & pack",
+          "type": "HUMAN"
+        }
+      ],
+      "cycles": [
+        {
+          "id": "194a9289-22c7-486d-b7da-26490af4be50",
+          "atIso": "2026-02-17T01:19:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 845.4800545296224
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2631.6139010335396
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 998.4029925592743
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1586.1967898407624
+            }
+          ],
+          "totalMs": 6061.693737963198,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "e311d1e8-3a03-4d63-9f20-fc5b7a62817d",
+          "atIso": "2026-02-17T01:25:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 813.7336539563978
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1944.8363214329133
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1102.9353329879839
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1789.278107573319
+            }
+          ],
+          "totalMs": 5650.783415950615,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "f2a30098-0d1a-4429-b1c8-309f791f5b7d",
+          "atIso": "2026-02-18T17:28:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 798.9586134371538
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1998.941724899499
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 911.6867988577166
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1698.2153470309001
+            }
+          ],
+          "totalMs": 5407.802484225269,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "210d1dfa-5748-4d95-93c1-58a6a5f35856",
+          "atIso": "2026-02-19T01:57:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 727.077796773345
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2062.8750686526573
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1207.2610938371843
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1887.9513283846054
+            }
+          ],
+          "totalMs": 5885.165287647792,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "ef50dee1-0d23-4a49-a182-8ab1e458e088",
+          "atIso": "2026-02-19T02:34:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1137.6179541834358
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 8964.62484890821
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 2096.5120892706586
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 2589.280398791978
+            }
+          ],
+          "totalMs": 14788.035291154281,
+          "tag": "Rework",
+          "note": "Auto sample: Rework"
+        },
+        {
+          "id": "bdc9e59a-9f94-4536-ada4-7488967b9943",
+          "atIso": "2026-02-19T11:11:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1033.8397242196384
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1671.9571288494822
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1123.3526334004878
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1970.4597715208215
+            }
+          ],
+          "totalMs": 5799.60925799043,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "0f289fd4-3a44-45c2-b15f-82d0f5a5b56f",
+          "atIso": "2026-02-19T14:05:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 839.7843855265122
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1877.409793114087
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 997.5378087179146
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1813.7226876441052
+            }
+          ],
+          "totalMs": 5528.454675002619,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "5ecf827a-ccf6-4a7c-b601-6e1ae5be001e",
+          "atIso": "2026-02-19T15:47:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1015.5651842480909
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2259.7041051351607
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1204.059451750481
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1481.9770883559204
+            }
+          ],
+          "totalMs": 5961.305829489654,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "cde89640-96d6-48a7-bc48-c1e611bf8dc6",
+          "atIso": "2026-02-19T21:09:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 865.4291063029426
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1988.7563807302647
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1246.144699568183
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1378.3512663453337
+            }
+          ],
+          "totalMs": 5478.681452946724,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "c20aa2b3-5b12-4bef-b460-02be15bb5e58",
+          "atIso": "2026-02-19T23:59:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1007.8195876467774
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1946.608038098647
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1399.5869296514677
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1910.4026134794385
+            }
+          ],
+          "totalMs": 6264.417168876331,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "84eee51a-103a-4286-92c2-9a4e5255c436",
+          "atIso": "2026-02-20T03:11:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 2304.4094314630693
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1831.1553980451909
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1003.5194477359113
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1543.1604268653427
+            }
+          ],
+          "totalMs": 6682.244704109514,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "946d199a-d42c-4e02-bf36-b08790229e2b",
+          "atIso": "2026-02-20T09:55:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 867.703883583767
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2029.193072756552
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1243.3061098407873
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1872.462275564565
+            }
+          ],
+          "totalMs": 6012.665341745671,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "74a53d49-0674-4d6d-8d46-a966506943ef",
+          "atIso": "2026-02-20T09:56:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 880.9042408289649
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1812.6675461029752
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1131.4078211592114
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1825.4063756816788
+            }
+          ],
+          "totalMs": 5650.3859837728305,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "508091cd-f6e0-4f03-b82a-26fd34b4eb25",
+          "atIso": "2026-02-20T11:14:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 889.4632613015012
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1800.3109907853652
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 981.9372377957437
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1700.121056148837
+            }
+          ],
+          "totalMs": 5371.832546031447,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "5d785304-5a5d-42ff-96a0-1c02b3f7ca4f",
+          "atIso": "2026-02-20T15:00:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1667.7383107443482
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 4269.8230395297705
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 2530.3647427621645
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 3267.036514110156
+            }
+          ],
+          "totalMs": 11734.962607146439,
+          "tag": "Disturbance",
+          "note": "Auto sample: Disturbance"
+        },
+        {
+          "id": "cbfe21b8-f420-4b64-ad1e-e8c3a2858614",
+          "atIso": "2026-02-20T19:04:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 831.4472597425793
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1830.0398412132615
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 971.2422063390379
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1830.1354484476876
+            }
+          ],
+          "totalMs": 5462.864755742567,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "049427f3-0977-486d-a88e-f845a7020408",
+          "atIso": "2026-02-21T02:59:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 935.945911111321
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2064.283671413991
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1116.199738467189
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1709.2259961598565
+            }
+          ],
+          "totalMs": 5825.655317152358,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "5c900e8b-e193-44f7-bcd2-831c093a0a3d",
+          "atIso": "2026-02-21T13:27:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1074.6114850817528
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1800.9866742061326
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1174.4644155810984
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1568.910742435026
+            }
+          ],
+          "totalMs": 5618.9733173040095,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "b9202ade-e1a6-4147-993b-7c2a9d6c5370",
+          "atIso": "2026-02-21T16:27:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1168.8464343131843
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2073.0968702569753
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1002.3638921245155
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1889.9699643346885
+            }
+          ],
+          "totalMs": 6134.277161029364,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "b9cdb53c-d5cb-4ee0-bf18-9711e0ee10ee",
+          "atIso": "2026-02-21T17:46:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1239.6940288466024
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2221.6509688298966
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1698.0377245663062
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 2251.507489857407
+            }
+          ],
+          "totalMs": 7410.890212100212,
+          "tag": "Training",
+          "note": "Auto sample: Training"
+        },
+        {
+          "id": "df6af568-8083-4e27-b258-e7e2d77dad9a",
+          "atIso": "2026-02-22T08:19:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1373.8432167669794
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2700.855650614255
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1195.3241663141393
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1532.6519226092503
+            }
+          ],
+          "totalMs": 6802.674956304624,
+          "tag": "Training",
+          "note": "Auto sample: Training"
+        },
+        {
+          "id": "2af19b5e-3539-4041-b211-18bb316e1cb5",
+          "atIso": "2026-02-22T17:11:19Z",
+          "laps": [
+            {
+              "elementId": "2c814198-c014-4e24-8c3d-44d75a3da958",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 927.5466103998805
+            },
+            {
+              "elementId": "1061f035-df15-40f8-9d9d-69d6b675561c",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1864.7658324503511
+            },
+            {
+              "elementId": "3080f38e-64f4-461c-890d-4edeb1ef5b3d",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1162.2275275894108
+            },
+            {
+              "elementId": "1419696d-e119-4d34-a970-a82875f81067",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1362.4449616936029
+            }
+          ],
+          "totalMs": 5316.984932133245,
+          "tag": "Normal",
+          "note": ""
+        }
+      ]
+    },
+    {
+      "id": "b4596ad9-2e85-4641-a2ff-17a6bc94350b",
+      "stationId": "80c3a9f4-c7dc-482b-a2a3-864d41202466",
+      "name": "Pick / Place / Machine #1",
+      "allowancePct": 10,
+      "ratingPct": 100,
+      "elements": [
+        {
+          "id": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+          "name": "Pick components",
+          "type": "HUMAN"
+        },
+        {
+          "id": "e0537238-8efe-42ff-88cd-34314ae480b0",
+          "name": "Align & place",
+          "type": "HUMAN"
+        },
+        {
+          "id": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+          "name": "Machine cycle",
+          "type": "MACHINE"
+        },
+        {
+          "id": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+          "name": "Unload & inspect",
+          "type": "HUMAN"
+        }
+      ],
+      "cycles": [
+        {
+          "id": "6c89a7a6-2c50-4a92-97ad-44238efc9d49",
+          "atIso": "2026-02-17T03:45:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 998.246233663814
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1926.3438458483367
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 3077.608679895596
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1211.4665009549592
+            }
+          ],
+          "totalMs": 7213.665260362706,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "34c2638d-9611-470b-9982-a928a48820e4",
+          "atIso": "2026-02-17T06:52:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1196.5178942608773
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1460.206199925309
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2286.139744467225
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1438.7880163195257
+            }
+          ],
+          "totalMs": 6381.651854972937,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "34f2ede6-09ca-4a06-9650-bf44be602e5b",
+          "atIso": "2026-02-17T09:31:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 2551.5557872445056
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 4021.119661680016
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 5004.676049394634
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 2690.4007429229405
+            }
+          ],
+          "totalMs": 14267.752241242097,
+          "tag": "Disturbance",
+          "note": "Auto sample: Disturbance"
+        },
+        {
+          "id": "d1e494dc-0da2-4778-a889-5e178f86561f",
+          "atIso": "2026-02-17T17:02:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1342.081041121772
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1491.2051819082983
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2591.7947840411466
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1026.1286612193985
+            }
+          ],
+          "totalMs": 6451.209668290616,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "0f9ae34f-1eb1-479d-82d2-dc76a08e6076",
+          "atIso": "2026-02-17T22:44:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 958.776921736425
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1355.6009687733913
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2529.226443741679
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1499.3997216470768
+            }
+          ],
+          "totalMs": 6343.004055898572,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "31867f53-4f84-4cac-9819-3a9d6f566c3a",
+          "atIso": "2026-02-18T03:16:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1202.7070162451737
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1737.6641173082103
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2467.7049797876502
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1205.6641420282645
+            }
+          ],
+          "totalMs": 6613.740255369299,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "fa0cbef9-f402-4d0b-95b8-8c8c1ab8e652",
+          "atIso": "2026-02-18T10:33:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1166.658932400822
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1541.034673820174
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 5027.199424859798
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1333.2831576605438
+            }
+          ],
+          "totalMs": 9068.176188741338,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "66d8a4c5-640e-44f9-a637-8c7fd523a04c",
+          "atIso": "2026-02-18T22:00:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 981.1379513584122
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1495.1805350474324
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2376.1705403450715
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1623.1561594787454
+            }
+          ],
+          "totalMs": 6475.645186229662,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "6307bace-e88a-49a8-a770-495ae1b96fc3",
+          "atIso": "2026-02-19T07:53:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1017.535414135549
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1554.186570610425
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2611.3774051828777
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1392.893923032516
+            }
+          ],
+          "totalMs": 6575.993312961367,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "760ffd2f-f222-42fc-930a-ce7f7cbb7951",
+          "atIso": "2026-02-19T10:39:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1251.2042304715608
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1519.574186628939
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 1981.1496370106022
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1924.69676925531
+            }
+          ],
+          "totalMs": 6676.624823366412,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "7e4163d5-b1c1-4549-8cc9-43a0f6839a2d",
+          "atIso": "2026-02-19T12:33:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1486.067486633672
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 2050.9141841068686
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 3533.2603000870845
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1529.3604741896456
+            }
+          ],
+          "totalMs": 8599.60244501727,
+          "tag": "Training",
+          "note": "Auto sample: Training"
+        },
+        {
+          "id": "cc2b8fdd-9f1a-4630-aa3e-491a9f536f44",
+          "atIso": "2026-02-19T15:48:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1287.6511179097
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1829.070620428262
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2107.958264405479
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1280.5281300360746
+            }
+          ],
+          "totalMs": 6505.208132779516,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "1b97db23-8277-4578-8a88-4a086c9b5ac5",
+          "atIso": "2026-02-19T18:52:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1269.6121199816555
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1781.288570025824
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2472.001435770958
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1549.7921155547026
+            }
+          ],
+          "totalMs": 7072.69424133314,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "b62c1194-65c1-403d-bdd2-6322148d38e1",
+          "atIso": "2026-02-20T02:23:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 991.701331418289
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1550.4787029580918
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2011.0091272592788
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1397.5703936551984
+            }
+          ],
+          "totalMs": 5950.759555290858,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "08cbadff-2da3-4d13-8213-660092c1b41c",
+          "atIso": "2026-02-20T03:32:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1383.0834886023843
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1611.633026386765
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2266.9856943703726
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1448.0104896118032
+            }
+          ],
+          "totalMs": 6709.712698971325,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "5be7fbbd-9dcb-497b-9daf-a5f1c64b7844",
+          "atIso": "2026-02-20T10:27:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1189.0383658852588
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1699.8306509422275
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2443.5385209386477
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1507.7664202139467
+            }
+          ],
+          "totalMs": 6840.173957980081,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "5fd6f093-7d0c-4288-8aed-35a742f7d69b",
+          "atIso": "2026-02-21T07:27:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1855.9075887184865
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 2398.0815102729825
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 3507.5906193136566
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 2324.425917236159
+            }
+          ],
+          "totalMs": 10086.005635541285,
+          "tag": "Rework",
+          "note": "Auto sample: Rework"
+        },
+        {
+          "id": "05564365-fb35-45b5-8919-f1fca8411129",
+          "atIso": "2026-02-21T14:30:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1371.8266670466028
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1505.1126106323657
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2278.2550776739586
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1482.9172131595221
+            }
+          ],
+          "totalMs": 6638.11156851245,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "2db648b5-41f4-4d09-80c0-2f5f6434f06d",
+          "atIso": "2026-02-21T17:28:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1340.0843796850718
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1527.8776442874778
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2148.7532950135765
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1434.6633325832806
+            }
+          ],
+          "totalMs": 6451.378651569406,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "00daa56d-41cd-4a85-a31e-600714d267ae",
+          "atIso": "2026-02-22T15:13:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1191.488609062072
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1810.904407925198
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2489.4135668977665
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1417.3897075432621
+            }
+          ],
+          "totalMs": 6909.1962914282985,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "d2fd3147-b4d4-4a02-89c5-e5718f2c9aa2",
+          "atIso": "2026-02-23T01:54:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1378.6750980037464
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1630.4789537324816
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2222.4583928385896
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1537.786571792349
+            }
+          ],
+          "totalMs": 6769.399016367166,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "411d2d0e-508b-4388-9a07-c7cb926f9798",
+          "atIso": "2026-02-23T07:20:19Z",
+          "laps": [
+            {
+              "elementId": "21fb8667-8e5d-42e0-9b5d-b6e54da2809d",
+              "name": "Pick components",
+              "type": "HUMAN",
+              "ms": 1133.6541440823437
+            },
+            {
+              "elementId": "e0537238-8efe-42ff-88cd-34314ae480b0",
+              "name": "Align & place",
+              "type": "HUMAN",
+              "ms": 1519.4343235829822
+            },
+            {
+              "elementId": "28f75f6e-4d1f-4630-98ee-ff42a60ef8f8",
+              "name": "Machine cycle",
+              "type": "MACHINE",
+              "ms": 2706.5753998407295
+            },
+            {
+              "elementId": "9941ae1a-4c8b-4a42-a1d3-48827b2bc449",
+              "name": "Unload & inspect",
+              "type": "HUMAN",
+              "ms": 1151.4715168567275
+            }
+          ],
+          "totalMs": 6511.135384362782,
+          "tag": "Normal",
+          "note": ""
+        }
+      ]
+    },
+    {
+      "id": "6e7b1f91-08e5-4c32-b877-17930a2e7224",
+      "stationId": "80c3a9f4-c7dc-482b-a2a3-864d41202466",
+      "name": "Tighten / Inspect / Pack #2",
+      "allowancePct": 15,
+      "ratingPct": 105,
+      "elements": [
+        {
+          "id": "211a7320-7419-42a8-b6e3-8e905989d72a",
+          "name": "Scan barcode",
+          "type": "HUMAN"
+        },
+        {
+          "id": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+          "name": "Torque tighten x4",
+          "type": "HUMAN+MACHINE"
+        },
+        {
+          "id": "8b946408-a881-46d7-84e6-0b5267352b49",
+          "name": "Visual check",
+          "type": "HUMAN"
+        },
+        {
+          "id": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+          "name": "Label & pack",
+          "type": "HUMAN"
+        }
+      ],
+      "cycles": [
+        {
+          "id": "f398a0d4-8c62-4065-a30b-1e8148b424e4",
+          "atIso": "2026-02-16T23:44:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1175.03438912353
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1849.108920904112
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1034.7070491481486
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1839.548749579424
+            }
+          ],
+          "totalMs": 5898.399108755215,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "3bf949ed-285f-44a3-a352-b1f064afef85",
+          "atIso": "2026-02-17T09:31:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1612.4522348603343
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 3917.8837680751108
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1644.206315816362
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 2633.123099499827
+            }
+          ],
+          "totalMs": 9807.665418251634,
+          "tag": "Rework",
+          "note": "Auto sample: Rework"
+        },
+        {
+          "id": "b1e7e00c-6a98-45f8-96e8-48c4bf44d894",
+          "atIso": "2026-02-17T18:19:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 897.0563530365217
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2099.582622861036
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1156.042271238156
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1844.6324537709893
+            }
+          ],
+          "totalMs": 5997.313700906703,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "9f6ec466-3524-437c-8409-3a75c0da486b",
+          "atIso": "2026-02-17T22:27:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 821.2357252046576
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2111.490205548648
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 959.6019685960425
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1600.419804271589
+            }
+          ],
+          "totalMs": 5492.7477036209375,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "a2730162-2c13-4c32-8de4-fd96db3fc971",
+          "atIso": "2026-02-17T23:52:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1444.1812240424656
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2386.7554894062405
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1171.276498587083
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 2089.7016999540187
+            }
+          ],
+          "totalMs": 7091.914911989808,
+          "tag": "Training",
+          "note": "Auto sample: Training"
+        },
+        {
+          "id": "bb444c7d-9ce2-4831-9550-abd5c39ef31a",
+          "atIso": "2026-02-18T07:49:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 853.3681990444421
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1732.7583406912222
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1339.412700846956
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 2218.420339750988
+            }
+          ],
+          "totalMs": 6143.959580333609,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "f02c276d-4781-4b67-81a7-c148024a3541",
+          "atIso": "2026-02-18T17:25:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 884.8852234985974
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1743.676828825885
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1161.455960297146
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 3126.255807464499
+            }
+          ],
+          "totalMs": 6916.273820086128,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "74f4693c-a73d-49d6-8045-255527c951a1",
+          "atIso": "2026-02-18T20:53:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1342.453156707518
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2770.388051778764
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1880.6107194092915
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 3061.3532457730344
+            }
+          ],
+          "totalMs": 9054.805173668608,
+          "tag": "Rework",
+          "note": "Auto sample: Rework"
+        },
+        {
+          "id": "47ff3fa4-f3cb-46bc-98bb-1e66ff30fad9",
+          "atIso": "2026-02-19T00:42:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 984.4262173525088
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1672.444374557568
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1052.1783103491612
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 2069.040227085685
+            }
+          ],
+          "totalMs": 5778.089129344922,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "999fab4d-751e-47da-a9b1-b11c1df6e114",
+          "atIso": "2026-02-19T12:11:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1079.2707205406625
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1972.481022628362
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 968.5033121256125
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1677.4621262874318
+            }
+          ],
+          "totalMs": 5697.717181582069,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "07ea5f36-4584-4054-a5ec-757972de698a",
+          "atIso": "2026-02-20T02:09:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1165.2453509076097
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2342.4302899186537
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 944.2176487488478
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1499.1536015399176
+            }
+          ],
+          "totalMs": 5951.046891115029,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "264f3a2c-5f7a-466c-99fd-b11052367548",
+          "atIso": "2026-02-20T06:03:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 961.9392031475537
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2016.4628972998312
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 968.0423108792642
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1759.6037196683662
+            }
+          ],
+          "totalMs": 5706.0481309950155,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "161e74c1-08f9-49da-ab1f-9cb4cb7e7507",
+          "atIso": "2026-02-21T11:14:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 998.73513079878
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1983.5829889723225
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1000.3660660856683
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1336.9423034382573
+            }
+          ],
+          "totalMs": 5319.626489295028,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "b0752ce5-4f32-48ad-8bb8-29d96e14a64b",
+          "atIso": "2026-02-21T15:18:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 2184.2963792990654
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 4566.617127819659
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 2841.8218405723446
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 3475.6333346955653
+            }
+          ],
+          "totalMs": 13068.368682386634,
+          "tag": "Disturbance",
+          "note": "Auto sample: Disturbance"
+        },
+        {
+          "id": "99c5a685-f677-4492-8905-18acd26f43e2",
+          "atIso": "2026-02-21T18:57:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 845.6300122812369
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1774.6720459474648
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1134.37095752208
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1412.4433163820183
+            }
+          ],
+          "totalMs": 5167.1163321328,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "97e4c2de-c6fb-46e3-82f0-74bb01272d4b",
+          "atIso": "2026-02-22T00:39:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 839.0830228770153
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1962.9459139136254
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1023.7473112623019
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1960.4037996515297
+            }
+          ],
+          "totalMs": 5786.180047704473,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "040ac830-733b-46fe-a616-dac3efab5a69",
+          "atIso": "2026-02-22T02:21:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1563.2446939260021
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2731.3250881735057
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1415.5783071706157
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 2744.21016665718
+            }
+          ],
+          "totalMs": 8454.358255927304,
+          "tag": "Rework",
+          "note": "Auto sample: Rework"
+        },
+        {
+          "id": "3ceba624-761c-4b07-b91b-26388e17c941",
+          "atIso": "2026-02-22T09:05:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 885.9779889778912
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1988.772416757821
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 985.836354120153
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1526.482528193425
+            }
+          ],
+          "totalMs": 5387.06928804929,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "0a8d159b-79bc-4b84-9812-694ca62eb564",
+          "atIso": "2026-02-22T12:44:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1862.4324597686912
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 3938.704180517668
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 3012.024972431256
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 3964.544783182053
+            }
+          ],
+          "totalMs": 12777.70639589967,
+          "tag": "Disturbance",
+          "note": "Auto sample: Disturbance"
+        },
+        {
+          "id": "8982dffd-7767-4ecf-8cbe-c65d682ae865",
+          "atIso": "2026-02-23T03:51:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 1025.645489085583
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 2243.1043205176184
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1123.4541001729046
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1859.9431260252652
+            }
+          ],
+          "totalMs": 6252.147035801371,
+          "tag": "Normal",
+          "note": ""
+        },
+        {
+          "id": "0dba5f96-c7bf-470f-811b-28caef9b3441",
+          "atIso": "2026-02-23T09:04:19Z",
+          "laps": [
+            {
+              "elementId": "211a7320-7419-42a8-b6e3-8e905989d72a",
+              "name": "Scan barcode",
+              "type": "HUMAN",
+              "ms": 921.4287936133392
+            },
+            {
+              "elementId": "ff2a1f8c-75fb-4269-9924-1ec48e15063d",
+              "name": "Torque tighten x4",
+              "type": "HUMAN+MACHINE",
+              "ms": 1762.3339676275946
+            },
+            {
+              "elementId": "8b946408-a881-46d7-84e6-0b5267352b49",
+              "name": "Visual check",
+              "type": "HUMAN",
+              "ms": 1202.28883686919
+            },
+            {
+              "elementId": "7cd2cb56-69e0-4214-b56f-07154f71387d",
+              "name": "Label & pack",
+              "type": "HUMAN",
+              "ms": 1608.5335448265755
+            }
+          ],
+          "totalMs": 5494.585142936699,
+          "tag": "Normal",
+          "note": ""
+        }
+      ]
+    }
+  ]
+}

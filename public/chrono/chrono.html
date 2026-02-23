@@ -1,0 +1,1663 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chrono Study — Drawer + Timeline Bars (Offline)</title>
+  <style>
+    :root{
+      --bg:#0b0c10; --panel:#11131a; --panel2:#0d0f15; --border:#23252f;
+      --text:#e8e8e8; --muted:rgba(232,232,232,.75); --muted2:rgba(232,232,232,.55);
+      --accent:#4c73ff; --ok:#42d18b; --warn:#ffd37a; --danger:#ff4c6a;
+      --radius:16px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--text); background:var(--bg);
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;}
+    header{
+      padding:14px 16px; border-bottom:1px solid var(--border);
+      position:sticky; top:0; background:rgba(11,12,16,.92); backdrop-filter: blur(10px);
+      z-index:50; display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
+    h1{margin:0; font-size:18px;}
+    .sub{color:var(--muted); font-size:13px;}
+    .topRight{display:flex; align-items:center; gap:10px;}
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:4px 10px; border-radius:999px;
+      border:1px solid var(--border); background:rgba(255,255,255,.03);
+      font-size:12px; color:var(--muted); white-space:nowrap;
+    }
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+    button{
+      border:1px solid #2a2d3a; background:rgba(255,255,255,.04); color:var(--text);
+      padding:10px 12px; border-radius:12px; cursor:pointer;
+    }
+    button:hover{filter:brightness(1.08);}
+    button.primary{background:rgba(76,115,255,.18); border-color:rgba(76,115,255,.55);}
+    button.danger{background:rgba(255,76,106,.14); border-color:rgba(255,76,106,.55);}
+    button:disabled{opacity:.5; cursor:not-allowed;}
+    .btnbar{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
+    .hr{height:1px; background:var(--border); margin:12px 0;}
+
+    main{padding:16px; max-width:1320px; margin:0 auto;}
+    .layout{display:grid; gap:12px; grid-template-columns:1fr;}
+    @media(min-width:1040px){ .layout{grid-template-columns:420px 1fr;} }
+
+    .card{
+      background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+      padding:14px; box-shadow:0 12px 30px rgba(0,0,0,.25);
+    }
+    .title{font-size:14px; margin:0 0 10px;}
+    .small{font-size:12px; color:var(--muted);}
+    .muted{color:var(--muted);}
+    .row{display:grid; gap:10px; grid-template-columns:1fr;}
+    .row2{display:grid; gap:10px; grid-template-columns:1fr 1fr;}
+    .row3{display:grid; gap:10px; grid-template-columns:1fr 1fr 1fr;}
+    label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px;}
+    input,select,textarea{
+      width:100%; padding:10px 10px; border-radius:12px;
+      border:1px solid #2a2d3a; background:var(--panel2); color:var(--text);
+      outline:none;
+    }
+    textarea{min-height:42px; resize:vertical;}
+
+    /* Sidebar */
+    .sidebarTop{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
+    .searchRow{display:flex; gap:8px;}
+    .searchRow input{flex:1;}
+    .stationBlock{border:1px solid var(--border); border-radius:14px; padding:10px; background:rgba(255,255,255,.02);}
+    .stationHeader{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;}
+    .stationName{font-weight:1000; font-size:13px;}
+    .stationMeta{font-size:12px; color:var(--muted);}
+    .iconBtn{padding:6px 8px; border-radius:10px; opacity:.9;}
+    .iconBtn:hover{background:rgba(255,255,255,.06);}
+    .jobList{display:flex; flex-direction:column; gap:8px;}
+    .jobItem{
+      border:1px solid var(--border); border-radius:14px; padding:10px;
+      background:rgba(255,255,255,.03); cursor:pointer;
+      display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+    }
+    .jobItem.active{border-color:rgba(76,115,255,.65); background:rgba(76,115,255,.10);}
+    .jobName{font-weight:1000; font-size:13px; margin-bottom:4px;}
+    .jobMeta{font-size:12px; color:var(--muted); display:flex; gap:10px; flex-wrap:wrap;}
+    .progressWrap{margin-top:8px; height:8px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; border:1px solid rgba(255,255,255,.08);}
+    .progressBar{height:100%; width:0%; background:rgba(76,115,255,.75);}
+    .progressBar.good{background:rgba(66,209,139,.75);}
+    .progressBar.warn{background:rgba(255,211,122,.75);}
+    .tiny{font-size:11px; color:var(--muted2); margin-top:6px;}
+
+    /* Timer */
+    .timerGrid{display:grid; gap:12px; grid-template-columns:1fr;}
+    @media(min-width:1040px){ .timerGrid{grid-template-columns:1.05fr .95fr; align-items:start;} }
+    .elapsed{
+      font-size:40px; font-weight:1100; letter-spacing:.6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+    .bigbtn{
+      width:100%; padding:16px 14px; border-radius:18px;
+      font-size:18px; font-weight:1100;
+    }
+
+    .scrollBox{border:1px solid var(--border); border-radius:14px; overflow:auto;}
+    table{width:100%; border-collapse:collapse;}
+    th,td{padding:10px; border-bottom:1px solid var(--border); font-size:13px; text-align:left; vertical-align:top;}
+    th{color:var(--muted); font-weight:650;}
+    .right{text-align:right;}
+
+    /* Toolbar */
+    .toolbar{
+      display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+      padding:10px; border:1px solid var(--border); border-radius:14px;
+      background:rgba(255,255,255,.02);
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px; border-radius:999px;
+      border:1px solid var(--border); background:rgba(255,255,255,.02);
+      font-size:12px; color:var(--muted);
+      user-select:none;
+    }
+    .checkbox{transform:translateY(1px);}
+    .seg{
+      display:flex; border:1px solid var(--border); border-radius:999px; overflow:hidden;
+      background:rgba(255,255,255,.02);
+    }
+    .seg button{
+      border:0; border-right:1px solid var(--border);
+      padding:8px 12px; border-radius:0; background:transparent;
+      font-size:12px; color:var(--muted);
+    }
+    .seg button:last-child{border-right:0;}
+    .seg button.active{background:rgba(76,115,255,.18); color:rgba(232,232,232,.92);}
+    .miniSelect{width:auto; padding:8px 10px; border-radius:999px;}
+    .countChip{
+      padding:8px 10px; border-radius:999px;
+      border:1px solid var(--border); background:rgba(255,255,255,.02);
+      font-size:12px; color:var(--muted);
+    }
+
+    canvas{
+      width:100%; height:460px;
+      border:1px solid var(--border); border-radius:14px;
+      background:rgba(255,255,255,.02);
+    }
+    .legend{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+    .legendItem{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);}
+    .swatch{width:10px; height:10px; border-radius:3px; border:1px solid rgba(255,255,255,.15);}
+
+    /* Drawer (right) */
+    .drawerOverlay{
+      position:fixed; inset:0; background:rgba(0,0,0,.45);
+      opacity:0; pointer-events:none; transition:opacity .18s ease;
+      z-index:80;
+    }
+    .drawer{
+      position:fixed; top:0; right:0; height:100dvh; width:min(520px, 92vw);
+      background:rgba(17,19,26,.98);
+      border-left:1px solid var(--border);
+      transform:translateX(105%); transition:transform .22s ease;
+      z-index:90; display:flex; flex-direction:column;
+    }
+    .drawerHeader{
+      padding:14px 14px; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .drawerTitle{font-weight:1000;}
+    .drawerBody{padding:14px; overflow:auto;}
+    .open .drawerOverlay{opacity:1; pointer-events:auto;}
+    .open .drawer{transform:translateX(0);}
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Chrono Study</h1>
+    <div class="sub">Offline · Stations/Jobs · Drawer config · Timeline bars (sec on X)</div>
+  </div>
+  <div class="topRight">
+    <span class="pill" id="savePill">Saved locally</span>
+    <button id="openDrawerBtn" title="Open job config" class="primary">☰ Config</button>
+    <span class="pill mono">v5</span>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- LEFT: stations/jobs list always visible -->
+  <section class="card">
+    <div class="sidebarTop">
+      <div>
+        <div class="title" style="margin:0;">Stations & Jobs</div>
+        <div class="small">Pick a job, then time cycles. Config is in the right drawer.</div>
+      </div>
+      <button class="primary" id="newStationBtn">+ Station</button>
+    </div>
+
+    <div class="searchRow">
+      <input id="searchBox" placeholder="Search station/job…" />
+      <button id="clearSearchBtn">Clear</button>
+    </div>
+
+    <div class="hr"></div>
+    <div id="stationsList" class="row" style="gap:10px;"></div>
+  </section>
+
+  <!-- RIGHT: timer + graph + cycles (config moved to drawer) -->
+  <section class="card">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+      <div>
+        <div class="title" style="margin:0;">Timer</div>
+        <div class="small" id="jobHeader">Select a job</div>
+      </div>
+      <div class="pill mono">Offline</div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="timerGrid">
+      <div class="card" style="padding:12px; border-radius:14px;">
+        <div class="small muted">Current elapsed</div>
+        <div class="elapsed" id="elapsed">00:00.000</div>
+
+        <div class="hr"></div>
+
+        <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>
+            <div class="small muted">Current element</div>
+            <div style="font-size:22px; font-weight:1100;" id="curElName">—</div>
+            <div class="small" id="curElType">—</div>
+          </div>
+          <div>
+            <div class="small muted">Index</div>
+            <div class="mono" style="font-size:16px; font-weight:1100;" id="curIndex">—</div>
+            <div class="small muted" id="curHint">Press Start</div>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <button class="primary bigbtn" id="mainBtn" disabled>Start</button>
+
+        <div class="btnbar" style="margin-top:10px;">
+          <button id="undoBtn" disabled>Undo</button>
+          <button class="danger" id="clearJobCyclesBtn">Clear cycles</button>
+        </div>
+
+        <div class="small muted" style="margin-top:10px;">
+          Space = Start/Next/Finish · Backspace = Undo
+        </div>
+      </div>
+
+      <div class="card" style="padding:12px; border-radius:14px;">
+        <div class="title">KPI</div>
+        <div class="row">
+          <div class="pill">Cycles <span class="mono" id="cyclesCount">0</span></div>
+          <div class="pill">Std time (avg cycle) <span class="mono" id="stdTotal">—</span></div>
+          <div class="small" id="stdExplain">Record cycles to compute.</div>
+          <div class="pill">Stability <span id="stabilityText">No data</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="title" style="margin-bottom:8px;">Timeline graph (stacked bars)</div>
+
+    <div class="toolbar">
+      <span class="countChip" id="cyclesShownChip">All cycles: 0</span>
+
+      <div class="seg">
+        <button id="modeSelectedBtn" class="active" type="button">Selected</button>
+        <button id="modeAllBtn" type="button">All</button>
+      </div>
+
+      <label class="chip"><input class="checkbox" id="showAvgLineChk" type="checkbox" checked /> Avg markers</label>
+
+      <label class="chip"><input class="checkbox" id="showOutliersChk" type="checkbox" checked /> Outliers</label>
+      <select id="outlierModeSel" class="miniSelect" title="Outlier method">
+        <option value="MULT_1_5">> 1.5× avg</option>
+        <option value="IQR">IQR</option>
+      </select>
+
+      <span class="pill">Tags</span>
+      <label class="chip"><input class="checkbox" id="tagNormal" type="checkbox" checked /> Normal</label>
+      <label class="chip"><input class="checkbox" id="tagRework" type="checkbox" checked /> Rework</label>
+      <label class="chip"><input class="checkbox" id="tagTraining" type="checkbox" checked /> Training</label>
+      <label class="chip"><input class="checkbox" id="tagDisturbance" type="checkbox" checked /> Disturbance</label>
+
+      <button id="selectLast3Btn" type="button">Select last 3</button>
+      <button id="clearSelectionBtn" type="button">Clear selection</button>
+    </div>
+
+    <div class="card" style="padding:12px; border-radius:14px; margin-top:10px;">
+      <canvas id="timelineChart" width="1100" height="460"></canvas>
+      <div class="legend" id="chartLegend"></div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="title">Cycles</div>
+    <div class="timerGrid">
+      <div class="card" style="padding:12px; border-radius:14px;">
+        <div class="small muted">Checkbox selects line (Selected mode). Tag editable per cycle.</div>
+
+        <div class="scrollBox" style="max-height:360px; margin-top:10px;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:44px;">Sel</th>
+                <th style="width:64px;">#</th>
+                <th>Captured</th>
+                <th style="width:160px;">Tag</th>
+                <th class="right" style="width:150px;">Total</th>
+                <th class="right" style="width:120px;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="cyclesBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="padding:12px; border-radius:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+          <div>
+            <div class="small muted">Cycle details</div>
+            <div class="mono" style="font-weight:1100; font-size:16px;" id="cycleDetailTitle">—</div>
+          </div>
+          <div class="pill mono" id="cycleDetailTotal">—</div>
+        </div>
+
+        <div class="hr"></div>
+
+        <label>Notes (optional)</label>
+        <textarea id="cycleNoteBox" placeholder="e.g., paused, missing part, machine jam…"></textarea>
+        <div class="small muted">Notes stored locally + JSON.</div>
+
+        <div class="hr"></div>
+
+        <div class="scrollBox" style="max-height:260px;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:38px;">#</th>
+                <th>Element</th>
+                <th style="width:140px;">Type</th>
+                <th class="right" style="width:160px;">Duration</th>
+              </tr>
+            </thead>
+            <tbody id="cycleDetailBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- RIGHT DRAWER: job config / elements / backup -->
+<div id="drawerRoot">
+  <div class="drawerOverlay" id="drawerOverlay"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawerHeader">
+      <div>
+        <div class="drawerTitle">Config</div>
+        <div class="small muted">Job setup · Elements · Backup</div>
+      </div>
+      <button id="closeDrawerBtn">✕</button>
+    </div>
+    <div class="drawerBody">
+      <div class="title">Job</div>
+      <div class="row">
+        <div class="row2">
+          <div>
+            <label>Station</label>
+            <select id="jobStationSelect"></select>
+          </div>
+          <div>
+            <label>Job name</label>
+            <input id="jobName" placeholder="e.g., Final tighten & inspect" />
+          </div>
+        </div>
+
+        <div class="row3">
+          <div>
+            <label>Allowance %</label>
+            <input id="allowancePct" type="number" step="0.1" min="0" value="12" />
+          </div>
+          <div>
+            <label>Rating %</label>
+            <input id="ratingPct" type="number" step="1" min="50" max="150" value="100" />
+          </div>
+          <div>
+            <label>Station code</label>
+            <input id="stationCodeView" disabled />
+          </div>
+        </div>
+
+        <div class="btnbar">
+          <button class="primary" id="newJobBtn">+ New Job</button>
+          <button id="dupJobBtn">Duplicate</button>
+          <button class="danger" id="delJobBtn">Delete</button>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="title">Elements</div>
+        <div class="row2">
+          <div>
+            <label>Element name</label>
+            <input id="elName" placeholder="e.g., Pick part" />
+          </div>
+          <div>
+            <label>Type</label>
+            <select id="elType">
+              <option value="HUMAN">HUMAN</option>
+              <option value="MACHINE">MACHINE</option>
+              <option value="HUMAN+MACHINE">HUMAN+MACHINE</option>
+              <option value="IDLE">IDLE</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="btnbar">
+          <button class="primary" id="addElBtn">Add</button>
+          <button id="moveUpBtn">Up</button>
+          <button id="moveDownBtn">Down</button>
+          <button class="danger" id="deleteElBtn">Delete</button>
+        </div>
+        <div class="small muted">Click an element row to select it.</div>
+
+        <div class="scrollBox" style="max-height:220px;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:38px;">#</th>
+                <th>Element</th>
+                <th style="width:140px;">Type</th>
+              </tr>
+            </thead>
+            <tbody id="elementsBody"></tbody>
+          </table>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="title">Backup</div>
+        <div class="btnbar">
+          <button id="exportJsonBtn">Export JSON</button>
+          <button id="importJsonBtn">Import JSON</button>
+          <input id="importFile" type="file" accept=".json" style="display:none" />
+          <button id="exportCsvBtn">Export CSV</button>
+        </div>
+        <div class="btnbar" style="margin-top:8px;">
+          <button id="demoSmallBtn">Demo Small</button>
+          <button id="demoMediumBtn">Demo Medium</button>
+          <button id="demoLargeBtn">Demo Large</button>
+          <button id="clearLocalBtn" class="danger">Clear Local</button>
+        </div>
+        <div class="small muted">CSV includes tags. Notes are JSON-only.</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+(() => {
+  const STORAGE_KEY = "chrono_drawer_timeline_v5";
+  const $ = (id) => document.getElementById(id);
+  const wallIso = () => new Date().toISOString();
+  const perfNow = () => performance.now();
+  const TAGS = ["Normal","Rework","Training","Disturbance"];
+
+  function uuid() {
+    return (crypto.randomUUID ? crypto.randomUUID()
+      : String(Date.now()) + "_" + Math.random().toString(16).slice(2));
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[c]));
+  }
+  function fmtMs(ms) {
+    const sign = ms < 0 ? "-" : "";
+    ms = Math.abs(ms);
+    const m = Math.floor(ms / 60000);
+    ms -= m * 60000;
+    const s = Math.floor(ms / 1000);
+    const mm = Math.floor(ms - s * 1000);
+    return `${sign}${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}.${String(mm).padStart(3,"0")}`;
+  }
+  function downloadText(filename, text, mime="text/plain") {
+    const blob = new Blob([text], {type: mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+  function toCsvRow(cells) {
+    return cells.map(v => {
+      const s = String(v ?? "");
+      if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    }).join(",");
+  }
+
+  // ----- State -----
+  function defaultState() {
+    const st1 = { id: uuid(), code: "S01", name: "Assembly Line A — Station 1" };
+    const job1 = {
+      id: uuid(), stationId: st1.id,
+      name: "Pick / Place / Machine",
+      allowancePct: 12, ratingPct: 100,
+      elements: [
+        { id: uuid(), name: "Pick part", type: "HUMAN" },
+        { id: uuid(), name: "Place part", type: "HUMAN" },
+        { id: uuid(), name: "Machine cycle", type: "MACHINE" },
+      ],
+      cycles: []
+    };
+    return {
+      meta: { createdAt: wallIso(), updatedAt: wallIso() },
+      activeJobId: job1.id,
+      stations: [st1],
+      jobs: [job1],
+    };
+  }
+
+  let state = loadState();
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.stations) || !Array.isArray(parsed.jobs)) return defaultState();
+      if (!parsed.activeJobId && parsed.jobs[0]) parsed.activeJobId = parsed.jobs[0].id;
+
+      if (parsed.stations.length > 0) {
+        for (const j of parsed.jobs) if (!j.stationId) j.stationId = parsed.stations[0].id;
+      }
+      for (const j of parsed.jobs) {
+        if (!Array.isArray(j.cycles)) j.cycles = [];
+        for (const c of j.cycles) {
+          if (!c.tag) c.tag = "Normal";
+          if (c.note == null) c.note = "";
+        }
+      }
+      return parsed;
+    } catch {
+      return defaultState();
+    }
+  }
+  function saveState() {
+    state.meta.updatedAt = wallIso();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    $("savePill").textContent = "Saved locally";
+  }
+
+  function getStationById(id){ return state.stations.find(s=>s.id===id) || null; }
+  function getActiveJob(){ return state.jobs.find(j=>j.id===state.activeJobId) || null; }
+
+  let selectedElementId = null;
+  let selectedCycleId = null;
+  let selectedCycleIdsForLine = new Set();
+  let searchText = "";
+  let graphMode = "SELECTED"; // SELECTED | ALL
+
+  // ----- Drawer -----
+  const root = $("drawerRoot");
+  function openDrawer(){ root.classList.add("open"); }
+  function closeDrawer(){ root.classList.remove("open"); }
+
+  // ----- Timer -----
+  const TimerMode = { Idle:"IDLE", Running:"RUNNING" };
+  let timer = { mode:TimerMode.Idle, startPerf:0, lastMarkPerf:0, laps:[], index:0 };
+  let raf = null;
+
+  function startCycle() {
+    const job = getActiveJob();
+    if (!job) return alert("Select a job first.");
+    if (job.elements.length === 0) return alert("Add at least 1 element first.");
+    timer.mode = TimerMode.Running;
+    timer.startPerf = perfNow();
+    timer.lastMarkPerf = timer.startPerf;
+    timer.laps = [];
+    timer.index = 0;
+    $("elapsed").textContent = "00:00.000";
+    tick();
+    renderAll();
+  }
+
+  function commitLapAndAdvance(isFinishing=false) {
+    const job = getActiveJob();
+    if (!job || timer.mode !== TimerMode.Running) return;
+
+    const idx = Math.min(timer.index, job.elements.length - 1);
+    const el = job.elements[idx];
+    const t = perfNow();
+    const ms = t - timer.lastMarkPerf;
+
+    timer.laps.push({ elementId: el.id, name: el.name, type: el.type, ms });
+    timer.lastMarkPerf = t;
+
+    if (isFinishing) {
+      const totalMs = t - timer.startPerf;
+      const cycle = { id: uuid(), atIso: wallIso(), laps: timer.laps, totalMs, tag:"Normal", note:"" };
+      job.cycles.push(cycle);
+
+      selectedCycleId = cycle.id;
+      selectedCycleIdsForLine.add(cycle.id);
+      boundLineSelection(job, 6);
+
+      saveState();
+      stopCycle();
+      renderAll();
+      return;
+    }
+
+    timer.index = Math.min(timer.index + 1, job.elements.length - 1);
+    renderAll();
+  }
+
+  function stopCycle() {
+    timer.mode = TimerMode.Idle;
+    timer.laps = [];
+    timer.index = 0;
+    if (raf) cancelAnimationFrame(raf);
+    raf = null;
+    renderAll();
+  }
+
+  function undoLap() {
+    if (timer.mode !== TimerMode.Running) return;
+    if (timer.laps.length === 0) return;
+    timer.laps.pop();
+    timer.index = Math.max(timer.index - 1, 0);
+    timer.lastMarkPerf = perfNow();
+    renderAll();
+  }
+
+  function tick() {
+    if (timer.mode !== TimerMode.Running) return;
+    $("elapsed").textContent = fmtMs(perfNow() - timer.startPerf);
+    raf = requestAnimationFrame(tick);
+  }
+
+  // ----- Stats / outliers -----
+  function mean(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
+  function quantile(sortedArr, q) {
+    const n = sortedArr.length;
+    if (!n) return null;
+    const pos = (n - 1) * q;
+    const base = Math.floor(pos);
+    const rest = pos - base;
+    if (sortedArr[base+1] === undefined) return sortedArr[base];
+    return sortedArr[base] + rest * (sortedArr[base+1] - sortedArr[base]);
+  }
+  function normalToStandardMs(job, observedMs) {
+    const ratingFactor = Number(job.ratingPct) / 100;
+    const allowanceFactor = 1 + (Number(job.allowancePct) / 100);
+    return (observedMs * ratingFactor) * allowanceFactor;
+  }
+  function computeAverages(job) {
+    let totalSum=0, totalCnt=0;
+    for (const c of job.cycles) { totalSum += c.totalMs; totalCnt++; }
+    const avgTotal = totalCnt ? totalSum/totalCnt : null;
+
+    let stability = { label:"No data", level:"none" };
+    if (job.cycles.length >= 3) {
+      const totals = job.cycles.map(c => c.totalMs);
+      const m = avgTotal;
+      const varSum = totals.reduce((acc, x) => acc + Math.pow(x - m, 2), 0);
+      const stdev = Math.sqrt(varSum / totals.length);
+      const cv = m > 0 ? (stdev / m) : 1;
+      if (cv < 0.05) stability = { label:"Very stable", level:"ok" };
+      else if (cv < 0.12) stability = { label:"Stable", level:"ok" };
+      else if (cv < 0.22) stability = { label:"Some variation", level:"warn" };
+      else stability = { label:"Unstable", level:"warn" };
+    } else if (job.cycles.length > 0) {
+      stability = { label:"Need more cycles", level:"warn" };
+    }
+    return { avgTotal, stability };
+  }
+
+  function selectedTagsSet() {
+    const s = new Set();
+    if ($("tagNormal").checked) s.add("Normal");
+    if ($("tagRework").checked) s.add("Rework");
+    if ($("tagTraining").checked) s.add("Training");
+    if ($("tagDisturbance").checked) s.add("Disturbance");
+    return s;
+  }
+
+  function perElementValues(job, cycles) {
+    const map = new Map();
+    for (const el of job.elements) map.set(el.id, []);
+    for (const c of cycles) {
+      const sums = new Map();
+      for (const lap of c.laps) sums.set(lap.elementId, (sums.get(lap.elementId)||0)+lap.ms);
+      for (const el of job.elements) {
+        const v = sums.get(el.id);
+        if (v != null) map.get(el.id).push(v);
+      }
+    }
+    return map;
+  }
+
+  function buildOutlierModel(job, cycles, mode) {
+    const vals = perElementValues(job, cycles);
+    const model = new Map();
+    for (const el of job.elements) {
+      const arrSec = (vals.get(el.id)||[]).map(x=>x/1000).sort((a,b)=>a-b);
+      const avg = mean(arrSec) ?? 0;
+      if (mode === "MULT_1_5") {
+        model.set(el.id, { mode, avgSec: avg, hi: avg*1.5 });
+      } else {
+        const q1 = quantile(arrSec, 0.25) ?? 0;
+        const q3 = quantile(arrSec, 0.75) ?? 0;
+        const iqr = q3 - q1;
+        model.set(el.id, { mode, avgSec: avg, lo: q1 - 1.5*iqr, hi: q3 + 1.5*iqr });
+      }
+    }
+    return model;
+  }
+
+  // Job progress (same idea)
+  function jobProgress(job) {
+    let score = 0;
+    if (job.elements.length > 0) score += 35;
+    if (job.elements.length >= 3) score += 10;
+    const cycles = job.cycles.length;
+    if (cycles >= 1) score += 15;
+    if (cycles >= 3) score += 15;
+    if (cycles >= 10) score += 15;
+    if (cycles >= 3) {
+      const { stability } = computeAverages(job);
+      if (stability.level === "ok") score += 10;
+      else if (stability.level === "warn") score += 5;
+    }
+    score = Math.max(0, Math.min(100, score));
+    let level = "warn";
+    if (score >= 80) level = "good";
+    else if (score >= 55) level = "mid";
+    return { score, level };
+  }
+
+  // ----- CRUD stations/jobs/elements -----
+  function createStation() {
+    const id = uuid();
+    const code = prompt("Station ID / code (example: S03):", "S" + String(state.stations.length + 1).padStart(2,"0"));
+    if (code === null) return;
+    const name = prompt("Station name:", "New Station");
+    if (name === null) return;
+    state.stations.push({ id, code: code.trim() || "S??", name: name.trim() || "New Station" });
+    saveState(); renderAll();
+  }
+  function renameStation(stationId) {
+    const st = getStationById(stationId); if (!st) return;
+    const code = prompt("Station code:", st.code); if (code === null) return;
+    const name = prompt("Station name:", st.name); if (name === null) return;
+    st.code = code.trim() || st.code;
+    st.name = name.trim() || st.name;
+    saveState(); renderAll();
+  }
+  function deleteStation(stationId) {
+    const st = getStationById(stationId); if (!st) return;
+    const jobsAtStation = state.jobs.filter(j => j.stationId === stationId).length;
+    if (!confirm(`Delete station "${st.code} — ${st.name}"?\nDeletes ${jobsAtStation} job(s).`)) return;
+    const active = getActiveJob();
+    if (active && active.stationId === stationId && timer.mode === TimerMode.Running) stopCycle();
+    state.jobs = state.jobs.filter(j => j.stationId !== stationId);
+    state.stations = state.stations.filter(s => s.id !== stationId);
+    if (!state.jobs.some(j => j.id === state.activeJobId)) state.activeJobId = state.jobs[0]?.id || null;
+    saveState(); renderAll();
+  }
+
+  function selectJob(jobId) {
+    if (timer.mode === TimerMode.Running) {
+      if (!confirm("Timer running. Switch job and stop current cycle?")) return;
+      stopCycle();
+    }
+    state.activeJobId = jobId;
+    selectedElementId = null;
+    selectedCycleId = null;
+    selectedCycleIdsForLine = new Set();
+    saveState();
+    renderAll();
+  }
+
+  function createJob() {
+    const stId = state.stations[0]?.id;
+    if (!stId) return alert("Create a station first.");
+    const id = uuid();
+    state.jobs.unshift({ id, stationId: stId, name:"New job", allowancePct:12, ratingPct:100, elements:[], cycles:[] });
+    state.activeJobId = id;
+    selectedElementId = null; selectedCycleId = null; selectedCycleIdsForLine = new Set();
+    saveState(); renderAll();
+    openDrawer();
+    $("jobName").focus(); $("jobName").select();
+  }
+  function duplicateActiveJob() {
+    const job = getActiveJob(); if (!job) return;
+    const id = uuid();
+    const copy = {
+      id, stationId: job.stationId,
+      name: job.name + " (copy)",
+      allowancePct: job.allowancePct,
+      ratingPct: job.ratingPct,
+      elements: job.elements.map(e => ({ id: uuid(), name: e.name, type: e.type })),
+      cycles: []
+    };
+    state.jobs.unshift(copy);
+    state.activeJobId = id;
+    selectedElementId = null; selectedCycleId = null; selectedCycleIdsForLine = new Set();
+    saveState(); renderAll();
+    openDrawer();
+  }
+  function deleteActiveJob() {
+    const job = getActiveJob(); if (!job) return;
+    if (!confirm(`Delete job "${job.name}"? Removes cycles too.`)) return;
+    if (timer.mode === TimerMode.Running) stopCycle();
+    state.jobs = state.jobs.filter(j => j.id !== job.id);
+    state.activeJobId = state.jobs[0]?.id || null;
+    selectedElementId = null; selectedCycleId = null; selectedCycleIdsForLine = new Set();
+    saveState(); renderAll();
+  }
+
+  function addElement() {
+    const job = getActiveJob(); if (!job) return alert("Select a job first.");
+    const name = $("elName").value.trim();
+    const type = $("elType").value;
+    if (!name) return alert("Element name required.");
+    const el = { id: uuid(), name, type };
+    job.elements.push(el);
+    selectedElementId = el.id;
+    $("elName").value = "";
+    saveState(); renderAll();
+  }
+  function deleteSelectedElement() {
+    const job = getActiveJob(); if (!job) return;
+    if (!selectedElementId) return alert("Select an element row first.");
+    const idx = job.elements.findIndex(e => e.id === selectedElementId);
+    if (idx < 0) return;
+    if (!confirm("Delete selected element?")) return;
+    job.elements.splice(idx, 1);
+    selectedElementId = null;
+    saveState(); renderAll();
+  }
+  function moveSelectedElement(dir) {
+    const job = getActiveJob(); if (!job) return;
+    if (!selectedElementId) return alert("Select an element row first.");
+    const idx = job.elements.findIndex(e => e.id === selectedElementId);
+    if (idx < 0) return;
+    const j = idx + dir;
+    if (j < 0 || j >= job.elements.length) return;
+    [job.elements[idx], job.elements[j]] = [job.elements[j], job.elements[idx]];
+    saveState(); renderAll();
+  }
+
+  // ----- cycles -----
+  function clearJobCycles() {
+    const job = getActiveJob(); if (!job) return;
+    if (!confirm(`Clear all cycles for "${job.name}"?`)) return;
+    job.cycles = [];
+    selectedCycleId = null;
+    selectedCycleIdsForLine = new Set();
+    saveState(); renderAll();
+  }
+  function deleteCycleById(cycleId) {
+    const job = getActiveJob(); if (!job) return;
+    const idx = job.cycles.findIndex(c => c.id === cycleId);
+    if (idx < 0) return;
+    if (!confirm("Delete this cycle?")) return;
+    job.cycles.splice(idx, 1);
+    selectedCycleIdsForLine.delete(cycleId);
+    if (selectedCycleId === cycleId) selectedCycleId = null;
+    saveState(); renderAll();
+  }
+  function setCycleTag(cycleId, tag) {
+    const job = getActiveJob(); if (!job) return;
+    const c = job.cycles.find(x => x.id === cycleId);
+    if (!c) return;
+    c.tag = tag;
+    saveState(); renderAll();
+  }
+  function setSelectedCycleNote(note) {
+    const job = getActiveJob(); if (!job || !selectedCycleId) return;
+    const c = job.cycles.find(x => x.id === selectedCycleId);
+    if (!c) return;
+    c.note = note;
+    saveState();
+  }
+  function toggleLineSelection(cycleId, checked) {
+    if (checked) selectedCycleIdsForLine.add(cycleId);
+    else selectedCycleIdsForLine.delete(cycleId);
+    const job = getActiveJob();
+    if (job) boundLineSelection(job, 6);
+    renderAll();
+  }
+  function boundLineSelection(job, maxLines) {
+    if (selectedCycleIdsForLine.size <= maxLines) return;
+    const recency = job.cycles.slice().reverse().map(c => c.id);
+    const kept = new Set();
+    for (const id of recency) {
+      if (selectedCycleIdsForLine.has(id)) kept.add(id);
+      if (kept.size >= maxLines) break;
+    }
+    selectedCycleIdsForLine = kept;
+  }
+  function selectLastN(n) {
+    const job = getActiveJob(); if (!job) return;
+    selectedCycleIdsForLine = new Set(job.cycles.slice(-n).map(c => c.id));
+    if (job.cycles.length > 0) selectedCycleId = job.cycles[job.cycles.length - 1].id;
+    renderAll();
+  }
+  function clearLineSelection() {
+    selectedCycleIdsForLine = new Set();
+    renderAll();
+  }
+
+  // ----- export/import -----
+  function exportJson() {
+    downloadText(`chrono_backup_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(state, null, 2), "application/json");
+  }
+  function importJson(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || ""));
+        applyImportedState(parsed, "Import file");
+      } catch(e) { alert("Import failed: " + e.message); }
+    };
+    reader.readAsText(file);
+  }
+
+  function applyImportedState(parsed, sourceLabel = "Import") {
+    if (!parsed || !Array.isArray(parsed.stations) || !Array.isArray(parsed.jobs)) {
+      alert("Invalid backup format.");
+      return false;
+    }
+    state = parsed;
+    for (const j of state.jobs) {
+      if (!Array.isArray(j.cycles)) j.cycles = [];
+      for (const c of j.cycles) {
+        if (!c.tag) c.tag = "Normal";
+        if (c.note == null) c.note = "";
+      }
+    }
+    if (!state.activeJobId && state.jobs[0]) state.activeJobId = state.jobs[0].id;
+    selectedElementId = null;
+    selectedCycleId = null;
+    selectedCycleIdsForLine = new Set();
+    saveState();
+    stopCycle();
+    renderAll();
+    $("savePill").textContent = `${sourceLabel} loaded`;
+    return true;
+  }
+
+  async function loadDemo(url, label) {
+    const fileName = String(url).split("/").pop() || url;
+    const baseHref = window.location.href.replace(/[^/]*$/, "");
+    const candidates = [
+      url,
+      `./${fileName}`,
+      `/chrono/${fileName}`,
+      `${baseHref}${fileName}`,
+    ];
+
+    const tried = [];
+    for (const candidate of candidates) {
+      try {
+        const res = await fetch(candidate, { cache: "no-store" });
+        if (!res.ok) {
+          tried.push(`${candidate} -> HTTP ${res.status}`);
+          continue;
+        }
+        const parsed = await res.json();
+        applyImportedState(parsed, label);
+        return;
+      } catch (e) {
+        tried.push(`${candidate} -> ${e.message}`);
+      }
+    }
+
+    if (window.location.protocol === "file:") {
+      alert(
+        `Demo load failed (${label}): browser blocks fetch on file:// pages.\n\n` +
+        `Open from a local server, e.g.:\n` +
+        `http://localhost:5173/chrono/chrono.html\n\n` +
+        `Or use "Import JSON" and pick a demo file manually.`
+      );
+      return;
+    }
+
+    alert(`Demo load failed (${label}).\n\n${tried.join("\n")}`);
+  }
+
+  function clearLocalState() {
+    if (!confirm("Clear local chrono data and reset to default?")) return;
+    localStorage.removeItem(STORAGE_KEY);
+    state = defaultState();
+    selectedElementId = null;
+    selectedCycleId = null;
+    selectedCycleIdsForLine = new Set();
+    saveState();
+    stopCycle();
+    renderAll();
+    $("savePill").textContent = "Local cleared";
+  }
+  function exportCsv() {
+    const job = getActiveJob();
+    if (!job) return alert("Select a job first.");
+    const st = getStationById(job.stationId);
+
+    const rows = [];
+    rows.push(toCsvRow([
+      "stationCode","stationName","jobName","allowancePct","ratingPct",
+      "cycleId","cycleAtIso","cycleTag","cycleTotalMs",
+      "lapIndex","elementName","elementType","lapMs"
+    ]));
+
+    for (const c of job.cycles) {
+      c.laps.forEach((lap, i) => {
+        rows.push(toCsvRow([
+          st?.code || "", st?.name || "", job.name, job.allowancePct, job.ratingPct,
+          c.id, c.atIso, c.tag || "Normal", c.totalMs,
+          i+1, lap.name, lap.type, lap.ms
+        ]));
+      });
+    }
+    const safe = (st?.code || "ST") + "_" + job.name.replace(/[^\w\-]+/g, "_");
+    downloadText(`${safe}.csv`, rows.join("\n"), "text/csv");
+  }
+
+  // ----- Timeline (stacked horizontal bars) -----
+  const SEGMENT_COLORS = [
+    "rgba(76,115,255,0.92)",
+    "rgba(66,209,139,0.92)",
+    "rgba(255,211,122,0.92)",
+    "rgba(255,76,106,0.92)",
+    "rgba(164,119,255,0.92)",
+    "rgba(94,226,255,0.92)",
+  ];
+
+  function drawEmpty(ctx,w,h,msg){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle="rgba(255,255,255,0.60)";
+    ctx.font="14px system-ui, sans-serif";
+    ctx.textAlign="center";
+    ctx.fillText(msg, w/2, h/2);
+    ctx.textAlign="left";
+  }
+
+  function cycleToElementMs(job, cycle) {
+    const sums = new Map();
+    for (const lap of cycle.laps) sums.set(lap.elementId, (sums.get(lap.elementId)||0) + lap.ms);
+    return job.elements.map(el => sums.get(el.id) ?? 0);
+  }
+
+  function drawTimeline(canvas, job, baseCycles, selectedCycles, avgByElSec, outModel, showAvg, showOutliers) {
+    const ctx = canvas.getContext("2d");
+    const w=canvas.width, h=canvas.height;
+    ctx.clearRect(0,0,w,h);
+
+    if (!job || job.elements.length === 0) return drawEmpty(ctx,w,h,"No elements");
+    if (!baseCycles.length && !selectedCycles.length) return drawEmpty(ctx,w,h,"No cycles (check tag filter)");
+
+    // layout
+    const padL=120, padR=16, padT=16, padB=48;
+    const cw=w-padL-padR, ch=h-padT-padB;
+
+    // which cycles to draw as rows:
+    // In ALL mode => rows = baseCycles (can be many)
+    // In SELECTED => rows = selectedCycles (max 6)
+    const rows = (graphMode === "ALL") ? baseCycles : selectedCycles;
+    if (!rows.length) return drawEmpty(ctx,w,h,"Select cycles (or switch to All)");
+
+    const maxRowsToDraw = 80; // keep performance ok in-browser
+    const drawRows = (graphMode === "ALL" && rows.length > maxRowsToDraw)
+      ? rows.slice(-maxRowsToDraw)
+      : rows;
+
+    // compute x max in seconds (max total among drawn rows)
+    let xMaxSec = 1;
+    for (const c of drawRows) xMaxSec = Math.max(xMaxSec, c.totalMs/1000);
+    xMaxSec *= 1.10;
+
+    const rowH = Math.max(14, Math.min(26, ch / drawRows.length));
+    const gap = Math.max(4, Math.min(8, rowH * 0.35));
+
+    const xOf = (sec) => padL + (sec/xMaxSec)*cw;
+
+    // axes
+    ctx.strokeStyle="rgba(255,255,255,0.10)";
+    ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.moveTo(padL,padT);
+    ctx.lineTo(padL,padT+ch);
+    ctx.lineTo(padL+cw,padT+ch);
+    ctx.stroke();
+
+    // x ticks (seconds)
+    ctx.fillStyle="rgba(255,255,255,0.55)";
+    ctx.font="12px ui-monospace, Menlo, Consolas, monospace";
+    const ticks=5;
+    for (let i=0;i<=ticks;i++){
+      const sec = xMaxSec*i/ticks;
+      const x = xOf(sec);
+      ctx.strokeStyle="rgba(255,255,255,0.06)";
+      ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,padT+ch); ctx.stroke();
+      ctx.fillText(sec.toFixed(2), x-14, padT+ch+22);
+    }
+    ctx.fillStyle="rgba(255,255,255,0.55)";
+    ctx.font="12px system-ui, sans-serif";
+    ctx.fillText("Seconds →", padL, padT+ch+42);
+
+    // Avg markers per element: draw small vertical markers at cumulative avg boundaries
+    // We build cumulative avg per element slot:
+    const avgCum = [];
+    if (showAvg && avgByElSec) {
+      let cum = 0;
+      for (let i=0;i<job.elements.length;i++){
+        const el = job.elements[i];
+        const v = avgByElSec.get(el.id);
+        if (v != null) cum += v;
+        avgCum.push(cum);
+      }
+      ctx.setLineDash([6,6]);
+      ctx.strokeStyle="rgba(255,255,255,0.65)";
+      ctx.lineWidth=1.4;
+      for (const s of avgCum) {
+        const x = xOf(s);
+        ctx.beginPath();
+        ctx.moveTo(x, padT);
+        ctx.lineTo(x, padT+ch);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
+    // Row labels + stacked bars
+    ctx.textAlign="right";
+    for (let r=0;r<drawRows.length;r++){
+      const c = drawRows[r];
+      const y = padT + r*(rowH+gap);
+      if (y + rowH > padT+ch) break;
+
+      // row label
+      ctx.fillStyle="rgba(255,255,255,0.60)";
+      ctx.font="12px ui-monospace, Menlo, Consolas, monospace";
+      ctx.fillText(new Date(c.atIso).toLocaleTimeString(), padL-8, y+rowH-2);
+
+      // build element ms list in order
+      const elMs = cycleToElementMs(job, c);
+      let curSec = 0;
+
+      for (let i=0;i<job.elements.length;i++){
+        const segSec = (elMs[i]||0)/1000;
+        const x0 = xOf(curSec);
+        const x1 = xOf(curSec + segSec);
+        const width = Math.max(0, x1 - x0);
+
+        // segment color by element index
+        const col = SEGMENT_COLORS[i % SEGMENT_COLORS.length];
+        ctx.fillStyle = col;
+        ctx.fillRect(x0, y, width, rowH);
+
+        // outlier overlay: if segment is outlier for that element, outline it red
+        if (showOutliers && outModel) {
+          const el = job.elements[i];
+          const m = outModel.get(el.id);
+          if (m) {
+            const v = segSec;
+            let isOut = false;
+            if (m.mode === "MULT_1_5") isOut = v > m.hi;
+            else isOut = (m.lo != null && v < m.lo) || (m.hi != null && v > m.hi);
+            if (isOut) {
+              ctx.strokeStyle = "rgba(255,76,106,0.95)";
+              ctx.lineWidth = 2.0;
+              ctx.strokeRect(x0+1, y+1, Math.max(0,width-2), Math.max(0,rowH-2));
+            }
+          }
+        }
+
+        curSec += segSec;
+      }
+
+      // outline selected cycles in ALL mode (if checked)
+      if (graphMode === "ALL" && selectedCycleIdsForLine.has(c.id)) {
+        ctx.strokeStyle="rgba(76,115,255,0.85)";
+        ctx.lineWidth=2.0;
+        ctx.strokeRect(padL, y, Math.max(0, xOf(c.totalMs/1000)-padL), rowH);
+      }
+    }
+    ctx.textAlign="left";
+  }
+
+  function renderLegend(job) {
+    const el = $("chartLegend");
+    el.innerHTML = "";
+    if (!job || !job.elements.length) return;
+
+    // element legend
+    for (let i=0;i<job.elements.length;i++){
+      const color = SEGMENT_COLORS[i % SEGMENT_COLORS.length];
+      const item = document.createElement("div");
+      item.className="legendItem";
+      item.innerHTML = `<span class="swatch" style="background:${color};"></span> ${i+1}. ${esc(job.elements[i].name)}`;
+      el.appendChild(item);
+      if (i >= 8) break; // keep compact; pro apps often collapse the rest
+    }
+    if (job.elements.length > 9) {
+      const more = document.createElement("div");
+      more.className="legendItem";
+      more.textContent = `… +${job.elements.length - 9} more`;
+      el.appendChild(more);
+    }
+
+    if ($("showAvgLineChk").checked) {
+      const item = document.createElement("div");
+      item.className="legendItem";
+      item.innerHTML = `<span class="swatch" style="background:rgba(255,255,255,0.65);"></span> Avg boundaries`;
+      el.appendChild(item);
+    }
+    if ($("showOutliersChk").checked) {
+      const item = document.createElement("div");
+      item.className="legendItem";
+      item.innerHTML = `<span class="swatch" style="background:rgba(255,76,106,0.95);"></span> Outlier outline`;
+      el.appendChild(item);
+    }
+  }
+
+  // ----- Rendering -----
+  function renderStationJobSidebar() {
+    const container = $("stationsList");
+    container.innerHTML = "";
+    const q = searchText.trim().toLowerCase();
+
+    for (const st of state.stations) {
+      const jobs = state.jobs.filter(j => j.stationId === st.id);
+      const stationMatch = (st.code + " " + st.name).toLowerCase().includes(q);
+      const filteredJobs = q ? jobs.filter(j => (j.name).toLowerCase().includes(q) || stationMatch) : jobs;
+      if (q && !stationMatch && filteredJobs.length === 0) continue;
+
+      const block = document.createElement("div");
+      block.className = "stationBlock";
+
+      const head = document.createElement("div");
+      head.className = "stationHeader";
+      head.innerHTML = `
+        <div style="min-width:0;">
+          <div class="stationName">${esc(st.code)} — ${esc(st.name)}</div>
+          <div class="stationMeta">${filteredJobs.length} job(s)</div>
+        </div>
+        <div class="btnbar" style="gap:6px;">
+          <button class="iconBtn" data-act="newJob">+Job</button>
+          <button class="iconBtn" data-act="edit">✎</button>
+          <button class="iconBtn" data-act="del">🗑</button>
+        </div>
+      `;
+      head.addEventListener("click", (e) => {
+        const act = e.target?.dataset?.act;
+        if (act === "newJob") {
+          e.stopPropagation();
+          const id = uuid();
+          state.jobs.unshift({ id, stationId: st.id, name:"New job", allowancePct:12, ratingPct:100, elements:[], cycles:[] });
+          state.activeJobId = id;
+          selectedElementId=null; selectedCycleId=null; selectedCycleIdsForLine=new Set();
+          saveState(); renderAll(); openDrawer();
+          $("jobName").focus(); $("jobName").select();
+          return;
+        }
+        if (act === "edit") { e.stopPropagation(); renameStation(st.id); return; }
+        if (act === "del") { e.stopPropagation(); deleteStation(st.id); return; }
+      });
+      block.appendChild(head);
+
+      const list = document.createElement("div");
+      list.className = "jobList";
+
+      for (const job of filteredJobs) {
+        const active = (job.id === state.activeJobId);
+        const { score, level } = jobProgress(job);
+        const item = document.createElement("div");
+        item.className = "jobItem" + (active ? " active" : "");
+        item.innerHTML = `
+          <div style="min-width:0; flex:1;">
+            <div class="jobName">${esc(job.name)}</div>
+            <div class="jobMeta">
+              <span class="mono">els: ${job.elements.length}</span>
+              <span class="mono">cycles: ${job.cycles.length}</span>
+              <span class="mono">A:${Number(job.allowancePct).toFixed(0)}%</span>
+              <span class="mono">R:${Number(job.ratingPct).toFixed(0)}%</span>
+            </div>
+            <div class="progressWrap">
+              <div class="progressBar ${level === "good" ? "good" : (level === "mid" ? "" : "warn")}" style="width:${score}%;"></div>
+            </div>
+            <div class="tiny">Progress: ${score}%</div>
+          </div>
+          <div class="btnbar" style="gap:6px;">
+            <button class="iconBtn" data-act="cfg">⚙</button>
+          </div>
+        `;
+        item.addEventListener("click", (e) => {
+          const act = e.target?.dataset?.act;
+          if (act === "cfg") { e.stopPropagation(); selectJob(job.id); openDrawer(); return; }
+          selectJob(job.id);
+        });
+        list.appendChild(item);
+      }
+      block.appendChild(list);
+      container.appendChild(block);
+    }
+  }
+
+  function renderJobConfigDrawer() {
+    const job = getActiveJob();
+
+    const sel = $("jobStationSelect");
+    sel.innerHTML = "";
+    for (const st of state.stations) {
+      const opt = document.createElement("option");
+      opt.value = st.id;
+      opt.textContent = `${st.code} — ${st.name}`;
+      sel.appendChild(opt);
+    }
+
+    const disabled = !job;
+    for (const id of ["jobStationSelect","jobName","allowancePct","ratingPct","dupJobBtn","delJobBtn"]) $(id).disabled = disabled;
+    $("newJobBtn").disabled = state.stations.length === 0;
+
+    if (!job) {
+      $("jobName").value = "";
+      $("allowancePct").value = 12;
+      $("ratingPct").value = 100;
+      $("stationCodeView").value = "";
+      renderElementsTable(null);
+      return;
+    }
+
+    sel.value = job.stationId;
+    $("jobName").value = job.name;
+    $("allowancePct").value = job.allowancePct;
+    $("ratingPct").value = job.ratingPct;
+    $("stationCodeView").value = getStationById(job.stationId)?.code || "";
+    renderElementsTable(job);
+  }
+
+  function renderElementsTable(job) {
+    const body = $("elementsBody");
+    body.innerHTML = "";
+    if (!job || job.elements.length === 0) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="3" class="muted">No elements.</td>`;
+      body.appendChild(tr);
+      return;
+    }
+    job.elements.forEach((el, idx) => {
+      const tr = document.createElement("tr");
+      tr.style.cursor="pointer";
+      tr.style.background = (el.id === selectedElementId) ? "rgba(76,115,255,0.10)" : "transparent";
+      tr.innerHTML = `
+        <td class="mono">${idx+1}</td>
+        <td><strong>${esc(el.name)}</strong></td>
+        <td><span class="pill">${esc(el.type)}</span></td>
+      `;
+      tr.addEventListener("click", () => { selectedElementId = el.id; renderElementsTable(job); });
+      body.appendChild(tr);
+    });
+  }
+
+  function renderHeaderKpisTimerGraph() {
+    const job = getActiveJob();
+
+    // header
+    if (!job) {
+      $("jobHeader").textContent = "Select a job";
+      $("cyclesCount").textContent = "0";
+      $("stdTotal").textContent = "—";
+      $("stdExplain").textContent = "Record cycles to compute.";
+      $("stabilityText").textContent = "No data";
+      $("mainBtn").disabled = true;
+    } else {
+      const st = getStationById(job.stationId);
+      $("jobHeader").innerHTML =
+        `<span class="pill">Station</span> <strong>${esc(st?.code||"")} — ${esc(st?.name||"")}</strong>
+         <span class="pill">Job</span> <strong>${esc(job.name)}</strong>`;
+      $("cyclesCount").textContent = String(job.cycles.length);
+
+      const { avgTotal, stability } = computeAverages(job);
+      $("stabilityText").textContent = stability.label;
+      if (avgTotal == null) {
+        $("stdTotal").textContent = "—";
+        $("stdExplain").textContent = "Record cycles to compute.";
+      } else {
+        const stdMs = normalToStandardMs(job, avgTotal);
+        $("stdTotal").textContent = `${(stdMs/1000).toFixed(3)} s`;
+        $("stdExplain").textContent = `Rating ${job.ratingPct}% + Allowance ${job.allowancePct}% applied.`;
+      }
+      $("mainBtn").disabled = job.elements.length === 0;
+    }
+
+    // timer panel display
+    $("undoBtn").disabled = !(timer.mode==="RUNNING" && timer.laps.length>0);
+
+    if (!job || job.elements.length === 0) {
+      $("curElName").textContent = "—";
+      $("curElType").textContent = "—";
+      $("curIndex").textContent = "—";
+      $("curHint").textContent = job ? "Add elements in Config" : "Select a job";
+      $("mainBtn").textContent = "Start";
+      if (!job) $("elapsed").textContent = "00:00.000";
+    } else {
+      if (timer.mode==="IDLE") {
+        $("curElName").textContent = job.elements[0].name;
+        $("curElType").textContent = job.elements[0].type;
+        $("curIndex").textContent = `1 / ${job.elements.length}`;
+        $("curHint").textContent = "Press Start";
+        $("mainBtn").textContent = "Start";
+        $("elapsed").textContent = "00:00.000";
+      } else {
+        const idx = Math.min(timer.index, job.elements.length-1);
+        const el = job.elements[idx];
+        const isLast = idx === job.elements.length-1;
+        $("curElName").textContent = el.name;
+        $("curElType").textContent = el.type;
+        $("curIndex").textContent = `${idx+1} / ${job.elements.length}`;
+        $("curHint").textContent = isLast ? "Finish to save cycle" : "Tap Next";
+        $("mainBtn").textContent = isLast ? "Finish cycle" : "Next";
+      }
+    }
+
+    // cycles list + graph
+    renderCyclesAndGraph(job);
+  }
+
+  function renderCyclesAndGraph(job) {
+    const cyclesBody = $("cyclesBody");
+    const detailBody = $("cycleDetailBody");
+    const canvas = $("timelineChart");
+
+    cyclesBody.innerHTML = "";
+    detailBody.innerHTML = "";
+    $("cycleDetailTitle").textContent = "—";
+    $("cycleDetailTotal").textContent = "—";
+    $("cycleNoteBox").value = "";
+    $("cycleNoteBox").disabled = true;
+    $("cyclesShownChip").textContent = "All cycles: 0";
+    $("chartLegend").innerHTML = "";
+
+    if (!job || job.cycles.length === 0) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="6" class="muted">No cycles recorded.</td>`;
+      cyclesBody.appendChild(tr);
+      drawEmpty(canvas.getContext("2d"), canvas.width, canvas.height, "No cycles");
+      return;
+    }
+
+    const tagSet = selectedTagsSet();
+    const filteredCycles = job.cycles.filter(c => tagSet.has(c.tag || "Normal"));
+    $("cyclesShownChip").textContent = `All cycles: ${filteredCycles.length} (filtered)`;
+
+    if (!selectedCycleId || !job.cycles.some(c => c.id === selectedCycleId)) {
+      selectedCycleId = job.cycles[job.cycles.length-1].id;
+    }
+    if (selectedCycleIdsForLine.size === 0) {
+      const base = filteredCycles.length ? filteredCycles : job.cycles;
+      selectedCycleIdsForLine = new Set(base.slice(-3).map(c => c.id));
+    }
+    boundLineSelection(job, 6);
+
+    // cycles table (most recent first)
+    const reversed = job.cycles.slice().reverse();
+    for (let idxFromEnd=0; idxFromEnd<reversed.length; idxFromEnd++){
+      const c = reversed[idxFromEnd];
+      const number = job.cycles.length - idxFromEnd;
+      const isActive = c.id === selectedCycleId;
+      const checked = selectedCycleIdsForLine.has(c.id);
+      const tagVal = c.tag || "Normal";
+      const tagOptions = TAGS.map(t => `<option value="${t}" ${t===tagVal?"selected":""}>${t}</option>`).join("");
+
+      const tr = document.createElement("tr");
+      tr.style.cursor="pointer";
+      tr.style.background = isActive ? "rgba(76,115,255,0.10)" : "transparent";
+      if (!tagSet.has(tagVal)) tr.style.opacity = "0.55";
+
+      tr.innerHTML = `
+        <td class="right"><input class="checkbox" type="checkbox" ${checked?"checked":""} data-check="1" /></td>
+        <td class="mono">${number}</td>
+        <td class="muted">${new Date(c.atIso).toLocaleString()}</td>
+        <td><select data-tag="1">${tagOptions}</select></td>
+        <td class="right mono">${fmtMs(c.totalMs)}</td>
+        <td class="right"><button class="danger" data-del="1" style="padding:6px 10px; border-radius:10px;">Delete</button></td>
+      `;
+
+      tr.addEventListener("click", (e) => {
+        if (e.target?.dataset?.del) { e.stopPropagation(); deleteCycleById(c.id); return; }
+        if (e.target?.dataset?.check) { e.stopPropagation(); toggleLineSelection(c.id, e.target.checked); return; }
+        if (e.target?.dataset?.tag) { e.stopPropagation(); setCycleTag(c.id, e.target.value); return; }
+        selectedCycleId = c.id;
+        renderAll();
+      });
+
+      cyclesBody.appendChild(tr);
+    }
+
+    // details
+    const sel = job.cycles.find(c => c.id === selectedCycleId) || job.cycles[job.cycles.length-1];
+    $("cycleDetailTitle").textContent = `Cycle @ ${new Date(sel.atIso).toLocaleString()} · ${sel.tag || "Normal"}`;
+    $("cycleDetailTotal").textContent = fmtMs(sel.totalMs);
+    $("cycleNoteBox").disabled = false;
+    $("cycleNoteBox").value = sel.note || "";
+    sel.laps.forEach((lap, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${i+1}</td>
+        <td>${esc(lap.name)}</td>
+        <td><span class="pill">${esc(lap.type)}</span></td>
+        <td class="right mono">${fmtMs(lap.ms)}</td>
+      `;
+      detailBody.appendChild(tr);
+    });
+    const trTot = document.createElement("tr");
+    trTot.innerHTML = `<td colspan="3" class="right muted">Total</td><td class="right mono"><strong>${fmtMs(sel.totalMs)}</strong></td>`;
+    detailBody.appendChild(trTot);
+
+    // graph model base cycles = filtered (pro behavior)
+    const baseCycles = filteredCycles.length ? filteredCycles : job.cycles;
+    const perElVals = perElementValues(job, baseCycles);
+    const avgByElSec = new Map();
+    for (const el of job.elements) {
+      const secArr = (perElVals.get(el.id)||[]).map(x=>x/1000);
+      avgByElSec.set(el.id, mean(secArr));
+    }
+    const outModel = buildOutlierModel(job, baseCycles, $("outlierModeSel").value);
+
+    const selectedCycles = job.cycles
+      .filter(c => selectedCycleIdsForLine.has(c.id))
+      .filter(c => tagSet.has(c.tag || "Normal"))
+      .slice(-6);
+
+    drawTimeline(
+      canvas,
+      job,
+      baseCycles,
+      selectedCycles,
+      avgByElSec,
+      outModel,
+      $("showAvgLineChk").checked,
+      $("showOutliersChk").checked
+    );
+    renderLegend(job);
+  }
+
+  // ----- Backup / UI wiring -----
+  $("newStationBtn").addEventListener("click", createStation);
+
+  $("searchBox").addEventListener("input", () => { searchText = $("searchBox").value || ""; renderStationJobSidebar(); });
+  $("clearSearchBtn").addEventListener("click", () => { $("searchBox").value=""; searchText=""; renderStationJobSidebar(); });
+
+  $("openDrawerBtn").addEventListener("click", openDrawer);
+  $("closeDrawerBtn").addEventListener("click", closeDrawer);
+  $("drawerOverlay").addEventListener("click", closeDrawer);
+
+  $("newJobBtn").addEventListener("click", createJob);
+  $("dupJobBtn").addEventListener("click", duplicateActiveJob);
+  $("delJobBtn").addEventListener("click", deleteActiveJob);
+
+  $("jobStationSelect").addEventListener("change", () => {
+    const job = getActiveJob(); if (!job) return;
+    job.stationId = $("jobStationSelect").value;
+    saveState(); renderAll();
+  });
+  $("jobName").addEventListener("input", () => {
+    const job = getActiveJob(); if (!job) return;
+    job.name = $("jobName").value;
+    saveState(); renderAll();
+  });
+  $("allowancePct").addEventListener("input", () => {
+    const job = getActiveJob(); if (!job) return;
+    job.allowancePct = Number($("allowancePct").value || 0);
+    saveState(); renderAll();
+  });
+  $("ratingPct").addEventListener("input", () => {
+    const job = getActiveJob(); if (!job) return;
+    job.ratingPct = Number($("ratingPct").value || 100);
+    saveState(); renderAll();
+  });
+
+  $("addElBtn").addEventListener("click", addElement);
+  $("deleteElBtn").addEventListener("click", deleteSelectedElement);
+  $("moveUpBtn").addEventListener("click", () => moveSelectedElement(-1));
+  $("moveDownBtn").addEventListener("click", () => moveSelectedElement(+1));
+
+  $("mainBtn").addEventListener("click", () => {
+    const job = getActiveJob(); if (!job) return;
+    if (timer.mode === TimerMode.Idle) return startCycle();
+    const idx = Math.min(timer.index, job.elements.length - 1);
+    const isLast = idx === job.elements.length - 1;
+    commitLapAndAdvance(isLast);
+  });
+  $("undoBtn").addEventListener("click", undoLap);
+  $("clearJobCyclesBtn").addEventListener("click", clearJobCycles);
+
+  function setMode(mode) {
+    graphMode = mode;
+    $("modeSelectedBtn").classList.toggle("active", mode === "SELECTED");
+    $("modeAllBtn").classList.toggle("active", mode === "ALL");
+    renderAll();
+  }
+  $("modeSelectedBtn").addEventListener("click", () => setMode("SELECTED"));
+  $("modeAllBtn").addEventListener("click", () => setMode("ALL"));
+
+  const rerender = () => renderAll();
+  $("showAvgLineChk").addEventListener("change", rerender);
+  $("showOutliersChk").addEventListener("change", rerender);
+  $("outlierModeSel").addEventListener("change", rerender);
+  $("tagNormal").addEventListener("change", rerender);
+  $("tagRework").addEventListener("change", rerender);
+  $("tagTraining").addEventListener("change", rerender);
+  $("tagDisturbance").addEventListener("change", rerender);
+
+  $("selectLast3Btn").addEventListener("click", () => selectLastN(3));
+  $("clearSelectionBtn").addEventListener("click", clearLineSelection);
+
+  $("cycleNoteBox").addEventListener("input", () => setSelectedCycleNote($("cycleNoteBox").value));
+
+  $("exportJsonBtn").addEventListener("click", exportJson);
+  $("importJsonBtn").addEventListener("click", () => $("importFile").click());
+  $("importFile").addEventListener("change", (e) => {
+    const f = e.target.files?.[0];
+    if (f) importJson(f);
+    e.target.value = "";
+  });
+  $("exportCsvBtn").addEventListener("click", exportCsv);
+  $("demoSmallBtn").addEventListener("click", () => loadDemo("./chrono_examples_small.json", "Demo Small"));
+  $("demoMediumBtn").addEventListener("click", () => loadDemo("./chrono_examples_medium.json", "Demo Medium"));
+  $("demoLargeBtn").addEventListener("click", () => loadDemo("./chrono_examples_large.json", "Demo Large"));
+  $("clearLocalBtn").addEventListener("click", clearLocalState);
+
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Space") { e.preventDefault(); if (!$("mainBtn").disabled) $("mainBtn").click(); }
+    if (e.code === "Backspace") { if (!$("undoBtn").disabled) $("undoBtn").click(); }
+    if (e.key === "Escape") closeDrawer();
+  });
+
+  // ----- renderAll -----
+  function renderAll() {
+    renderStationJobSidebar();
+    renderJobConfigDrawer();
+    renderHeaderKpisTimerGraph();
+  }
+
+  // init
+  renderAll();
+
+})();
+</script>
+</body>
+</html>
