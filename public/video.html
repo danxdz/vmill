@@ -1,0 +1,1974 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Chrono</title>
+  <style>
+    :root{
+      --bg:#0b0d10;
+      --panel:#12161c;
+      --panel2:#0f1318;
+      --text:#e7edf7;
+      --muted:#9aa6b2;
+      --border:#233041;
+      --accent:#5aa7ff;
+      --ok:#42d392;
+      --warn:#ffd37a;
+      --danger:#ff5a67;
+      --shadow: 0 10px 30px rgba(0,0,0,.18);
+      --r16:16px;
+      --r12:12px;
+    }
+    *{ box-sizing:border-box; }
+    body{ margin:0; font:14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg); color:var(--text); }
+    header{
+      position:sticky; top:0; z-index:50;
+      padding:12px 14px; display:flex; gap:12px; align-items:center; justify-content:space-between;
+      border-bottom:1px solid var(--border);
+      background:linear-gradient(180deg,#0e1218, #0b0d10);
+    }
+    header h1{ margin:0; font-size:15px; font-weight:800; letter-spacing:.2px; }
+    header .sub{ color:var(--muted); font-size:12px; margin-top:2px; }
+    button, select, input, textarea{
+      background:var(--panel); color:var(--text); border:1px solid var(--border);
+      border-radius:12px; padding:8px 10px; outline:none;
+    }
+    textarea{ min-height:88px; resize:vertical; }
+    button{ cursor:pointer; user-select:none; }
+    button.primary{ border-color:rgba(90,167,255,.4); box-shadow:0 0 0 2px rgba(90,167,255,.10) inset; }
+    button.success{ border-color:rgba(66,211,146,.4); box-shadow:0 0 0 2px rgba(66,211,146,.10) inset; }
+    button.danger{ border-color:rgba(255,90,103,.4); box-shadow:0 0 0 2px rgba(255,90,103,.10) inset; }
+    button.ghost{ background:transparent; }
+    button:disabled{ opacity:.45; cursor:not-allowed; }
+    .wrap{ display:grid; grid-template-columns: 360px 1fr; min-height:calc(100vh - 58px); }
+    .left{
+      border-right:1px solid var(--border); background:var(--panel2);
+      padding:12px; display:flex; flex-direction:column; gap:12px;
+    }
+    .main{ padding:12px; display:flex; flex-direction:column; gap:12px; }
+    .card{
+      background:var(--panel); border:1px solid var(--border); border-radius:var(--r16); padding:12px;
+      box-shadow:var(--shadow);
+    }
+    .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .row.tight{ gap:6px; }
+    .row > *{ flex:1; }
+    .row.tight > *{ flex:auto; }
+    .label{ color:var(--muted); font-size:12px; margin-bottom:6px; }
+    .muted{ color:var(--muted); }
+    .tiny{ font-size:12px; color:var(--muted); }
+    .pill{
+      display:inline-flex; gap:8px; align-items:center; padding:6px 10px;
+      border-radius:999px; border:1px solid var(--border);
+      background:#0d1218; color:var(--muted); font-size:12px;
+    }
+    .kbd{ font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; padding:2px 6px; border:1px solid var(--border); border-radius:8px; background:#0d1218; color:var(--muted);}
+    .hr{ height:1px; background:var(--border); margin:10px 0; }
+    .bigTime{ font-variant-numeric: tabular-nums; font-size:30px; font-weight:900; letter-spacing:.4px; }
+    .modeTabs{ display:flex; gap:8px; }
+    .tab{ padding:8px 10px; border-radius:999px; border:1px solid var(--border); background:#0d1218; color:var(--muted); cursor:pointer; }
+    .tab.active{ color:var(--text); border-color:rgba(90,167,255,.45); box-shadow:0 0 0 2px rgba(90,167,255,.10) inset; }
+    .canvasWrap{ overflow:auto; border:1px solid var(--border); border-radius:var(--r16); background:#07090c; }
+    canvas{ display:block; }
+    .table{ width:100%; border-collapse:separate; border-spacing:0 8px; }
+    .table th{ color:var(--muted); font-size:12px; text-align:left; padding:0 8px; font-weight:700; }
+    .table td{
+      background:#0d1218; border:1px solid var(--border); padding:8px; border-left:none; border-right:none;
+      vertical-align:top;
+    }
+    .table tr td:first-child{ border-left:1px solid var(--border); border-top-left-radius:12px; border-bottom-left-radius:12px; }
+    .table tr td:last-child{ border-right:1px solid var(--border); border-top-right-radius:12px; border-bottom-right-radius:12px; }
+    .kpiGrid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .kpi{ padding:10px; background:#0d1218; border:1px solid var(--border); border-radius:14px; }
+    .kpi .t{ color:var(--muted); font-size:12px; font-weight:700; }
+    .kpi .v{ font-variant-numeric: tabular-nums; font-size:18px; font-weight:900; margin-top:4px; }
+    .typeDot{ width:10px; height:10px; border-radius:999px; display:inline-block; border:1px solid rgba(255,255,255,.15); }
+    .warn{ color:var(--warn); }
+    .ok{ color:var(--ok); }
+    .dangerText{ color:var(--danger); }
+
+    /* Drawer */
+    .drawer{
+      position:fixed; right:0; top:58px; height:calc(100vh - 58px); width:min(560px, 94vw);
+      background:rgba(18,22,28,.98); border-left:1px solid var(--border);
+      transform: translateX(105%); transition: transform .18s ease;
+      z-index:60; box-shadow:-30px 0 60px rgba(0,0,0,.35);
+      padding:12px; overflow:auto;
+    }
+    .drawer.open{ transform: translateX(0); }
+    .drawer h2{ margin:6px 0 4px; font-size:14px; }
+    .section{ margin-top:12px; }
+    .drawer .card{ box-shadow:none; }
+
+    /* Video */
+    video{ width:100%; border-radius:16px; border:1px solid var(--border); background:#000; }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1 data-i18n="app_title">Chrono</h1>
+    <div class="sub" data-i18n="app_subtitle">Fast time study · type lanes · masks · import/export · video marking</div>
+  </div>
+  <div class="row tight">
+    <select id="langSel" title="Language"></select>
+    <button id="btnSettings" class="primary" data-i18n="settings">Settings</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside class="left">
+    <div class="card">
+      <div class="row">
+        <div>
+          <div class="label" data-i18n="station">Station</div>
+          <select id="stationSel"></select>
+        </div>
+        <div class="row tight" style="align-items:flex-end; justify-content:flex-end">
+          <button id="btnAddStation" class="ghost" data-i18n="add_station">+ Station</button>
+          <button id="btnClearAll" class="danger" data-i18n="clear_all">Clear All</button>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <div>
+          <div class="label" data-i18n="job">Job</div>
+          <select id="jobSel"></select>
+        </div>
+        <div class="row tight" style="align-items:flex-end; justify-content:flex-end">
+          <button id="btnAddJob" class="ghost" data-i18n="add_job">+ Job</button>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="modeTabs">
+        <div class="tab active" id="tabCapture" data-i18n="mode_capture">Capture</div>
+        <div class="tab" id="tabVideo" data-i18n="mode_video">Video</div>
+      </div>
+
+      <div class="tiny" style="margin-top:8px">
+        <span data-i18n="tip_space">Tip:</span> <span class="kbd">Space</span> <span data-i18n="tip_space2">= main capture button</span>
+      </div>
+    </div>
+
+    <!-- CAPTURE PANEL -->
+    <div class="card" id="panelCapture">
+      <div class="row" style="align-items:flex-start">
+        <div style="flex:1">
+          <div class="label" data-i18n="elapsed">Elapsed</div>
+          <div class="bigTime" id="elapsed">00:00.000</div>
+          <div class="tiny" id="recHint"></div>
+        </div>
+        <div style="flex:1">
+          <div class="label" data-i18n="status">Status</div>
+          <div class="pill" id="recState">Idle</div>
+          <div class="tiny" id="recMeta"></div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <div>
+          <div class="label" data-i18n="capture_mode">Capture mode</div>
+          <select id="captureMode">
+            <option value="single" data-i18n="capture_single">Single button (sequence)</option>
+            <option value="advanced" data-i18n="capture_advanced">Advanced (overlap)</option>
+          </select>
+        </div>
+        <div>
+          <div class="label" data-i18n="cycle_tag">Cycle tag</div>
+          <select id="cycleTag">
+            <option>Normal</option>
+            <option>Rework</option>
+            <option>Training</option>
+            <option>Disturbance</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row tight">
+        <button id="btnMain" class="primary" style="flex:1; padding:12px 14px; font-weight:900" data-i18n="start">Start</button>
+        <button id="btnFinish" style="flex:0" data-i18n="finish">Finish</button>
+        <button id="btnUndo" style="flex:0" data-i18n="undo">Undo</button>
+      </div>
+
+      <div class="tiny warn" id="warnings" style="margin-top:8px"></div>
+
+      <div class="hr"></div>
+
+      <div id="advancedActionsWrap" style="display:none">
+        <div class="label" data-i18n="actions">Actions</div>
+        <div class="row tight" id="actionButtons" style="gap:6px"></div>
+        <div class="tiny" style="margin-top:8px" data-i18n="tip_overlap">
+          Advanced mode: click an action to start/stop it. Overlaps across types are allowed.
+        </div>
+      </div>
+
+      <div id="singleActionsWrap">
+        <div class="label" data-i18n="sequence">Sequence</div>
+        <div class="tiny" id="seqInfo"></div>
+      </div>
+    </div>
+
+    <!-- VIDEO PANEL -->
+    <div class="card" id="panelVideo" style="display:none">
+      <div class="label" data-i18n="video">Video</div>
+      <input id="videoFile" type="file" accept="video/*"/>
+      <div style="margin-top:10px">
+        <video id="vid" controls></video>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <div>
+          <div class="label" data-i18n="fps_hint">FPS hint</div>
+          <input id="fps" type="number" min="1" max="240" value="30"/>
+        </div>
+        <div class="row tight" style="align-items:flex-end; justify-content:flex-end">
+          <button id="btnStepBack" data-i18n="step_back">⟵ 1 frame</button>
+          <button id="btnStepFwd" data-i18n="step_fwd">1 frame ⟶</button>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <div>
+          <div class="label" data-i18n="select_action">Select action</div>
+          <select id="videoActionSel"></select>
+        </div>
+        <div>
+          <div class="label" data-i18n="marking">Marking</div>
+          <div class="row tight">
+            <button id="btnMarkToggle" class="primary" data-i18n="mark_toggle">Mark Start/End</button>
+            <button id="btnVideoToCycle" data-i18n="video_to_cycle">Create cycle from markers</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tiny" style="margin-top:8px">
+        <span data-i18n="video_tip">Tip:</span> Use Mark Toggle to alternate start/end for the selected action.
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="label" data-i18n="markers">Markers</div>
+      <div id="markersList" class="tiny muted">—</div>
+      <div class="row tight" style="margin-top:10px">
+        <button id="btnClearMarkers" class="danger" data-i18n="clear_markers">Clear markers</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label" data-i18n="kpi">KPI (masked excluded)</div>
+      <div class="kpiGrid">
+        <div class="kpi"><div class="t" data-i18n="kpi_cycles">Cycles</div><div class="v" id="kpiCycles">0</div></div>
+        <div class="kpi"><div class="t" data-i18n="kpi_avg">Avg cycle (s)</div><div class="v" id="kpiAvg">—</div></div>
+        <div class="kpi"><div class="t" data-i18n="kpi_human">Avg human (s)</div><div class="v" id="kpiHuman">—</div></div>
+        <div class="kpi"><div class="t" data-i18n="kpi_stab">Stability</div><div class="v" id="kpiStab">—</div></div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="card">
+      <div class="row tight">
+        <div class="pill" id="cycleCountPill">0</div>
+        <div class="pill">
+          <span data-i18n="view">View</span>:
+          <select id="viewMode">
+            <option value="all" data-i18n="view_all">All</option>
+            <option value="selected" data-i18n="view_selected">Selected</option>
+            <option value="last3" data-i18n="view_last3">Last 3</option>
+          </select>
+        </div>
+        <div class="pill">
+          <span data-i18n="zoom">Zoom</span>:
+          <input id="zoom" type="range" min="2" max="24" step="1" value="8"/>
+        </div>
+        <div style="flex:1"></div>
+        <button id="btnExportJson" data-i18n="export_json">Export JSON</button>
+        <button id="btnImportJson" data-i18n="import_json">Import JSON</button>
+        <button id="btnExportCsv" data-i18n="export_csv">Export CSV</button>
+        <input id="filePick" type="file" accept=".json" style="display:none"/>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="canvasWrap">
+        <canvas id="timeline" width="1400" height="520"></canvas>
+      </div>
+      <div class="tiny" style="margin-top:8px">
+        <span data-i18n="timeline_tip">Click a bar to toggle masked. Lanes = types. Colors = types.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label" data-i18n="cycles">Cycles</div>
+      <table class="table" id="cyclesTable">
+        <thead>
+          <tr>
+            <th data-i18n="sel">Sel</th>
+            <th>#</th>
+            <th data-i18n="captured">Captured</th>
+            <th data-i18n="tag">Tag</th>
+            <th data-i18n="total">Total (s)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- SETTINGS DRAWER -->
+<div id="drawer" class="drawer">
+  <div class="row tight" style="justify-content:space-between">
+    <h2 style="margin:0" data-i18n="settings">Settings</h2>
+    <button id="btnCloseSettings" class="ghost">✕</button>
+  </div>
+
+  <div class="section">
+    <div class="card">
+      <h2 data-i18n="station_job">Station & Job</h2>
+      <div class="row">
+        <div>
+          <div class="label" data-i18n="station_name">Station name</div>
+          <input id="stationName"/>
+        </div>
+        <div>
+          <div class="label" data-i18n="station_code">Station code</div>
+          <input id="stationCode"/>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="label" data-i18n="job_name">Job name</div>
+          <input id="jobName"/>
+        </div>
+        <div class="row tight" style="align-items:flex-end; justify-content:flex-end">
+          <button id="btnDupJob" data-i18n="duplicate">Duplicate</button>
+          <button id="btnDelJob" class="danger" data-i18n="delete_job">Delete job</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="card">
+      <h2 data-i18n="actions">Actions</h2>
+      <div class="tiny" data-i18n="actions_help">These are your job actions. In single-button mode they form the sequence.</div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <div>
+          <div class="label" data-i18n="action_name">Action name</div>
+          <input id="newActionName" placeholder="Load part"/>
+        </div>
+        <div>
+          <div class="label" data-i18n="type">Type</div>
+          <select id="newActionType"></select>
+        </div>
+      </div>
+      <div class="row tight">
+        <button id="btnAddAction" class="primary" data-i18n="add_action">Add action</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <table class="table" id="actionsTable">
+        <thead>
+          <tr><th>#</th><th data-i18n="action">Action</th><th data-i18n="type">Type</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="tiny" data-i18n="actions_tip">Order matters for single-button capture.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="card">
+      <h2 data-i18n="types">Action Types</h2>
+      <div class="tiny" data-i18n="types_help">Types control lane, color, bar height. Use low zIndex for “always behind”.</div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <div>
+          <div class="label" data-i18n="type_name">Type name</div>
+          <input id="typeName" placeholder="TECH"/>
+        </div>
+        <div>
+          <div class="label" data-i18n="color">Color</div>
+          <input id="typeColor" type="color" value="#9aa6b2"/>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label" data-i18n="height_px">Height (px)</div>
+          <input id="typeHeight" type="number" min="2" max="40" value="10"/>
+        </div>
+        <div>
+          <div class="label" data-i18n="zindex">zIndex (back=1)</div>
+          <input id="typeZ" type="number" min="1" max="99" value="5"/>
+        </div>
+        <div>
+          <div class="label" data-i18n="opacity">Opacity (0.1-1)</div>
+          <input id="typeOpacity" type="number" min="0.1" max="1" step="0.1" value="1"/>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label" data-i18n="default_masked">Default masked</div>
+          <select id="typeDefaultMasked">
+            <option value="false" data-i18n="no">No</option>
+            <option value="true" data-i18n="yes">Yes</option>
+          </select>
+        </div>
+        <div>
+          <div class="label" data-i18n="lane_order">Lane order</div>
+          <input id="typeOrder" type="number" min="1" max="50" value="10"/>
+        </div>
+      </div>
+
+      <div class="row tight">
+        <button id="btnUpsertType" class="primary" data-i18n="add_update">Add / Update</button>
+        <button id="btnResetTypes" data-i18n="reset_defaults">Reset defaults</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <table class="table" id="typesTable">
+        <thead>
+          <tr><th></th><th data-i18n="type">Type</th><th data-i18n="height_px">Height</th><th data-i18n="z">z</th><th data-i18n="opacity">Opacity</th><th data-i18n="default_masked">Default mask</th><th data-i18n="lane_order">Order</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div class="tiny warn" style="margin-top:6px">
+        <span data-i18n="example_tip">Example:</span>
+        <span data-i18n="example_tip2">Set HUMAN height=5 yellow z=10, TECH height=10 grey z=1.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // =======================
+  // Utils
+  // =======================
+  const $ = (id) => document.getElementById(id);
+  const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const fmtMs = (ms) => {
+    const m = Math.floor(ms/60000);
+    const s = Math.floor((ms%60000)/1000);
+    const x = Math.floor(ms%1000);
+    return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}.${String(x).padStart(3,"0")}`;
+  };
+  const download = (filename, text) => {
+    const blob = new Blob([text], {type:"text/plain"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+  };
+  const csvSafe = (s) => {
+    const str = String(s ?? "");
+    return /[,"\n]/.test(str) ? `"${str.replace(/"/g,'""')}"` : str;
+  };
+
+  // =======================
+  // i18n (built-in + optional .lang files)
+  // =======================
+  const BUILTIN = {
+    en: {
+      lang_name:"English",
+      app_title:"Chrono",
+      app_subtitle:"Fast time study · type lanes · masks · import/export · video marking",
+      settings:"Settings",
+      station:"Station",
+      job:"Job",
+      add_station:"+ Station",
+      add_job:"+ Job",
+      clear_all:"Clear All",
+      mode_capture:"Capture",
+      mode_video:"Video",
+      tip_space:"Tip:",
+      tip_space2:"= main capture button",
+      elapsed:"Elapsed",
+      status:"Status",
+      capture_mode:"Capture mode",
+      capture_single:"Single button (sequence)",
+      capture_advanced:"Advanced (overlap)",
+      cycle_tag:"Cycle tag",
+      start:"Start",
+      stop:"Stop",
+      finish:"Finish",
+      undo:"Undo",
+      actions:"Actions",
+      sequence:"Sequence",
+      tip_overlap:"Advanced mode: click an action to start/stop it. Overlaps across types are allowed.",
+      kpi:"KPI (masked excluded)",
+      kpi_cycles:"Cycles",
+      kpi_avg:"Avg cycle (s)",
+      kpi_human:"Avg human (s)",
+      kpi_stab:"Stability",
+      view:"View",
+      view_all:"All",
+      view_selected:"Selected",
+      view_last3:"Last 3",
+      zoom:"Zoom",
+      export_json:"Export JSON",
+      import_json:"Import JSON",
+      export_csv:"Export CSV",
+      timeline_tip:"Click a bar to toggle masked. Lanes = types. Colors = types.",
+      cycles:"Cycles",
+      sel:"Sel",
+      captured:"Captured",
+      tag:"Tag",
+      total:"Total (s)",
+      station_job:"Station & Job",
+      station_name:"Station name",
+      station_code:"Station code",
+      job_name:"Job name",
+      duplicate:"Duplicate",
+      delete_job:"Delete job",
+      actions_help:"These are your job actions. In single-button mode they form the sequence.",
+      action_name:"Action name",
+      type:"Type",
+      add_action:"Add action",
+      action:"Action",
+      actions_tip:"Order matters for single-button capture.",
+      types:"Action Types",
+      types_help:"Types control lane, color, bar height. Use low zIndex for “always behind”.",
+      type_name:"Type name",
+      color:"Color",
+      height_px:"Height (px)",
+      zindex:"zIndex (back=1)",
+      opacity:"Opacity (0.1-1)",
+      default_masked:"Default masked",
+      lane_order:"Lane order",
+      add_update:"Add / Update",
+      reset_defaults:"Reset defaults",
+      no:"No",
+      yes:"Yes",
+      z:"z",
+      example_tip:"Example:",
+      example_tip2:"Set HUMAN height=5 yellow z=10, TECH height=10 grey z=1.",
+      video:"Video",
+      fps_hint:"FPS hint",
+      step_back:"⟵ 1 frame",
+      step_fwd:"1 frame ⟶",
+      select_action:"Select action",
+      marking:"Marking",
+      mark_toggle:"Mark Start/End",
+      video_to_cycle:"Create cycle from markers",
+      video_tip:"Tip: Use Mark Toggle to alternate start/end for the selected action.",
+      markers:"Markers",
+      clear_markers:"Clear markers"
+    },
+    fr: {
+      lang_name:"Français",
+      app_title:"Chrono",
+      app_subtitle:"Chronométrage rapide · voies par type · masques · import/export · marquage vidéo",
+      settings:"Paramètres",
+      station:"Poste",
+      job:"Opération",
+      add_station:"+ Poste",
+      add_job:"+ Opération",
+      clear_all:"Tout effacer",
+      mode_capture:"Capture",
+      mode_video:"Vidéo",
+      tip_space:"Astuce :",
+      tip_space2:"= bouton principal",
+      elapsed:"Temps écoulé",
+      status:"Statut",
+      capture_mode:"Mode de capture",
+      capture_single:"Bouton unique (séquence)",
+      capture_advanced:"Avancé (chevauchement)",
+      cycle_tag:"Étiquette du cycle",
+      start:"Démarrer",
+      stop:"Arrêter",
+      finish:"Terminer",
+      undo:"Annuler",
+      actions:"Actions",
+      sequence:"Séquence",
+      tip_overlap:"Mode avancé : cliquez une action pour démarrer/arrêter. Les chevauchements sont possibles.",
+      kpi:"KPI (masqué exclu)",
+      kpi_cycles:"Cycles",
+      kpi_avg:"Cycle moyen (s)",
+      kpi_human:"Humain moyen (s)",
+      kpi_stab:"Stabilité",
+      view:"Vue",
+      view_all:"Tous",
+      view_selected:"Sélection",
+      view_last3:"3 derniers",
+      zoom:"Zoom",
+      export_json:"Exporter JSON",
+      import_json:"Importer JSON",
+      export_csv:"Exporter CSV",
+      timeline_tip:"Cliquez une barre pour basculer Masqué. Voies = types. Couleurs = types.",
+      cycles:"Cycles",
+      sel:"Sel",
+      captured:"Capturé",
+      tag:"Tag",
+      total:"Total (s)",
+      station_job:"Poste & Opération",
+      station_name:"Nom du poste",
+      station_code:"Code poste",
+      job_name:"Nom opération",
+      duplicate:"Dupliquer",
+      delete_job:"Supprimer l’opération",
+      actions_help:"Actions de l’opération. En mode bouton unique, elles forment la séquence.",
+      action_name:"Nom action",
+      type:"Type",
+      add_action:"Ajouter action",
+      action:"Action",
+      actions_tip:"L’ordre compte en mode bouton unique.",
+      types:"Types d’action",
+      types_help:"Les types contrôlent voie, couleur, hauteur. zIndex bas = toujours derrière.",
+      type_name:"Nom du type",
+      color:"Couleur",
+      height_px:"Hauteur (px)",
+      zindex:"zIndex (arrière=1)",
+      opacity:"Opacité (0,1-1)",
+      default_masked:"Masqué par défaut",
+      lane_order:"Ordre des voies",
+      add_update:"Ajouter / Mettre à jour",
+      reset_defaults:"Réinitialiser",
+      no:"Non",
+      yes:"Oui",
+      z:"z",
+      example_tip:"Exemple :",
+      example_tip2:"HUMAN hauteur=5 jaune z=10, TECH hauteur=10 gris z=1.",
+      video:"Vidéo",
+      fps_hint:"Indice FPS",
+      step_back:"⟵ 1 image",
+      step_fwd:"1 image ⟶",
+      select_action:"Choisir action",
+      marking:"Marquage",
+      mark_toggle:"Marquer Début/Fin",
+      video_to_cycle:"Créer un cycle",
+      video_tip:"Astuce : Mark Toggle alterne Début/Fin pour l’action choisie.",
+      markers:"Marqueurs",
+      clear_markers:"Effacer marqueurs"
+    }
+  };
+
+  const I18N = {
+    current: "fr", // default start French as you asked
+    dict: BUILTIN.fr,
+    names: { en: BUILTIN.en.lang_name, fr: BUILTIN.fr.lang_name },
+    t(key){
+      return (this.dict && this.dict[key]) || BUILTIN.en[key] || key;
+    }
+  };
+
+  async function tryLoadExternalLangs(){
+    // Optional: languages.json { "files": ["fr.lang","en.lang"] }
+    // Each .lang is key=value with lang_name=...
+    const parseLang = (text) => {
+      const d = {};
+      let name = "";
+      text.split(/\r?\n/).forEach(line=>{
+        const s = line.trim();
+        if(!s || s.startsWith("#") || s.startsWith(";")) return;
+        const i = s.indexOf("=");
+        if(i<0) return;
+        const k = s.slice(0,i).trim();
+        const v = s.slice(i+1).trim();
+        if(k==="lang_name") name = v;
+        else d[k]=v;
+      });
+      return {name, dict:d};
+    };
+
+    try{
+      const m = await fetch("languages.json", {cache:"no-store"});
+      if(!m.ok) return;
+      const json = await m.json();
+      const files = Array.isArray(json.files) ? json.files : [];
+      for(const f of files){
+        try{
+          const r = await fetch(f, {cache:"no-store"});
+          if(!r.ok) continue;
+          const text = await r.text();
+          const {name, dict} = parseLang(text);
+          const code = f.replace(/\.lang$/i,"");
+          I18N.names[code] = name || code;
+          // store external dict as a “built-in override” bucket:
+          BUILTIN[code] = Object.assign({}, BUILTIN.en, dict, {lang_name: I18N.names[code]});
+        }catch{}
+      }
+    }catch{}
+  }
+
+  function applyTranslations(){
+    document.documentElement.lang = I18N.current;
+    document.title = I18N.t("app_title");
+
+    document.querySelectorAll("[data-i18n]").forEach(el=>{
+      const key = el.getAttribute("data-i18n");
+      if(!key) return;
+      // For <option data-i18n>, set its textContent
+      el.textContent = I18N.t(key);
+    });
+  }
+
+  function buildLangSelector(){
+    const sel = $("langSel");
+    sel.innerHTML = "";
+    const codes = Object.keys(BUILTIN).sort();
+    codes.forEach(code=>{
+      const opt = document.createElement("option");
+      opt.value = code;
+      opt.textContent = BUILTIN[code].lang_name || code;
+      sel.appendChild(opt);
+    });
+    const saved = localStorage.getItem("chrono_lang");
+    if(saved && BUILTIN[saved]) I18N.current = saved;
+    I18N.dict = BUILTIN[I18N.current] || BUILTIN.en;
+    sel.value = I18N.current;
+    sel.onchange = () => {
+      I18N.current = sel.value;
+      I18N.dict = BUILTIN[I18N.current] || BUILTIN.en;
+      localStorage.setItem("chrono_lang", I18N.current);
+      applyTranslations();
+      refreshAll();
+    };
+  }
+
+  // =======================
+  // Defaults / DB
+  // =======================
+  const DEFAULT_TYPES = () => ([
+    { id:"human",   name:"HUMAN",   color:"#ffd34d", height:5,  z:10, opacity:1,   defaultMasked:false, order:10 },
+    { id:"machine", name:"MACHINE", color:"#5aa7ff", height:8,  z:5,  opacity:1,   defaultMasked:false, order:20 },
+    { id:"tech",    name:"TECH",    color:"#9aa6b2", height:10, z:1,  opacity:0.8, defaultMasked:false, order:30 },
+    { id:"idle",    name:"IDLE",    color:"#6b7280", height:6,  z:2,  opacity:0.6, defaultMasked:true,  order:40 },
+    { id:"dist",    name:"DIST",    color:"#ff7a8a", height:10, z:3,  opacity:0.8, defaultMasked:true,  order:50 }
+  ]);
+
+  const LS_KEY = "chrono_modern_v1";
+
+  const loadDB = () => {
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch{}
+    return {
+      types: DEFAULT_TYPES(),
+      stations: [
+        { id: uid(), name:"Station A", code:"A", jobs:[
+          { id: uid(), name:"Job 1", actions:[
+            { id: uid(), name:"Load", typeId:"human" },
+            { id: uid(), name:"Run", typeId:"machine" },
+            { id: uid(), name:"Inspect", typeId:"tech" }
+          ], cycles: [] }
+        ]}
+      ],
+      ui: { stationId:null, jobId:null, selectedCycleIds:[] },
+      video: { markers: [], openByActionId: {} }
+    };
+  };
+
+  let DB = loadDB();
+  const saveDB = () => localStorage.setItem(LS_KEY, JSON.stringify(DB));
+
+  function ensureSelection(){
+    if(!DB.stations.length) DB.stations.push({ id: uid(), name:"Station", code:"", jobs:[] });
+    if(!DB.ui.stationId || !DB.stations.some(s=>s.id===DB.ui.stationId)) DB.ui.stationId = DB.stations[0].id;
+    const st = getStation();
+    if(!st.jobs.length) st.jobs.push({ id: uid(), name:"Job", actions:[], cycles:[] });
+    if(!DB.ui.jobId || !st.jobs.some(j=>j.id===DB.ui.jobId)) DB.ui.jobId = st.jobs[0].id;
+  }
+
+  function getStation(){ return DB.stations.find(s=>s.id===DB.ui.stationId); }
+  function getJob(){ return getStation().jobs.find(j=>j.id===DB.ui.jobId); }
+  function getType(id){ return DB.types.find(t=>t.id===id); }
+  function typeName(id){ return (getType(id)?.name ?? id); }
+  function actionById(job, actionId){ return job.actions.find(a=>a.id===actionId); }
+
+  ensureSelection();
+
+  // =======================
+  // Recording state
+  // =======================
+  const REC = {
+    active:false,
+    cycleId:null,
+    cycleStartPerf:0,
+    // advanced mode:
+    runningByActionId: new Map(), // actionId -> eventId
+    // single mode:
+    seqIndex: 0,
+    currentEventId: null,
+    // undo snapshot:
+    lastSnapshot: null
+  };
+
+  const perfNow = () => performance.now();
+
+  // Cycle schema:
+  // { id, ts, tag, events:[{id, actionId, typeId, start, end, masked}] }
+
+  // =======================
+  // Timeline rendering (type lanes, click to mask)
+  // =======================
+  const canvas = $("timeline");
+  const ctx = canvas.getContext("2d");
+  let hitRegions = [];
+
+  function roundRect(x,y,w,h,r){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr, y);
+    ctx.arcTo(x+w, y, x+w, y+h, rr);
+    ctx.arcTo(x+w, y+h, x, y+h, rr);
+    ctx.arcTo(x, y+h, x, y, rr);
+    ctx.arcTo(x, y, x+w, y, rr);
+    ctx.closePath();
+  }
+
+  function hatchRect(x,y,w,h,step){
+    ctx.beginPath();
+    for(let i=-h; i<w; i+=step){
+      ctx.moveTo(x+i, y+h);
+      ctx.lineTo(x+i+h, y);
+    }
+    ctx.stroke();
+  }
+
+  function cyclesForView(){
+    const job = getJob();
+    const mode = $("viewMode").value;
+    if(mode==="selected"){
+      return job.cycles.filter(c=>DB.ui.selectedCycleIds.includes(c.id));
+    }
+    if(mode==="last3"){
+      return job.cycles.slice(-3);
+    }
+    return job.cycles;
+  }
+
+  function cycleTotalSec(cycle){
+    let maxEnd = 0;
+    const relNow = (REC.active && cycle.id===REC.cycleId) ? (perfNow() - REC.cycleStartPerf) : null;
+    (cycle.events||[]).forEach(e=>{
+      const end = (e.end==null ? (relNow ?? e.start) : e.end);
+      maxEnd = Math.max(maxEnd, end);
+    });
+    return maxEnd/1000;
+  }
+
+  function drawTimeline(){
+    const job = getJob();
+    const cycles = cyclesForView();
+    const types = DB.types.slice().sort((a,b)=>a.order-b.order);
+
+    const zoom = parseInt($("zoom").value, 10); // px per second
+    const leftPad = 18;
+    const labelW = 118;
+    const axisX0 = leftPad + labelW;
+    const topPad = 16;
+    const cycleGap = 20;
+    const laneGap = 12;
+
+    let maxSec = 5;
+    cycles.forEach(c=> maxSec = Math.max(maxSec, cycleTotalSec(c)));
+
+    // Layout height
+    const laneHeights = types.map(t => Math.max(16, t.height + 12));
+    const cycleBlockH = laneHeights.reduce((a,b)=>a+b,0) + laneGap*(types.length-1);
+
+    const width = Math.max(1200, axisX0 + Math.ceil(maxSec*zoom) + 80);
+    const height = Math.max(380, topPad + cycles.length*(cycleBlockH+cycleGap) + 60);
+
+    canvas.width = width;
+    canvas.height = height;
+
+    // Background
+    ctx.clearRect(0,0,width,height);
+    ctx.fillStyle = "#07090c";
+    ctx.fillRect(0,0,width,height);
+
+    // Grid
+    ctx.strokeStyle = "rgba(255,255,255,.06)";
+    ctx.lineWidth = 1;
+    for(let s=0; s<=Math.ceil(maxSec); s++){
+      const x = axisX0 + s*zoom;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+      if(s%5===0){
+        ctx.fillStyle = "rgba(255,255,255,.35)";
+        ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+        ctx.fillText(`${s}s`, x+2, 12);
+      }
+    }
+
+    hitRegions = [];
+    let y = topPad;
+
+    cycles.forEach((cycle, idx)=>{
+      // Cycle header
+      ctx.fillStyle = "rgba(255,255,255,.85)";
+      ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillText(`#${idx+1}`, leftPad, y+14);
+      ctx.fillStyle = "rgba(154,166,178,.85)";
+      ctx.fillText((cycle.tag||"").slice(0,18), leftPad+34, y+14);
+
+      // Lane labels + separators
+      let laneY = y;
+      types.forEach((t, li)=>{
+        ctx.fillStyle = "rgba(154,166,178,.8)";
+        ctx.fillText(t.name, leftPad+2, laneY+14);
+
+        ctx.strokeStyle = "rgba(255,255,255,.08)";
+        ctx.beginPath();
+        ctx.moveTo(axisX0, laneY + laneHeights[li]-2);
+        ctx.lineTo(width-10, laneY + laneHeights[li]-2);
+        ctx.stroke();
+
+        laneY += laneHeights[li] + laneGap;
+      });
+
+      // Draw events, lane = type
+      types.forEach((t, li)=>{
+        const laneTop = y + types.slice(0,li).reduce((sum,tt,ii)=> sum + laneHeights[ii] + (ii?laneGap:0), 0);
+        const barH = t.height;
+        const barY = laneTop + 10;
+
+        const relNow = (REC.active && cycle.id===REC.cycleId) ? (perfNow() - REC.cycleStartPerf) : null;
+
+        const events = (cycle.events||[])
+          .filter(e=>e.typeId===t.id)
+          .map(e=>{
+            const startS = e.start/1000;
+            const endMs = (e.end==null ? (relNow ?? e.start) : e.end);
+            const endS = endMs/1000;
+            return { ...e, startS, endS };
+          })
+          .filter(e=>e.endS >= e.startS)
+          .sort((a,b)=>a.startS-b.startS);
+
+        // Within type lane, zIndex isn't needed much (each lane already separate),
+        // but we keep opacity + masked style.
+        events.forEach(e=>{
+          const x1 = axisX0 + e.startS*zoom;
+          const x2 = axisX0 + e.endS*zoom;
+          const w = Math.max(2, x2-x1);
+          const masked = !!e.masked;
+
+          ctx.globalAlpha = masked ? 0.25 : (t.opacity ?? 1);
+          roundRect(x1, barY, w, barH, 5);
+          ctx.fillStyle = t.color;
+          ctx.fill();
+
+          if(masked){
+            ctx.globalAlpha = 0.25;
+            ctx.strokeStyle = "rgba(255,255,255,.35)";
+            hatchRect(x1, barY, w, barH, 6);
+          }
+
+          const act = actionById(job, e.actionId);
+          if(w > 80){
+            ctx.globalAlpha = 0.82;
+            ctx.fillStyle = "rgba(0,0,0,.75)";
+            ctx.font = "11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+            ctx.fillText(act?.name ?? "Action", x1+6, barY+barH-2);
+          }
+
+          hitRegions.push({ x:x1, y:barY, w, h:barH, cycleId:cycle.id, eventId:e.id });
+
+          ctx.globalAlpha = 1;
+        });
+      });
+
+      // Cycle box
+      ctx.strokeStyle = "rgba(255,255,255,.08)";
+      ctx.strokeRect(10, y, width-20, cycleBlockH);
+
+      y += cycleBlockH + cycleGap;
+    });
+
+    // Legend
+    let lx = 14, ly = height-18;
+    types.forEach(t=>{
+      ctx.globalAlpha = t.opacity ?? 1;
+      ctx.fillStyle = t.color;
+      ctx.fillRect(lx, ly-10, 14, 8);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "rgba(154,166,178,.9)";
+      ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillText(`${t.name} (${t.height}px)`, lx+20, ly-3);
+      lx += 140;
+      if(lx > width-170){ lx=14; ly -= 16; }
+    });
+  }
+
+  canvas.addEventListener("click", (ev)=>{
+    const rect = canvas.getBoundingClientRect();
+    const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
+    const hit = hitRegions.find(r => x>=r.x && x<=r.x+r.w && y>=r.y && y<=r.y+r.h);
+    if(!hit) return;
+
+    const job = getJob();
+    const cycle = job.cycles.find(c=>c.id===hit.cycleId);
+    if(!cycle) return;
+    const e = cycle.events.find(e=>e.id===hit.eventId);
+    if(!e) return;
+
+    e.masked = !e.masked;
+    saveDB();
+    refreshAll(false);
+  });
+
+  // =======================
+  // KPIs (simple)
+  // =======================
+  function computeKPIs(){
+    const job = getJob();
+    const cycles = job.cycles;
+    $("kpiCycles").textContent = String(cycles.length);
+
+    if(!cycles.length){
+      $("kpiAvg").textContent = "—";
+      $("kpiHuman").textContent = "—";
+      $("kpiStab").textContent = "—";
+      return;
+    }
+
+    const totals = cycles.map(c => cycleTotalSec(c));
+    const avg = totals.reduce((a,b)=>a+b,0) / totals.length;
+
+    const humanId = DB.types.find(t=>t.name.toUpperCase()==="HUMAN")?.id || "human";
+    const humanTotals = cycles.map(c=>{
+      let sum=0;
+      (c.events||[]).forEach(e=>{
+        if(e.typeId!==humanId) return;
+        if(e.masked) return;
+        if(e.end==null) return;
+        sum += (e.end-e.start)/1000;
+      });
+      return sum;
+    });
+    const avgHuman = humanTotals.reduce((a,b)=>a+b,0) / humanTotals.length;
+
+    const mean = avg;
+    const variance = totals.reduce((acc,v)=> acc + (v-mean)*(v-mean), 0) / totals.length;
+    const sd = Math.sqrt(variance);
+    const cv = mean>0 ? (sd/mean) : 0;
+
+    $("kpiAvg").textContent = avg.toFixed(2);
+    $("kpiHuman").textContent = avgHuman.toFixed(2);
+    $("kpiStab").textContent = (cv*100).toFixed(1) + "%";
+  }
+
+  // =======================
+  // UI rendering
+  // =======================
+  function renderStationJobSelectors(){
+    const stSel = $("stationSel");
+    const jobSel = $("jobSel");
+
+    stSel.innerHTML = "";
+    DB.stations.forEach(s=>{
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.name;
+      stSel.appendChild(opt);
+    });
+    stSel.value = DB.ui.stationId;
+
+    const st = getStation();
+    jobSel.innerHTML = "";
+    st.jobs.forEach(j=>{
+      const opt = document.createElement("option");
+      opt.value = j.id;
+      opt.textContent = j.name;
+      jobSel.appendChild(opt);
+    });
+    jobSel.value = DB.ui.jobId;
+  }
+
+  function renderTypeSelects(){
+    const types = DB.types.slice().sort((a,b)=>a.order-b.order);
+
+    const sel = $("newActionType");
+    sel.innerHTML = "";
+    types.forEach(t=>{
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.name;
+      sel.appendChild(opt);
+    });
+  }
+
+  function renderActionsTable(){
+    const job = getJob();
+    const tbody = $("actionsTable").querySelector("tbody");
+    tbody.innerHTML = "";
+
+    job.actions.forEach((a, idx)=>{
+      const t = getType(a.typeId);
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${idx+1}</td>
+        <td><b>${a.name}</b></td>
+        <td><span class="typeDot" style="background:${t?.color ?? "#999"}"></span> ${t?.name ?? a.typeId}</td>
+        <td class="row tight" style="gap:6px; justify-content:flex-end">
+          <button data-up="${a.id}">Up</button>
+          <button data-down="${a.id}">Down</button>
+          <button class="danger" data-del="${a.id}">Del</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll("button[data-up]").forEach(btn=>{
+      btn.onclick = () => {
+        const job = getJob();
+        const id = btn.dataset.up;
+        const i = job.actions.findIndex(x=>x.id===id);
+        if(i>0){
+          [job.actions[i-1], job.actions[i]] = [job.actions[i], job.actions[i-1]];
+          saveDB(); refreshAll();
+        }
+      };
+    });
+
+    tbody.querySelectorAll("button[data-down]").forEach(btn=>{
+      btn.onclick = () => {
+        const job = getJob();
+        const id = btn.dataset.down;
+        const i = job.actions.findIndex(x=>x.id===id);
+        if(i>=0 && i<job.actions.length-1){
+          [job.actions[i+1], job.actions[i]] = [job.actions[i], job.actions[i+1]];
+          saveDB(); refreshAll();
+        }
+      };
+    });
+
+    tbody.querySelectorAll("button[data-del]").forEach(btn=>{
+      btn.onclick = () => {
+        const job = getJob();
+        const id = btn.dataset.del;
+        job.actions = job.actions.filter(x=>x.id!==id);
+        // Remove events referencing action
+        job.cycles.forEach(c => c.events = (c.events||[]).filter(e=>e.actionId!==id));
+        saveDB(); refreshAll();
+      };
+    });
+  }
+
+  function renderTypesTable(){
+    const tbody = $("typesTable").querySelector("tbody");
+    tbody.innerHTML = "";
+
+    DB.types.slice().sort((a,b)=>a.order-b.order).forEach(t=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><span class="typeDot" style="background:${t.color}"></span></td>
+        <td><b>${t.name}</b><div class="tiny muted">${t.id}</div></td>
+        <td>${t.height}px</td>
+        <td>${t.z}</td>
+        <td>${t.opacity}</td>
+        <td>${t.defaultMasked ? "Yes":"No"}</td>
+        <td>${t.order}</td>
+        <td class="row tight" style="gap:6px; justify-content:flex-end">
+          <button data-edit="${t.id}">Edit</button>
+          <button class="danger" data-del="${t.id}">Del</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll("button[data-edit]").forEach(btn=>{
+      btn.onclick = () => {
+        const t = getType(btn.dataset.edit);
+        if(!t) return;
+        $("typeName").value = t.name;
+        $("typeColor").value = t.color;
+        $("typeHeight").value = t.height;
+        $("typeZ").value = t.z;
+        $("typeOpacity").value = t.opacity;
+        $("typeDefaultMasked").value = String(!!t.defaultMasked);
+        $("typeOrder").value = t.order;
+        $("btnUpsertType").dataset.editing = t.id;
+      };
+    });
+
+    tbody.querySelectorAll("button[data-del]").forEach(btn=>{
+      btn.onclick = () => {
+        const id = btn.dataset.del;
+        if(["human","machine"].includes(id)){
+          alert("Won’t delete core types (human/machine). You can edit/rename them.");
+          return;
+        }
+        // Reassign actions using this type -> human
+        DB.stations.forEach(s=>s.jobs.forEach(j=>{
+          j.actions.forEach(a=>{ if(a.typeId===id) a.typeId="human"; });
+          j.cycles.forEach(c=> c.events.forEach(e=>{ if(e.typeId===id) e.typeId="human"; }));
+        }));
+        DB.types = DB.types.filter(t=>t.id!==id);
+        saveDB(); refreshAll();
+      };
+    });
+  }
+
+  function renderActionButtons(){
+    const job = getJob();
+    const wrap = $("actionButtons");
+    wrap.innerHTML = "";
+    job.actions.forEach(a=>{
+      const t = getType(a.typeId);
+      const btn = document.createElement("button");
+      btn.dataset.actionId = a.id;
+      btn.title = `${a.name} (${t?.name ?? a.typeId})`;
+      btn.innerHTML = `<span class="typeDot" style="background:${t?.color ?? "#999"}; margin-right:8px"></span>${a.name}`;
+      btn.onclick = () => toggleAdvancedAction(a.id);
+      wrap.appendChild(btn);
+    });
+    updateAdvancedButtonsVisual();
+  }
+
+  function updateAdvancedButtonsVisual(){
+    const btns = [...$("actionButtons").querySelectorAll("button")];
+    btns.forEach(b=>{
+      const isRunning = REC.runningByActionId.has(b.dataset.actionId);
+      b.style.borderColor = isRunning ? "rgba(66,211,146,.55)" : "rgba(255,255,255,.12)";
+      b.style.boxShadow = isRunning ? "0 0 0 2px rgba(66,211,146,.14) inset" : "none";
+      b.disabled = !REC.active;
+    });
+  }
+
+  function renderCyclesTable(){
+    const job = getJob();
+    const tbody = $("cyclesTable").querySelector("tbody");
+    tbody.innerHTML = "";
+
+    job.cycles.forEach((c, idx)=>{
+      const checked = DB.ui.selectedCycleIds.includes(c.id);
+      const total = cycleTotalSec(c).toFixed(2);
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><input type="checkbox" data-sel="${c.id}" ${checked?"checked":""}></td>
+        <td><b>${idx+1}</b></td>
+        <td class="tiny">${new Date(c.ts).toLocaleString()}</td>
+        <td>
+          <select class="tagSel" data-tag="${c.id}">
+            ${["Normal","Rework","Training","Disturbance","Other"].map(t=>`<option ${c.tag===t?"selected":""}>${t}</option>`).join("")}
+          </select>
+        </td>
+        <td style="font-variant-numeric:tabular-nums">${total}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll("input[data-sel]").forEach(cb=>{
+      cb.onchange = () => {
+        const id = cb.dataset.sel;
+        if(cb.checked){
+          if(!DB.ui.selectedCycleIds.includes(id)) DB.ui.selectedCycleIds.push(id);
+        }else{
+          DB.ui.selectedCycleIds = DB.ui.selectedCycleIds.filter(x=>x!==id);
+        }
+        saveDB();
+        refreshAll(false);
+      };
+    });
+
+    tbody.querySelectorAll("select[data-tag]").forEach(sel=>{
+      sel.onchange = () => {
+        const job = getJob();
+        const cyc = job.cycles.find(c=>c.id===sel.dataset.tag);
+        if(cyc) cyc.tag = sel.value;
+        saveDB();
+        refreshAll(false);
+      };
+    });
+
+    $("cycleCountPill").textContent = `${I18N.t("cycles")}: ${job.cycles.length}`;
+  }
+
+  function renderCapturePanelHints(){
+    const job = getJob();
+    const mode = $("captureMode").value;
+
+    if(mode==="advanced"){
+      $("advancedActionsWrap").style.display = "";
+      $("singleActionsWrap").style.display = "none";
+      $("recHint").textContent = "Advanced: click actions to start/stop.";
+      return;
+    }
+
+    $("advancedActionsWrap").style.display = "none";
+    $("singleActionsWrap").style.display = "";
+
+    if(!job.actions.length){
+      $("seqInfo").innerHTML = `<span class="warn">No actions yet. Add actions in Settings.</span>`;
+    }else{
+      const seq = job.actions.map((a,i)=> {
+        const t = getType(a.typeId);
+        return `<span class="pill" style="gap:6px"><span class="typeDot" style="background:${t?.color ?? "#999"}"></span>${i+1}. ${a.name}</span>`;
+      }).join(" ");
+      $("seqInfo").innerHTML = seq;
+    }
+    $("recHint").textContent = "Single button: Start → each press records next action boundary.";
+  }
+
+  // =======================
+  // Capture logic
+  // =======================
+  function setRecUI(){
+    if(REC.active){
+      $("recState").textContent = "Recording";
+      $("recState").style.color = "var(--ok)";
+      $("btnMain").textContent = I18N.t("stop"); // show Stop while recording (single/advanced main)
+      $("btnMain").classList.remove("primary");
+      $("btnMain").classList.add("success");
+      $("recMeta").textContent = `#${getJob().cycles.length} · ${$("captureMode").value}`;
+    }else{
+      $("recState").textContent = "Idle";
+      $("recState").style.color = "var(--muted)";
+      $("btnMain").textContent = I18N.t("start");
+      $("btnMain").classList.remove("success");
+      $("btnMain").classList.add("primary");
+      $("recMeta").textContent = "";
+    }
+  }
+
+  function startCycle(){
+    const job = getJob();
+    if(REC.active) return;
+
+    // Snapshot for undo: cycles only (simple)
+    REC.lastSnapshot = JSON.stringify(job.cycles);
+
+    const cycle = { id: uid(), ts: new Date().toISOString(), tag: $("cycleTag").value, events: [] };
+    job.cycles.push(cycle);
+
+    REC.active = true;
+    REC.cycleId = cycle.id;
+    REC.cycleStartPerf = perfNow();
+    REC.runningByActionId.clear();
+    REC.seqIndex = 0;
+    REC.currentEventId = null;
+
+    $("warnings").textContent = "";
+    saveDB();
+    setRecUI();
+    refreshAll();
+  }
+
+  function stopCycle(){
+    const job = getJob();
+    if(!REC.active) return;
+    const cycle = job.cycles.find(c=>c.id===REC.cycleId);
+    if(!cycle) return;
+
+    const rel = perfNow() - REC.cycleStartPerf;
+
+    // close any running advanced events
+    for(const [actionId, eventId] of REC.runningByActionId.entries()){
+      const ev = cycle.events.find(e=>e.id===eventId);
+      if(ev && ev.end==null) ev.end = rel;
+    }
+    REC.runningByActionId.clear();
+
+    // close single-mode current event
+    if(REC.currentEventId){
+      const ev = cycle.events.find(e=>e.id===REC.currentEventId);
+      if(ev && ev.end==null) ev.end = rel;
+      REC.currentEventId = null;
+    }
+
+    REC.active = false;
+    REC.cycleId = null;
+
+    $("warnings").textContent = "";
+    saveDB();
+    setRecUI();
+    refreshAll();
+  }
+
+  function mainButtonPress(){
+    const mode = $("captureMode").value;
+
+    // If not active: start cycle
+    if(!REC.active){
+      startCycle();
+      // In single mode, immediately start first action
+      if(mode==="single"){
+        singleAdvance(); // starts action 1 at t=0
+      }
+      return;
+    }
+
+    // If active:
+    if(mode==="advanced"){
+      // In advanced mode, main button = Finish cycle (simple)
+      stopCycle();
+    }else{
+      // In single mode, main button advances sequence (fast)
+      singleAdvance();
+    }
+  }
+
+  function singleAdvance(){
+    const job = getJob();
+    const cycle = job.cycles.find(c=>c.id===REC.cycleId);
+    if(!cycle) return;
+
+    if(!job.actions.length){
+      $("warnings").textContent = "No actions. Add actions in Settings.";
+      return;
+    }
+
+    const rel = perfNow() - REC.cycleStartPerf;
+
+    // Close previous event
+    if(REC.currentEventId){
+      const prev = cycle.events.find(e=>e.id===REC.currentEventId);
+      if(prev && prev.end==null) prev.end = rel;
+    }
+
+    // Start next action in sequence
+    const a = job.actions[REC.seqIndex % job.actions.length];
+    const t = getType(a.typeId);
+    const ev = {
+      id: uid(),
+      actionId: a.id,
+      typeId: a.typeId,
+      start: rel,
+      end: null,
+      masked: !!t?.defaultMasked
+    };
+    cycle.events.push(ev);
+    REC.currentEventId = ev.id;
+
+    REC.seqIndex = (REC.seqIndex + 1) % job.actions.length;
+
+    saveDB();
+    refreshAll(false);
+  }
+
+  function toggleAdvancedAction(actionId){
+    if(!REC.active) return;
+
+    const job = getJob();
+    const cycle = job.cycles.find(c=>c.id===REC.cycleId);
+    if(!cycle) return;
+
+    const rel = perfNow() - REC.cycleStartPerf;
+
+    // Stop if running
+    if(REC.runningByActionId.has(actionId)){
+      const eid = REC.runningByActionId.get(actionId);
+      const ev = cycle.events.find(e=>e.id===eid);
+      if(ev && ev.end==null) ev.end = rel;
+      REC.runningByActionId.delete(actionId);
+      $("warnings").textContent = "";
+      saveDB();
+      refreshAll(false);
+      return;
+    }
+
+    // Start
+    const act = actionById(job, actionId);
+    if(!act) return;
+    const t = getType(act.typeId);
+    const ev = { id: uid(), actionId, typeId: act.typeId, start: rel, end: null, masked: !!t?.defaultMasked };
+    cycle.events.push(ev);
+    REC.runningByActionId.set(actionId, ev.id);
+
+    saveDB();
+    refreshAll(false);
+  }
+
+  function undo(){
+    const job = getJob();
+    if(!REC.lastSnapshot){
+      alert("Nothing to undo yet.");
+      return;
+    }
+    try{
+      job.cycles = JSON.parse(REC.lastSnapshot);
+      REC.lastSnapshot = null;
+      REC.active = false;
+      REC.cycleId = null;
+      REC.runningByActionId.clear();
+      REC.seqIndex = 0;
+      REC.currentEventId = null;
+      saveDB();
+      setRecUI();
+      refreshAll();
+    }catch{
+      alert("Undo failed.");
+    }
+  }
+
+  // =======================
+  // Video mode (markers -> cycle)
+  // =======================
+  const VID = {
+    url: null,
+    openByActionId: {}, // actionId -> "start"|"end" next
+    markers: [] // {id,t,actionId,kind}
+  };
+
+  function loadVideoFile(file){
+    const vid = $("vid");
+    if(VID.url) URL.revokeObjectURL(VID.url);
+    VID.url = URL.createObjectURL(file);
+    vid.src = VID.url;
+    vid.load();
+  }
+
+  function videoStepFrames(n){
+    const vid = $("vid");
+    const fps = clamp(parseFloat($("fps").value||"30"), 1, 240);
+    vid.pause();
+    const dt = n*(1/fps);
+    vid.currentTime = clamp(vid.currentTime + dt, 0, vid.duration || (vid.currentTime + dt));
+  }
+
+  function renderVideoActionSelect(){
+    const job = getJob();
+    const sel = $("videoActionSel");
+    sel.innerHTML = "";
+    job.actions.forEach(a=>{
+      const opt = document.createElement("option");
+      opt.value = a.id;
+      opt.textContent = a.name;
+      sel.appendChild(opt);
+    });
+  }
+
+  function renderMarkers(){
+    if(!VID.markers.length){
+      $("markersList").textContent = "—";
+      return;
+    }
+    const job = getJob();
+    const rows = VID.markers
+      .slice()
+      .sort((a,b)=>a.t-b.t)
+      .map((m,i)=>{
+        const a = actionById(job, m.actionId);
+        return `${i+1}. ${(m.t).toFixed(3)}s · ${a?.name ?? m.actionId} · ${m.kind}`;
+      }).join("<br/>");
+    $("markersList").innerHTML = rows;
+  }
+
+  function videoMarkToggle(){
+    const job = getJob();
+    if(!job.actions.length){
+      alert("No actions. Add actions first.");
+      return;
+    }
+    const vid = $("vid");
+    if(!vid.src){
+      alert("Load a video first.");
+      return;
+    }
+
+    const actionId = $("videoActionSel").value;
+    const nextKind = VID.openByActionId[actionId] || "start";
+    const t = vid.currentTime;
+
+    VID.markers.push({ id: uid(), t, actionId, kind: nextKind });
+    VID.openByActionId[actionId] = (nextKind==="start" ? "end" : "start");
+
+    renderMarkers();
+  }
+
+  function clearMarkers(){
+    VID.markers = [];
+    VID.openByActionId = {};
+    renderMarkers();
+  }
+
+  function markersToCycle(){
+    const job = getJob();
+    if(!VID.markers.length){
+      alert("No markers.");
+      return;
+    }
+
+    // Pair markers start->end per action (simple)
+    const byAction = new Map();
+    VID.markers.slice().sort((a,b)=>a.t-b.t).forEach(m=>{
+      if(!byAction.has(m.actionId)) byAction.set(m.actionId, []);
+      byAction.get(m.actionId).push(m);
+    });
+
+    const cycle = { id: uid(), ts: new Date().toISOString(), tag: $("cycleTag").value, events: [] };
+
+    byAction.forEach((ms, actionId)=>{
+      const act = actionById(job, actionId);
+      if(!act) return;
+      const tDef = getType(act.typeId);
+
+      let open = null;
+      ms.forEach(m=>{
+        if(m.kind==="start"){
+          open = m;
+        }else if(m.kind==="end" && open){
+          const start = open.t*1000;
+          const end = m.t*1000;
+          if(end>=start){
+            cycle.events.push({
+              id: uid(),
+              actionId,
+              typeId: act.typeId,
+              start,
+              end,
+              masked: !!tDef?.defaultMasked
+            });
+          }
+          open = null;
+        }
+      });
+    });
+
+    if(!cycle.events.length){
+      alert("Markers could not be paired into events.");
+      return;
+    }
+
+    job.cycles.push(cycle);
+    saveDB();
+    refreshAll();
+    alert("Cycle created from markers.");
+  }
+
+  // =======================
+  // Import/Export
+  // =======================
+  function exportJSON(){ download("chrono_backup.json", JSON.stringify(DB, null, 2)); }
+  function importJSON(file){
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const data = JSON.parse(reader.result);
+        if(!data || !data.stations || !data.types) throw new Error("Invalid");
+        DB = data;
+        ensureSelection();
+        saveDB();
+        refreshAll();
+      }catch{
+        alert("Import failed (bad JSON).");
+      }
+    };
+    reader.readAsText(file);
+  }
+  function exportCSV(){
+    const st = getStation();
+    const job = getJob();
+    const lines = [];
+    lines.push(["station","job","cycle_index","cycle_id","captured","tag","event_index","action","type","start_s","end_s","dur_s","masked"].join(","));
+    job.cycles.forEach((c, ci)=>{
+      (c.events||[]).slice().sort((a,b)=>a.start-b.start).forEach((e, ei)=>{
+        const act = actionById(job, e.actionId);
+        const startS = (e.start/1000).toFixed(3);
+        const endS = (e.end==null ? "" : (e.end/1000).toFixed(3));
+        const durS = (e.end==null ? "" : ((e.end-e.start)/1000).toFixed(3));
+        lines.push([
+          csvSafe(st.name), csvSafe(job.name),
+          ci+1, c.id, c.ts, c.tag,
+          ei+1, csvSafe(act?.name ?? ""), csvSafe(typeName(e.typeId)),
+          startS, endS, durS,
+          e.masked ? "1":"0"
+        ].join(","));
+      });
+    });
+    download("chrono_export.csv", lines.join("\n"));
+  }
+
+  // =======================
+  // Settings CRUD
+  // =======================
+  function addStation(){
+    const name = prompt("Station name?", "Station");
+    if(!name) return;
+    DB.stations.push({ id: uid(), name, code:"", jobs:[] });
+    DB.ui.stationId = DB.stations.at(-1).id;
+    DB.ui.jobId = null;
+    ensureSelection();
+    saveDB();
+    refreshAll();
+  }
+
+  function addJob(){
+    const st = getStation();
+    const name = prompt("Job name?", "Job");
+    if(!name) return;
+    st.jobs.push({ id: uid(), name, actions:[], cycles:[] });
+    DB.ui.jobId = st.jobs.at(-1).id;
+    saveDB();
+    refreshAll();
+  }
+
+  function clearAll(){
+    if(!confirm("This will delete ALL local Chrono data. Continue?")) return;
+    localStorage.removeItem(LS_KEY);
+    DB = loadDB();
+    ensureSelection();
+    saveDB();
+    refreshAll();
+  }
+
+  function upsertType(){
+    const name = $("typeName").value.trim();
+    if(!name){ alert("Type name required"); return; }
+    const color = $("typeColor").value;
+    const height = clamp(parseInt($("typeHeight").value||"10",10), 2, 40);
+    const z = clamp(parseInt($("typeZ").value||"5",10), 1, 99);
+    const opacity = clamp(parseFloat($("typeOpacity").value||"1"), 0.1, 1);
+    const defaultMasked = $("typeDefaultMasked").value === "true";
+    const order = clamp(parseInt($("typeOrder").value||"10",10), 1, 50);
+
+    const editingId = $("btnUpsertType").dataset.editing;
+    if(editingId){
+      const t = getType(editingId);
+      if(!t) return;
+      t.name=name; t.color=color; t.height=height; t.z=z; t.opacity=opacity; t.defaultMasked=defaultMasked; t.order=order;
+      delete $("btnUpsertType").dataset.editing;
+    }else{
+      const id = name.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"") || uid();
+      if(DB.types.some(t=>t.id===id)){
+        alert("Type id conflict (rename slightly).");
+        return;
+      }
+      DB.types.push({ id, name, color, height, z, opacity, defaultMasked, order });
+    }
+    saveDB();
+    refreshAll();
+  }
+
+  function resetTypes(){
+    if(!confirm("Reset types to defaults?")) return;
+    DB.types = DEFAULT_TYPES();
+    saveDB();
+    refreshAll();
+  }
+
+  function addAction(){
+    const job = getJob();
+    const name = $("newActionName").value.trim();
+    const typeId = $("newActionType").value;
+    if(!name){ alert("Action name required"); return; }
+    job.actions.push({ id: uid(), name, typeId });
+    $("newActionName").value = "";
+    saveDB();
+    refreshAll();
+  }
+
+  function duplicateJob(){
+    const st = getStation();
+    const job = getJob();
+    const copy = JSON.parse(JSON.stringify(job));
+    copy.id = uid();
+    copy.name = job.name + " (copy)";
+
+    // New action IDs + remap events
+    const idMap = new Map();
+    copy.actions.forEach(a => { const old=a.id; a.id=uid(); idMap.set(old,a.id); });
+    copy.cycles.forEach(c=>{
+      c.id=uid();
+      c.events.forEach(e=>{
+        e.id=uid();
+        e.actionId = idMap.get(e.actionId) || e.actionId;
+      });
+    });
+
+    st.jobs.push(copy);
+    DB.ui.jobId = copy.id;
+    saveDB();
+    refreshAll();
+  }
+
+  function deleteJob(){
+    const st = getStation();
+    const job = getJob();
+    if(!confirm(`Delete job "${job.name}"?`)) return;
+    st.jobs = st.jobs.filter(j=>j.id!==job.id);
+    DB.ui.jobId = null;
+    ensureSelection();
+    saveDB();
+    refreshAll();
+  }
+
+  // =======================
+  // Mode switching: Capture / Video
+  // =======================
+  function setMode(mode){
+    if(mode==="capture"){
+      $("tabCapture").classList.add("active");
+      $("tabVideo").classList.remove("active");
+      $("panelCapture").style.display = "";
+      $("panelVideo").style.display = "none";
+    }else{
+      $("tabCapture").classList.remove("active");
+      $("tabVideo").classList.add("active");
+      $("panelCapture").style.display = "none";
+      $("panelVideo").style.display = "";
+    }
+  }
+
+  // =======================
+  // Timer tick
+  // =======================
+  function tick(){
+    if(REC.active){
+      const ms = perfNow() - REC.cycleStartPerf;
+      $("elapsed").textContent = fmtMs(ms);
+    }else{
+      $("elapsed").textContent = "00:00.000";
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // =======================
+  // Refresh all
+  // =======================
+  function refreshAll(redraw=true){
+    ensureSelection();
+
+    renderStationJobSelectors();
+    renderTypeSelects();
+    renderActionsTable();
+    renderTypesTable();
+    renderActionButtons();
+    renderCyclesTable();
+    renderCapturePanelHints();
+    renderVideoActionSelect();
+    renderMarkers();
+
+    // settings fields
+    const st = getStation();
+    const job = getJob();
+    $("stationName").value = st.name;
+    $("stationCode").value = st.code ?? "";
+    $("jobName").value = job.name;
+
+    setRecUI();
+    updateAdvancedButtonsVisual();
+    computeKPIs();
+    if(redraw) drawTimeline();
+  }
+
+  // =======================
+  // Wire UI events
+  // =======================
+  function openDrawer(open){
+    $("drawer").classList.toggle("open", open);
+  }
+
+  $("btnSettings").onclick = () => openDrawer(true);
+  $("btnCloseSettings").onclick = () => openDrawer(false);
+
+  $("stationSel").onchange = () => { DB.ui.stationId = $("stationSel").value; ensureSelection(); saveDB(); refreshAll(); };
+  $("jobSel").onchange = () => { DB.ui.jobId = $("jobSel").value; ensureSelection(); saveDB(); refreshAll(); };
+
+  $("btnAddStation").onclick = addStation;
+  $("btnAddJob").onclick = addJob;
+  $("btnClearAll").onclick = clearAll;
+
+  $("captureMode").onchange = () => { renderCapturePanelHints(); refreshAll(false); };
+
+  $("btnMain").onclick = mainButtonPress;
+  $("btnFinish").onclick = () => stopCycle();
+  $("btnUndo").onclick = undo;
+
+  $("btnAddAction").onclick = addAction;
+
+  $("btnUpsertType").onclick = upsertType;
+  $("btnResetTypes").onclick = resetTypes;
+
+  $("btnDupJob").onclick = duplicateJob;
+  $("btnDelJob").onclick = deleteJob;
+
+  $("stationName").oninput = () => { const st=getStation(); st.name=$("stationName").value; saveDB(); renderStationJobSelectors(); };
+  $("stationCode").oninput = () => { const st=getStation(); st.code=$("stationCode").value; saveDB(); };
+  $("jobName").oninput = () => { const job=getJob(); job.name=$("jobName").value; saveDB(); renderStationJobSelectors(); };
+
+  $("viewMode").onchange = () => drawTimeline();
+  $("zoom").oninput = () => drawTimeline();
+
+  $("btnExportJson").onclick = exportJSON;
+  $("btnImportJson").onclick = () => $("filePick").click();
+  $("filePick").onchange = () => {
+    const f = $("filePick").files[0];
+    if(f) importJSON(f);
+    $("filePick").value = "";
+  };
+  $("btnExportCsv").onclick = exportCSV;
+
+  // Tabs
+  $("tabCapture").onclick = () => setMode("capture");
+  $("tabVideo").onclick = () => setMode("video");
+
+  // Video
+  $("videoFile").addEventListener("change", (e)=>{
+    const file = e.target.files[0];
+    if(file) loadVideoFile(file);
+  });
+  $("btnStepBack").onclick = () => videoStepFrames(-1);
+  $("btnStepFwd").onclick = () => videoStepFrames(1);
+  $("btnMarkToggle").onclick = videoMarkToggle;
+  $("btnClearMarkers").onclick = clearMarkers;
+  $("btnVideoToCycle").onclick = markersToCycle;
+
+  // Space = main capture button (unless typing)
+  document.addEventListener("keydown", (e)=>{
+    const tag = (e.target && e.target.tagName) ? e.target.tagName : "";
+    if(["INPUT","TEXTAREA","SELECT"].includes(tag)) return;
+
+    if(e.code==="Space"){
+      e.preventDefault();
+      // only in capture mode:
+      if($("panelCapture").style.display !== "none") mainButtonPress();
+    }
+  });
+
+  // =======================
+  // Init
+  // =======================
+  (async () => {
+    await tryLoadExternalLangs();
+    buildLangSelector();
+    applyTranslations();
+
+    setMode("capture");
+    refreshAll();
+    tick();
+  })();
+
+})();
+</script>
+</body>
+</html>

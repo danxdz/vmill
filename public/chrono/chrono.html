@@ -1,28 +1,30 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Chrono Study — Drawer + Timeline Bars (Offline)</title>
+  <title>Chrono Study - Drawer + Timeline Bars (Offline)</title>
   <style>
     :root{
       --bg:#0b0c10; --panel:#11131a; --panel2:#0d0f15; --border:#23252f;
       --text:#e8e8e8; --muted:rgba(232,232,232,.75); --muted2:rgba(232,232,232,.55);
       --accent:#4c73ff; --ok:#42d18b; --warn:#ffd37a; --danger:#ff4c6a;
-      --radius:16px;
+      --radius:16px; --ui-scale:1;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       color:var(--text); background:var(--bg);
     }
     *{box-sizing:border-box;}
-    body{margin:0;}
+    body{margin:0; zoom:var(--ui-scale);}
     header{
       padding:14px 16px; border-bottom:1px solid var(--border);
       position:sticky; top:0; background:rgba(11,12,16,.92); backdrop-filter: blur(10px);
       z-index:50; display:flex; align-items:center; justify-content:space-between; gap:12px;
     }
     h1{margin:0; font-size:18px;}
-    .sub{color:var(--muted); font-size:13px;}
+    .sub{display:none; color:var(--muted); font-size:13px;}
     .topRight{display:flex; align-items:center; gap:10px;}
+    #toggleLeftPanelBtn{display:none;}
+    #savePill{display:none;}
     .pill{
       display:inline-flex; align-items:center; gap:8px;
       padding:4px 10px; border-radius:999px;
@@ -39,11 +41,28 @@
     button.danger{background:rgba(255,76,106,.14); border-color:rgba(255,76,106,.55);}
     button:disabled{opacity:.5; cursor:not-allowed;}
     .btnbar{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
+    #panelTogglesRow{justify-content:center; gap:6px;}
+    #panelTogglesRow .iconBtn{padding:6px 10px; font-size:12px;}
     .hr{height:1px; background:var(--border); margin:12px 0;}
 
-    main{padding:16px; max-width:1320px; margin:0 auto;}
+    main{padding:16px; max-width:none; margin:0;}
     .layout{display:grid; gap:12px; grid-template-columns:1fr;}
     @media(min-width:1040px){ .layout{grid-template-columns:420px 1fr;} }
+    #leftPanelSection{
+      display:flex;
+      flex-direction:column;
+      max-height:calc(100dvh - 96px);
+      overflow:hidden;
+      align-self:start;
+    }
+    #stationsList{
+      flex:1;
+      min-height:0;
+      overflow:auto;
+      padding-right:2px;
+    }
+    body.sidebarHidden #leftPanelSection{display:none;}
+    @media(min-width:1040px){ body.sidebarHidden .layout{grid-template-columns:1fr;} }
 
     .card{
       background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
@@ -73,6 +92,132 @@
     .stationMeta{font-size:12px; color:var(--muted);}
     .iconBtn{padding:6px 8px; border-radius:10px; opacity:.9;}
     .iconBtn:hover{background:rgba(255,255,255,.06);}
+    .iconBtn.iconOnly{
+      min-width:30px;
+      padding:6px 7px;
+      text-align:center;
+      font-size:13px;
+      line-height:1;
+    }
+    .iconBtn.active{
+      background:rgba(76,115,255,.18);
+      border-color:rgba(76,115,255,.55);
+      color:var(--text);
+      opacity:1;
+    }
+    .videoActionBtns{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+    .videoActionBtn{padding:6px 10px; border-radius:999px; font-size:12px;}
+    .videoActionBtn.active{outline:2px solid rgba(76,115,255,.35);}
+    #videoSeqBtn,#videoManualStartBtn,#videoManualEndBtn,#videoApplyBtn,#videoClearBtn{
+      padding:7px 10px;
+      border-radius:10px;
+      font-size:12px;
+      line-height:1;
+      white-space:nowrap;
+      width:auto;
+      min-height:32px;
+    }
+    .videoNum{
+      max-width:82px;
+      padding:7px 8px;
+      border-radius:10px;
+      text-align:right;
+      font-size:12px;
+    }
+    .videoAdjustBtns{
+      display:flex;
+      justify-content:flex-end;
+      align-items:center;
+      gap:6px;
+      flex-wrap:nowrap;
+      white-space:nowrap;
+    }
+    .videoMiniBtn{
+      padding:6px 8px;
+      border-radius:10px;
+      font-size:12px;
+      line-height:1;
+      min-width:60px;
+      white-space:nowrap;
+    }
+    .videoMiniBtn.danger{min-width:52px;}
+    .videoMarkersTable th,.videoMarkersTable td{
+      padding:8px 10px;
+      font-size:12px;
+      vertical-align:middle;
+    }
+    .videoMarkersBox{
+      overflow:visible;
+      max-height:none;
+    }
+    .videoLaneBars{
+      margin-top:8px; border:1px solid var(--border); border-radius:12px; padding:8px;
+      background:rgba(255,255,255,.02);
+    }
+    .videoLaneGrid{display:grid; grid-template-columns:88px 1fr; gap:6px 8px; align-items:center;}
+    .videoLaneLabel{font-size:11px; color:var(--muted);}
+    .videoLaneTrack{position:relative; height:20px; border-radius:10px; background:rgba(255,255,255,.05); overflow:hidden;}
+    .videoSeg{
+      position:absolute; top:3px; height:14px; border-radius:8px; opacity:.85; border:1px solid rgba(0,0,0,.2);
+      min-width:2px;
+      cursor:grab;
+    }
+    .videoSeg.machineBox{
+      background:repeating-linear-gradient(-35deg, rgba(200,208,220,.35) 0 6px, rgba(130,138,150,.30) 6px 12px) !important;
+      border:2px solid #33c6ff;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);
+    }
+    .videoSeg.withMachineOverlay .videoSegOverlay{
+      position:absolute;
+      left:0; right:0; top:0;
+      height:38%;
+      border-radius:7px 7px 0 0;
+      background:repeating-linear-gradient(-35deg, rgba(190,198,212,.30) 0 5px, rgba(120,128,140,.28) 5px 10px);
+      border-bottom:1px solid rgba(255,255,255,.25);
+      pointer-events:none;
+    }
+    .videoSeg:active{cursor:grabbing;}
+    .videoSeg.open{opacity:.55; border-style:dashed;}
+    .videoSeg.editing{
+      box-shadow:0 0 0 1px rgba(255,255,255,.65), inset 0 0 0 1px rgba(0,0,0,.2);
+    }
+    .videoSegHandle{
+      position:absolute;
+      top:1px;
+      bottom:1px;
+      width:8px;
+      border-radius:6px;
+      background:rgba(255,255,255,.45);
+      display:none;
+      cursor:ew-resize;
+    }
+    .videoSeg.editing .videoSegHandle{display:block;}
+    .videoSegHandle.start{left:1px;}
+    .videoSegHandle.end{right:1px;}
+    .videoRuleBar{
+      margin-top:6px;
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:8px;
+    }
+    .videoCmdRow{
+      margin-top:10px;
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:8px;
+    }
+    .videoCmdRow .pill{height:32px;}
+    .videoMetaRow{
+      margin-top:8px;
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:8px 12px;
+    }
+    .videoManualRow .pill{min-width:220px; justify-content:center;}
+    .videoPlayhead{position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.9);}
     .jobList{display:flex; flex-direction:column; gap:8px;}
     .jobItem{
       border:1px solid var(--border); border-radius:14px; padding:10px;
@@ -91,6 +236,11 @@
     /* Timer */
     .timerGrid{display:grid; gap:12px; grid-template-columns:1fr;}
     @media(min-width:1040px){ .timerGrid{grid-template-columns:1.05fr .95fr; align-items:start;} }
+    #panelDock{display:flex; flex-direction:column; gap:10px;}
+    .panelBlock{display:block;}
+    body.videoMode .timerGrid{grid-template-columns:1fr !important;}
+    body.videoMode #videoEl{height:min(62vh,560px);}
+    body.videoMode #videoCaptureWrap{margin-top:12px;}
     .elapsed{
       font-size:40px; font-weight:1100; letter-spacing:.6px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -168,34 +318,49 @@
     .drawerBody{padding:14px; overflow:auto;}
     .open .drawerOverlay{opacity:1; pointer-events:auto;}
     .open .drawer{transform:translateX(0);}
+
+    @media(max-width:900px){
+      header{padding:10px 12px; gap:8px; flex-wrap:wrap; align-items:flex-start;}
+      .topRight{width:100%; justify-content:center; flex-wrap:wrap; gap:8px;}
+      main{padding:10px;}
+      .layout{grid-template-columns:1fr !important;}
+      #leftPanelSection, #rightMainSection{width:100%; margin:0 auto; max-width:980px;}
+      .sidebarTop{align-items:flex-start;}
+      .sidebarTop .btnbar{justify-content:flex-end;}
+      .toolbar{justify-content:center;}
+      .btnbar{justify-content:center;}
+      #panelTogglesRow{justify-content:center;}
+      .row2, .row3{grid-template-columns:1fr;}
+    }
   </style>
 </head>
 <body>
 <header>
   <div>
     <h1>Chrono Study</h1>
-    <div class="sub">Offline · Stations/Jobs · Drawer config · Timeline bars (sec on X)</div>
+    <div class="sub"></div>
   </div>
   <div class="topRight">
     <span class="pill" id="savePill">Saved locally</span>
-    <button id="openDrawerBtn" title="Open job config" class="primary">☰ Config</button>
+    <button id="toggleLeftPanelBtn" title="Show/Hide jobs panel">Jobs</button>
+    <button id="openDrawerBtn" title="Open job config" class="primary">Menu Config</button>
+    <select id="langSelect" class="miniSelect" title="Language"></select>
     <span class="pill mono">v5</span>
   </div>
 </header>
 
 <main class="layout">
   <!-- LEFT: stations/jobs list always visible -->
-  <section class="card">
+  <section class="card" id="leftPanelSection">
     <div class="sidebarTop">
-      <div>
-        <div class="title" style="margin:0;">Stations & Jobs</div>
-        <div class="small">Pick a job, then time cycles. Config is in the right drawer.</div>
+      <div class="title" style="margin:0;">Stations & Jobs</div>
+      <div class="btnbar" style="gap:6px;">
+        <button class="primary" id="newStationBtn">+ Station</button>
       </div>
-      <button class="primary" id="newStationBtn">+ Station</button>
     </div>
 
     <div class="searchRow">
-      <input id="searchBox" placeholder="Search station/job…" />
+      <input id="searchBox" placeholder="Search station/job..." />
       <button id="clearSearchBtn">Clear</button>
     </div>
 
@@ -204,7 +369,7 @@
   </section>
 
   <!-- RIGHT: timer + graph + cycles (config moved to drawer) -->
-  <section class="card">
+  <section class="card" id="rightMainSection">
     <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
       <div>
         <div class="title" style="margin:0;">Timer</div>
@@ -212,11 +377,19 @@
       </div>
       <div class="pill mono">Offline</div>
     </div>
+    <div class="btnbar" id="panelTogglesRow" style="margin-top:8px;">
+      <button class="iconBtn active" type="button" data-panel-toggle="jobs" title="Show/Hide jobs panel">Jobs</button>
+      <button class="iconBtn active" type="button" data-panel-toggle="timer" draggable="true" title="Click hide/show. Drag to reorder">Timer</button>
+      <button class="iconBtn active" type="button" data-panel-toggle="kpi" draggable="true" title="Click hide/show. Drag to reorder">KPI</button>
+      <button class="iconBtn active" type="button" data-panel-toggle="timeline" draggable="true" title="Click hide/show. Drag to reorder">Timeline</button>
+      <button class="iconBtn active" type="button" data-panel-toggle="cycles" draggable="true" title="Click hide/show. Drag to reorder">Cycles</button>
+    </div>
 
     <div class="hr"></div>
 
-    <div class="timerGrid">
-      <div class="card" style="padding:12px; border-radius:14px;">
+    <div id="panelDock">
+      <div class="panelBlock" id="panelTimerBlock">
+      <div class="card" id="panelTimerCard" style="padding:12px; border-radius:14px;">
         <div class="small muted">Current elapsed</div>
         <div class="elapsed" id="elapsed">00:00.000</div>
 
@@ -225,46 +398,126 @@
         <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div>
             <div class="small muted">Current element</div>
-            <div style="font-size:22px; font-weight:1100;" id="curElName">—</div>
-            <div class="small" id="curElType">—</div>
+            <div style="font-size:22px; font-weight:1100;" id="curElName">-</div>
+            <div class="small" id="curElType">-</div>
           </div>
           <div>
             <div class="small muted">Index</div>
-            <div class="mono" style="font-size:16px; font-weight:1100;" id="curIndex">—</div>
+            <div class="mono" style="font-size:16px; font-weight:1100;" id="curIndex">-</div>
             <div class="small muted" id="curHint">Press Start</div>
           </div>
         </div>
 
         <div class="hr"></div>
 
+        <div class="row2">
+          <div>
+            <label>Capture mode</label>
+            <select id="captureModeSel">
+              <option value="continuous">Continuous sequence</option>
+              <option value="single">Single action repeat</option>
+              <option value="video">Video capture</option>
+            </select>
+          </div>
+          <div id="singleActionWrap">
+            <label>Single action</label>
+            <select id="singleActionSel"></select>
+          </div>
+        </div>
+
+        <div id="videoCaptureWrap" style="display:none; margin-top:10px;">
+          <div class="row2">
+            <div>
+              <label>Video file</label>
+              <input id="videoFile" type="file" accept="video/*" />
+            </div>
+            <div></div>
+          </div>
+          <div style="margin-top:8px;">
+            <video id="videoEl" controls style="width:100%; border:1px solid var(--border); border-radius:12px; background:#000;"></video>
+          </div>
+          <div style="margin-top:8px;">
+            <label>Video timeline</label>
+            <input id="videoTimeline" type="range" min="0" max="0" step="0.001" value="0" />
+            <div class="small muted mono" id="videoTimelineLabel">00:00.000 / 00:00.000</div>
+            <div id="videoLaneBars" class="videoLaneBars"></div>
+            <div id="videoActionBtns" class="videoActionBtns"></div>
+          </div>
+          <div class="videoCmdRow">
+            <button id="videoSeqBtn" class="primary" type="button">Play + Next</button>
+            <button id="videoApplyBtn" type="button">Create cycle from markers</button>
+            <button id="videoClearBtn" class="danger" type="button">Clear markers</button>
+          </div>
+          <div class="videoCmdRow videoManualRow">
+            <button id="videoManualStartBtn" type="button">Mark start</button>
+            <div class="pill mono" id="videoActionText">-</div>
+            <button id="videoManualEndBtn" type="button">Mark end</button>
+          </div>
+          <div class="videoMetaRow">
+            <label class="chip"><input class="checkbox" id="videoStackRulesChk" type="checkbox" checked /> Auto stack by rules</label>
+            <button id="videoAutoStackBtn" type="button">Apply stack</button>
+            <span class="small muted mono" id="videoWaitInfo">Wait: 00:00.000</span>
+          </div>
+          <div class="small muted" id="videoMarkersList">No markers</div>
+        </div>
+
+        <div class="hr"></div>
+
         <button class="primary bigbtn" id="mainBtn" disabled>Start</button>
 
-        <div class="btnbar" style="margin-top:10px;">
+        <div class="btnbar" id="timerActionBar" style="margin-top:10px;">
+          <button id="finishCycleBtn" disabled>Finish cycle</button>
           <button id="undoBtn" disabled>Undo</button>
           <button class="danger" id="clearJobCyclesBtn">Clear cycles</button>
         </div>
 
-        <div class="small muted" style="margin-top:10px;">
-          Space = Start/Next/Finish · Backspace = Undo
+        <div class="small muted" id="timerKeyboardHint" style="margin-top:10px;">
+          Space = Start/Next/Finish - Backspace = Undo
         </div>
       </div>
+      </div>
 
-      <div class="card" style="padding:12px; border-radius:14px;">
+      <div class="panelBlock" id="panelKpiBlock">
+      <div class="card" id="panelKpiCard" style="padding:12px; border-radius:14px;">
         <div class="title">KPI</div>
         <div class="row">
           <div class="pill">Cycles <span class="mono" id="cyclesCount">0</span></div>
-          <div class="pill">Std time (avg cycle) <span class="mono" id="stdTotal">—</span></div>
+          <div class="pill">Std time (avg cycle) <span class="mono" id="stdTotal">-</span></div>
           <div class="small" id="stdExplain">Record cycles to compute.</div>
           <div class="pill">Stability <span id="stabilityText">No data</span></div>
         </div>
+        <div class="row3" style="margin-top:8px;">
+          <div class="pill">Avg obs <span class="mono" id="avgCycleObs">-</span></div>
+          <div class="pill">Median <span class="mono" id="medianCycle">-</span></div>
+          <div class="pill">P90 <span class="mono" id="p90Cycle">-</span></div>
+        </div>
+        <div class="row3" style="margin-top:8px;">
+          <div class="pill">Best / Worst <span class="mono" id="bestWorstCycle">-</span></div>
+          <div class="pill">CV <span class="mono" id="cvCycle">-</span></div>
+          <div class="pill">Throughput <span class="mono" id="throughputCycle">-</span></div>
+        </div>
+        <div class="small muted" style="margin-top:10px;">Action average times (selected tag filter)</div>
+        <div class="scrollBox" style="max-height:150px; margin-top:6px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th class="right">Avg</th>
+                <th class="right">Min</th>
+                <th class="right">Max</th>
+                <th class="right">Share</th>
+              </tr>
+            </thead>
+            <tbody id="kpiActionBody"></tbody>
+          </table>
+        </div>
       </div>
-    </div>
+      </div>
 
-    <div class="hr"></div>
-
-    <div class="title" style="margin-bottom:8px;">Timeline graph (stacked bars)</div>
-
-    <div class="toolbar">
+    <div id="panelTimelineBlock" class="panelBlock">
+      <div class="hr"></div>
+      <div class="title" style="margin-bottom:8px;">Timeline graph (stacked bars)</div>
+      <div class="toolbar">
       <span class="countChip" id="cyclesShownChip">All cycles: 0</span>
 
       <div class="seg">
@@ -276,7 +529,7 @@
 
       <label class="chip"><input class="checkbox" id="showOutliersChk" type="checkbox" checked /> Outliers</label>
       <select id="outlierModeSel" class="miniSelect" title="Outlier method">
-        <option value="MULT_1_5">> 1.5× avg</option>
+        <option value="MULT_1_5">> 1.5x avg</option>
         <option value="IQR">IQR</option>
       </select>
 
@@ -288,17 +541,22 @@
 
       <button id="selectLast3Btn" type="button">Select last 3</button>
       <button id="clearSelectionBtn" type="button">Clear selection</button>
+      <button id="timelineConfigBtn" type="button">Config</button>
+      </div>
+      <div class="small muted" id="timelineEditHint" style="margin-top:8px;">
+        Graph edit: drag a segment to move, drag right edge to resize (Selected mode).
+      </div>
+
+      <div class="card" style="padding:12px; border-radius:14px; margin-top:10px;">
+        <canvas id="timelineChart" width="1100" height="520" style="width:100%; height:auto; cursor:default;"></canvas>
+        <div class="legend" id="chartLegend"></div>
+      </div>
     </div>
 
-    <div class="card" style="padding:12px; border-radius:14px; margin-top:10px;">
-      <canvas id="timelineChart" width="1100" height="460"></canvas>
-      <div class="legend" id="chartLegend"></div>
-    </div>
-
-    <div class="hr"></div>
-
-    <div class="title">Cycles</div>
-    <div class="timerGrid">
+    <div id="panelCyclesBlock" class="panelBlock">
+      <div class="hr"></div>
+      <div class="title">Cycles</div>
+      <div class="timerGrid">
       <div class="card" style="padding:12px; border-radius:14px;">
         <div class="small muted">Checkbox selects line (Selected mode). Tag editable per cycle.</div>
 
@@ -323,15 +581,15 @@
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
           <div>
             <div class="small muted">Cycle details</div>
-            <div class="mono" style="font-weight:1100; font-size:16px;" id="cycleDetailTitle">—</div>
+            <div class="mono" style="font-weight:1100; font-size:16px;" id="cycleDetailTitle">-</div>
           </div>
-          <div class="pill mono" id="cycleDetailTotal">—</div>
+          <div class="pill mono" id="cycleDetailTotal">-</div>
         </div>
 
         <div class="hr"></div>
 
         <label>Notes (optional)</label>
-        <textarea id="cycleNoteBox" placeholder="e.g., paused, missing part, machine jam…"></textarea>
+        <textarea id="cycleNoteBox" placeholder="e.g., paused, missing part, machine jam..."></textarea>
         <div class="small muted">Notes stored locally + JSON.</div>
 
         <div class="hr"></div>
@@ -350,6 +608,8 @@
           </table>
         </div>
       </div>
+      </div>
+    </div>
     </div>
   </section>
 </main>
@@ -361,9 +621,9 @@
     <div class="drawerHeader">
       <div>
         <div class="drawerTitle">Config</div>
-        <div class="small muted">Job setup · Elements · Backup</div>
+        <div class="small muted">Job setup - Elements - Backup</div>
       </div>
-      <button id="closeDrawerBtn">✕</button>
+      <button id="closeDrawerBtn">X</button>
     </div>
     <div class="drawerBody">
       <div class="title">Job</div>
@@ -442,6 +702,99 @@
 
         <div class="hr"></div>
 
+        <div class="title">Action Types</div>
+        <div class="row3">
+          <div>
+            <label>Type ID</label>
+            <input id="atId" placeholder="HUMAN" />
+          </div>
+          <div>
+            <label>Name</label>
+            <input id="atName" placeholder="Human" />
+          </div>
+          <div>
+            <label>Lane</label>
+            <input id="atLane" placeholder="human" />
+          </div>
+        </div>
+        <div class="row3">
+          <div>
+            <label>Color</label>
+            <input id="atColor" type="color" value="#ffd24a" />
+          </div>
+          <div>
+            <label>Height (px)</label>
+            <input id="atHeight" type="number" min="1" max="40" value="6" />
+          </div>
+          <div>
+            <label>Lane order</label>
+            <input id="atLaneOrder" type="number" step="1" value="0" />
+          </div>
+        </div>
+        <div class="row3">
+          <div>
+            <label>Z order</label>
+            <input id="atZ" type="number" step="1" value="10" />
+          </div>
+          <div>
+            <label>Opacity %</label>
+            <input id="atOpacity" type="number" min="1" max="100" value="100" />
+          </div>
+          <div>
+            <label>Underlay type</label>
+            <select id="atUnderlay">
+              <option value="">(none)</option>
+            </select>
+          </div>
+        </div>
+        <div class="btnbar">
+          <button class="primary" id="addActionTypeBtn">+ Type</button>
+        </div>
+        <div class="small muted">Lane/height/z define overlap style (example: TECH back, HUMAN front).</div>
+        <div class="scrollBox" style="max-height:220px;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:100px;">ID</th>
+                <th>Name</th>
+                <th style="width:80px;">Lane</th>
+                <th style="width:60px;">H</th>
+                <th style="width:60px;">Z</th>
+                <th style="width:70px;">Color</th>
+                <th style="width:80px;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="actionTypesBody"></tbody>
+          </table>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="title">View & Layout</div>
+        <div class="row3">
+          <div>
+            <label>UI Scale x</label>
+            <input id="uiScaleInput" type="number" min="0.2" max="2" step="0.05" value="1" />
+          </div>
+          <div>
+            <label>UI Scale slider</label>
+            <input id="uiScaleRange" type="range" min="20" max="200" step="1" value="100" />
+          </div>
+          <div>
+            <label>Jobs panel</label>
+            <button id="uiToggleLeftBtn" type="button">Hide</button>
+          </div>
+        </div>
+        <div class="btnbar" style="margin-top:8px;">
+          <button class="iconBtn active" type="button" data-ui-panel="timer">Timer</button>
+          <button class="iconBtn active" type="button" data-ui-panel="kpi">KPI</button>
+          <button class="iconBtn active" type="button" data-ui-panel="timeline">Timeline</button>
+          <button class="iconBtn active" type="button" data-ui-panel="cycles">Cycles</button>
+        </div>
+        <div class="small muted">These layout settings are saved in local state and exported in JSON.</div>
+
+        <div class="hr"></div>
+
         <div class="title">Backup</div>
         <div class="btnbar">
           <button id="exportJsonBtn">Export JSON</button>
@@ -464,10 +817,437 @@
 <script>
 (() => {
   const STORAGE_KEY = "chrono_drawer_timeline_v5";
+  const LANG_STORAGE_KEY = "chrono_ui_lang_v1";
+  const I18N_INDEX_URL = "./i18n/index.json";
   const $ = (id) => document.getElementById(id);
   const wallIso = () => new Date().toISOString();
   const perfNow = () => performance.now();
   const TAGS = ["Normal","Rework","Training","Disturbance"];
+
+  const EN_STRINGS = {
+    "title": "Chrono Study",
+    "saved": "Saved locally",
+    "config": "Config",
+    "menuConfig": "Menu Config",
+    "hideJobs": "Hide Jobs",
+    "showJobs": "Show Jobs",
+    "jobs": "Jobs",
+    "collapseAll": "Collapse all",
+    "expandAll": "Expand all",
+    "stationJob": "Stations & Jobs",
+    "pickJobHint": "Pick a job, then time cycles. Config is in the right drawer.",
+    "searchPh": "Search station/job...",
+    "clear": "Clear",
+    "addStation": "+ Station",
+    "timer": "Timer",
+    "currentElapsed": "Current elapsed",
+    "currentElement": "Current element",
+    "index": "Index",
+    "captureMode": "Capture mode",
+    "continuousMode": "Continuous sequence",
+    "singleMode": "Single action repeat",
+    "videoMode": "Video capture",
+    "singleAction": "Single action",
+    "videoFile": "Video file",
+    "videoAction": "Video action",
+    "selectedAction": "Selected action",
+    "videoTimeline": "Video timeline",
+    "scalePct": "Cycle scale %",
+    "scaleHelp": "Applies when creating cycle from markers.",
+    "autoStackRules": "Auto stack by rules",
+    "applyStack": "Apply stack",
+    "wait": "Wait",
+    "mark": "Mark",
+    "cycle": "Cycle",
+    "markStartEnd": "Mark start/end",
+    "markStart": "Mark start",
+    "markEnd": "Mark end",
+    "playStart": "Play + start",
+    "playNext": "Play + next",
+    "markNext": "Mark next",
+    "createCycleFromMarkers": "Create cycle from markers",
+    "clearMarkers": "Clear markers",
+    "noMarkers": "No markers",
+    "start": "Start",
+    "next": "Next",
+    "finishCycle": "Finish cycle",
+    "undo": "Undo",
+    "clearCycles": "Clear cycles",
+    "spaceHint": "Space = Start/Next/Finish - Backspace = Undo",
+    "selectJob": "Select a job",
+    "recordCycles": "Record cycles to compute.",
+    "noData": "No data",
+    "addElementsInConfig": "Add elements in Config",
+    "markers": "Markers",
+    "videoHint": "Mark start/end, then create cycle from markers",
+    "singleHint": "Start, capture repeats, then Finish cycle",
+    "pressStart": "Press Start",
+    "captures": "Captures",
+    "captureLap": "Capture lap",
+    "captureEachHint": "Capture each repeat, then Finish cycle",
+    "finishToSave": "Finish to save cycle",
+    "tapNext": "Tap Next",
+    "kpi": "KPI",
+    "timeline": "Timeline graph (stacked bars)",
+    "timelineEditHint": "Graph edit: drag a segment to move, drag right edge to resize (Selected mode).",
+    "cycles": "Cycles",
+    "selected": "Selected",
+    "all": "All",
+    "outliers": "Outliers",
+    "avgMarkers": "Avg markers",
+    "tags": "Tags",
+    "selectLast3": "Select last 3",
+    "clearSelection": "Clear selection",
+    "notesOptional": "Notes (optional)",
+    "notesPh": "e.g., paused, missing part, machine jam...",
+    "notesHint": "Notes stored locally + JSON.",
+    "configTitle": "Config",
+    "jobSetupSub": "Job setup - Elements - Backup",
+    "job": "Job",
+    "station": "Station",
+    "jobName": "Job name",
+    "allowancePct": "Allowance %",
+    "ratingPct": "Rating %",
+    "stationCode": "Station code",
+    "newJob": "+ New Job",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "elements": "Elements",
+    "elementName": "Element name",
+    "type": "Type",
+    "add": "Add",
+    "up": "Up",
+    "down": "Down",
+    "clickElementHint": "Click an element row to select it.",
+    "actionTypes": "Action Types",
+    "viewLayout": "View & Layout",
+    "backup": "Backup",
+    "exportJson": "Export JSON",
+    "importJson": "Import JSON",
+    "exportCsv": "Export CSV",
+    "demoSmall": "Demo Small",
+    "demoMedium": "Demo Medium",
+    "demoLarge": "Demo Large",
+    "clearLocal": "Clear Local",
+    "jobsCount": "job(s)",
+    "edit": "Edit",
+    "cfg": "Cfg",
+    "progress": "Progress",
+    "els": "els",
+    "cyclesLabel": "cycles",
+    "noElements": "No elements.",
+    "noCyclesRecorded": "No cycles recorded.",
+    "allCyclesFiltered": "All cycles",
+    "filtered": "filtered",
+  };
+  const FR_INLINE_STRINGS = {
+    "title": "Etude Chrono",
+    "saved": "Sauvegarde locale",
+    "config": "Config",
+    "menuConfig": "Menu Config",
+    "hideJobs": "Masquer Jobs",
+    "showJobs": "Afficher Jobs",
+    "jobs": "Jobs",
+    "collapseAll": "Tout replier",
+    "expandAll": "Tout deplier",
+    "stationJob": "Postes & Jobs",
+    "pickJobHint": "Choisissez un job, puis capturez les cycles. Config dans le tiroir a droite.",
+    "searchPh": "Rechercher poste/job...",
+    "clear": "Effacer",
+    "addStation": "+ Poste",
+    "timer": "Chrono",
+    "currentElapsed": "Temps courant",
+    "currentElement": "Element courant",
+    "index": "Index",
+    "captureMode": "Mode capture",
+    "continuousMode": "Sequence continue",
+    "singleMode": "Action unique repetee",
+    "videoMode": "Capture video",
+    "singleAction": "Action unique",
+    "videoFile": "Fichier video",
+    "videoAction": "Action video",
+    "selectedAction": "Action selectionnee",
+    "videoTimeline": "Timeline video",
+    "scalePct": "Echelle cycle %",
+    "scaleHelp": "Applique lors de la creation du cycle depuis les marqueurs.",
+    "autoStackRules": "Empilement auto par regles",
+    "applyStack": "Appliquer empilement",
+    "wait": "Attente",
+    "mark": "Marque",
+    "cycle": "Cycle",
+    "markStartEnd": "Marquer debut/fin",
+    "markStart": "Marquer debut",
+    "markEnd": "Marquer fin",
+    "playStart": "Lire + debut",
+    "playNext": "Lire + suivant",
+    "markNext": "Marquer suivant",
+    "createCycleFromMarkers": "Creer cycle depuis marqueurs",
+    "clearMarkers": "Effacer marqueurs",
+    "noMarkers": "Aucun marqueur",
+    "start": "Demarrer",
+    "next": "Suivant",
+    "finishCycle": "Finir cycle",
+    "undo": "Annuler",
+    "clearCycles": "Effacer cycles",
+    "spaceHint": "Espace = Demarrer/Suivant/Fin - Retour arriere = Annuler",
+    "selectJob": "Selectionnez un job",
+    "recordCycles": "Enregistrez des cycles pour calculer.",
+    "noData": "Pas de donnees",
+    "addElementsInConfig": "Ajoutez des elements dans Config",
+    "markers": "Marqueurs",
+    "videoHint": "Marquez debut/fin puis creez un cycle depuis marqueurs",
+    "singleHint": "Demarrez, capturez les repetitions, puis Finir cycle",
+    "pressStart": "Appuyez sur Demarrer",
+    "captures": "Captures",
+    "captureLap": "Capture tour",
+    "captureEachHint": "Capturez chaque repetition puis Finir cycle",
+    "finishToSave": "Finir pour sauver le cycle",
+    "tapNext": "Appuyez Suivant",
+    "kpi": "KPI",
+    "timeline": "Timeline (barres empilees)",
+    "timelineEditHint": "Edition graphe: glisser un segment pour deplacer, glisser le bord droit pour redimensionner (mode Selection).",
+    "cycles": "Cycles",
+    "selected": "Selection",
+    "all": "Tout",
+    "outliers": "Valeurs anormales",
+    "avgMarkers": "Reperes moy.",
+    "tags": "Tags",
+    "selectLast3": "3 derniers",
+    "clearSelection": "Effacer selection",
+    "notesOptional": "Notes (optionnel)",
+    "notesPh": "ex: pause, piece manquante, blocage machine...",
+    "notesHint": "Notes stockees en local + JSON.",
+    "configTitle": "Config",
+    "jobSetupSub": "Setup job - Elements - Sauvegarde",
+    "job": "Job",
+    "station": "Poste",
+    "jobName": "Nom du job",
+    "allowancePct": "Allowance %",
+    "ratingPct": "Rating %",
+    "stationCode": "Code poste",
+    "newJob": "+ Nouveau Job",
+    "duplicate": "Dupliquer",
+    "delete": "Supprimer",
+    "elements": "Elements",
+    "elementName": "Nom element",
+    "type": "Type",
+    "add": "Ajouter",
+    "up": "Monter",
+    "down": "Descendre",
+    "clickElementHint": "Cliquez une ligne element pour selectionner.",
+    "actionTypes": "Types action",
+    "viewLayout": "Vue & Layout",
+    "backup": "Sauvegarde",
+    "exportJson": "Exporter JSON",
+    "importJson": "Importer JSON",
+    "exportCsv": "Exporter CSV",
+    "demoSmall": "Demo Petite",
+    "demoMedium": "Demo Moyenne",
+    "demoLarge": "Demo Grande",
+    "clearLocal": "Effacer Local",
+    "jobsCount": "job(s)",
+    "edit": "Editer",
+    "cfg": "Cfg",
+    "progress": "Progression",
+    "els": "elts",
+    "cyclesLabel": "cycles",
+    "noElements": "Aucun element.",
+    "noCyclesRecorded": "Aucun cycle enregistre.",
+    "allCyclesFiltered": "Tous cycles",
+    "filtered": "filtres",
+  };
+  let i18nCatalogs = {
+    en: { code: "en", name: "English", translations: EN_STRINGS },
+    fr: { code: "fr", name: "Francais", translations: FR_INLINE_STRINGS },
+  };
+  let activeLanguage = "en";
+
+  function t(k, fallback = "") {
+    return i18nCatalogs[activeLanguage]?.translations?.[k] ?? EN_STRINGS[k] ?? fallback ?? k;
+  }
+  async function loadLanguageCatalogs() {
+    try {
+      const idxRes = await fetch(I18N_INDEX_URL, { cache: "no-store" });
+      if (!idxRes.ok) return;
+      const idx = await idxRes.json();
+      const files = Array.isArray(idx?.files) ? idx.files : [];
+      for (const file of files) {
+        try {
+          const r = await fetch(`./i18n/${file}`, { cache: "no-store" });
+          if (!r.ok) continue;
+          const payload = await r.json();
+          if (!payload?.code || !payload?.translations) continue;
+          i18nCatalogs[payload.code] = {
+            code: String(payload.code),
+            name: String(payload.name || payload.code),
+            translations: { ...i18nCatalogs[payload.code]?.translations, ...payload.translations },
+          };
+        } catch {}
+      }
+    } catch {}
+  }
+  function applyI18nStatic() {
+    const setText = (selector, key, fallback) => {
+      const el = document.querySelector(selector);
+      if (el) el.textContent = t(key, fallback);
+    };
+    const setPlaceholder = (selector, key, fallback) => {
+      const el = document.querySelector(selector);
+      if (el) el.placeholder = t(key, fallback);
+    };
+    const h1 = document.querySelector("header h1");
+    if (h1) h1.textContent = t("title", "Chrono Study");
+    const hdrSub = document.querySelector("header .sub");
+    if (hdrSub) hdrSub.textContent = "";
+    const savePill = $("savePill");
+    if (savePill) savePill.textContent = t("saved", "Saved locally");
+    const cfgBtn = $("openDrawerBtn");
+    if (cfgBtn) cfgBtn.textContent = t("menuConfig", "Menu Config");
+    const leftBtn = $("toggleLeftPanelBtn");
+    if (leftBtn) leftBtn.textContent = state?.ui?.leftPanelVisible ? t("hideJobs", "Hide Jobs") : t("showJobs", "Show Jobs");
+    const stTitle = document.querySelector(".sidebarTop .title");
+    if (stTitle) stTitle.textContent = t("stationJob", "Stations & Jobs");
+    const stHint = document.querySelector(".sidebarTop .small");
+    if (stHint) stHint.textContent = t("pickJobHint", "Pick a job, then time cycles. Config is in the right drawer.");
+    setText("#newStationBtn", "addStation", "+ Station");
+    const collapseBtn = $("collapseStationsBtn");
+    if (collapseBtn) { collapseBtn.textContent = "-"; collapseBtn.title = t("collapseAll", "Collapse all"); }
+    const expandBtn = $("expandStationsBtn");
+    if (expandBtn) { expandBtn.textContent = "+"; expandBtn.title = t("expandAll", "Expand all"); }
+    setText("#clearSearchBtn", "clear", "Clear");
+    setPlaceholder("#searchBox", "searchPh", "Search station/job...");
+    const tTitle = document.querySelector("#jobHeader")?.parentElement?.querySelector(".title");
+    if (tTitle) tTitle.textContent = t("timer", "Timer");
+    setText("#panelTimerCard .small.muted", "currentElapsed", "Current elapsed");
+    const elCard = document.querySelector("#panelTimerCard > div:nth-child(3) > div:nth-child(1) > div.small.muted");
+    if (elCard) elCard.textContent = t("currentElement", "Current element");
+    const idxCard = document.querySelector("#panelTimerCard > div:nth-child(3) > div:nth-child(2) > div.small.muted");
+    if (idxCard) idxCard.textContent = t("index", "Index");
+    const capModeLbl = $("captureModeSel")?.closest("div")?.querySelector("label");
+    if (capModeLbl) capModeLbl.textContent = t("captureMode", "Capture mode");
+    const capOpts = $("captureModeSel")?.options;
+    if (capOpts && capOpts.length >= 3) {
+      capOpts[0].textContent = t("continuousMode", "Continuous sequence");
+      capOpts[1].textContent = t("singleMode", "Single action repeat");
+      capOpts[2].textContent = t("videoMode", "Video capture");
+    }
+    const singleLbl = $("singleActionSel")?.closest("div")?.querySelector("label");
+    if (singleLbl) singleLbl.textContent = t("singleAction", "Single action");
+    const videoFileLbl = $("videoFile")?.closest("div")?.querySelector("label");
+    if (videoFileLbl) videoFileLbl.textContent = t("videoFile", "Video file");
+    const videoTimelineLbl = $("videoTimeline")?.parentElement?.querySelector("label");
+    if (videoTimelineLbl) videoTimelineLbl.textContent = t("videoTimeline", "Video timeline");
+    const actionText = $("videoActionText");
+    if (actionText && (!actionText.textContent || actionText.textContent === "-")) actionText.textContent = t("selectedAction", "Selected action");
+    setText("#videoSeqBtn", "playNext", "Play + next");
+    setText("#videoManualStartBtn", "markStart", "Mark start");
+    setText("#videoManualEndBtn", "markEnd", "Mark end");
+    setText("#videoApplyBtn", "createCycleFromMarkers", "Create cycle from markers");
+    setText("#videoClearBtn", "clearMarkers", "Clear markers");
+    setText("#videoAutoStackBtn", "applyStack", "Apply stack");
+    const stackLbl = $("videoStackRulesChk")?.parentElement;
+    if (stackLbl) {
+      const txtNode = stackLbl.childNodes[stackLbl.childNodes.length - 1];
+      if (txtNode && txtNode.nodeType === Node.TEXT_NODE) txtNode.textContent = ` ${t("autoStackRules", "Auto stack by rules")}`;
+    }
+    const waitInfo = $("videoWaitInfo");
+    if (waitInfo) {
+      const cur = waitInfo.textContent || "";
+      const sep = cur.includes(":") ? cur.slice(cur.indexOf(":")) : `: ${fmtSec(0)}`;
+      waitInfo.textContent = `${t("wait", "Wait")}${sep}`;
+    }
+    if (!$("videoMarkersList")?.innerHTML || $("videoMarkersList")?.textContent === "No markers") {
+      setText("#videoMarkersList", "noMarkers", "No markers");
+    }
+    setText("#mainBtn", "start", "Start");
+    setText("#finishCycleBtn", "finishCycle", "Finish cycle");
+    setText("#undoBtn", "undo", "Undo");
+    setText("#clearJobCyclesBtn", "clearCycles", "Clear cycles");
+    const sh = $("timerKeyboardHint");
+    if (sh) sh.textContent = t("spaceHint", "Space = Start/Next/Finish - Backspace = Undo");
+    setText("#panelKpiCard .title", "kpi", "KPI");
+    const tlTitle = document.querySelector("main .title[style*='margin-bottom:8px']");
+    if (tlTitle) tlTitle.textContent = t("timeline", "Timeline graph (stacked bars)");
+    setText("#timelineEditHint", "timelineEditHint", "Graph edit: drag a segment to move, drag right edge to resize (Selected mode).");
+    const cyTitle = document.querySelectorAll("main .title");
+    if (cyTitle?.length > 0) {
+      const lastTitle = cyTitle[cyTitle.length - 1];
+      if (lastTitle && lastTitle.textContent?.trim() === "Cycles") lastTitle.textContent = t("cycles", "Cycles");
+    }
+    const modeSelected = $("modeSelectedBtn"); if (modeSelected) modeSelected.textContent = t("selected", "Selected");
+    const modeAll = $("modeAllBtn"); if (modeAll) modeAll.textContent = t("all", "All");
+    const showOutInput = $("showOutliersChk");
+    if (showOutInput?.parentElement) showOutInput.parentElement.lastChild.textContent = ` ${t("outliers", "Outliers")}`;
+    const showAvgInput = $("showAvgLineChk");
+    if (showAvgInput?.parentElement) showAvgInput.parentElement.lastChild.textContent = ` ${t("avgMarkers", "Avg markers")}`;
+    const tagsPill = document.querySelector(".toolbar .pill");
+    if (tagsPill) tagsPill.textContent = t("tags", "Tags");
+    const bSelLast = $("selectLast3Btn"); if (bSelLast) bSelLast.textContent = t("selectLast3", "Select last 3");
+    const bClrSel = $("clearSelectionBtn"); if (bClrSel) bClrSel.textContent = t("clearSelection", "Clear selection");
+    const bTlCfg = $("timelineConfigBtn"); if (bTlCfg) bTlCfg.textContent = t("config", "Config");
+
+    const noteLabel = $("cycleNoteBox")?.parentElement?.querySelector("label");
+    if (noteLabel) noteLabel.textContent = t("notesOptional", "Notes (optional)");
+    setPlaceholder("#cycleNoteBox", "notesPh", "e.g., paused, missing part, machine jam...");
+    const noteHints = document.querySelectorAll(".small.muted");
+    noteHints.forEach((x) => {
+      if (x.textContent?.includes("Notes stored locally")) x.textContent = t("notesHint", "Notes stored locally + JSON.");
+    });
+
+    setText("#drawer .drawerTitle", "configTitle", "Config");
+    setText("#drawer .drawerHeader .small.muted", "jobSetupSub", "Job setup - Elements - Backup");
+    setText("#drawer .drawerBody .title:nth-of-type(1)", "job", "Job");
+    setText("#drawer .drawerBody .title:nth-of-type(2)", "elements", "Elements");
+    setText("#drawer .drawerBody .title:nth-of-type(3)", "actionTypes", "Action Types");
+    setText("#drawer .drawerBody .title:nth-of-type(4)", "viewLayout", "View & Layout");
+    setText("#drawer .drawerBody .title:nth-of-type(5)", "backup", "Backup");
+    const jobLabels = document.querySelectorAll("#drawer .drawerBody label");
+    if (jobLabels[0]) jobLabels[0].textContent = t("station", "Station");
+    if (jobLabels[1]) jobLabels[1].textContent = t("jobName", "Job name");
+    if (jobLabels[2]) jobLabels[2].textContent = t("allowancePct", "Allowance %");
+    if (jobLabels[3]) jobLabels[3].textContent = t("ratingPct", "Rating %");
+    if (jobLabels[4]) jobLabels[4].textContent = t("stationCode", "Station code");
+    if (jobLabels[5]) jobLabels[5].textContent = t("elementName", "Element name");
+    if (jobLabels[6]) jobLabels[6].textContent = t("type", "Type");
+    setText("#newJobBtn", "newJob", "+ New Job");
+    setText("#dupJobBtn", "duplicate", "Duplicate");
+    setText("#delJobBtn", "delete", "Delete");
+    setText("#addElBtn", "add", "Add");
+    setText("#moveUpBtn", "up", "Up");
+    setText("#moveDownBtn", "down", "Down");
+    const clickHint = document.querySelector("#drawer .drawerBody .small.muted");
+    if (clickHint && clickHint.textContent?.includes("Click an element row")) clickHint.textContent = t("clickElementHint", "Click an element row to select it.");
+    setText("#exportJsonBtn", "exportJson", "Export JSON");
+    setText("#importJsonBtn", "importJson", "Import JSON");
+    setText("#exportCsvBtn", "exportCsv", "Export CSV");
+    setText("#demoSmallBtn", "demoSmall", "Demo Small");
+    setText("#demoMediumBtn", "demoMedium", "Demo Medium");
+    setText("#demoLargeBtn", "demoLarge", "Demo Large");
+    setText("#clearLocalBtn", "clearLocal", "Clear Local");
+  }
+  async function initI18n() {
+    await loadLanguageCatalogs();
+    const sel = $("langSelect");
+    if (!sel) return;
+    sel.innerHTML = "";
+    Object.values(i18nCatalogs).sort((a,b) => a.name.localeCompare(b.name)).forEach((lang) => {
+      const opt = document.createElement("option");
+      opt.value = lang.code;
+      opt.textContent = lang.name;
+      sel.appendChild(opt);
+    });
+    const browserLang = String(navigator.language || "en").slice(0,2).toLowerCase();
+    const saved = localStorage.getItem(LANG_STORAGE_KEY) || "";
+    activeLanguage = i18nCatalogs[saved] ? saved : (i18nCatalogs[browserLang] ? browserLang : "en");
+    sel.value = activeLanguage;
+    applyI18nStatic();
+    sel.addEventListener("change", () => {
+      activeLanguage = i18nCatalogs[sel.value] ? sel.value : "en";
+      localStorage.setItem(LANG_STORAGE_KEY, activeLanguage);
+      applyI18nStatic();
+      renderAll();
+    });
+  }
 
   function uuid() {
     return (crypto.randomUUID ? crypto.randomUUID()
@@ -506,9 +1286,91 @@
     }).join(",");
   }
 
+  function defaultActionTypes() {
+    return [
+      { id: "MACHINE", name: "Tech", color: "#7f8790", lane: "tech", laneOrder: 0, heightPx: 10, z: 5, opacity: 0.9, underlayTypeId: "" },
+      { id: "HUMAN", name: "Human", color: "#ffd24a", lane: "human", laneOrder: 1, heightPx: 5, z: 20, opacity: 1.0, underlayTypeId: "" },
+      { id: "HUMAN+MACHINE", name: "Human+Tech", color: "#ffd24a", lane: "human", laneOrder: 1, heightPx: 5, z: 25, opacity: 1.0, underlayTypeId: "MACHINE" },
+      { id: "IDLE", name: "Idle", color: "#4c73ff", lane: "idle", laneOrder: 2, heightPx: 6, z: 12, opacity: 0.8, underlayTypeId: "" },
+    ];
+  }
+  function normalizeActionType(v) {
+    return {
+      id: String(v?.id || "IDLE").trim().toUpperCase() || "IDLE",
+      name: String(v?.name || v?.id || "IDLE").trim() || "IDLE",
+      color: /^#[0-9a-fA-F]{6}$/.test(String(v?.color || "")) ? String(v.color) : "#4c73ff",
+      lane: String(v?.lane || "lane").trim() || "lane",
+      laneOrder: Number.isFinite(Number(v?.laneOrder)) ? Number(v.laneOrder) : 0,
+      heightPx: Math.max(1, Math.min(40, Number(v?.heightPx || 6))),
+      z: Number.isFinite(Number(v?.z)) ? Number(v.z) : 10,
+      opacity: Math.max(0.05, Math.min(1, Number(v?.opacity ?? 1))),
+      underlayTypeId: String(v?.underlayTypeId || "").trim().toUpperCase(),
+    };
+  }
+  function ensureActionTypes(st) {
+    if (!Array.isArray(st.actionTypes) || !st.actionTypes.length) st.actionTypes = defaultActionTypes();
+    const seen = new Set();
+    const norm = [];
+    for (const raw of st.actionTypes) {
+      const at = normalizeActionType(raw);
+      if (seen.has(at.id)) continue;
+      seen.add(at.id);
+      norm.push(at);
+    }
+    if (!norm.length) norm.push(...defaultActionTypes());
+    st.actionTypes = norm;
+    const valid = new Set(st.actionTypes.map((a) => a.id));
+    const fallback = st.actionTypes[0].id;
+    for (const job of (st.jobs || [])) {
+      for (const el of (job.elements || [])) {
+        const t = String(el.type || "").toUpperCase();
+        el.type = valid.has(t) ? t : fallback;
+      }
+    }
+  }
+  function defaultUiState() {
+    return {
+      uiScale: 1,
+      leftPanelVisible: true,
+      collapsedStations: {},
+      panels: {
+        timer: true,
+        kpi: true,
+        timeline: true,
+        cycles: true,
+      },
+      panelOrder: ["timer", "kpi", "timeline", "cycles"],
+    };
+  }
+  function ensureUiState(st) {
+    const d = defaultUiState();
+    st.ui = st.ui || {};
+    st.ui.uiScale = Math.max(0.2, Math.min(2, Number(st.ui.uiScale ?? d.uiScale) || d.uiScale));
+    st.ui.leftPanelVisible = st.ui.leftPanelVisible !== false;
+    st.ui.collapsedStations = (st.ui.collapsedStations && typeof st.ui.collapsedStations === "object")
+      ? st.ui.collapsedStations : {};
+    st.ui.panels = st.ui.panels || {};
+    st.ui.panels.timer = st.ui.panels.timer !== false;
+    st.ui.panels.kpi = st.ui.panels.kpi !== false;
+    st.ui.panels.timeline = st.ui.panels.timeline !== false;
+    st.ui.panels.cycles = st.ui.panels.cycles !== false;
+    const wanted = d.panelOrder;
+    const got = Array.isArray(st.ui.panelOrder) ? st.ui.panelOrder.map((x) => String(x)) : [];
+    const filtered = got.filter((x) => wanted.includes(x));
+    for (const p of wanted) if (!filtered.includes(p)) filtered.push(p);
+    st.ui.panelOrder = filtered;
+  }
+  function actionTypeMap() {
+    return new Map((state.actionTypes || []).map((at) => [at.id, at]));
+  }
+  function getActionType(id) {
+    const up = String(id || "").toUpperCase();
+    return actionTypeMap().get(up) || state.actionTypes?.[0] || normalizeActionType({ id: "IDLE" });
+  }
+
   // ----- State -----
   function defaultState() {
-    const st1 = { id: uuid(), code: "S01", name: "Assembly Line A — Station 1" };
+    const st1 = { id: uuid(), code: "S01", name: "Assembly Line A - Station 1" };
     const job1 = {
       id: uuid(), stationId: st1.id,
       name: "Pick / Place / Machine",
@@ -525,6 +1387,8 @@
       activeJobId: job1.id,
       stations: [st1],
       jobs: [job1],
+      actionTypes: defaultActionTypes(),
+      ui: defaultUiState(),
     };
   }
 
@@ -547,6 +1411,8 @@
           if (c.note == null) c.note = "";
         }
       }
+      ensureActionTypes(parsed);
+      ensureUiState(parsed);
       return parsed;
     } catch {
       return defaultState();
@@ -566,26 +1432,232 @@
   let selectedCycleIdsForLine = new Set();
   let searchText = "";
   let graphMode = "SELECTED"; // SELECTED | ALL
+  let captureMode = "continuous"; // continuous | single | video
+  let singleCaptureElementId = "";
+  const videoCapture = {
+    url: "",
+    markers: [], // { id, elementId, startSec, endSec }
+    openByElementId: {}, // elementId -> markerId (open start)
+    selectedElementId: "",
+    editMarkerId: "",
+  };
+  let videoDrag = null; // { markerId, mode, x0, s0, e0, dur }
+  const timelineEditState = {
+    geom: null, // { padL, padR, padT, padB, cw, ch, xMaxSec, hits: [] }
+    drag: null, // { cycleId, elementId, x0, initialMs, mode }
+  };
 
   // ----- Drawer -----
   const root = $("drawerRoot");
   function openDrawer(){ root.classList.add("open"); }
   function closeDrawer(){ root.classList.remove("open"); }
 
+  function setUiScale(scale) {
+    const v = Math.max(0.2, Math.min(2, Number(scale || 1) || 1));
+    state.ui.uiScale = v;
+    document.documentElement.style.setProperty("--ui-scale", String(v));
+    const inp = $("uiScaleInput");
+    const rng = $("uiScaleRange");
+    if (inp) inp.value = v.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+    if (rng) rng.value = String(Math.round(v * 100));
+  }
+
+  function setPanelVisible(name, visible, save = true) {
+    if (!state.ui?.panels) return;
+    state.ui.panels[name] = !!visible;
+    applyUiLayout();
+    if (save) saveState();
+  }
+
+  function reorderPanels(dragId, dropId) {
+    if (!state.ui?.panelOrder) return;
+    const src = String(dragId || "");
+    const dst = String(dropId || "");
+    if (!src || !dst || src === dst) return;
+    const arr = state.ui.panelOrder.slice();
+    const si = arr.indexOf(src);
+    const di = arr.indexOf(dst);
+    if (si < 0 || di < 0) return;
+    arr.splice(si, 1);
+    arr.splice(di, 0, src);
+    state.ui.panelOrder = arr;
+    applyUiLayout();
+    saveState();
+  }
+
+  function applyUiLayout() {
+    ensureUiState(state);
+    setUiScale(state.ui.uiScale);
+    document.body.classList.toggle("sidebarHidden", !state.ui.leftPanelVisible);
+    document.body.classList.toggle("videoMode", captureMode === "video");
+    const leftSec = $("leftPanelSection");
+    if (leftSec) leftSec.style.display = state.ui.leftPanelVisible ? "" : "none";
+    const layout = document.querySelector("main.layout");
+    if (layout) {
+      const desktop = window.matchMedia("(min-width: 1040px)").matches;
+      layout.style.gridTemplateColumns = (desktop && state.ui.leftPanelVisible) ? "420px 1fr" : "1fr";
+    }
+
+    const timerOn = !!state.ui.panels.timer;
+    const kpiOn = !!state.ui.panels.kpi;
+    const timelineOn = !!state.ui.panels.timeline;
+    const cyclesOn = !!state.ui.panels.cycles;
+    const timerCard = $("panelTimerBlock");
+    const kpiCard = $("panelKpiBlock");
+    const timelineBlock = $("panelTimelineBlock");
+    const cyclesBlock = $("panelCyclesBlock");
+    if (timerCard) timerCard.style.display = timerOn ? "" : "none";
+    if (kpiCard) kpiCard.style.display = kpiOn ? "" : "none";
+    if (timelineBlock) timelineBlock.style.display = timelineOn ? "" : "none";
+    if (cyclesBlock) cyclesBlock.style.display = cyclesOn ? "" : "none";
+
+    const blockMap = {
+      timer: $("panelTimerBlock"),
+      kpi: $("panelKpiBlock"),
+      timeline: $("panelTimelineBlock"),
+      cycles: $("panelCyclesBlock"),
+    };
+    (state.ui.panelOrder || []).forEach((panel, idx) => {
+      const b = blockMap[panel];
+      if (b) b.style.order = String(idx);
+      document.querySelectorAll(`[data-panel-toggle="${panel}"]`).forEach((btn) => btn.style.order = String(idx));
+      document.querySelectorAll(`[data-ui-panel="${panel}"]`).forEach((btn) => btn.style.order = String(idx));
+    });
+
+    const leftBtn = $("toggleLeftPanelBtn");
+    if (leftBtn) leftBtn.textContent = state.ui.leftPanelVisible ? t("hideJobs", "Hide Jobs") : t("showJobs", "Show Jobs");
+    const leftBtn2 = $("uiToggleLeftBtn");
+    if (leftBtn2) leftBtn2.textContent = state.ui.leftPanelVisible ? t("hideJobs", "Hide Jobs") : t("showJobs", "Show Jobs");
+
+    const syncBtnState = (selector, panel) => {
+      document.querySelectorAll(selector).forEach((btn) => {
+        const on = !!state.ui.panels[panel];
+        btn.classList.toggle("active", on);
+      });
+    };
+    document.querySelectorAll('[data-panel-toggle="jobs"]').forEach((btn) => {
+      btn.classList.toggle("active", !!state.ui.leftPanelVisible);
+      btn.textContent = t("jobs", "Jobs");
+    });
+    syncBtnState('[data-panel-toggle="timer"]', "timer");
+    syncBtnState('[data-panel-toggle="kpi"]', "kpi");
+    syncBtnState('[data-panel-toggle="timeline"]', "timeline");
+    syncBtnState('[data-panel-toggle="cycles"]', "cycles");
+    syncBtnState('[data-ui-panel="timer"]', "timer");
+    syncBtnState('[data-ui-panel="kpi"]', "kpi");
+    syncBtnState('[data-ui-panel="timeline"]', "timeline");
+    syncBtnState('[data-ui-panel="cycles"]', "cycles");
+  }
+
+  function fmtSec(sec) {
+    const ms = Math.max(0, Number(sec || 0) * 1000);
+    return fmtMs(ms);
+  }
+
+  function currentJobElements() {
+    const job = getActiveJob();
+    return job?.elements || [];
+  }
+
+  function ensureCaptureSelection() {
+    const els = currentJobElements();
+    if (!els.length) {
+      singleCaptureElementId = "";
+      return;
+    }
+    if (!singleCaptureElementId || !els.some((e) => e.id === singleCaptureElementId)) {
+      singleCaptureElementId = els[0].id;
+    }
+  }
+
+  function renderCaptureSelectors() {
+    const job = getActiveJob();
+    const singleSel = $("singleActionSel");
+    const videoText = $("videoActionText");
+    const videoBtns = $("videoActionBtns");
+    const elements = job?.elements || [];
+    ensureCaptureSelection();
+    if (!videoCapture.selectedElementId || !elements.some((e) => e.id === videoCapture.selectedElementId)) {
+      videoCapture.selectedElementId = elements[0]?.id || "";
+    }
+
+    if (singleSel) {
+      singleSel.innerHTML = "";
+      for (const el of elements) {
+        const opt = document.createElement("option");
+        opt.value = el.id;
+        opt.textContent = `${el.name} (${el.type})`;
+        singleSel.appendChild(opt);
+      }
+      if (singleCaptureElementId) singleSel.value = singleCaptureElementId;
+      singleSel.disabled = !elements.length;
+    }
+    if (videoText) {
+      const activeEl = elements.find((el) => el.id === videoCapture.selectedElementId);
+      videoText.textContent = activeEl ? `${activeEl.name} (${activeEl.type})` : "-";
+    }
+    if (videoBtns) {
+      const active = String(videoCapture.selectedElementId || "");
+      videoBtns.innerHTML = "";
+      for (const el of elements) {
+        const at = getActionType(el.type);
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "videoActionBtn" + (el.id === active ? " active" : "");
+        b.textContent = el.name;
+        b.style.borderColor = at.color || "#4c73ff";
+        b.style.boxShadow = `inset 0 0 0 1px ${at.color || "#4c73ff"}55`;
+        b.addEventListener("click", () => {
+          videoCapture.selectedElementId = el.id;
+          renderCaptureSelectors();
+        });
+        videoBtns.appendChild(b);
+      }
+    }
+  }
+
+  function refreshCaptureModeUI() {
+    const modeSel = $("captureModeSel");
+    captureMode = String(modeSel?.value || "continuous");
+    const isSingle = captureMode === "single";
+    const isVideo = captureMode === "video";
+    document.body.classList.toggle("videoMode", isVideo);
+    $("singleActionWrap").style.display = isSingle ? "" : "none";
+    $("videoCaptureWrap").style.display = isVideo ? "" : "none";
+    const mainBtn = $("mainBtn");
+    if (mainBtn) mainBtn.style.display = isVideo ? "none" : "";
+    const finishBtn = $("finishCycleBtn");
+    if (finishBtn) finishBtn.style.display = isVideo ? "none" : "";
+    const undoBtn = $("undoBtn");
+    if (undoBtn) undoBtn.style.display = isVideo ? "none" : "";
+    const hint = $("timerKeyboardHint");
+    if (hint) hint.style.display = isVideo ? "none" : "";
+    if (isSingle) ensureCaptureSelection();
+    if (timer.mode === TimerMode.Running && timer.captureMode !== captureMode) {
+      stopCycle();
+    }
+  }
+
   // ----- Timer -----
   const TimerMode = { Idle:"IDLE", Running:"RUNNING" };
-  let timer = { mode:TimerMode.Idle, startPerf:0, lastMarkPerf:0, laps:[], index:0 };
+  let timer = { mode:TimerMode.Idle, startPerf:0, lastMarkPerf:0, laps:[], index:0, captureMode:"continuous", singleElementId:"" };
   let raf = null;
 
   function startCycle() {
     const job = getActiveJob();
-    if (!job) return alert("Select a job first.");
-    if (job.elements.length === 0) return alert("Add at least 1 element first.");
+    if (!job) return alert(t("selectJob", "Select a job first."));
+    if (job.elements.length === 0) return alert(t("addElementsInConfig", "Add at least 1 element first."));
+    refreshCaptureModeUI();
+    if (captureMode === "video") return alert(t("videoHint", "Video mode uses markers. Use \"Create cycle from markers\"."));
+    ensureCaptureSelection();
     timer.mode = TimerMode.Running;
+    timer.captureMode = captureMode;
+    timer.singleElementId = singleCaptureElementId;
     timer.startPerf = perfNow();
     timer.lastMarkPerf = timer.startPerf;
     timer.laps = [];
-    timer.index = 0;
+    timer.index = Math.max(0, job.elements.findIndex((e) => e.id === timer.singleElementId));
+    if (timer.captureMode === "continuous") timer.index = 0;
     $("elapsed").textContent = "00:00.000";
     tick();
     renderAll();
@@ -595,8 +1667,14 @@
     const job = getActiveJob();
     if (!job || timer.mode !== TimerMode.Running) return;
 
-    const idx = Math.min(timer.index, job.elements.length - 1);
-    const el = job.elements[idx];
+    let el = null;
+    if (timer.captureMode === "single") {
+      el = job.elements.find((x) => x.id === timer.singleElementId) || job.elements[0];
+    } else {
+      const idx = Math.min(timer.index, job.elements.length - 1);
+      el = job.elements[idx];
+    }
+    if (!el) return;
     const t = perfNow();
     const ms = t - timer.lastMarkPerf;
 
@@ -618,7 +1696,9 @@
       return;
     }
 
-    timer.index = Math.min(timer.index + 1, job.elements.length - 1);
+    if (timer.captureMode === "continuous") {
+      timer.index = Math.min(timer.index + 1, job.elements.length - 1);
+    }
     renderAll();
   }
 
@@ -635,7 +1715,7 @@
     if (timer.mode !== TimerMode.Running) return;
     if (timer.laps.length === 0) return;
     timer.laps.pop();
-    timer.index = Math.max(timer.index - 1, 0);
+    if (timer.captureMode === "continuous") timer.index = Math.max(timer.index - 1, 0);
     timer.lastMarkPerf = perfNow();
     renderAll();
   }
@@ -644,6 +1724,466 @@
     if (timer.mode !== TimerMode.Running) return;
     $("elapsed").textContent = fmtMs(perfNow() - timer.startPerf);
     raf = requestAnimationFrame(tick);
+  }
+
+  function loadVideoFile(file) {
+    const video = $("videoEl");
+    if (!video || !file) return;
+    if (videoCapture.url) URL.revokeObjectURL(videoCapture.url);
+    videoCapture.url = URL.createObjectURL(file);
+    video.src = videoCapture.url;
+    video.load();
+    syncVideoTimeline();
+  }
+
+  function syncVideoTimeline() {
+    const video = $("videoEl");
+    const range = $("videoTimeline");
+    const lbl = $("videoTimelineLabel");
+    if (!video || !range || !lbl) return;
+    const dur = Number.isFinite(video.duration) ? Math.max(0, video.duration) : 0;
+    const cur = Math.max(0, Math.min(dur || Number(video.currentTime || 0), Number(video.currentTime || 0)));
+    range.max = String(dur);
+    range.value = String(cur);
+    range.disabled = dur <= 0;
+    lbl.textContent = `${fmtSec(cur)} / ${fmtSec(dur)}`;
+    renderVideoLaneBars();
+  }
+
+  function sortedVideoMarkers() {
+    return videoCapture.markers.slice().sort((a, b) => (a.startSec ?? 0) - (b.startSec ?? 0));
+  }
+
+  function getResolvedVideoMarkers(job, includeOpen = true) {
+    const markers = sortedVideoMarkers();
+    const byId = new Map((job?.elements || []).map((el) => [el.id, el]));
+    const useRules = !!$("videoStackRulesChk")?.checked;
+    const resourceEnd = new Map();
+    const typeEnd = new Map();
+    const out = [];
+
+    for (const m of markers) {
+      const el = byId.get(m.elementId);
+      if (!el) continue;
+      const at = getActionType(el.type);
+      const typeId = String(at.id || el.type || "").toUpperCase();
+      const laneId = String(at.lane || "lane");
+      const depType = String(at.underlayTypeId || "").toUpperCase();
+
+      let s = Number(m.startSec || 0);
+      let e = (m.endSec == null) ? null : Number(m.endSec || 0);
+      if (e != null && e < s) {
+        const tmp = s;
+        s = e;
+        e = tmp;
+      }
+      const open = e == null;
+      if (open && !includeOpen) continue;
+      const dur = Math.max(0, (e ?? s) - s);
+      const origStart = s;
+      let waitSec = 0;
+
+      if (useRules) {
+        const resources = [];
+        const hasMachine = typeId.includes("MACHINE");
+        const hasHuman = typeId.includes("HUMAN");
+        if (hasMachine) resources.push("res:machine");
+        if (hasHuman) resources.push("res:human");
+        if (!resources.length) resources.push(`lane:${laneId}`);
+        const laneBlock = resources.reduce((mx, rk) => Math.max(mx, Number(resourceEnd.get(rk) || 0)), 0);
+        const depBlock = depType ? Number(typeEnd.get(depType) || 0) : 0;
+        const blockAt = Math.max(laneBlock, depBlock);
+        if (s < blockAt) {
+          waitSec = blockAt - s;
+          s = blockAt;
+        }
+      }
+
+      if (open) {
+        e = null;
+      } else {
+        e = s + dur;
+      }
+
+      if (useRules) {
+        const endForRules = Number(e ?? s);
+        const hasMachine = typeId.includes("MACHINE");
+        const hasHuman = typeId.includes("HUMAN");
+        const resources = [];
+        if (hasMachine) resources.push("res:machine");
+        if (hasHuman) resources.push("res:human");
+        if (!resources.length) resources.push(`lane:${laneId}`);
+        for (const rk of resources) {
+          resourceEnd.set(rk, Math.max(Number(resourceEnd.get(rk) || 0), endForRules));
+        }
+        typeEnd.set(typeId, Math.max(Number(typeEnd.get(typeId) || 0), endForRules));
+      }
+
+      out.push({
+        id: m.id,
+        elementId: m.elementId,
+        name: el.name,
+        type: el.type,
+        lane: laneId,
+        color: at.color || "#4c73ff",
+        startSec: s,
+        endSec: e,
+        open,
+        waitSec,
+        sourceStartSec: origStart,
+      });
+    }
+    return out;
+  }
+
+  function updateVideoWaitInfo(resolvedMarkers) {
+    const info = $("videoWaitInfo");
+    if (!info) return;
+    const waitSec = (resolvedMarkers || []).reduce((acc, m) => acc + Number(m.waitSec || 0), 0);
+    info.textContent = `${t("wait", "Wait")}: ${fmtSec(waitSec)}`;
+  }
+
+  function renderVideoMarkersList() {
+    const box = $("videoMarkersList");
+    const job = getActiveJob();
+    if (!box) return;
+    if (!videoCapture.markers.length) {
+      box.textContent = t("noMarkers", "No markers");
+      updateVideoWaitInfo([]);
+      renderVideoLaneBars();
+      return;
+    }
+    const byId = new Map((job?.elements || []).map((el) => [el.id, el]));
+    const resolved = getResolvedVideoMarkers(job, true);
+    const resolvedById = new Map(resolved.map((x) => [x.id, x]));
+    updateVideoWaitInfo(resolved);
+    const video = $("videoEl");
+    const dur = Number.isFinite(video?.duration) ? Math.max(0, video.duration) : 0;
+    const rows = sortedVideoMarkers().map((m, i) => {
+      const el = byId.get(m.elementId);
+      const name = el ? `${el.name} (${el.type})` : m.elementId;
+      const rx = resolvedById.get(m.id);
+      const s = Number(m.startSec || 0);
+      const e = m.endSec == null ? null : Number(m.endSec);
+      const durTxt = e == null ? "--" : fmtSec(Math.max(0, e - s));
+      const waitTxt = Number(rx?.waitSec || 0) > 0 ? fmtSec(Number(rx.waitSec || 0)) : "-";
+      const maxAttr = dur > 0 ? `max="${dur.toFixed(3)}"` : "";
+      return `
+        <tr>
+          <td class="mono">${i + 1}</td>
+          <td>${esc(name)}</td>
+          <td><input class="videoNum mono" type="number" step="0.001" min="0" ${maxAttr} value="${s.toFixed(3)}" data-vs="${esc(m.id)}" /></td>
+          <td><input class="videoNum mono" type="number" step="0.001" min="0" ${maxAttr} value="${e == null ? "" : e.toFixed(3)}" data-ve="${esc(m.id)}" placeholder="end" /></td>
+          <td class="mono">${durTxt}</td>
+          <td class="mono">${waitTxt}</td>
+          <td>
+            <div class="videoAdjustBtns">
+              <button class="videoMiniBtn mono" type="button" data-vns="${esc(m.id)}">S<-Now</button>
+              <button class="videoMiniBtn mono" type="button" data-vne="${esc(m.id)}">E<-Now</button>
+              <button class="videoMiniBtn danger mono" type="button" data-vdel="${esc(m.id)}">Del</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+    box.innerHTML = `
+      <div class="scrollBox videoMarkersBox">
+        <table class="videoMarkersTable">
+          <thead>
+            <tr>
+              <th style="width:40px;">#</th>
+              <th>Action</th>
+              <th style="width:98px;">Start s</th>
+              <th style="width:98px;">End s</th>
+              <th style="width:92px;">Dur</th>
+              <th style="width:92px;">Wait</th>
+              <th style="width:210px;">Adjust</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+    renderVideoLaneBars();
+  }
+
+  function renderVideoLaneBars() {
+    const wrap = $("videoLaneBars");
+    const video = $("videoEl");
+    const job = getActiveJob();
+    if (!wrap || !video || !job) return;
+    const dur = Number.isFinite(video.duration) ? Math.max(0, Number(video.duration)) : 0;
+    if (dur <= 0) {
+      wrap.innerHTML = `<div class="small muted">${esc(t("videoFile", "Load a video file first."))}</div>`;
+      return;
+    }
+    const now = Math.max(0, Math.min(dur, Number(video.currentTime || 0)));
+    const resolved = getResolvedVideoMarkers(job, true);
+    const typeOrder = [];
+    const seenTypes = new Set();
+    for (const el of (job.elements || [])) {
+      const tid = String(el.type || "").toUpperCase();
+      if (!tid || seenTypes.has(tid)) continue;
+      seenTypes.add(tid);
+      typeOrder.push(tid);
+    }
+    if (!typeOrder.length) {
+      wrap.innerHTML = `<div class="small muted">${esc(t("noMarkers", "No markers"))}</div>`;
+      return;
+    }
+    let html = `<div class="videoLaneGrid">`;
+    for (const typeId of typeOrder) {
+      const atType = getActionType(typeId);
+      const rowLabel = atType?.name ? `${typeId}` : typeId;
+      html += `<div class="videoLaneLabel mono">${esc(rowLabel)}</div><div class="videoLaneTrack">`;
+      for (const m of resolved) {
+        if (String(m.type || "").toUpperCase() !== typeId) continue;
+        const s = Math.max(0, Math.min(dur, Number(m.startSec || 0)));
+        const e = m.open ? now : Math.max(s, Math.min(dur, Number(m.endSec || s)));
+        const left = (s / dur) * 100;
+        const width = Math.max(0.2, ((e - s) / dur) * 100);
+        const editCls = videoCapture.editMarkerId === m.id ? " editing" : "";
+        const mType = String(m.type || "").toUpperCase();
+        const isMachineBox = mType === "MACHINE";
+        const withMachineOverlay = mType.includes("MACHINE") && !isMachineBox;
+        const styleBg = isMachineBox ? "" : `background:${esc(m.color || "#4c73ff")};`;
+        html += `<span class="videoSeg${m.open ? " open" : ""}${editCls}${isMachineBox ? " machineBox" : ""}${withMachineOverlay ? " withMachineOverlay" : ""}" data-mid="${esc(m.id)}" title="${esc(m.name)} ${fmtSec(s)} - ${m.open ? "..." : fmtSec(e)}" style="left:${left}%;width:${width}%;${styleBg}">
+          ${withMachineOverlay ? '<span class="videoSegOverlay"></span>' : ''}
+          <span class="videoSegHandle start" data-mid="${esc(m.id)}" data-handle="start"></span>
+          <span class="videoSegHandle end" data-mid="${esc(m.id)}" data-handle="end"></span>
+        </span>`;
+      }
+      const ph = (now / dur) * 100;
+      html += `<span class="videoPlayhead" style="left:${ph}%"></span></div>`;
+    }
+    html += `</div>`;
+    wrap.innerHTML = html;
+  }
+
+  function getVideoSelectedActionId() {
+    return String(videoCapture.selectedElementId || "");
+  }
+
+  function getVideoSequenceElements() {
+    const job = getActiveJob();
+    return job?.elements || [];
+  }
+
+  function setVideoSelectedActionByIndex(idx) {
+    const els = getVideoSequenceElements();
+    if (!els.length) {
+      videoCapture.selectedElementId = "";
+      renderCaptureSelectors();
+      return;
+    }
+    const nextIdx = ((idx % els.length) + els.length) % els.length;
+    videoCapture.selectedElementId = els[nextIdx].id;
+    renderCaptureSelectors();
+  }
+
+  function getVideoSelectedIndex() {
+    const els = getVideoSequenceElements();
+    if (!els.length) return -1;
+    const sid = getVideoSelectedActionId();
+    const idx = els.findIndex((el) => el.id === sid);
+    return idx >= 0 ? idx : 0;
+  }
+
+  function videoMarkStart() {
+    const job = getActiveJob();
+    if (!job || !job.elements.length) return alert(t("addElementsInConfig", "Add at least 1 element first."));
+    const actionId = getVideoSelectedActionId();
+    if (!actionId) return alert(t("videoAction", "Select a video action."));
+    const video = $("videoEl");
+    if (!video?.src) return alert(t("videoFile", "Load a video file first."));
+    const nowSec = Number(video.currentTime || 0);
+
+    const openId = videoCapture.openByElementId[actionId];
+    if (openId) {
+      const mk = videoCapture.markers.find((x) => x.id === openId);
+      if (mk) {
+        mk.startSec = nowSec;
+        mk.endSec = null;
+      }
+    } else {
+      const id = uuid();
+      videoCapture.markers.push({ id, elementId: actionId, startSec: nowSec, endSec: null });
+      videoCapture.openByElementId[actionId] = id;
+    }
+    renderVideoMarkersList();
+  }
+
+  function videoMarkEnd() {
+    const job = getActiveJob();
+    if (!job || !job.elements.length) return alert(t("addElementsInConfig", "Add at least 1 element first."));
+    const actionId = getVideoSelectedActionId();
+    if (!actionId) return alert(t("videoAction", "Select a video action."));
+    const video = $("videoEl");
+    if (!video?.src) return alert(t("videoFile", "Load a video file first."));
+    const openId = videoCapture.openByElementId[actionId];
+    if (!openId) return alert(t("markStart", "Mark start") + " first.");
+
+    const nowSec = Number(video.currentTime || 0);
+    const mk = videoCapture.markers.find((x) => x.id === openId);
+    if (mk) {
+      mk.endSec = nowSec;
+      if (Number(mk.endSec) < Number(mk.startSec)) {
+        const tmp = mk.startSec;
+        mk.startSec = mk.endSec;
+        mk.endSec = tmp;
+      }
+    }
+    delete videoCapture.openByElementId[actionId];
+    renderVideoMarkersList();
+  }
+
+  function videoSequenceStep() {
+    const job = getActiveJob();
+    if (!job || !job.elements.length) return alert(t("addElementsInConfig", "Add at least 1 element first."));
+    const video = $("videoEl");
+    if (!video?.src) return alert(t("videoFile", "Load a video file first."));
+    if (!getVideoSelectedActionId()) setVideoSelectedActionByIndex(0);
+
+    const currentId = getVideoSelectedActionId();
+    const openId = videoCapture.openByElementId[currentId];
+    if (!openId) {
+      videoMarkStart();
+      video.play?.().catch(() => {});
+      return;
+    }
+
+    videoMarkEnd();
+    const curIdx = getVideoSelectedIndex();
+    const nextIdx = curIdx + 1;
+    setVideoSelectedActionByIndex(nextIdx);
+    videoMarkStart();
+    video.play?.().catch(() => {});
+  }
+
+  function clearVideoMarkers() {
+    videoCapture.markers = [];
+    videoCapture.openByElementId = {};
+    videoCapture.editMarkerId = "";
+    renderVideoMarkersList();
+  }
+
+  function applyVideoAutoStack() {
+    const job = getActiveJob();
+    if (!job || !videoCapture.markers.length) return;
+    const resolved = getResolvedVideoMarkers(job, true);
+    const byId = new Map(resolved.map((x) => [x.id, x]));
+    for (const mk of videoCapture.markers) {
+      const rx = byId.get(mk.id);
+      if (!rx) continue;
+      mk.startSec = Number(rx.startSec || 0);
+      mk.endSec = rx.open ? null : Number(rx.endSec || rx.startSec || 0);
+    }
+    videoCapture.openByElementId = {};
+    renderVideoMarkersList();
+    syncVideoTimeline();
+  }
+
+  function bindVideoBarInteractions() {
+    const wrap = $("videoLaneBars");
+    if (!wrap) return;
+    wrap.addEventListener("dblclick", (e) => {
+      const seg = e.target?.closest?.("[data-mid]");
+      if (!seg) return;
+      const id = String(seg.dataset.mid || "");
+      videoCapture.editMarkerId = (videoCapture.editMarkerId === id) ? "" : id;
+      renderVideoLaneBars();
+    });
+    wrap.addEventListener("pointerdown", (e) => {
+      const target = e.target;
+      const seg = target?.closest?.("[data-mid]");
+      if (!seg) return;
+      const stackChk = $("videoStackRulesChk");
+      if (stackChk?.checked) {
+        stackChk.checked = false;
+      }
+      const markerId = String(seg.dataset.mid || "");
+      const mk = videoCapture.markers.find((x) => x.id === markerId);
+      const video = $("videoEl");
+      const dur = Number.isFinite(video?.duration) ? Math.max(0, Number(video.duration)) : 0;
+      if (!mk || dur <= 0) return;
+      const mode = (target?.dataset?.handle === "start" || target?.dataset?.handle === "end")
+        ? String(target.dataset.handle)
+        : "move";
+      if ((mode === "start" || mode === "end") && videoCapture.editMarkerId !== markerId) return;
+      const s0 = Number(mk.startSec || 0);
+      const e0 = mk.endSec == null ? s0 : Number(mk.endSec || s0);
+      videoDrag = { markerId, mode, x0: Number(e.clientX || 0), s0, e0, dur };
+      try { target.setPointerCapture?.(e.pointerId); } catch {}
+      e.preventDefault();
+    });
+  }
+
+  function onVideoPointerMove(e) {
+    if (!videoDrag) return;
+    const wrap = $("videoLaneBars");
+    if (!wrap) return;
+    const mk = videoCapture.markers.find((x) => x.id === videoDrag.markerId);
+    if (!mk) return;
+    const rect = wrap.getBoundingClientRect();
+    if (!rect.width) return;
+    const secPerPx = videoDrag.dur / rect.width;
+    const dxSec = (Number(e.clientX || 0) - videoDrag.x0) * secPerPx;
+    const minSpan = 0.001;
+    let s = videoDrag.s0;
+    let eSec = videoDrag.e0;
+    if (videoDrag.mode === "move") {
+      const span = Math.max(minSpan, videoDrag.e0 - videoDrag.s0);
+      s = Math.max(0, Math.min(videoDrag.dur - span, videoDrag.s0 + dxSec));
+      eSec = s + span;
+    } else if (videoDrag.mode === "start") {
+      s = Math.max(0, Math.min(videoDrag.e0 - minSpan, videoDrag.s0 + dxSec));
+      eSec = videoDrag.e0;
+    } else if (videoDrag.mode === "end") {
+      eSec = Math.max(videoDrag.s0 + minSpan, Math.min(videoDrag.dur, videoDrag.e0 + dxSec));
+      s = videoDrag.s0;
+    }
+    mk.startSec = s;
+    mk.endSec = eSec;
+    renderVideoLaneBars();
+  }
+
+  function onVideoPointerUp() {
+    if (!videoDrag) return;
+    videoDrag = null;
+    renderVideoMarkersList();
+    syncVideoTimeline();
+  }
+
+  function applyVideoMarkersToCycle() {
+    const job = getActiveJob();
+    if (!job) return alert(t("selectJob", "Select a job first."));
+    if (!videoCapture.markers.length) return alert(t("noMarkers", "No markers."));
+    const resolved = getResolvedVideoMarkers(job, false);
+    if (!resolved.length) return alert(t("noMarkers", "Markers do not contain valid start/end pairs."));
+    const laps = [];
+    for (const el of job.elements) {
+      let ms = 0;
+      for (const m of resolved) {
+        if (m.elementId !== el.id || m.endSec == null) continue;
+        const s = Number(m.startSec || 0);
+        const e = Number(m.endSec || 0);
+        const segMs = Math.max(0, e - s) * 1000;
+        ms += segMs;
+      }
+      if (ms > 0) laps.push({ elementId: el.id, name: el.name, type: el.type, ms });
+    }
+    if (!laps.length) return alert(t("noMarkers", "Markers do not contain valid start/end pairs."));
+    const tMin = Math.min(...resolved.map((m) => Number(m.startSec || 0)));
+    const tMax = Math.max(...resolved.map((m) => Number(m.endSec || m.startSec || 0)));
+    const totalMs = Math.max(0, tMax - tMin) * 1000;
+    const waitMs = resolved.reduce((acc, m) => acc + (Number(m.waitSec || 0) * 1000), 0);
+    const cycle = { id: uuid(), atIso: wallIso(), laps, totalMs, tag: "Normal", note: waitMs > 0 ? `Video markers - wait ${fmtMs(waitMs)}` : "Video markers" };
+    job.cycles.push(cycle);
+    selectedCycleId = cycle.id;
+    selectedCycleIdsForLine.add(cycle.id);
+    boundLineSelection(job, 6);
+    saveState();
+    renderAll();
   }
 
   // ----- Stats / outliers -----
@@ -682,6 +2222,73 @@
       stability = { label:"Need more cycles", level:"warn" };
     }
     return { avgTotal, stability };
+  }
+
+  function computeCycleStats(job, cycles) {
+    const totals = (cycles || []).map((c) => Number(c.totalMs || 0)).filter((v) => Number.isFinite(v) && v > 0);
+    if (!totals.length) return null;
+    const sorted = totals.slice().sort((a, b) => a - b);
+    const avgMs = mean(totals);
+    const medianMs = quantile(sorted, 0.5);
+    const p90Ms = quantile(sorted, 0.9);
+    const bestMs = sorted[0];
+    const worstMs = sorted[sorted.length - 1];
+    const varSum = totals.reduce((acc, x) => acc + Math.pow(x - avgMs, 2), 0);
+    const stdevMs = Math.sqrt(varSum / totals.length);
+    const cv = avgMs > 0 ? (stdevMs / avgMs) : 0;
+    let stability = "No data";
+    if (totals.length >= 3) {
+      if (cv < 0.05) stability = "Very stable";
+      else if (cv < 0.12) stability = "Stable";
+      else if (cv < 0.22) stability = "Some variation";
+      else stability = "Unstable";
+    } else {
+      stability = "Need more cycles";
+    }
+    return {
+      count: totals.length,
+      avgMs,
+      medianMs,
+      p90Ms,
+      bestMs,
+      worstMs,
+      cv,
+      throughputPerHour: avgMs > 0 ? (3600000 / avgMs) : null,
+      stdMs: normalToStandardMs(job, avgMs),
+      stability,
+    };
+  }
+
+  function computeActionStats(job, cycles, avgCycleMs) {
+    if (!job || !Array.isArray(job.elements) || !job.elements.length) return [];
+    const cycleCount = Math.max(1, (cycles || []).length);
+    const rows = [];
+    for (const el of job.elements) {
+      const vals = [];
+      for (const c of (cycles || [])) {
+        let ms = 0;
+        for (const lap of (c.laps || [])) {
+          if (lap.elementId === el.id) ms += Number(lap.ms || 0);
+        }
+        vals.push(ms);
+      }
+      if (!vals.length) continue;
+      const avgMs = vals.reduce((a, b) => a + b, 0) / cycleCount;
+      const minMs = Math.min(...vals);
+      const maxMs = Math.max(...vals);
+      const sharePct = avgCycleMs > 0 ? (avgMs / avgCycleMs) * 100 : 0;
+      rows.push({
+        id: el.id,
+        name: el.name,
+        type: el.type,
+        avgMs,
+        minMs,
+        maxMs,
+        sharePct,
+      });
+    }
+    rows.sort((a, b) => b.avgMs - a.avgMs);
+    return rows;
   }
 
   function selectedTagsSet() {
@@ -727,22 +2334,33 @@
 
   // Job progress (same idea)
   function jobProgress(job) {
-    let score = 0;
-    if (job.elements.length > 0) score += 35;
-    if (job.elements.length >= 3) score += 10;
-    const cycles = job.cycles.length;
-    if (cycles >= 1) score += 15;
-    if (cycles >= 3) score += 15;
-    if (cycles >= 10) score += 15;
-    if (cycles >= 3) {
-      const { stability } = computeAverages(job);
-      if (stability.level === "ok") score += 10;
-      else if (stability.level === "warn") score += 5;
+    // Smooth model:
+    // setup quality (45) + sample maturity (35 up to 10 cycles) + stability (20)
+    const elements = Number(job.elements?.length || 0);
+    const cycles = Number(job.cycles?.length || 0);
+
+    let setupScore = 0;
+    if (elements > 0) setupScore += 25;
+    if (elements >= 3) setupScore += 10;
+    if (elements >= 5) setupScore += 10;
+
+    const sampleScore = Math.max(0, Math.min(35, (Math.min(cycles, 10) / 10) * 35));
+
+    let stabilityScore = 0;
+    const stats = computeCycleStats(job, job.cycles || []);
+    if (stats && stats.count >= 3) {
+      const cv = Number(stats.cv || 0);
+      if (cv <= 0.05) stabilityScore = 20;
+      else if (cv <= 0.12) stabilityScore = 16;
+      else if (cv <= 0.22) stabilityScore = 10;
+      else stabilityScore = 5;
     }
+
+    let score = Math.round(setupScore + sampleScore + stabilityScore);
     score = Math.max(0, Math.min(100, score));
     let level = "warn";
-    if (score >= 80) level = "good";
-    else if (score >= 55) level = "mid";
+    if (score >= 85) level = "good";
+    else if (score >= 60) level = "mid";
     return { score, level };
   }
 
@@ -767,7 +2385,7 @@
   function deleteStation(stationId) {
     const st = getStationById(stationId); if (!st) return;
     const jobsAtStation = state.jobs.filter(j => j.stationId === stationId).length;
-    if (!confirm(`Delete station "${st.code} — ${st.name}"?\nDeletes ${jobsAtStation} job(s).`)) return;
+    if (!confirm(`Delete station "${st.code} - ${st.name}"?\nDeletes ${jobsAtStation} job(s).`)) return;
     const active = getActiveJob();
     if (active && active.stationId === stationId && timer.mode === TimerMode.Running) stopCycle();
     state.jobs = state.jobs.filter(j => j.stationId !== stationId);
@@ -830,8 +2448,9 @@
   function addElement() {
     const job = getActiveJob(); if (!job) return alert("Select a job first.");
     const name = $("elName").value.trim();
-    const type = $("elType").value;
+    const type = String($("elType").value || "").toUpperCase();
     if (!name) return alert("Element name required.");
+    if (!actionTypeMap().has(type)) return alert(`Unknown action type: ${type}`);
     const el = { id: uuid(), name, type };
     job.elements.push(el);
     selectedElementId = el.id;
@@ -941,6 +2560,8 @@
       return false;
     }
     state = parsed;
+    ensureActionTypes(state);
+    ensureUiState(state);
     for (const j of state.jobs) {
       if (!Array.isArray(j.cycles)) j.cycles = [];
       for (const c of j.cycles) {
@@ -1036,14 +2657,88 @@
   }
 
   // ----- Timeline (stacked horizontal bars) -----
-  const SEGMENT_COLORS = [
-    "rgba(76,115,255,0.92)",
-    "rgba(66,209,139,0.92)",
-    "rgba(255,211,122,0.92)",
-    "rgba(255,76,106,0.92)",
-    "rgba(164,119,255,0.92)",
-    "rgba(94,226,255,0.92)",
-  ];
+  function getLaneIndexMap() {
+    const laneToOrder = new Map();
+    for (const at of (state.actionTypes || [])) {
+      const lane = String(at.lane || "lane");
+      const order = Number(at.laneOrder ?? 0);
+      const cur = laneToOrder.get(lane);
+      if (cur == null || order < cur) laneToOrder.set(lane, order);
+    }
+    const lanes = [...laneToOrder.entries()].sort((a, b) => a[1] - b[1]).map(([lane]) => lane);
+    const map = new Map();
+    lanes.forEach((lane, idx) => map.set(lane, idx));
+    return map;
+  }
+  function laneY(rowY, rowH, laneIdx, hPx, laneStep = 8) {
+    const y0 = rowY + rowH - hPx - laneIdx * laneStep;
+    return Math.max(rowY, Math.min(rowY + rowH - hPx, y0));
+  }
+  function getActionLayers(typeId) {
+    const at = getActionType(typeId);
+    const layers = [];
+    if (at.underlayTypeId) {
+      const under = getActionType(at.underlayTypeId);
+      layers.push({
+        color: under.color, lane: under.lane, heightPx: under.heightPx, z: Number(under.z ?? 0), opacity: Number(under.opacity ?? 1)
+      });
+    }
+    layers.push({
+      color: at.color, lane: at.lane, heightPx: at.heightPx, z: Number(at.z ?? 10), opacity: Number(at.opacity ?? 1)
+    });
+    return layers.sort((a, b) => a.z - b.z);
+  }
+
+  const machinePatternByCtx = new WeakMap();
+  function getMachinePattern(ctx) {
+    const cached = machinePatternByCtx.get(ctx);
+    if (cached) return cached;
+    const pc = document.createElement("canvas");
+    pc.width = 12;
+    pc.height = 12;
+    const pctx = pc.getContext("2d");
+    pctx.clearRect(0, 0, 12, 12);
+    pctx.fillStyle = "rgba(126,136,150,0.35)";
+    pctx.fillRect(0, 0, 12, 12);
+    pctx.strokeStyle = "rgba(220,228,238,0.70)";
+    pctx.lineWidth = 2;
+    pctx.beginPath();
+    pctx.moveTo(-2, 10);
+    pctx.lineTo(10, -2);
+    pctx.moveTo(2, 14);
+    pctx.lineTo(14, 2);
+    pctx.stroke();
+    const pattern = ctx.createPattern(pc, "repeat");
+    machinePatternByCtx.set(ctx, pattern);
+    return pattern;
+  }
+
+  function drawMachineBoxRect(ctx, x, y, w, h, opacity = 1, bordered = true) {
+    if (w <= 0 || h <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0.05, Math.min(1, Number(opacity || 1)));
+    ctx.fillStyle = "rgba(100,112,128,0.28)";
+    ctx.fillRect(x, y, w, h);
+    const hatch = getMachinePattern(ctx);
+    if (hatch) {
+      ctx.fillStyle = hatch;
+      ctx.fillRect(x, y, w, h);
+    }
+    if (bordered) {
+      ctx.strokeStyle = "rgba(51,198,255,0.95)";
+      ctx.lineWidth = 1.6;
+      ctx.strokeRect(x + 0.5, y + 0.5, Math.max(0, w - 1), Math.max(0, h - 1));
+    }
+    ctx.restore();
+  }
+
+  function resolveHeightPx(typeId, rawH, rowH) {
+    const t = String(typeId || "").toUpperCase();
+    const raw = Number(rawH || 6);
+    if (t === "MACHINE") return Math.max(12, Math.min(rowH, Math.max(raw, Math.round(rowH * 0.70))));
+    if (t.includes("HUMAN")) return Math.max(9, Math.min(rowH, Math.max(raw, Math.round(rowH * 0.52))));
+    return Math.max(8, Math.min(rowH, Math.max(raw, Math.round(rowH * 0.44))));
+  }
 
   function drawEmpty(ctx,w,h,msg){
     ctx.clearRect(0,0,w,h);
@@ -1060,10 +2755,108 @@
     return job.elements.map(el => sums.get(el.id) ?? 0);
   }
 
+  function setCycleElementDurationMs(job, cycleId, elementId, nextMs) {
+    const cycle = (job?.cycles || []).find((c) => c.id === cycleId);
+    if (!cycle) return false;
+    const targetMs = Math.max(0, Number(nextMs || 0));
+    const laps = (cycle.laps || []).filter((lap) => lap.elementId === elementId);
+    if (!laps.length) {
+      const el = (job.elements || []).find((e) => e.id === elementId);
+      if (!el) return false;
+      cycle.laps.push({ elementId: el.id, name: el.name, type: el.type, ms: targetMs });
+    } else {
+      const sumMs = laps.reduce((a, l) => a + Math.max(0, Number(l.ms || 0)), 0);
+      if (sumMs <= 0) {
+        const each = targetMs / Math.max(1, laps.length);
+        for (const lap of laps) lap.ms = each;
+      } else {
+        const k = targetMs / sumMs;
+        for (const lap of laps) lap.ms = Math.max(0, Number(lap.ms || 0) * k);
+      }
+    }
+    cycle.totalMs = (cycle.laps || []).reduce((a, l) => a + Math.max(0, Number(l.ms || 0)), 0);
+    return true;
+  }
+
+  function setCycleElementOffsetMs(job, cycleId, elementId, startMs) {
+    const cycle = (job?.cycles || []).find((c) => c.id === cycleId);
+    if (!cycle) return false;
+    if (!cycle.timelineOffsetsMs || typeof cycle.timelineOffsetsMs !== "object") cycle.timelineOffsetsMs = {};
+    const v = Math.max(0, Number(startMs || 0));
+    if (v < 0.5) delete cycle.timelineOffsetsMs[elementId];
+    else cycle.timelineOffsetsMs[elementId] = v;
+    return true;
+  }
+
+  function getActionResourceKeys(typeId, laneId) {
+    const t = String(typeId || "").toUpperCase();
+    const keys = [];
+    if (t.includes("MACHINE")) keys.push("res:machine");
+    if (t.includes("HUMAN")) keys.push("res:human");
+    if (!keys.length) keys.push(`lane:${String(laneId || "lane")}`);
+    return keys;
+  }
+
+  function resolveCycleSchedule(job, cycle) {
+    const sums = new Map();
+    for (const lap of (cycle?.laps || [])) {
+      const eid = String(lap.elementId || "");
+      sums.set(eid, (sums.get(eid) || 0) + Math.max(0, Number(lap.ms || 0)));
+    }
+    const offsets = cycle?.timelineOffsetsMs && typeof cycle.timelineOffsetsMs === "object"
+      ? cycle.timelineOffsetsMs
+      : {};
+    const resourceEnd = new Map();
+    const segments = [];
+
+    for (const el of (job?.elements || [])) {
+      const ms = Math.max(0, Number(sums.get(el.id) || 0));
+      if (ms <= 0) continue;
+      const at = getActionType(el.type);
+      const typeId = String(el.type || "").toUpperCase();
+      const resources = getActionResourceKeys(typeId, at.lane);
+      const blockAt = resources.reduce((mx, rk) => Math.max(mx, Number(resourceEnd.get(rk) || 0)), 0);
+      const reqStart = Math.max(0, Number(offsets[el.id] || 0) / 1000);
+      const startSec = Math.max(blockAt, reqStart);
+      const durSec = ms / 1000;
+      const endSec = startSec + durSec;
+      for (const rk of resources) resourceEnd.set(rk, Math.max(Number(resourceEnd.get(rk) || 0), endSec));
+      segments.push({ elementId: el.id, elementRef: el, typeId, at, startSec, endSec, durSec });
+    }
+    const rowEndSec = segments.reduce((mx, s) => Math.max(mx, s.endSec), 0);
+    return { segments, rowEndSec };
+  }
+
+  function toCanvasPoint(canvas, evt) {
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const sx = canvas.width / rect.width;
+    const sy = canvas.height / rect.height;
+    return {
+      x: (Number(evt.clientX || 0) - rect.left) * sx,
+      y: (Number(evt.clientY || 0) - rect.top) * sy,
+    };
+  }
+
+  function findTimelineHit(geom, x, y) {
+    const hits = geom?.hits || [];
+    for (let i = hits.length - 1; i >= 0; i--) {
+      const h = hits[i];
+      if (x >= h.x0 && x <= h.x1 && y >= h.y && y <= (h.y + h.h)) return h;
+    }
+    return null;
+  }
+
+  function timelineSecDelta(geom, dxPx) {
+    if (!geom?.cw || !geom?.xMaxSec) return 0;
+    return (dxPx / geom.cw) * geom.xMaxSec;
+  }
+
   function drawTimeline(canvas, job, baseCycles, selectedCycles, avgByElSec, outModel, showAvg, showOutliers) {
     const ctx = canvas.getContext("2d");
     const w=canvas.width, h=canvas.height;
     ctx.clearRect(0,0,w,h);
+    timelineEditState.geom = null;
 
     if (!job || job.elements.length === 0) return drawEmpty(ctx,w,h,"No elements");
     if (!baseCycles.length && !selectedCycles.length) return drawEmpty(ctx,w,h,"No cycles (check tag filter)");
@@ -1083,15 +2876,24 @@
       ? rows.slice(-maxRowsToDraw)
       : rows;
 
-    // compute x max in seconds (max total among drawn rows)
+    // compute row schedules + x range (stacked view may extend beyond cycle.totalMs)
+    const rowSchedules = new Map();
     let xMaxSec = 1;
-    for (const c of drawRows) xMaxSec = Math.max(xMaxSec, c.totalMs/1000);
+    for (const c of drawRows) {
+      const sch = resolveCycleSchedule(job, c);
+      rowSchedules.set(c.id, sch);
+      xMaxSec = Math.max(xMaxSec, Number(sch.rowEndSec || 0));
+    }
     xMaxSec *= 1.10;
 
-    const rowH = Math.max(14, Math.min(26, ch / drawRows.length));
-    const gap = Math.max(4, Math.min(8, rowH * 0.35));
+    const laneMap = getLaneIndexMap();
+    const laneCount = Math.max(1, Number(laneMap?.size || 1));
+    const rowH = Math.max(24, Math.min(52, ch / Math.max(1, drawRows.length)));
+    const gap = Math.max(6, Math.min(12, rowH * 0.28));
+    const laneStep = Math.max(7, Math.min(16, Math.round((rowH - 4) / Math.max(1, laneCount))));
 
     const xOf = (sec) => padL + (sec/xMaxSec)*cw;
+    const hits = [];
 
     // axes
     ctx.strokeStyle="rgba(255,255,255,0.10)";
@@ -1115,7 +2917,7 @@
     }
     ctx.fillStyle="rgba(255,255,255,0.55)";
     ctx.font="12px system-ui, sans-serif";
-    ctx.fillText("Seconds →", padL, padT+ch+42);
+    ctx.fillText("Seconds ->", padL, padT+ch+42);
 
     // Avg markers per element: draw small vertical markers at cumulative avg boundaries
     // We build cumulative avg per element slot:
@@ -1153,24 +2955,64 @@
       ctx.font="12px ui-monospace, Menlo, Consolas, monospace";
       ctx.fillText(new Date(c.atIso).toLocaleTimeString(), padL-8, y+rowH-2);
 
-      // build element ms list in order
-      const elMs = cycleToElementMs(job, c);
-      let curSec = 0;
+      const schedule = rowSchedules.get(c.id) || { segments: [], rowEndSec: 0 };
 
-      for (let i=0;i<job.elements.length;i++){
-        const segSec = (elMs[i]||0)/1000;
-        const x0 = xOf(curSec);
-        const x1 = xOf(curSec + segSec);
+      for (let i=0;i<schedule.segments.length;i++){
+        const seg = schedule.segments[i];
+        const segSec = Number(seg.durSec || 0);
+        const x0 = xOf(Number(seg.startSec || 0));
+        const x1 = xOf(Number(seg.endSec || 0));
         const width = Math.max(0, x1 - x0);
+        const elDef = seg.elementRef || job.elements.find((e) => e.id === seg.elementId);
+        if (!elDef) continue;
+        const typeId = String(seg.typeId || elDef.type || "").toUpperCase();
+        const at = seg.at || getActionType(typeId);
+        let primaryY = y;
+        let primaryH = rowH;
+        const laneIdx = laneMap.get(at.lane) ?? 0;
+        const hPx = resolveHeightPx(typeId, at.heightPx, rowH);
+        const y0 = laneY(y, rowH, laneIdx, hPx, laneStep);
+        primaryY = y0;
+        primaryH = hPx;
 
-        // segment color by element index
-        const col = SEGMENT_COLORS[i % SEGMENT_COLORS.length];
-        ctx.fillStyle = col;
-        ctx.fillRect(x0, y, width, rowH);
+        if (typeId === "MACHINE") {
+          drawMachineBoxRect(ctx, x0, y0, width, hPx, Number(at.opacity ?? 1), true);
+        } else if (typeId.includes("MACHINE")) {
+          // Human+machine style: yellow base + machine cap overlay + blue contour.
+          ctx.save();
+          ctx.globalAlpha = Math.max(0.05, Math.min(1, Number(at.opacity ?? 1)));
+          ctx.fillStyle = at.color || "#ffd24a";
+          ctx.fillRect(x0, y0, width, hPx);
+          ctx.restore();
+
+          const capH = Math.max(2, Math.round(hPx * 0.42));
+          drawMachineBoxRect(ctx, x0, y0, width, capH, Math.max(0.20, Number(at.opacity ?? 1) * 0.9), false);
+
+          ctx.save();
+          ctx.globalAlpha = 0.95;
+          ctx.strokeStyle = "rgba(51,198,255,0.95)";
+          ctx.lineWidth = 1.4;
+          ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.max(0, width - 1), Math.max(0, hPx - 1));
+          ctx.restore();
+        } else {
+          const layers = getActionLayers(typeId);
+          for (let li = 0; li < layers.length; li++) {
+            const layer = layers[li];
+            const lIdx = laneMap.get(layer.lane) ?? laneIdx;
+            const lH = resolveHeightPx(typeId, layer.heightPx, rowH);
+            const ly = laneY(y, rowH, lIdx, lH, laneStep);
+            if (li === layers.length - 1) { primaryY = ly; primaryH = lH; }
+            ctx.save();
+            ctx.globalAlpha = Math.max(0.05, Math.min(1, Number(layer.opacity ?? 1)));
+            ctx.fillStyle = layer.color || "#4c73ff";
+            ctx.fillRect(x0, ly, width, lH);
+            ctx.restore();
+          }
+        }
 
         // outlier overlay: if segment is outlier for that element, outline it red
         if (showOutliers && outModel) {
-          const el = job.elements[i];
+          const el = elDef;
           const m = outModel.get(el.id);
           if (m) {
             const v = segSec;
@@ -1180,22 +3022,35 @@
             if (isOut) {
               ctx.strokeStyle = "rgba(255,76,106,0.95)";
               ctx.lineWidth = 2.0;
-              ctx.strokeRect(x0+1, y+1, Math.max(0,width-2), Math.max(0,rowH-2));
+              ctx.strokeRect(x0+1, primaryY+1, Math.max(0,width-2), Math.max(0,primaryH-2));
             }
           }
         }
 
-        curSec += segSec;
+        if (segSec > 0) {
+          hits.push({
+            cycleId: c.id,
+            elementId: elDef.id,
+            x0: Math.min(x0, x1),
+            x1: Math.max(x0, x1),
+            y,
+            h: rowH,
+            sec: segSec,
+            startSec: Number(seg.startSec || 0),
+            endSec: Number(seg.endSec || 0),
+          });
+        }
       }
 
       // outline selected cycles in ALL mode (if checked)
       if (graphMode === "ALL" && selectedCycleIdsForLine.has(c.id)) {
         ctx.strokeStyle="rgba(76,115,255,0.85)";
         ctx.lineWidth=2.0;
-        ctx.strokeRect(padL, y, Math.max(0, xOf(c.totalMs/1000)-padL), rowH);
+        ctx.strokeRect(padL, y, Math.max(0, xOf(Number(schedule.rowEndSec || 0))-padL), rowH);
       }
     }
     ctx.textAlign="left";
+    timelineEditState.geom = { padL, padR, padT, padB, cw, ch, xMaxSec, hits };
   }
 
   function renderLegend(job) {
@@ -1203,19 +3058,26 @@
     el.innerHTML = "";
     if (!job || !job.elements.length) return;
 
-    // element legend
+    const usedTypeIds = [];
+    const seenType = new Set();
     for (let i=0;i<job.elements.length;i++){
-      const color = SEGMENT_COLORS[i % SEGMENT_COLORS.length];
+      const tid = String(job.elements[i].type || "").toUpperCase();
+      if (seenType.has(tid)) continue;
+      seenType.add(tid);
+      usedTypeIds.push(tid);
+    }
+    for (const tid of usedTypeIds){
+      const at = getActionType(tid);
       const item = document.createElement("div");
       item.className="legendItem";
-      item.innerHTML = `<span class="swatch" style="background:${color};"></span> ${i+1}. ${esc(job.elements[i].name)}`;
+      item.innerHTML = `<span class="swatch" style="background:${esc(at.color)};"></span> ${esc(at.id)} - ${esc(at.name)} (lane ${esc(at.lane)}, h ${Number(at.heightPx).toFixed(0)}px)`;
       el.appendChild(item);
-      if (i >= 8) break; // keep compact; pro apps often collapse the rest
+      if (el.childNodes.length >= 12) break;
     }
-    if (job.elements.length > 9) {
+    if (usedTypeIds.length > 12) {
       const more = document.createElement("div");
       more.className="legendItem";
-      more.textContent = `… +${job.elements.length - 9} more`;
+      more.textContent = `... +${usedTypeIds.length - 12} more`;
       el.appendChild(more);
     }
 
@@ -1247,18 +3109,19 @@
 
       const block = document.createElement("div");
       block.className = "stationBlock";
+      const stationCollapsed = !!state.ui?.collapsedStations?.[st.id];
 
       const head = document.createElement("div");
       head.className = "stationHeader";
       head.innerHTML = `
         <div style="min-width:0;">
-          <div class="stationName">${esc(st.code)} — ${esc(st.name)}</div>
-          <div class="stationMeta">${filteredJobs.length} job(s)</div>
+          <div class="stationName">${esc(st.code)} - ${esc(st.name)}</div>
+          <div class="stationMeta">${filteredJobs.length} ${t("jobsCount", "job(s)")}</div>
         </div>
         <div class="btnbar" style="gap:6px;">
-          <button class="iconBtn" data-act="newJob">+Job</button>
-          <button class="iconBtn" data-act="edit">✎</button>
-          <button class="iconBtn" data-act="del">🗑</button>
+          <button class="iconBtn iconOnly" data-act="newJob" title="${esc(t("newJob", "New Job"))}">+</button>
+          <button class="iconBtn iconOnly" data-act="edit" title="${esc(t("edit", "Edit"))}">✎</button>
+          <button class="iconBtn iconOnly" data-act="del" title="${esc(t("delete", "Delete"))}">🗑</button>
         </div>
       `;
       head.addEventListener("click", (e) => {
@@ -1275,11 +3138,16 @@
         }
         if (act === "edit") { e.stopPropagation(); renameStation(st.id); return; }
         if (act === "del") { e.stopPropagation(); deleteStation(st.id); return; }
+        ensureUiState(state);
+        state.ui.collapsedStations[st.id] = !state.ui.collapsedStations[st.id];
+        saveState();
+        renderStationJobSidebar();
       });
       block.appendChild(head);
 
       const list = document.createElement("div");
       list.className = "jobList";
+      if (stationCollapsed) list.style.display = "none";
 
       for (const job of filteredJobs) {
         const active = (job.id === state.activeJobId);
@@ -1290,18 +3158,18 @@
           <div style="min-width:0; flex:1;">
             <div class="jobName">${esc(job.name)}</div>
             <div class="jobMeta">
-              <span class="mono">els: ${job.elements.length}</span>
-              <span class="mono">cycles: ${job.cycles.length}</span>
+              <span class="mono">${t("els", "els")}: ${job.elements.length}</span>
+              <span class="mono">${t("cyclesLabel", "cycles")}: ${job.cycles.length}</span>
               <span class="mono">A:${Number(job.allowancePct).toFixed(0)}%</span>
               <span class="mono">R:${Number(job.ratingPct).toFixed(0)}%</span>
             </div>
             <div class="progressWrap">
               <div class="progressBar ${level === "good" ? "good" : (level === "mid" ? "" : "warn")}" style="width:${score}%;"></div>
             </div>
-            <div class="tiny">Progress: ${score}%</div>
+            <div class="tiny">${t("progress", "Progress")}: ${score}%</div>
           </div>
           <div class="btnbar" style="gap:6px;">
-            <button class="iconBtn" data-act="cfg">⚙</button>
+            <button class="iconBtn" data-act="cfg">${t("cfg", "Cfg")}</button>
           </div>
         `;
         item.addEventListener("click", (e) => {
@@ -1316,17 +3184,46 @@
     }
   }
 
+  function setAllStationsCollapsed(collapsed) {
+    ensureUiState(state);
+    for (const st of state.stations) {
+      state.ui.collapsedStations[st.id] = !!collapsed;
+    }
+    saveState();
+    renderAll();
+  }
+
   function renderJobConfigDrawer() {
     const job = getActiveJob();
+    ensureActionTypes(state);
+    ensureUiState(state);
 
     const sel = $("jobStationSelect");
     sel.innerHTML = "";
     for (const st of state.stations) {
       const opt = document.createElement("option");
       opt.value = st.id;
-      opt.textContent = `${st.code} — ${st.name}`;
+      opt.textContent = `${st.code} - ${st.name}`;
       sel.appendChild(opt);
     }
+
+    const typeSel = $("elType");
+    typeSel.innerHTML = "";
+    for (const at of state.actionTypes) {
+      const opt = document.createElement("option");
+      opt.value = at.id;
+      opt.textContent = `${at.id} - ${at.name}`;
+      typeSel.appendChild(opt);
+    }
+    const underlaySel = $("atUnderlay");
+    underlaySel.innerHTML = `<option value="">(none)</option>`;
+    for (const at of state.actionTypes) {
+      const opt = document.createElement("option");
+      opt.value = at.id;
+      opt.textContent = `${at.id} - ${at.name}`;
+      underlaySel.appendChild(opt);
+    }
+    setUiScale(state.ui.uiScale);
 
     const disabled = !job;
     for (const id of ["jobStationSelect","jobName","allowancePct","ratingPct","dupJobBtn","delJobBtn"]) $(id).disabled = disabled;
@@ -1338,6 +3235,7 @@
       $("ratingPct").value = 100;
       $("stationCodeView").value = "";
       renderElementsTable(null);
+      renderActionTypesTable();
       return;
     }
 
@@ -1346,7 +3244,11 @@
     $("allowancePct").value = job.allowancePct;
     $("ratingPct").value = job.ratingPct;
     $("stationCodeView").value = getStationById(job.stationId)?.code || "";
+    if (job.elements.length && !selectedElementId) selectedElementId = job.elements[0].id;
+    const selEl = job.elements.find((e) => e.id === selectedElementId);
+    typeSel.value = selEl ? String(selEl.type || "").toUpperCase() : (state.actionTypes[0]?.id || "");
     renderElementsTable(job);
+    renderActionTypesTable();
   }
 
   function renderElementsTable(job) {
@@ -1354,7 +3256,7 @@
     body.innerHTML = "";
     if (!job || job.elements.length === 0) {
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td colspan="3" class="muted">No elements.</td>`;
+      tr.innerHTML = `<td colspan="3" class="muted">${esc(t("noElements", "No elements."))}</td>`;
       body.appendChild(tr);
       return;
     }
@@ -1365,71 +3267,227 @@
       tr.innerHTML = `
         <td class="mono">${idx+1}</td>
         <td><strong>${esc(el.name)}</strong></td>
-        <td><span class="pill">${esc(el.type)}</span></td>
+        <td><span class="pill">${esc(getActionType(el.type).name)}</span></td>
       `;
-      tr.addEventListener("click", () => { selectedElementId = el.id; renderElementsTable(job); });
+      tr.addEventListener("click", () => {
+        selectedElementId = el.id;
+        $("elType").value = String(el.type || "").toUpperCase();
+        renderElementsTable(job);
+      });
       body.appendChild(tr);
     });
   }
 
+  function normalizeHexColor(input) {
+    return /^#[0-9a-fA-F]{6}$/.test(String(input || "")) ? String(input) : "#4c73ff";
+  }
+
+  function renderActionTypesTable() {
+    const body = $("actionTypesBody");
+    if (!body) return;
+    body.innerHTML = "";
+    for (const at of state.actionTypes) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${esc(at.id)}</td>
+        <td>${esc(at.name)}</td>
+        <td class="mono">${esc(at.lane)}</td>
+        <td class="mono">${Number(at.heightPx).toFixed(0)}</td>
+        <td class="mono">${Number(at.z).toFixed(0)}</td>
+        <td><span style="display:inline-block;width:24px;height:14px;border-radius:4px;border:1px solid rgba(255,255,255,.18);background:${esc(at.color)};"></span></td>
+        <td class="right"><button class="danger" data-del-at="${esc(at.id)}" style="padding:6px 10px; border-radius:10px;">Delete</button></td>
+      `;
+      tr.addEventListener("click", (e) => {
+        const delId = e.target?.dataset?.delAt;
+        if (delId) {
+          e.stopPropagation();
+          deleteActionType(delId);
+          return;
+        }
+        $("atId").value = at.id;
+        $("atName").value = at.name;
+        $("atLane").value = at.lane;
+        $("atColor").value = normalizeHexColor(at.color);
+        $("atHeight").value = String(Math.round(Number(at.heightPx || 6)));
+        $("atLaneOrder").value = String(Math.round(Number(at.laneOrder || 0)));
+        $("atZ").value = String(Math.round(Number(at.z || 10)));
+        $("atOpacity").value = String(Math.round(Math.max(0.05, Math.min(1, Number(at.opacity ?? 1))) * 100));
+        $("atUnderlay").value = at.underlayTypeId || "";
+      });
+      body.appendChild(tr);
+    }
+  }
+
+  function upsertActionTypeFromInputs() {
+    const id = String($("atId").value || "").trim().toUpperCase();
+    if (!id) return alert("Type ID required.");
+    const next = normalizeActionType({
+      id,
+      name: String($("atName").value || id).trim() || id,
+      lane: String($("atLane").value || id.toLowerCase()).trim() || "lane",
+      color: normalizeHexColor($("atColor").value),
+      heightPx: Number($("atHeight").value || 6),
+      laneOrder: Number($("atLaneOrder").value || 0),
+      z: Number($("atZ").value || 10),
+      opacity: Math.max(0.01, Math.min(1, Number($("atOpacity").value || 100) / 100)),
+      underlayTypeId: String($("atUnderlay").value || "").trim().toUpperCase(),
+    });
+    const idx = state.actionTypes.findIndex((x) => x.id === id);
+    if (idx >= 0) state.actionTypes[idx] = next;
+    else state.actionTypes.push(next);
+    ensureActionTypes(state);
+    saveState();
+    renderAll();
+  }
+
+  function deleteActionType(typeId) {
+    const id = String(typeId || "").toUpperCase();
+    if (!id) return;
+    if (!confirm(`Delete action type "${id}"?`)) return;
+    if ((state.actionTypes || []).length <= 1) return alert("Need at least one action type.");
+    state.actionTypes = state.actionTypes.filter((x) => x.id !== id);
+    const fallback = state.actionTypes[0]?.id || "IDLE";
+    for (const job of state.jobs) {
+      for (const el of (job.elements || [])) {
+        if (String(el.type || "").toUpperCase() === id) el.type = fallback;
+      }
+    }
+    ensureActionTypes(state);
+    saveState();
+    renderAll();
+  }
+
   function renderHeaderKpisTimerGraph() {
     const job = getActiveJob();
+    renderCaptureSelectors();
+    refreshCaptureModeUI();
+    const tagSet = selectedTagsSet();
 
     // header
     if (!job) {
-      $("jobHeader").textContent = "Select a job";
+      $("jobHeader").textContent = t("selectJob", "Select a job");
       $("cyclesCount").textContent = "0";
-      $("stdTotal").textContent = "—";
-      $("stdExplain").textContent = "Record cycles to compute.";
-      $("stabilityText").textContent = "No data";
+      $("stdTotal").textContent = "-";
+      $("stdExplain").textContent = t("recordCycles", "Record cycles to compute.");
+      $("stabilityText").textContent = t("noData", "No data");
+      $("avgCycleObs").textContent = "-";
+      $("medianCycle").textContent = "-";
+      $("p90Cycle").textContent = "-";
+      $("bestWorstCycle").textContent = "-";
+      $("cvCycle").textContent = "-";
+      $("throughputCycle").textContent = "-";
+      $("kpiActionBody").innerHTML = `<tr><td colspan="5" class="muted">No action data.</td></tr>`;
       $("mainBtn").disabled = true;
+      $("finishCycleBtn").disabled = true;
     } else {
       const st = getStationById(job.stationId);
       $("jobHeader").innerHTML =
-        `<span class="pill">Station</span> <strong>${esc(st?.code||"")} — ${esc(st?.name||"")}</strong>
+        `<span class="pill">Station</span> <strong>${esc(st?.code||"")} - ${esc(st?.name||"")}</strong>
          <span class="pill">Job</span> <strong>${esc(job.name)}</strong>`;
-      $("cyclesCount").textContent = String(job.cycles.length);
+      const filteredCycles = (job.cycles || []).filter((c) => tagSet.has(c.tag || "Normal"));
+      const cycleStats = computeCycleStats(job, filteredCycles);
+      $("cyclesCount").textContent = filteredCycles.length === job.cycles.length
+        ? String(filteredCycles.length)
+        : `${filteredCycles.length}/${job.cycles.length}`;
 
-      const { avgTotal, stability } = computeAverages(job);
-      $("stabilityText").textContent = stability.label;
-      if (avgTotal == null) {
-        $("stdTotal").textContent = "—";
-        $("stdExplain").textContent = "Record cycles to compute.";
+      $("stabilityText").textContent = cycleStats?.stability || "No data";
+      if (!cycleStats) {
+        $("stdTotal").textContent = "-";
+        $("stdExplain").textContent = t("recordCycles", "Record cycles to compute.");
+        $("avgCycleObs").textContent = "-";
+        $("medianCycle").textContent = "-";
+        $("p90Cycle").textContent = "-";
+        $("bestWorstCycle").textContent = "-";
+        $("cvCycle").textContent = "-";
+        $("throughputCycle").textContent = "-";
+        $("kpiActionBody").innerHTML = `<tr><td colspan="5" class="muted">No action data.</td></tr>`;
       } else {
-        const stdMs = normalToStandardMs(job, avgTotal);
-        $("stdTotal").textContent = `${(stdMs/1000).toFixed(3)} s`;
+        $("stdTotal").textContent = `${(cycleStats.stdMs / 1000).toFixed(3)} s`;
         $("stdExplain").textContent = `Rating ${job.ratingPct}% + Allowance ${job.allowancePct}% applied.`;
+        $("avgCycleObs").textContent = `${(cycleStats.avgMs / 1000).toFixed(3)} s`;
+        $("medianCycle").textContent = `${(cycleStats.medianMs / 1000).toFixed(3)} s`;
+        $("p90Cycle").textContent = `${(cycleStats.p90Ms / 1000).toFixed(3)} s`;
+        $("bestWorstCycle").textContent = `${(cycleStats.bestMs / 1000).toFixed(3)} / ${(cycleStats.worstMs / 1000).toFixed(3)} s`;
+        $("cvCycle").textContent = `${(cycleStats.cv * 100).toFixed(1)} %`;
+        $("throughputCycle").textContent = cycleStats.throughputPerHour == null
+          ? "-"
+          : `${cycleStats.throughputPerHour.toFixed(1)} cyc/h`;
+
+        const rows = computeActionStats(job, filteredCycles, cycleStats.avgMs);
+        if (!rows.length) {
+          $("kpiActionBody").innerHTML = `<tr><td colspan="5" class="muted">No action data.</td></tr>`;
+        } else {
+          $("kpiActionBody").innerHTML = rows.map((r) => `
+            <tr>
+              <td>${esc(r.name)} <span class="muted">(${esc(getActionType(r.type).id)})</span></td>
+              <td class="right mono">${(r.avgMs / 1000).toFixed(3)} s</td>
+              <td class="right mono">${(r.minMs / 1000).toFixed(3)} s</td>
+              <td class="right mono">${(r.maxMs / 1000).toFixed(3)} s</td>
+              <td class="right mono">${r.sharePct.toFixed(1)}%</td>
+            </tr>
+          `).join("");
+        }
       }
-      $("mainBtn").disabled = job.elements.length === 0;
+      $("mainBtn").disabled = job.elements.length === 0 || captureMode === "video";
+      $("finishCycleBtn").disabled = !(timer.mode === "RUNNING");
     }
 
     // timer panel display
     $("undoBtn").disabled = !(timer.mode==="RUNNING" && timer.laps.length>0);
 
     if (!job || job.elements.length === 0) {
-      $("curElName").textContent = "—";
-      $("curElType").textContent = "—";
-      $("curIndex").textContent = "—";
-      $("curHint").textContent = job ? "Add elements in Config" : "Select a job";
-      $("mainBtn").textContent = "Start";
+      $("curElName").textContent = "-";
+      $("curElType").textContent = "-";
+      $("curIndex").textContent = "-";
+      $("curHint").textContent = job ? t("addElementsInConfig", "Add elements in Config") : t("selectJob", "Select a job");
+      $("mainBtn").textContent = t("start", "Start");
+      $("finishCycleBtn").disabled = true;
       if (!job) $("elapsed").textContent = "00:00.000";
     } else {
-      if (timer.mode==="IDLE") {
+      if (captureMode === "video") {
+        $("curElName").textContent = t("videoMode", "Video capture");
+        $("curElType").textContent = t("markers", "Markers");
+        $("curIndex").textContent = "-";
+        $("curHint").textContent = t("videoHint", "Mark start/end, then create cycle from markers");
+        $("mainBtn").textContent = t("videoMode", "Video mode");
+        $("finishCycleBtn").disabled = true;
+        $("elapsed").textContent = "00:00.000";
+      } else if (timer.mode==="IDLE") {
         $("curElName").textContent = job.elements[0].name;
         $("curElType").textContent = job.elements[0].type;
         $("curIndex").textContent = `1 / ${job.elements.length}`;
-        $("curHint").textContent = "Press Start";
-        $("mainBtn").textContent = "Start";
+        if (captureMode === "single") {
+          const single = job.elements.find((e) => e.id === singleCaptureElementId) || job.elements[0];
+          $("curElName").textContent = single.name;
+          $("curElType").textContent = single.type;
+          $("curIndex").textContent = t("singleMode", "Single action mode");
+          $("curHint").textContent = t("singleHint", "Start, capture repeats, then Finish cycle");
+        } else {
+          $("curHint").textContent = t("pressStart", "Press Start");
+        }
+        $("mainBtn").textContent = t("start", "Start");
+        $("finishCycleBtn").disabled = true;
         $("elapsed").textContent = "00:00.000";
       } else {
-        const idx = Math.min(timer.index, job.elements.length-1);
-        const el = job.elements[idx];
-        const isLast = idx === job.elements.length-1;
-        $("curElName").textContent = el.name;
-        $("curElType").textContent = el.type;
-        $("curIndex").textContent = `${idx+1} / ${job.elements.length}`;
-        $("curHint").textContent = isLast ? "Finish to save cycle" : "Tap Next";
-        $("mainBtn").textContent = isLast ? "Finish cycle" : "Next";
+        if (timer.captureMode === "single") {
+          const single = job.elements.find((e) => e.id === timer.singleElementId) || job.elements[0];
+          $("curElName").textContent = single.name;
+          $("curElType").textContent = single.type;
+          $("curIndex").textContent = `${t("captures", "Captures")}: ${timer.laps.length}`;
+          $("curHint").textContent = t("captureEachHint", "Capture each repeat, then Finish cycle");
+          $("mainBtn").textContent = t("captureLap", "Capture lap");
+          $("finishCycleBtn").disabled = false;
+        } else {
+          const idx = Math.min(timer.index, job.elements.length-1);
+          const el = job.elements[idx];
+          const isLast = idx === job.elements.length-1;
+          $("curElName").textContent = el.name;
+          $("curElType").textContent = el.type;
+          $("curIndex").textContent = `${idx+1} / ${job.elements.length}`;
+          $("curHint").textContent = isLast ? t("finishToSave", "Finish to save cycle") : t("tapNext", "Tap Next");
+          $("mainBtn").textContent = isLast ? t("finishCycle", "Finish cycle") : t("next", "Next");
+          $("finishCycleBtn").disabled = false;
+        }
       }
     }
 
@@ -1444,24 +3502,24 @@
 
     cyclesBody.innerHTML = "";
     detailBody.innerHTML = "";
-    $("cycleDetailTitle").textContent = "—";
-    $("cycleDetailTotal").textContent = "—";
+    $("cycleDetailTitle").textContent = "-";
+    $("cycleDetailTotal").textContent = "-";
     $("cycleNoteBox").value = "";
     $("cycleNoteBox").disabled = true;
-    $("cyclesShownChip").textContent = "All cycles: 0";
+    $("cyclesShownChip").textContent = `${t("allCyclesFiltered", "All cycles")}: 0`;
     $("chartLegend").innerHTML = "";
 
     if (!job || job.cycles.length === 0) {
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td colspan="6" class="muted">No cycles recorded.</td>`;
+      tr.innerHTML = `<td colspan="6" class="muted">${esc(t("noCyclesRecorded", "No cycles recorded."))}</td>`;
       cyclesBody.appendChild(tr);
-      drawEmpty(canvas.getContext("2d"), canvas.width, canvas.height, "No cycles");
+      drawEmpty(canvas.getContext("2d"), canvas.width, canvas.height, t("noCyclesRecorded", "No cycles"));
       return;
     }
 
     const tagSet = selectedTagsSet();
     const filteredCycles = job.cycles.filter(c => tagSet.has(c.tag || "Normal"));
-    $("cyclesShownChip").textContent = `All cycles: ${filteredCycles.length} (filtered)`;
+    $("cyclesShownChip").textContent = `${t("allCyclesFiltered", "All cycles")}: ${filteredCycles.length} (${t("filtered", "filtered")})`;
 
     if (!selectedCycleId || !job.cycles.some(c => c.id === selectedCycleId)) {
       selectedCycleId = job.cycles[job.cycles.length-1].id;
@@ -1509,7 +3567,7 @@
 
     // details
     const sel = job.cycles.find(c => c.id === selectedCycleId) || job.cycles[job.cycles.length-1];
-    $("cycleDetailTitle").textContent = `Cycle @ ${new Date(sel.atIso).toLocaleString()} · ${sel.tag || "Normal"}`;
+    $("cycleDetailTitle").textContent = `Cycle @ ${new Date(sel.atIso).toLocaleString()} - ${sel.tag || "Normal"}`;
     $("cycleDetailTotal").textContent = fmtMs(sel.totalMs);
     $("cycleNoteBox").disabled = false;
     $("cycleNoteBox").value = sel.note || "";
@@ -1542,6 +3600,14 @@
       .filter(c => tagSet.has(c.tag || "Normal"))
       .slice(-6);
 
+    const rowsForHeight = (graphMode === "ALL")
+      ? Math.max(1, Math.min(16, baseCycles.length))
+      : Math.max(1, selectedCycles.length);
+    const desiredCanvasH = Math.max(480, Math.min(860, 180 + rowsForHeight * 72));
+    if (canvas.height !== Math.round(desiredCanvasH)) {
+      canvas.height = Math.round(desiredCanvasH);
+    }
+
     drawTimeline(
       canvas,
       job,
@@ -1555,8 +3621,85 @@
     renderLegend(job);
   }
 
+  function onTimelinePointerDown(e) {
+    if (graphMode !== "SELECTED") return;
+    const canvas = $("timelineChart");
+    const geom = timelineEditState.geom;
+    const job = getActiveJob();
+    if (!canvas || !geom || !job) return;
+    const p = toCanvasPoint(canvas, e);
+    if (!p) return;
+    const hit = findTimelineHit(geom, p.x, p.y);
+    if (!hit) return;
+
+    const edgePad = 8;
+    const nearEnd = Math.abs(p.x - hit.x1) <= edgePad;
+    timelineEditState.drag = {
+      cycleId: hit.cycleId,
+      elementId: hit.elementId,
+      x0: p.x,
+      initialMs: Number(hit.sec || 0) * 1000,
+      initialStartMs: Number(hit.startSec || 0) * 1000,
+      mode: nearEnd ? "resizeEnd" : "drag",
+    };
+    try { canvas.setPointerCapture?.(e.pointerId); } catch {}
+    e.preventDefault();
+  }
+
+  function onTimelinePointerMove(e) {
+    const canvas = $("timelineChart");
+    const geom = timelineEditState.geom;
+    const job = getActiveJob();
+    if (!canvas || !geom) return;
+    const p = toCanvasPoint(canvas, e);
+    if (!p) return;
+
+    const drag = timelineEditState.drag;
+    if (!drag || !job) {
+      const hit = findTimelineHit(geom, p.x, p.y);
+      if (!hit || graphMode !== "SELECTED") {
+        canvas.style.cursor = "default";
+        return;
+      }
+      const edgePad = 8;
+      const nearEnd = Math.abs(p.x - hit.x1) <= edgePad;
+      canvas.style.cursor = nearEnd ? "ew-resize" : "move";
+      return;
+    }
+
+    const dx = p.x - drag.x0;
+    const deltaSec = timelineSecDelta(geom, dx);
+    if (drag.mode === "drag") {
+      const nextStartMs = Math.max(0, Number(drag.initialStartMs || 0) + (deltaSec * 1000));
+      if (setCycleElementOffsetMs(job, drag.cycleId, drag.elementId, nextStartMs)) {
+        selectedCycleId = drag.cycleId;
+        renderAll();
+      }
+      return;
+    }
+
+    let nextMs = drag.initialMs + (deltaSec * 1000);
+    nextMs = Math.max(0, nextMs);
+    if (setCycleElementDurationMs(job, drag.cycleId, drag.elementId, nextMs)) {
+      selectedCycleId = drag.cycleId;
+      renderAll();
+    }
+  }
+
+  function onTimelinePointerUp() {
+    const canvas = $("timelineChart");
+    if (canvas) canvas.style.cursor = "default";
+    if (!timelineEditState.drag) return;
+    timelineEditState.drag = null;
+    saveState();
+  }
+
   // ----- Backup / UI wiring -----
   $("newStationBtn").addEventListener("click", createStation);
+  const collapseStationsBtn = $("collapseStationsBtn");
+  if (collapseStationsBtn) collapseStationsBtn.addEventListener("click", () => setAllStationsCollapsed(true));
+  const expandStationsBtn = $("expandStationsBtn");
+  if (expandStationsBtn) expandStationsBtn.addEventListener("click", () => setAllStationsCollapsed(false));
 
   $("searchBox").addEventListener("input", () => { searchText = $("searchBox").value || ""; renderStationJobSidebar(); });
   $("clearSearchBtn").addEventListener("click", () => { $("searchBox").value=""; searchText=""; renderStationJobSidebar(); });
@@ -1564,6 +3707,68 @@
   $("openDrawerBtn").addEventListener("click", openDrawer);
   $("closeDrawerBtn").addEventListener("click", closeDrawer);
   $("drawerOverlay").addEventListener("click", closeDrawer);
+  const toggleLeftPanelBtn = $("toggleLeftPanelBtn");
+  if (toggleLeftPanelBtn) {
+    toggleLeftPanelBtn.addEventListener("click", () => {
+      state.ui.leftPanelVisible = !state.ui.leftPanelVisible;
+      applyUiLayout();
+      saveState();
+    });
+  }
+  $("uiToggleLeftBtn").addEventListener("click", () => {
+    state.ui.leftPanelVisible = !state.ui.leftPanelVisible;
+    applyUiLayout();
+    saveState();
+  });
+  $("uiScaleRange").addEventListener("input", () => {
+    const v = Number($("uiScaleRange").value || 100) / 100;
+    setUiScale(v);
+    saveState();
+  });
+  $("uiScaleInput").addEventListener("change", () => {
+    const v = Number($("uiScaleInput").value || 1);
+    setUiScale(v);
+    saveState();
+  });
+  $("panelTogglesRow").addEventListener("click", (e) => {
+    const panel = e.target?.dataset?.panelToggle;
+    if (!panel) return;
+    if (panel === "jobs") {
+      state.ui.leftPanelVisible = !state.ui.leftPanelVisible;
+      applyUiLayout();
+      saveState();
+      return;
+    }
+    if (!state.ui?.panels) return;
+    state.ui.panels[panel] = !state.ui.panels[panel];
+    applyUiLayout();
+    saveState();
+  });
+  let draggingPanelId = "";
+  document.querySelectorAll("#panelTogglesRow [data-panel-toggle]").forEach((btn) => {
+    btn.addEventListener("dragstart", (e) => {
+      draggingPanelId = String(btn.dataset.panelToggle || "");
+      e.dataTransfer?.setData("text/plain", draggingPanelId);
+    });
+    btn.addEventListener("dragover", (e) => { e.preventDefault(); });
+    btn.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const dropId = String(btn.dataset.panelToggle || "");
+      const src = draggingPanelId || e.dataTransfer?.getData("text/plain") || "";
+      reorderPanels(src, dropId);
+      draggingPanelId = "";
+    });
+    btn.addEventListener("dragend", () => { draggingPanelId = ""; });
+  });
+  document.querySelectorAll("[data-ui-panel]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const panel = e.currentTarget?.dataset?.uiPanel;
+      if (!panel || !state.ui?.panels) return;
+      state.ui.panels[panel] = !state.ui.panels[panel];
+      applyUiLayout();
+      saveState();
+    });
+  });
 
   $("newJobBtn").addEventListener("click", createJob);
   $("dupJobBtn").addEventListener("click", duplicateActiveJob);
@@ -1589,21 +3794,125 @@
     job.ratingPct = Number($("ratingPct").value || 100);
     saveState(); renderAll();
   });
+  $("elType").addEventListener("change", () => {
+    const job = getActiveJob();
+    if (!job || !selectedElementId) return;
+    const el = job.elements.find((e) => e.id === selectedElementId);
+    if (!el) return;
+    el.type = String($("elType").value || el.type).toUpperCase();
+    saveState();
+    renderAll();
+  });
 
   $("addElBtn").addEventListener("click", addElement);
   $("deleteElBtn").addEventListener("click", deleteSelectedElement);
   $("moveUpBtn").addEventListener("click", () => moveSelectedElement(-1));
   $("moveDownBtn").addEventListener("click", () => moveSelectedElement(+1));
+  $("addActionTypeBtn").addEventListener("click", upsertActionTypeFromInputs);
+  $("captureModeSel").addEventListener("change", () => {
+    refreshCaptureModeUI();
+    renderAll();
+  });
+  $("singleActionSel").addEventListener("change", () => {
+    singleCaptureElementId = String($("singleActionSel").value || "");
+    renderAll();
+  });
 
   $("mainBtn").addEventListener("click", () => {
     const job = getActiveJob(); if (!job) return;
+    refreshCaptureModeUI();
+    if (captureMode === "video") return;
     if (timer.mode === TimerMode.Idle) return startCycle();
+    if (timer.captureMode === "single") return commitLapAndAdvance(false);
     const idx = Math.min(timer.index, job.elements.length - 1);
     const isLast = idx === job.elements.length - 1;
     commitLapAndAdvance(isLast);
   });
+  $("finishCycleBtn").addEventListener("click", () => {
+    if (timer.mode !== TimerMode.Running) return;
+    commitLapAndAdvance(true);
+  });
   $("undoBtn").addEventListener("click", undoLap);
   $("clearJobCyclesBtn").addEventListener("click", clearJobCycles);
+
+  $("videoFile").addEventListener("change", (e) => {
+    const f = e.target.files?.[0];
+    if (f) loadVideoFile(f);
+    e.target.value = "";
+  });
+  $("videoSeqBtn").addEventListener("click", videoSequenceStep);
+  $("videoManualStartBtn").addEventListener("click", videoMarkStart);
+  $("videoManualEndBtn").addEventListener("click", videoMarkEnd);
+  $("videoStackRulesChk").addEventListener("change", () => {
+    renderVideoMarkersList();
+    syncVideoTimeline();
+  });
+  $("videoAutoStackBtn").addEventListener("click", applyVideoAutoStack);
+  $("videoClearBtn").addEventListener("click", clearVideoMarkers);
+  $("videoApplyBtn").addEventListener("click", applyVideoMarkersToCycle);
+  $("videoEl").addEventListener("loadedmetadata", syncVideoTimeline);
+  $("videoEl").addEventListener("timeupdate", syncVideoTimeline);
+  $("videoTimeline").addEventListener("input", () => {
+    const video = $("videoEl");
+    if (!video) return;
+    video.currentTime = Number($("videoTimeline").value || 0);
+    syncVideoTimeline();
+  });
+  $("videoMarkersList").addEventListener("click", (e) => {
+    const t = e.target;
+    const id = t?.dataset?.vdel || t?.dataset?.vns || t?.dataset?.vne;
+    if (!id) return;
+    const marker = videoCapture.markers.find((m) => m.id === id);
+    if (!marker) return;
+    if (t.dataset.vdel) {
+      videoCapture.markers = videoCapture.markers.filter((m) => m.id !== id);
+      if (videoCapture.editMarkerId === id) videoCapture.editMarkerId = "";
+      for (const key of Object.keys(videoCapture.openByElementId)) {
+        if (videoCapture.openByElementId[key] === id) delete videoCapture.openByElementId[key];
+      }
+      renderVideoMarkersList();
+      return;
+    }
+    const video = $("videoEl");
+    if (!video) return;
+    const now = Number(video.currentTime || 0);
+    if (t.dataset.vns) marker.startSec = now;
+    if (t.dataset.vne) marker.endSec = now;
+    if (marker.endSec != null && Number(marker.endSec) < Number(marker.startSec)) {
+      const tmp = marker.startSec;
+      marker.startSec = marker.endSec;
+      marker.endSec = tmp;
+    }
+    renderVideoMarkersList();
+  });
+  $("videoMarkersList").addEventListener("input", (e) => {
+    const t = e.target;
+    const id = t?.dataset?.vs || t?.dataset?.ve;
+    if (!id) return;
+    const marker = videoCapture.markers.find((m) => m.id === id);
+    if (!marker) return;
+    const val = Math.max(0, Number(t.value || 0));
+    if (t.dataset.vs) marker.startSec = val;
+    if (t.dataset.ve) marker.endSec = t.value === "" ? null : val;
+    if (marker.endSec != null && Number(marker.endSec) < Number(marker.startSec)) {
+      const tmp = marker.startSec;
+      marker.startSec = marker.endSec;
+      marker.endSec = tmp;
+    }
+    renderVideoMarkersList();
+  });
+  bindVideoBarInteractions();
+  window.addEventListener("pointermove", onVideoPointerMove);
+  window.addEventListener("pointerup", onVideoPointerUp);
+  window.addEventListener("pointercancel", onVideoPointerUp);
+  const timelineCanvas = $("timelineChart");
+  if (timelineCanvas) {
+    timelineCanvas.addEventListener("pointerdown", onTimelinePointerDown);
+    timelineCanvas.addEventListener("pointermove", onTimelinePointerMove);
+    timelineCanvas.addEventListener("pointerup", onTimelinePointerUp);
+    timelineCanvas.addEventListener("pointercancel", onTimelinePointerUp);
+    timelineCanvas.addEventListener("pointerleave", onTimelinePointerUp);
+  }
 
   function setMode(mode) {
     graphMode = mode;
@@ -1625,6 +3934,7 @@
 
   $("selectLast3Btn").addEventListener("click", () => selectLastN(3));
   $("clearSelectionBtn").addEventListener("click", clearLineSelection);
+  $("timelineConfigBtn").addEventListener("click", openDrawer);
 
   $("cycleNoteBox").addEventListener("input", () => setSelectedCycleNote($("cycleNoteBox").value));
 
@@ -1642,6 +3952,13 @@
   $("clearLocalBtn").addEventListener("click", clearLocalState);
 
   window.addEventListener("keydown", (e) => {
+    const t = e.target;
+    const tag = String(t?.tagName || "").toUpperCase();
+    const typingField = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || !!t?.isContentEditable;
+    if (typingField) {
+      if (e.key === "Escape") closeDrawer();
+      return;
+    }
     if (e.code === "Space") { e.preventDefault(); if (!$("mainBtn").disabled) $("mainBtn").click(); }
     if (e.code === "Backspace") { if (!$("undoBtn").disabled) $("undoBtn").click(); }
     if (e.key === "Escape") closeDrawer();
@@ -1649,15 +3966,22 @@
 
   // ----- renderAll -----
   function renderAll() {
+    applyUiLayout();
     renderStationJobSidebar();
     renderJobConfigDrawer();
     renderHeaderKpisTimerGraph();
+    renderVideoMarkersList();
+    syncVideoTimeline();
   }
 
   // init
-  renderAll();
+  initI18n().finally(() => {
+    renderAll();
+    applyI18nStatic();
+  });
 
 })();
 </script>
 </body>
 </html>
+

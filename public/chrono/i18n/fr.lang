@@ -1,0 +1,21 @@
+{
+  "code": "fr",
+  "name": "Francais",
+  "translations": {
+    "title": "Etude Chrono",
+    "saved": "Sauve localement",
+    "config": "Config",
+    "stationJob": "Postes et Jobs",
+    "pickJobHint": "Choisissez un job, puis capturez des cycles. Config dans le panneau de droite.",
+    "timer": "Chrono",
+    "timeline": "Graphe timeline (barres empilees)",
+    "cycles": "Cycles",
+    "selected": "Selection",
+    "all": "Tout",
+    "outliers": "Valeurs aberrantes",
+    "avgMarkers": "Reperes moy.",
+    "tags": "Tags",
+    "selectLast3": "3 derniers",
+    "clearSelection": "Effacer selection"
+  }
+}
