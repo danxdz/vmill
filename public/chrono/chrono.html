@@ -544,7 +544,7 @@
       <button id="timelineConfigBtn" type="button">Config</button>
       </div>
       <div class="small muted" id="timelineEditHint" style="margin-top:8px;">
-        Graph edit: drag a segment to move, drag right edge to resize (Selected mode).
+        Graph edit: drag a segment to move, drag right edge to resize. Same lane = same base level.
       </div>
 
       <div class="card" style="padding:12px; border-radius:14px; margin-top:10px;">
@@ -889,7 +889,7 @@
     "tapNext": "Tap Next",
     "kpi": "KPI",
     "timeline": "Timeline graph (stacked bars)",
-    "timelineEditHint": "Graph edit: drag a segment to move, drag right edge to resize (Selected mode).",
+    "timelineEditHint": "Graph edit: drag a segment to move, drag right edge to resize. Same lane = same base level.",
     "cycles": "Cycles",
     "selected": "Selected",
     "all": "All",
@@ -1005,7 +1005,7 @@
     "tapNext": "Appuyez Suivant",
     "kpi": "KPI",
     "timeline": "Timeline (barres empilees)",
-    "timelineEditHint": "Edition graphe: glisser un segment pour deplacer, glisser le bord droit pour redimensionner (mode Selection).",
+    "timelineEditHint": "Edition graphe: glisser pour deplacer, bord droit pour redimensionner. Meme lane = meme niveau de base.",
     "cycles": "Cycles",
     "selected": "Selection",
     "all": "Tout",
@@ -1168,7 +1168,7 @@
     setText("#panelKpiCard .title", "kpi", "KPI");
     const tlTitle = document.querySelector("main .title[style*='margin-bottom:8px']");
     if (tlTitle) tlTitle.textContent = t("timeline", "Timeline graph (stacked bars)");
-    setText("#timelineEditHint", "timelineEditHint", "Graph edit: drag a segment to move, drag right edge to resize (Selected mode).");
+    setText("#timelineEditHint", "timelineEditHint", "Graph edit: drag a segment to move, drag right edge to resize. Same lane = same base level.");
     const cyTitle = document.querySelectorAll("main .title");
     if (cyTitle?.length > 0) {
       const lastTitle = cyTitle[cyTitle.length - 1];
@@ -2733,11 +2733,8 @@
   }
 
   function resolveHeightPx(typeId, rawH, rowH) {
-    const t = String(typeId || "").toUpperCase();
-    const raw = Number(rawH || 6);
-    if (t === "MACHINE") return Math.max(12, Math.min(rowH, Math.max(raw, Math.round(rowH * 0.70))));
-    if (t.includes("HUMAN")) return Math.max(9, Math.min(rowH, Math.max(raw, Math.round(rowH * 0.52))));
-    return Math.max(8, Math.min(rowH, Math.max(raw, Math.round(rowH * 0.44))));
+    const raw = Math.max(2, Number(rawH || 6));
+    return Math.max(2, Math.min(Math.max(3, rowH - 1), raw));
   }
 
   function drawEmpty(ctx,w,h,msg){
@@ -2888,9 +2885,13 @@
 
     const laneMap = getLaneIndexMap();
     const laneCount = Math.max(1, Number(laneMap?.size || 1));
-    const rowH = Math.max(24, Math.min(52, ch / Math.max(1, drawRows.length)));
-    const gap = Math.max(6, Math.min(12, rowH * 0.28));
-    const laneStep = Math.max(7, Math.min(16, Math.round((rowH - 4) / Math.max(1, laneCount))));
+    const usedTypeIds = [...new Set((job.elements || []).map((el) => String(el.type || "").toUpperCase()).filter(Boolean))];
+    const maxCfgHeight = Math.max(6, ...usedTypeIds.map((tid) => Math.max(2, Number(getActionType(tid).heightPx || 6))));
+    const defaultLaneStep = laneCount <= 1 ? 0 : Math.max(6, Math.round(maxCfgHeight * 0.65));
+    const minRowByConfig = maxCfgHeight + Math.max(0, laneCount - 1) * defaultLaneStep + 6;
+    const rowH = Math.max(minRowByConfig, Math.min(96, ch / Math.max(1, drawRows.length)));
+    const gap = Math.max(6, Math.min(14, rowH * 0.24));
+    const laneStep = laneCount <= 1 ? 0 : Math.max(6, Math.round((rowH - maxCfgHeight - 4) / Math.max(1, laneCount - 1)));
 
     const xOf = (sec) => padL + (sec/xMaxSec)*cw;
     const hits = [];
@@ -3603,7 +3604,11 @@
     const rowsForHeight = (graphMode === "ALL")
       ? Math.max(1, Math.min(16, baseCycles.length))
       : Math.max(1, selectedCycles.length);
-    const desiredCanvasH = Math.max(480, Math.min(860, 180 + rowsForHeight * 72));
+    const laneCount = Math.max(1, new Set((job.elements || []).map((el) => String(getActionType(el.type).lane || "lane"))).size);
+    const maxCfgHeight = Math.max(6, ...((job.elements || []).map((el) => Math.max(2, Number(getActionType(el.type).heightPx || 6)))));
+    const laneStep = laneCount <= 1 ? 0 : Math.max(6, Math.round(maxCfgHeight * 0.65));
+    const rowTarget = maxCfgHeight + Math.max(0, laneCount - 1) * laneStep + 18;
+    const desiredCanvasH = Math.max(480, Math.min(1200, 180 + rowsForHeight * rowTarget));
     if (canvas.height !== Math.round(desiredCanvasH)) {
       canvas.height = Math.round(desiredCanvasH);
     }
