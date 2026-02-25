@@ -585,42 +585,7 @@
       .btnbar{justify-content:center;}
       #panelTogglesRow{justify-content:center;}
       .row2, .row3{grid-template-columns:1fr;}
-    /* Add this inside your <style> block in chrono.html */
-    body.themeLight {
-      --bg: #f0f2f5;
-      --panel: #ffffff;
-      --panel2: #f8f9fa;
-      --border: #d1d5db;
-      --text: #111827;
-      --muted: #4b5563;
-      --muted2: #9ca3af;
-      --accent-10: rgba(76, 115, 255, 0.08);
-      --accent-18: rgba(76, 115, 255, 0.15);
-      /* Update the header background for light mode */
-      header { background: rgba(240, 242, 245, 0.92); }
     }
-    /* Update your main layout to be flexible */
-    main.layout {
-      display: grid;
-      grid-template-columns: var(--sidebar-width, 820px) 1fr; /* Sidebar fixed, Main grows */
-      gap: 16px;
-      padding: 16px;
-      align-items: start;
-    }
-
-/* Ensure all panels expand to fill the available space in their column */
-.panelBlock {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* Fix the Cycles list specifically */
-#cyclesListContainer {
-  flex-grow: 1; /* Pushes the cycles list to fill the bottom of the panel */
-  min-height: 300px;
-}
   </style>
 </head>
 <body>
@@ -919,7 +884,7 @@
         <span class="panelHdrChevron">›</span>
       </button>
       <div class="panelHdrBody">
-      
+      <div class="timerGrid">
       <div class="card" style="padding:12px; border-radius:14px;">
         <div class="small muted">Checkbox selects line (Selected mode). Tag editable per cycle.</div>
 
@@ -943,7 +908,7 @@
             <tbody id="cyclesBody"></tbody>
           </table>
         </div>
-      
+      </div>
       </div><!-- /panelHdrBody cycles -->
     </div>
     </div>
@@ -1208,10 +1173,6 @@
                 <label id="uiJobsWidthLabelTitle">Jobs panel width</label>
                 <input id="uiJobsWidthRange" type="range" min="280" max="560" step="10" value="420" />
                 <div class="small muted mono" id="uiJobsWidthLabel">420 px</div>
-                <label>Sidebar Width (px):
-                  <input type="range" id="sidebarWidthRange" min="280" max="600" 
-                        oninput="updateSidebarWidth(this.value)">
-                </label>
               </div>
             </div>
             <div class="row2">
@@ -1925,7 +1886,7 @@
       collapsedStations: {},
       timelineSameBase: true,
       layoutMode: "horizontal",
-      jobsPanelWidth: 480,
+      jobsPanelWidth: 420,
       themeBg: "#0b0c10",
       themeText: "#e8e8e8",
       themeAccent: "#4c73ff",
@@ -1963,7 +1924,7 @@
       ? st.ui.collapsedStations : {};
     st.ui.timelineSameBase = st.ui.timelineSameBase !== false;
     st.ui.layoutMode = (st.ui.layoutMode === "vertical") ? "vertical" : "horizontal";
-    st.ui.jobsPanelWidth = clamp(st.ui.jobsPanelWidth ?? d.jobsPanelWidth, 280, 1280, d.jobsPanelWidth);
+    st.ui.jobsPanelWidth = clamp(st.ui.jobsPanelWidth ?? d.jobsPanelWidth, 280, 560, d.jobsPanelWidth);
     st.ui.themeBg = hex(st.ui.themeBg, d.themeBg);
     st.ui.themeText = hex(st.ui.themeText, d.themeText);
     st.ui.themeAccent = hex(st.ui.themeAccent, d.themeAccent);
@@ -2192,11 +2153,7 @@
     const a = toHex6(state?.ui?.themeAccent, "#4c73ff");
     return hexToRgba(a, alpha);
   }
-  function updateSidebarWidth(val) {
-    state.ui.sidebarWidth = val;
-    document.documentElement.style.setProperty('--sidebar-width', val + 'px');
-    saveState(); // Ensure your save function is called
-  }
+
   function syncViewLayoutInputs() {
     ensureUiState(state);
     const modeSel = $("uiLayoutModeSel");
@@ -2261,19 +2218,13 @@
     if (leftSec) leftSec.style.display = state.ui.leftPanelVisible ? "" : "none";
     const rightSec = $("rightMainSection");
     if (rightSec) rightSec.style.display = "";
-
     const layout = document.querySelector("main.layout");
     if (layout) {
       const desktop = window.matchMedia("(min-width: 1040px)").matches;
       const horizontal = desktop && state.ui.leftPanelVisible && state.ui.layoutMode !== "vertical";
-      
-      // Get the width from your settings
       const jobsW = Math.max(280, Math.min(560, Number(state.ui.jobsPanelWidth) || 420));
-      
       if (horizontal) {
-        // Changed from fixed percentages to a fixed sidebar + growing main block
-        layout.style.display = "grid";
-        layout.style.gridTemplateColumns = `${jobsW}px 1fr`; 
+        layout.style.gridTemplateColumns = `${Math.round(jobsW)}px 1fr`;
       } else {
         layout.style.gridTemplateColumns = "1fr";
       }
@@ -5391,18 +5342,12 @@
   window.addEventListener("keydown", (e) => {
     const t = e.target;
     const tag = String(t?.tagName || "").toUpperCase();
-    // Enhanced check for contentEditable (like your notes or element names)
     const typingField = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || !!t?.isContentEditable;
-
     if (typingField) {
       if (e.key === "Escape") { closeDrawer(); closeTimelineEditor(); }
-      return; // This stops the timer from starting/stopping while you type
+      return;
     }
-    
-    if (e.code === "Space") { 
-      e.preventDefault(); 
-      if (!$("mainBtn").disabled) $("mainBtn").click(); 
-    }
+    if (e.code === "Space") { e.preventDefault(); if (!$("mainBtn").disabled) $("mainBtn").click(); }
     if (e.code === "Backspace") { if (!$("undoBtn").disabled) $("undoBtn").click(); }
     if (e.key === "Escape") { closeDrawer(); closeTimelineEditor(); }
   });
