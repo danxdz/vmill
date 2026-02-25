@@ -26,55 +26,9 @@
     }
     h1{margin:0; font-size:18px;}
     .sub{display:none; color:var(--muted); font-size:13px;}
-    .topRight{display:flex; align-items:center; gap:8px;}
+    .topRight{display:flex; align-items:center; gap:10px;}
     #toggleLeftPanelBtn{display:none;}
     #savePill{display:none;}
-
-    /* ── Pro header ── */
-    .hLeft{display:flex; align-items:center;}
-    .hLogoWrap{display:flex; align-items:center; gap:10px;}
-    .hLogoIcon{
-      width:36px; height:36px; border-radius:10px; flex-shrink:0;
-      background:var(--accent-18); border:1px solid var(--accent-35);
-      display:flex; align-items:center; justify-content:center;
-      font-size:18px;
-    }
-    .hLogoText{display:flex; flex-direction:column; gap:1px;}
-    .hTitle{font-size:15px; font-weight:800; letter-spacing:.01em; line-height:1.2;}
-    .hJobLabel{
-      font-size:11px; color:var(--muted); line-height:1.2;
-      max-width:260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    }
-    .hSavePill{
-      font-size:11px; color:var(--ok); font-family:ui-monospace,monospace;
-      opacity:0; transition:opacity .35s; white-space:nowrap; min-width:0;
-    }
-    .hSavePill.vis{opacity:1;}
-    .hBtn{padding:8px 14px; font-size:13px; font-weight:600; border-radius:11px;}
-    .hBtnConfig{display:flex; align-items:center; gap:6px;}
-    .hBtnIcon{font-size:14px; line-height:1;}
-    .hLangSel{width:auto; min-width:60px; padding:7px 8px;}
-    .hVersion{
-      font-size:10px; font-family:ui-monospace,monospace; letter-spacing:.05em;
-      color:var(--muted2); border:1px solid var(--border); border-radius:999px;
-      padding:3px 8px; white-space:nowrap;
-    }
-
-    /* ── Theme presets ── */
-    .themePresetRow{display:flex; gap:6px; flex-wrap:wrap; margin-top:2px;}
-    .tpBtn{
-      display:flex; align-items:center; gap:6px;
-      padding:5px 10px; border-radius:9px; font-size:12px; font-weight:600;
-      border:1px solid var(--border); background:rgba(255,255,255,.03);
-      cursor:pointer; color:var(--muted); transition:all .12s;
-    }
-    .tpBtn:hover{background:rgba(255,255,255,.07); color:var(--text);}
-    .tpBtn.tpActive{border-color:var(--accent-55); background:var(--accent-10); color:var(--text);}
-    .tpSwatch{
-      width:13px; height:13px; border-radius:3px; flex-shrink:0;
-      background:var(--c-bg,#0b0c10);
-      border:2px solid var(--c-acc,#4c73ff);
-    }
     .pill{
       display:inline-flex; align-items:center; gap:8px;
       padding:4px 10px; border-radius:999px;
@@ -430,41 +384,6 @@
     .legendItem{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);}
     .swatch{width:10px; height:10px; border-radius:3px; border:1px solid rgba(255,255,255,.15);}
 
-    /* Canvas tooltip */
-    #tlTooltip{
-      position:fixed;
-      background:rgba(13,15,21,.97);
-      border:1px solid rgba(76,115,255,.45);
-      border-radius:10px;
-      padding:8px 12px;
-      font-size:12px;
-      pointer-events:none;
-      z-index:200;
-      display:none;
-      box-shadow:0 8px 24px rgba(0,0,0,.5);
-      max-width:240px;
-      line-height:1.5;
-    }
-    #tlTooltip.show{display:block;}
-    #tlTooltip .tt-el{font-weight:700; color:var(--text);}
-    #tlTooltip .tt-val{color:var(--ok); font-family:ui-monospace,Menlo,monospace;}
-    #tlTooltip .tt-row{color:var(--muted);}
-    #tlTooltip .tt-outlier{color:var(--danger); font-size:11px; margin-top:2px;}
-
-    /* Toolbar groups */
-    .toolbarGroup{
-      display:flex; align-items:center; gap:6px; flex-wrap:wrap;
-    }
-    .toolbarDivider{
-      width:1px; height:22px; background:var(--border);
-      flex-shrink:0;
-      align-self:center;
-    }
-    .toolbarLabel{
-      font-size:10px; text-transform:uppercase; letter-spacing:.06em;
-      color:var(--muted2); white-space:nowrap; padding:0 2px;
-    }
-
     /* Drawer (right) */
     .drawerOverlay{
       position:fixed; inset:0; background:rgba(0,0,0,.45);
@@ -531,49 +450,7 @@
     .open .drawerOverlay{opacity:1; pointer-events:auto;}
     .open .drawer{transform:translateX(0);}
 
-    /* ── Panel collapse headers ── */
-    .panelHdr{
-      width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px;
-      padding:10px 0 6px; border:0; background:transparent; color:var(--text);
-      cursor:pointer; text-align:left; border-bottom:1px solid var(--border); margin-bottom:10px;
-    }
-    .panelHdr:hover{ opacity:.85; }
-    .panelHdrTitle{ font-size:14px; font-weight:700; }
-    .panelHdrChevron{
-      color:var(--muted2); font-size:16px; line-height:1;
-      transition:transform .18s ease; display:inline-block; transform:rotate(90deg);
-    }
-    .panelBlock.collapsed .panelHdrChevron{ transform:rotate(0deg); }
-    .panelBlock.collapsed .panelHdrBody{ display:none; }
-
-    /* ── Header panel toggles row ── */
-    .hPanelToggles{ display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
-    .hPanelBtn{ padding:5px 9px; font-size:11px; border-radius:8px; }
-    .hDivider{ width:1px; height:22px; background:var(--border); flex-shrink:0; }
-    .hBtnCamera{
-      font-size:16px; padding:7px 10px; border-radius:10px; text-decoration:none;
-      display:inline-flex; align-items:center; justify-content:center;
-      color:var(--text); border:1px solid var(--border); background:rgba(255,255,255,.04);
-    }
-    .hBtnCamera:hover{ filter:brightness(1.12); }
-
-    /* ── Light-theme adaptive borders / inputs ── */
-    body.themeLight input, body.themeLight select, body.themeLight textarea{
-      border-color:rgba(0,0,0,.18);
-    }
-    body.themeLight button:not(.primary):not(.danger){
-      border-color:rgba(0,0,0,.14); background:rgba(0,0,0,.04); color:var(--text);
-    }
-    body.themeLight .card{ box-shadow:0 2px 12px rgba(0,0,0,.08); }
-    body.themeLight .stationBlock{ background:rgba(0,0,0,.03); }
-    body.themeLight .jobItem{ background:rgba(0,0,0,.03); }
-    body.themeLight .scrollBox{ border-color:rgba(0,0,0,.12); }
-    body.themeLight th{ color:rgba(0,0,0,.55); }
-    body.themeLight td{ border-bottom-color:rgba(0,0,0,.08); }
-    body.themeLight .muted, body.themeLight .small{ color:rgba(0,0,0,.55); }
-    body.themeLight .toolbarLabel{ color:rgba(0,0,0,.4); }
-    body.themeLight .panelHdr{ border-bottom-color:rgba(0,0,0,.12); }
-    body.themeLight .hr{ background:rgba(0,0,0,.10); }
+    @media(max-width:900px){
       header{padding:10px 12px; gap:8px; flex-wrap:wrap; align-items:flex-start;}
       .topRight{width:100%; justify-content:center; flex-wrap:wrap; gap:8px;}
       main{padding:10px;}
@@ -589,35 +466,17 @@
   </style>
 </head>
 <body>
-<div id="tlTooltip"></div>
 <header>
-  <div class="hLeft">
-    <div class="hLogoWrap">
-      <span class="hLogoIcon">⏱</span>
-      <div class="hLogoText">
-        <span class="hTitle">Chrono Study</span>
-        <span class="hJobLabel" id="hJobLabel">—</span>
-      </div>
-    </div>
+  <div>
+    <h1>Chrono Study</h1>
+    <div class="sub"></div>
   </div>
   <div class="topRight">
-    <span class="hSavePill" id="savePill"></span>
-    <!-- Panel visibility toggles -->
-    <div class="hPanelToggles" id="panelTogglesRow">
-      <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="jobs" title="Show/Hide jobs panel">Jobs</button>
-      <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="timer" draggable="true" title="Click hide/show · Drag to reorder">Timer</button>
-      <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="kpi" draggable="true" title="Click hide/show · Drag to reorder">KPI</button>
-      <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="timeline" draggable="true" title="Click hide/show · Drag to reorder">Timeline</button>
-      <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="cycles" draggable="true" title="Click hide/show · Drag to reorder">Cycles</button>
-    </div>
-    <div class="hDivider"></div>
-    <a id="openCameraBtn" class="iconBtn hBtn hBtnCamera" href="chrono_camera.html" target="_blank" title="Open Camera module">📷</a>
-    <button id="toggleLeftPanelBtn" class="iconBtn hBtn" title="Show/Hide jobs panel" style="display:none;">Jobs</button>
-    <button id="openDrawerBtn" class="primary hBtn hBtnConfig" title="Open configuration">
-      <span class="hBtnIcon">⚙</span><span id="hConfigLabel">Config</span>
-    </button>
-    <select id="langSelect" class="miniSelect hLangSel" title="Language"></select>
-    <span class="hVersion">v5</span>
+    <span class="pill" id="savePill">Saved locally</span>
+    <button id="toggleLeftPanelBtn" title="Show/Hide jobs panel">Jobs</button>
+    <button id="openDrawerBtn" title="Open job config" class="primary">Menu Config</button>
+    <select id="langSelect" class="miniSelect" title="Language"></select>
+    <span class="pill mono">v5</span>
   </div>
 </header>
 
@@ -642,18 +501,25 @@
 
   <!-- RIGHT: timer + graph + cycles (config moved to drawer) -->
   <section class="card" id="rightMainSection">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+      <div>
+        <div class="title" style="margin:0;">Timer</div>
+        <div class="small" id="jobHeader">Select a job</div>
+      </div>
+      <div class="pill mono">Offline</div>
+    </div>
+    <div class="btnbar" id="panelTogglesRow" style="margin-top:8px;">
+      <button class="iconBtn active" type="button" data-panel-toggle="jobs" title="Show/Hide jobs panel">Jobs</button>
+      <button class="iconBtn active" type="button" data-panel-toggle="timer" draggable="true" title="Click hide/show. Drag to reorder">Timer</button>
+      <button class="iconBtn active" type="button" data-panel-toggle="kpi" draggable="true" title="Click hide/show. Drag to reorder">KPI</button>
+      <button class="iconBtn active" type="button" data-panel-toggle="timeline" draggable="true" title="Click hide/show. Drag to reorder">Timeline</button>
+      <button class="iconBtn active" type="button" data-panel-toggle="cycles" draggable="true" title="Click hide/show. Drag to reorder">Cycles</button>
+    </div>
+
     <div class="hr"></div>
 
     <div id="panelDock">
       <div class="panelBlock" id="panelTimerBlock">
-      <button class="panelHdr" data-panel-hdr="timer">
-        <span class="panelHdrTitle">Timer</span>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="small muted" id="jobHeader">Select a job</span>
-          <span class="panelHdrChevron">›</span>
-        </div>
-      </button>
-      <div class="panelHdrBody">
       <div class="card" id="panelTimerCard" style="padding:12px; border-radius:14px;">
         <div class="small muted">Current elapsed</div>
         <div class="elapsed" id="elapsed">00:00.000</div>
@@ -740,19 +606,14 @@
           Space = Start/Next/Finish - Backspace = Undo
         </div>
       </div>
-      </div><!-- /panelHdrBody timer -->
       </div>
 
       <div class="panelBlock" id="panelKpiBlock">
-      <button class="panelHdr" data-panel-hdr="kpi">
-        <span class="panelHdrTitle">KPI</span>
-        <span class="panelHdrChevron">›</span>
-      </button>
-      <div class="panelHdrBody">
       <div class="card" id="panelKpiCard" style="padding:12px; border-radius:14px;">
+        <div class="title">KPI</div>
         <div class="row">
           <div class="pill">Cycles <span class="mono" id="cyclesCount">0</span></div>
-          <div class="pill">Std time <span class="mono" id="stdTotal">-</span></div>
+          <div class="pill">Std time (avg cycle) <span class="mono" id="stdTotal">-</span></div>
           <div class="small" id="stdExplain">Record cycles to compute.</div>
           <div class="pill">Stability <span id="stabilityText">No data</span></div>
         </div>
@@ -767,8 +628,9 @@
           <div class="pill">Throughput <span class="mono" id="throughputCycle">-</span></div>
         </div>
         <div class="btnbar" id="kpiReportBtns" style="margin-top:8px;">
-          <button id="kpiExportCsvBtn" type="button">Export CSV</button>
-          <button id="kpiPrintBtn" type="button">🖨 Print / PDF</button>
+          <button id="kpiExportCsvBtn" type="button">Export Actions CSV</button>
+          <button id="kpiPrintBtn" type="button">Print report</button>
+          <button id="kpiPdfBtn" type="button">Export PDF</button>
         </div>
         <div class="small muted" style="margin-top:10px;">Action average times (selected tag filter)</div>
         <div class="scrollBox noScroll" style="margin-top:6px;">
@@ -786,64 +648,38 @@
           </table>
         </div>
       </div>
-      </div><!-- /panelHdrBody kpi -->
       </div>
 
     <div id="panelTimelineBlock" class="panelBlock">
-      <button class="panelHdr" data-panel-hdr="timeline">
-        <span class="panelHdrTitle">Timeline</span>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="countChip" id="cyclesShownChip" title="Cycles shown after tag filter">0 cycles</span>
-          <span class="panelHdrChevron">›</span>
-        </div>
-      </button>
-      <div class="panelHdrBody">
+      <div class="hr"></div>
+      <div class="title" style="margin-bottom:8px;">Timeline graph (stacked bars)</div>
+      <div class="toolbar">
+      <span class="countChip" id="cyclesShownChip">All cycles: 0</span>
 
-      <div class="toolbar" style="flex-direction:column; align-items:stretch; gap:8px;">
-
-        <!-- Row 1: View mode + display options -->
-        <div class="toolbarGroup">
-          <span class="toolbarLabel">View</span>
-          <div class="seg" title="Selected: show only checked cycles (max 6 lines). All: show every cycle stacked.">
-            <button id="modeSelectedBtn" class="active" type="button">Selected cycles</button>
-            <button id="modeAllBtn" type="button">All cycles</button>
-          </div>
-          <div class="toolbarDivider"></div>
-          <span class="toolbarLabel">Show</span>
-          <label class="chip" title="Draw a dashed line at the average time boundary for each element">
-            <input class="checkbox" id="showAvgLineChk" type="checkbox" checked /> Avg markers
-          </label>
-          <label class="chip" title="Highlight bars that exceed the outlier threshold with a red outline">
-            <input class="checkbox" id="showOutliersChk" type="checkbox" checked /> Outliers
-          </label>
-          <select id="outlierModeSel" class="miniSelect" title="Outlier detection method: 1.5× average or IQR box-plot method">
-            <option value="MULT_1_5">&gt; 1.5× avg</option>
-            <option value="IQR">IQR</option>
-          </select>
-        </div>
-
-        <!-- Row 2: Tag filters -->
-        <div class="toolbarGroup">
-          <span class="toolbarLabel">Tags</span>
-          <label class="chip" title="Include Normal cycles"><input class="checkbox" id="tagNormal" type="checkbox" checked /> Normal</label>
-          <label class="chip" title="Include Rework cycles"><input class="checkbox" id="tagRework" type="checkbox" checked /> Rework</label>
-          <label class="chip" title="Include Training cycles"><input class="checkbox" id="tagTraining" type="checkbox" checked /> Training</label>
-          <label class="chip" title="Include Disturbance cycles"><input class="checkbox" id="tagDisturbance" type="checkbox" checked /> Disturbance</label>
-        </div>
-
-        <!-- Row 3: Cycle selection (only relevant in Selected mode) -->
-        <div class="toolbarGroup" id="selectionToolbar">
-          <span class="toolbarLabel">Select</span>
-          <button id="selectLast3Btn" type="button" title="Select the 3 most recent cycles">Last 3</button>
-          <button id="selectAllCyclesForLineBtn" type="button" title="Select all visible cycles for the graph (no cap)">All visible</button>
-          <button id="clearSelectionBtn" type="button" title="Deselect all cycles">Clear</button>
-          <span id="selCountChip" class="countChip" title="Number of cycles currently selected for the graph" style="min-width:0;">0 sel.</span>
-        </div>
-
+      <div class="seg">
+        <button id="modeSelectedBtn" class="active" type="button">Selected</button>
+        <button id="modeAllBtn" type="button">All</button>
       </div>
 
+      <label class="chip"><input class="checkbox" id="showAvgLineChk" type="checkbox" checked /> Avg markers</label>
+
+      <label class="chip"><input class="checkbox" id="showOutliersChk" type="checkbox" checked /> Outliers</label>
+      <select id="outlierModeSel" class="miniSelect" title="Outlier method">
+        <option value="MULT_1_5">> 1.5x avg</option>
+        <option value="IQR">IQR</option>
+      </select>
+
+      <span class="pill">Tags</span>
+      <label class="chip"><input class="checkbox" id="tagNormal" type="checkbox" checked /> Normal</label>
+      <label class="chip"><input class="checkbox" id="tagRework" type="checkbox" checked /> Rework</label>
+      <label class="chip"><input class="checkbox" id="tagTraining" type="checkbox" checked /> Training</label>
+      <label class="chip"><input class="checkbox" id="tagDisturbance" type="checkbox" checked /> Disturbance</label>
+
+      <button id="selectLast3Btn" type="button">Select last 3</button>
+      <button id="clearSelectionBtn" type="button">Clear selection</button>
+      </div>
       <div class="small muted" id="timelineEditHint" style="margin-top:8px;">
-        💡 Hover bar for details · Drag to move · Drag right edge to resize · Click to edit precise values
+        Graph edit: drag a segment to move, drag right edge to resize. Same lane = same base level.
       </div>
 
       <div id="timelineChartCard" class="card timelineCard" style="padding:12px; border-radius:14px; margin-top:10px;">
@@ -851,7 +687,7 @@
         <div id="timelineBarEditor" class="timelineBarEditor">
           <div class="timelineBarEditorHead">
             <strong id="tlEdTitle">Action</strong>
-            <button id="tlEdCloseBtn" class="iconBtn iconOnly" type="button" style="font-size:16px;">×</button>
+            <button id="tlEdCloseBtn" class="iconBtn iconOnly" type="button">x</button>
           </div>
           <div class="small muted mono" id="tlEdMeta">-</div>
           <div class="row3" style="margin-top:8px;">
@@ -875,15 +711,11 @@
         </div>
         <div class="legend" id="chartLegend"></div>
       </div>
-      </div><!-- /panelHdrBody timeline -->
     </div>
 
     <div id="panelCyclesBlock" class="panelBlock">
-      <button class="panelHdr" data-panel-hdr="cycles">
-        <span class="panelHdrTitle">Cycles</span>
-        <span class="panelHdrChevron">›</span>
-      </button>
-      <div class="panelHdrBody">
+      <div class="hr"></div>
+      <div class="title">Cycles</div>
       <div class="timerGrid">
       <div class="card" style="padding:12px; border-radius:14px;">
         <div class="small muted">Checkbox selects line (Selected mode). Tag editable per cycle.</div>
@@ -892,24 +724,27 @@
           <table>
             <thead>
               <tr>
-                  <th style="width:44px;" title="Check to include cycle in timeline graph (Selected mode)">
-                    <div style="display:flex;flex-direction:column;gap:4px;align-items:center;">
-                      <div class="small" style="font-size:10px;">Graph</div>
-                      <button id="invertSelectionBtn" class="miniBtn" type="button" title="Invert current selection" style="font-size:10px;padding:2px 5px;border-radius:6px;">Inv</button>
+                  <th style="width:44px;">
+                    <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
+                      <div class="small">Sel</div>
+                      <div>
+                        <button id="selectAllCyclesBtn" class="miniBtn" type="button">All</button>
+                        <button id="invertSelectionBtn" class="miniBtn" type="button" style="margin-left:6px;">Inv</button>
+                      </div>
                     </div>
                   </th>
                   <th style="width:64px;">#</th>
                   <th>Captured</th>
                   <th style="width:160px;">Tag</th>
                   <th class="right" style="width:150px;">Total</th>
-                  <th class="right" style="width:120px;">Detail</th>
+                  <th class="right" style="width:120px;">Action</th>
                 </tr>
             </thead>
             <tbody id="cyclesBody"></tbody>
           </table>
         </div>
       </div>
-      </div><!-- /panelHdrBody cycles -->
+      </div>
     </div>
     </div>
   </section>
@@ -924,7 +759,7 @@
         <div class="drawerTitle">Config</div>
         <div class="small muted">Job setup - Elements - Backup</div>
       </div>
-      <button id="closeDrawerBtn" style="font-size:16px; line-height:1; padding:8px 12px;">×</button>
+      <button id="closeDrawerBtn">X</button>
     </div>
     <div class="drawerBody" id="drawerBody">
       <section class="drawerSection" data-drawer-sec="job">
@@ -935,12 +770,6 @@
         </button>
         <div class="drawerSecBody">
           <div class="row">
-            <!-- Job quick-switch -->
-            <div>
-              <label id="lblActiveJob">Active job</label>
-              <select id="jobSwitchSel" title="Switch to a different job instantly"></select>
-            </div>
-
             <div class="row2">
               <div>
                 <label>Station</label>
@@ -1035,7 +864,7 @@
             <div class="row3">
               <div>
                 <label>Type ID</label>
-                <input id="atId" placeholder="HUMAN" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()" />
+                <input id="atId" placeholder="HUMAN" />
               </div>
               <div>
                 <label>Name</label>
@@ -1078,9 +907,8 @@
             </div>
             <div class="btnbar">
               <button class="primary" id="addActionTypeBtn">+ Type</button>
-              <button id="clearTypeFormBtn" type="button" title="Clear form / create new type">✕ Clear</button>
             </div>
-            <div class="small muted">Z order controls draw priority: higher Z draws on top (e.g. HUMAN Z=20 over MACHINE Z=5). Lane separates rows vertically. Height sets bar thickness.</div>
+            <div class="small muted">Lane/height/z define overlap style (example: TECH back, HUMAN front).</div>
             <div class="scrollBox noScroll" style="margin-top:8px;">
               <table>
                 <thead>
@@ -1109,33 +937,30 @@
         </button>
         <div class="drawerSecBody">
           <div class="row">
-            <!-- Theme presets -->
-            <div>
-              <label id="lblThemePresets">Theme presets</label>
-              <div class="themePresetRow" id="themePresetRow">
-                <button class="tpBtn" type="button" data-tp="dark"
-                  style="--c-bg:#0b0c10;--c-acc:#4c73ff;">
-                  <span class="tpSwatch"></span>Dark
-                </button>
-                <button class="tpBtn" type="button" data-tp="midnight"
-                  style="--c-bg:#060a1a;--c-acc:#33cfff;">
-                  <span class="tpSwatch"></span>Midnight
-                </button>
-                <button class="tpBtn" type="button" data-tp="forest"
-                  style="--c-bg:#0a120a;--c-acc:#42d18b;">
-                  <span class="tpSwatch"></span>Forest
-                </button>
-                <button class="tpBtn" type="button" data-tp="ember"
-                  style="--c-bg:#120a0a;--c-acc:#ff6b35;">
-                  <span class="tpSwatch"></span>Ember
-                </button>
-                <button class="tpBtn" type="button" data-tp="light"
-                  style="--c-bg:#f0f2f5;--c-acc:#4c73ff;">
-                  <span class="tpSwatch" style="border-color:rgba(0,0,0,.15);"></span>Light
-                </button>
+            <div class="row2">
+              <div>
+                <label id="uiScaleLabel">UI Scale</label>
+                <input id="uiScaleRange" type="range" min="20" max="200" step="1" value="100" />
+              </div>
+              <div>
+                <label id="uiScaleValueLabel">UI Scale x</label>
+                <input id="uiScaleInput" type="number" min="0.2" max="2" step="0.05" value="1" />
               </div>
             </div>
-            <!-- Custom colors -->
+            <div class="row2">
+              <div>
+                <label id="uiLayoutModeLabel">Layout mode</label>
+                <select id="uiLayoutModeSel">
+                  <option value="horizontal">Horizontal (side by side)</option>
+                  <option value="vertical">Vertical (stacked)</option>
+                </select>
+              </div>
+              <div>
+                <label id="uiJobsWidthLabelTitle">Jobs panel width (px)</label>
+                <input id="uiJobsWidthRange" type="range" min="280" max="560" step="10" value="420" />
+                <div class="small muted mono" id="uiJobsWidthLabel">420 px</div>
+              </div>
+            </div>
             <div class="row3">
               <div>
                 <label id="uiBgColorLabel">Background</label>
@@ -1150,31 +975,6 @@
                 <input id="uiAccentColor" type="color" value="#4c73ff" />
               </div>
             </div>
-            <div class="hr" style="margin:8px 0;"></div>
-            <div class="row2">
-              <div>
-                <label id="uiScaleLabel">UI Scale</label>
-                <input id="uiScaleRange" type="range" min="20" max="200" step="1" value="100" />
-              </div>
-              <div>
-                <label id="uiScaleValueLabel">Scale value</label>
-                <input id="uiScaleInput" type="number" min="0.2" max="2" step="0.05" value="1" />
-              </div>
-            </div>
-            <div class="row2">
-              <div>
-                <label id="uiLayoutModeLabel">Layout mode</label>
-                <select id="uiLayoutModeSel">
-                  <option value="horizontal">Horizontal (side by side)</option>
-                  <option value="vertical">Vertical (stacked)</option>
-                </select>
-              </div>
-              <div>
-                <label id="uiJobsWidthLabelTitle">Jobs panel width</label>
-                <input id="uiJobsWidthRange" type="range" min="280" max="560" step="10" value="420" />
-                <div class="small muted mono" id="uiJobsWidthLabel">420 px</div>
-              </div>
-            </div>
             <div class="row2">
               <div>
                 <label id="uiTimeUnitLabel">Time unit</label>
@@ -1184,7 +984,7 @@
                 </select>
               </div>
               <div>
-                <label id="uiTimeResolutionLabel">Resolution (s)</label>
+                <label id="uiTimeResolutionLabel">Time resolution (s)</label>
                 <select id="uiTimeResolutionSel">
                   <option value="1">1</option>
                   <option value="0.1">0.1</option>
@@ -1193,11 +993,11 @@
                 </select>
               </div>
             </div>
-            <div class="btnbar" style="margin-top:4px;">
+            <div class="btnbar" style="margin-top:8px;">
               <label class="chip"><input class="checkbox" id="uiTimelineSameBaseChk" type="checkbox" checked /> Timeline same base</label>
-              <button id="uiResetBtn" type="button">↺ Reset defaults</button>
+              <button id="uiResetBtn" type="button">Reset UI defaults</button>
             </div>
-            <div class="small muted" id="uiLayoutHint">Layout settings are saved locally and exported in JSON.</div>
+            <div class="small muted" id="uiLayoutHint">These layout settings are saved in local state and exported in JSON.</div>
           </div>
         </div>
       </section>
@@ -1353,15 +1153,9 @@
     "uiTimeResolution": "Time resolution (s)",
     "uiResetDefaults": "Reset UI defaults",
     "uiLayoutHint": "These layout settings are saved in local state and exported in JSON.",
-    "exportActionsCsv": "Export CSV",
-    "printReport": "🖨 Print / PDF",
-    "activeJob": "Active job",
-    "themePresets": "Theme presets",
-    "scaleValue": "Scale value",
-    "jobsPanelWidth": "Jobs panel width",
-    "resolutionS": "Resolution (s)",
-    "resetDefaults": "↺ Reset defaults",
-    "layoutHint": "Layout settings are saved locally and exported in JSON.",
+    "exportActionsCsv": "Export Actions CSV",
+    "printReport": "Print report",
+    "exportPdf": "Export PDF",
     "backup": "Backup",
     "exportJson": "Export JSON",
     "importJson": "Import JSON",
@@ -1495,14 +1289,8 @@
     "uiResetDefaults": "Reset UI par defaut",
     "uiLayoutHint": "Ces reglages layout sont sauvegardes en local et exportes en JSON.",
     "exportActionsCsv": "Exporter actions CSV",
-    "printReport": "🖨 Imprimer / PDF",
-    "activeJob": "Job actif",
-    "themePresets": "Thèmes prédéfinis",
-    "scaleValue": "Valeur échelle",
-    "jobsPanelWidth": "Largeur panneau jobs",
-    "resolutionS": "Résolution (s)",
-    "resetDefaults": "↺ Réinitialiser",
-    "layoutHint": "Les réglages layout sont sauvegardés localement et exportés en JSON.",
+    "printReport": "Imprimer rapport",
+    "exportPdf": "Exporter PDF",
     "backup": "Sauvegarde",
     "exportJson": "Exporter JSON",
     "importJson": "Importer JSON",
@@ -1566,9 +1354,9 @@
     const hdrSub = document.querySelector("header .sub");
     if (hdrSub) hdrSub.textContent = "";
     const savePill = $("savePill");
-    if (savePill) { /* flash-based, no static text */ }
+    if (savePill) savePill.textContent = t("saved", "Saved locally");
     const cfgBtn = $("openDrawerBtn");
-    if (cfgBtn) { const lbl = $("hConfigLabel"); if (lbl) lbl.textContent = t("config", "Config"); }
+    if (cfgBtn) cfgBtn.textContent = t("menuConfig", "Menu Config");
     const leftBtn = $("toggleLeftPanelBtn");
     if (leftBtn) leftBtn.textContent = state?.ui?.leftPanelVisible ? t("hideJobs", "Hide Jobs") : t("showJobs", "Show Jobs");
     const stTitle = document.querySelector(".sidebarTop .title");
@@ -1651,26 +1439,25 @@
     const bSelLast = $("selectLast3Btn"); if (bSelLast) bSelLast.textContent = t("selectLast3", "Select last 3");
     const bClrSel = $("clearSelectionBtn"); if (bClrSel) bClrSel.textContent = t("clearSelection", "Clear selection");
     const bTlCfg = $("timelineConfigBtn"); if (bTlCfg) bTlCfg.textContent = t("config", "Config");
-    setText("#kpiExportCsvBtn", "exportActionsCsv", "Export CSV");
-    setText("#kpiPrintBtn", "printReport", "🖨 Print / PDF");
+    setText("#kpiExportCsvBtn", "exportActionsCsv", "Export Actions CSV");
+    setText("#kpiPrintBtn", "printReport", "Print report");
+    setText("#kpiPdfBtn", "exportPdf", "Export PDF");
     const sameBaseLbl = $("uiTimelineSameBaseChk")?.parentElement;
     if (sameBaseLbl) {
       const txtNode = sameBaseLbl.childNodes[sameBaseLbl.childNodes.length - 1];
       if (txtNode && txtNode.nodeType === Node.TEXT_NODE) txtNode.textContent = ` ${t("timelineSameBase", "Timeline same base")}`;
     }
     setText("#uiScaleLabel", "uiScale", "UI Scale");
-    setText("#uiScaleValueLabel", "scaleValue", "Scale value");
+    setText("#uiScaleValueLabel", "uiScaleValue", "UI Scale x");
     setText("#uiLayoutModeLabel", "uiLayoutMode", "Layout mode");
-    setText("#uiJobsWidthLabelTitle", "jobsPanelWidth", "Jobs panel width");
+    setText("#uiJobsWidthLabelTitle", "uiJobsWidth", "Jobs panel width (px)");
     setText("#uiBgColorLabel", "uiBgColor", "Background");
     setText("#uiTextColorLabel", "uiTextColor", "Text");
     setText("#uiAccentColorLabel", "uiAccentColor", "Accent");
     setText("#uiTimeUnitLabel", "uiTimeUnit", "Time unit");
-    setText("#uiTimeResolutionLabel", "resolutionS", "Resolution (s)");
-    setText("#uiResetBtn", "resetDefaults", "↺ Reset defaults");
-    setText("#uiLayoutHint", "layoutHint", "Layout settings are saved locally and exported in JSON.");
-    const lblActiveJob = $("lblActiveJob"); if (lblActiveJob) lblActiveJob.textContent = t("activeJob", "Active job");
-    const lblTheme = $("lblThemePresets"); if (lblTheme) lblTheme.textContent = t("themePresets", "Theme presets");
+    setText("#uiTimeResolutionLabel", "uiTimeResolution", "Time resolution (s)");
+    setText("#uiResetBtn", "uiResetDefaults", "Reset UI defaults");
+    setText("#uiLayoutHint", "uiLayoutHint", "These layout settings are saved in local state and exported in JSON.");
     const modeSel = $("uiLayoutModeSel");
     if (modeSel && modeSel.options.length >= 2) {
       modeSel.options[0].textContent = t("uiLayoutHorizontal", "Horizontal (side by side)");
@@ -1694,22 +1481,14 @@
     setText("#drawerSecTitleActionTypes", "actionTypes", "Action Types");
     setText("#drawerSecTitleView", "viewLayout", "View & Layout");
     setText("#drawerSecTitleBackup", "backup", "Backup");
-    // Job section labels — use id-based selectors to be robust
-    setText("#lblActiveJob", "activeJob", "Active job");
-    const jsl = $("jobStationSelect")?.closest("div")?.querySelector("label");
-    if (jsl) jsl.textContent = t("station", "Station");
-    const jnl = $("jobName")?.closest("div")?.querySelector("label");
-    if (jnl) jnl.textContent = t("jobName", "Job name");
-    const apl = $("allowancePct")?.closest("div")?.querySelector("label");
-    if (apl) apl.textContent = t("allowancePct", "Allowance %");
-    const rpl = $("ratingPct")?.closest("div")?.querySelector("label");
-    if (rpl) rpl.textContent = t("ratingPct", "Rating %");
-    const scl = $("stationCodeView")?.closest("div")?.querySelector("label");
-    if (scl) scl.textContent = t("stationCode", "Station code");
-    const enl = $("elName")?.closest("div")?.querySelector("label");
-    if (enl) enl.textContent = t("elementName", "Element name");
-    const etl = $("elType")?.closest("div")?.querySelector("label");
-    if (etl) etl.textContent = t("type", "Type");
+    const jobLabels = document.querySelectorAll("#drawer .drawerBody label");
+    if (jobLabels[0]) jobLabels[0].textContent = t("station", "Station");
+    if (jobLabels[1]) jobLabels[1].textContent = t("jobName", "Job name");
+    if (jobLabels[2]) jobLabels[2].textContent = t("allowancePct", "Allowance %");
+    if (jobLabels[3]) jobLabels[3].textContent = t("ratingPct", "Rating %");
+    if (jobLabels[4]) jobLabels[4].textContent = t("stationCode", "Station code");
+    if (jobLabels[5]) jobLabels[5].textContent = t("elementName", "Element name");
+    if (jobLabels[6]) jobLabels[6].textContent = t("type", "Type");
     setText("#newJobBtn", "newJob", "+ New Job");
     setText("#dupJobBtn", "duplicate", "Duplicate");
     setText("#delJobBtn", "delete", "Delete");
@@ -1956,17 +1735,9 @@
     for (const p of wanted) if (!filtered.includes(p)) filtered.push(p);
     st.ui.panelOrder = filtered;
   }
-  let _actionTypeMapCache = null;
-  let _actionTypeMapVersion = -1;
   function actionTypeMap() {
-    const ver = (state.actionTypes || []).length;
-    if (_actionTypeMapCache === null || _actionTypeMapVersion !== ver) {
-      _actionTypeMapCache = new Map((state.actionTypes || []).map((at) => [at.id, at]));
-      _actionTypeMapVersion = ver;
-    }
-    return _actionTypeMapCache;
+    return new Map((state.actionTypes || []).map((at) => [at.id, at]));
   }
-  function invalidateActionTypeCache() { _actionTypeMapCache = null; }
   function getActionType(id) {
     const up = String(id || "").toUpperCase();
     return actionTypeMap().get(up) || state.actionTypes?.[0] || normalizeActionType({ id: "IDLE" });
@@ -2025,14 +1796,7 @@
   function saveState() {
     state.meta.updatedAt = wallIso();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    flashSavePill("✓ Saved");
-  }
-  function flashSavePill(msg) {
-    const p = $("savePill"); if (!p) return;
-    p.textContent = msg;
-    p.classList.add("vis");
-    clearTimeout(p._t);
-    p._t = setTimeout(() => p.classList.remove("vis"), 1800);
+    $("savePill").textContent = "Saved locally";
   }
 
   function getStationById(id){ return state.stations.find(s=>s.id===id) || null; }
@@ -2102,11 +1866,6 @@
     const bg = toHex6(state.ui.themeBg, "#0b0c10");
     const text = toHex6(state.ui.themeText, "#e8e8e8");
     const accent = toHex6(state.ui.themeAccent, "#4c73ff");
-    // Detect light vs dark by bg luminance
-    const r=parseInt(bg.slice(1,3),16), g=parseInt(bg.slice(3,5),16), b=parseInt(bg.slice(5,7),16);
-    const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
-    const isLight = lum > 0.5;
-    document.body.classList.toggle("themeLight", isLight);
     const rs = document.documentElement.style;
     rs.setProperty("--bg", bg);
     rs.setProperty("--text", text);
@@ -2118,33 +1877,6 @@
     rs.setProperty("--accent-65", hexToRgba(accent, 0.65));
     rs.setProperty("--accent-75", hexToRgba(accent, 0.75));
     rs.setProperty("--accent-85", hexToRgba(accent, 0.85));
-    if (isLight) {
-      // Derive panel/border/muted from bg for light themes
-      rs.setProperty("--panel", hexToRgba(bg, 1).replace("1)", "1)").replace("rgba","rgba").replace(/,\s*1\)/, ", 1)") + ""); 
-      // Simpler: compute slightly darker panel from bg
-      const darken = (hex, amt) => {
-        let rr=parseInt(hex.slice(1,3),16), gg=parseInt(hex.slice(3,5),16), bb=parseInt(hex.slice(5,7),16);
-        rr=Math.max(0,rr-amt); gg=Math.max(0,gg-amt); bb=Math.max(0,bb-amt);
-        return "#"+[rr,gg,bb].map(x=>x.toString(16).padStart(2,"0")).join("");
-      };
-      rs.setProperty("--panel", darken(bg, 6));
-      rs.setProperty("--panel2", darken(bg, 12));
-      rs.setProperty("--border", "rgba(0,0,0,.13)");
-      rs.setProperty("--muted", "rgba(0,0,0,.55)");
-      rs.setProperty("--muted2", "rgba(0,0,0,.38)");
-    } else {
-      // Restore dark defaults derived from bg
-      const lighten = (hex, amt) => {
-        let rr=parseInt(hex.slice(1,3),16), gg=parseInt(hex.slice(3,5),16), bb=parseInt(hex.slice(5,7),16);
-        rr=Math.min(255,rr+amt); gg=Math.min(255,gg+amt); bb=Math.min(255,bb+amt);
-        return "#"+[rr,gg,bb].map(x=>x.toString(16).padStart(2,"0")).join("");
-      };
-      rs.setProperty("--panel", lighten(bg, 8));
-      rs.setProperty("--panel2", lighten(bg, 4));
-      rs.setProperty("--border", lighten(bg, 20));
-      rs.setProperty("--muted", hexToRgba(text, 0.75));
-      rs.setProperty("--muted2", hexToRgba(text, 0.55));
-    }
     const hdr = document.querySelector("header");
     if (hdr) hdr.style.background = hexToRgba(bg, 0.92);
   }
@@ -2934,6 +2666,28 @@
     const allowanceFactor = 1 + (Number(job.allowancePct) / 100);
     return (observedMs * ratingFactor) * allowanceFactor;
   }
+  function computeAverages(job) {
+    let totalSum=0, totalCnt=0;
+    for (const c of job.cycles) { totalSum += quantizeMs(c.totalMs); totalCnt++; }
+    const avgTotal = totalCnt ? totalSum/totalCnt : null;
+
+    let stability = { label:"No data", level:"none" };
+    if (job.cycles.length >= 3) {
+      const totals = job.cycles.map(c => quantizeMs(c.totalMs));
+      const m = avgTotal;
+      const varSum = totals.reduce((acc, x) => acc + Math.pow(x - m, 2), 0);
+      const stdev = Math.sqrt(varSum / totals.length);
+      const cv = m > 0 ? (stdev / m) : 1;
+      if (cv < 0.05) stability = { label:"Very stable", level:"ok" };
+      else if (cv < 0.12) stability = { label:"Stable", level:"ok" };
+      else if (cv < 0.22) stability = { label:"Some variation", level:"warn" };
+      else stability = { label:"Unstable", level:"warn" };
+    } else if (job.cycles.length > 0) {
+      stability = { label:"Need more cycles", level:"warn" };
+    }
+    return { avgTotal, stability };
+  }
+
   function computeCycleStats(job, cycles) {
     const totals = (cycles || []).map((c) => quantizeMs(Number(c.totalMs || 0))).filter((v) => Number.isFinite(v) && v > 0);
     if (!totals.length) return null;
@@ -3216,6 +2970,13 @@
     c.tag = tag;
     saveState(); renderAll();
   }
+  function setSelectedCycleNote(note) {
+    const job = getActiveJob(); if (!job || !selectedCycleId) return;
+    const c = job.cycles.find(x => x.id === selectedCycleId);
+    if (!c) return;
+    c.note = note;
+    saveState();
+  }
   function applyInlineCycleDetailEdit(inputEl) {
     const job = getActiveJob();
     if (!job) return;
@@ -3290,14 +3051,6 @@
     boundLineSelection(job, 6);
     renderAll();
   }
-  function selectAllVisibleCyclesNoCap() {
-    const job = getActiveJob(); if (!job) return;
-    const tagSet = selectedTagsSet();
-    const filtered = job.cycles.filter(c => tagSet.has(c.tag || "Normal"));
-    for (const c of filtered) selectedCycleIdsForLine.add(c.id);
-    // No cap — user explicitly asked for all
-    renderAll();
-  }
   function invertVisibleCyclesSelection() {
     const job = getActiveJob(); if (!job) return;
     const tagSet = selectedTagsSet();
@@ -3359,7 +3112,6 @@
     }
     state = parsed;
     ensureActionTypes(state);
-    invalidateActionTypeCache();
     ensureUiState(state);
     for (const j of state.jobs) {
       if (!Array.isArray(j.cycles)) j.cycles = [];
@@ -3375,7 +3127,7 @@
     saveState();
     stopCycle();
     renderAll();
-    flashSavePill(`✓ ${sourceLabel}`);
+    $("savePill").textContent = `${sourceLabel} loaded`;
     return true;
   }
 
@@ -3428,7 +3180,7 @@
     saveState();
     stopCycle();
     renderAll();
-    flashSavePill("✓ Cleared");
+    $("savePill").textContent = "Local cleared";
   }
   function exportCsv() {
     const job = getActiveJob();
@@ -3547,7 +3299,7 @@
     `;
   }
 
-  function openPrintReport() {
+  function openPrintReport(preferPdf = false) {
     const job = getActiveJob();
     if (!job) return alert("Select a job first.");
     const html = buildKpiReportHtml(job);
@@ -3558,6 +3310,9 @@
     w.document.close();
     setTimeout(() => {
       try { w.focus(); w.print(); } catch {}
+      if (preferPdf) {
+        try { alert("In print dialog: choose Save as PDF."); } catch {}
+      }
     }, 120);
   }
 
@@ -3649,6 +3404,12 @@
     ctx.textAlign="center";
     ctx.fillText(msg, w/2, h/2);
     ctx.textAlign="left";
+  }
+
+  function cycleToElementMs(job, cycle) {
+    const sums = new Map();
+    for (const lap of cycle.laps) sums.set(lap.elementId, (sums.get(lap.elementId)||0) + quantizeMs(lap.ms));
+    return job.elements.map(el => sums.get(el.id) ?? 0);
   }
 
   function setCycleElementDurationMs(job, cycleId, elementId, nextMs) {
@@ -3858,16 +3619,8 @@
 
       const schedule = rowSchedules.get(c.id) || { segments: [], rowEndSec: 0 };
 
-      // Sort segments by z ascending so high-z types draw last (on top)
-      const sortedSegs = [...schedule.segments].sort((a, b) => {
-        const za = Number((a.at || getActionType(a.typeId)).z ?? 10);
-        const zb = Number((b.at || getActionType(b.typeId)).z ?? 10);
-        return za - zb;
-      });
-      // Track hit areas for ALL segs.
-      const segHitInfo = new Map();
-      for (let i=0;i<sortedSegs.length;i++){
-        const seg = sortedSegs[i];
+      for (let i=0;i<schedule.segments.length;i++){
+        const seg = schedule.segments[i];
         const segSec = Number(seg.durSec || 0);
         const x0 = xOf(Number(seg.startSec || 0));
         const x1 = xOf(Number(seg.endSec || 0));
@@ -3876,45 +3629,65 @@
         if (!elDef) continue;
         const typeId = String(seg.typeId || elDef.type || "").toUpperCase();
         const at = seg.at || getActionType(typeId);
+        let primaryY = y;
+        let primaryH = rowH;
         const laneIdx = sameBase ? 0 : (laneMap.get(at.lane) ?? 0);
         const hPx = resolveHeightPx(typeId, at.heightPx, rowH);
         const y0 = laneY(y, rowH, laneIdx, hPx, laneStep);
-        let primaryY = y0, primaryH = hPx;
+        primaryY = y0;
+        primaryH = hPx;
 
-        // Draw all layers (underlay first via z-sort in getActionLayers)
-        const layers = getActionLayers(typeId);
-        for (let li = 0; li < layers.length; li++) {
-          const layer = layers[li];
-          const lIdx = sameBase ? 0 : (laneMap.get(layer.lane) ?? laneIdx);
-          const lH = resolveHeightPx(typeId, layer.heightPx, rowH);
-          const ly = laneY(y, rowH, lIdx, lH, laneStep);
-          if (li === layers.length - 1) { primaryY = ly; primaryH = lH; }
-          const isPureMachine = typeId === "MACHINE" && layers.length === 1;
+        if (typeId === "MACHINE") {
+          drawMachineBoxRect(ctx, x0, y0, width, hPx, Number(at.opacity ?? 1), true);
+        } else if (typeId.includes("MACHINE")) {
+          // Human+machine style: yellow base + machine cap overlay + blue contour.
           ctx.save();
-          ctx.globalAlpha = Math.max(0.05, Math.min(1, Number(layer.opacity ?? 1)));
-          if (isPureMachine) {
-            ctx.fillStyle = "rgba(100,112,128,0.28)";
-            ctx.fillRect(x0, ly, width, lH);
-            const hatch = getMachinePattern(ctx);
-            if (hatch) { ctx.fillStyle = hatch; ctx.fillRect(x0, ly, width, lH); }
-          } else {
-            ctx.fillStyle = layer.color || "#4c73ff";
-            ctx.fillRect(x0, ly, width, lH);
-          }
+          ctx.globalAlpha = Math.max(0.05, Math.min(1, Number(at.opacity ?? 1)));
+          ctx.fillStyle = at.color || "#ffd24a";
+          ctx.fillRect(x0, y0, width, hPx);
           ctx.restore();
-        }
 
-        // Machine-style cyan border for any type containing MACHINE
-        if (typeId.includes("MACHINE")) {
+          const capH = Math.max(2, Math.round(hPx * 0.42));
+          drawMachineBoxRect(ctx, x0, y0, width, capH, Math.max(0.20, Number(at.opacity ?? 1) * 0.9), false);
+
           ctx.save();
-          ctx.globalAlpha = 0.90;
-          ctx.strokeStyle = "rgba(51,198,255,0.92)";
-          ctx.lineWidth = 1.5;
+          ctx.globalAlpha = 0.95;
+          ctx.strokeStyle = "rgba(51,198,255,0.95)";
+          ctx.lineWidth = 1.4;
           ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.max(0, width - 1), Math.max(0, hPx - 1));
           ctx.restore();
+        } else {
+          const layers = getActionLayers(typeId);
+          for (let li = 0; li < layers.length; li++) {
+            const layer = layers[li];
+            const lIdx = sameBase ? 0 : (laneMap.get(layer.lane) ?? laneIdx);
+            const lH = resolveHeightPx(typeId, layer.heightPx, rowH);
+            const ly = laneY(y, rowH, lIdx, lH, laneStep);
+            if (li === layers.length - 1) { primaryY = ly; primaryH = lH; }
+            ctx.save();
+            ctx.globalAlpha = Math.max(0.05, Math.min(1, Number(layer.opacity ?? 1)));
+            ctx.fillStyle = layer.color || "#4c73ff";
+            ctx.fillRect(x0, ly, width, lH);
+            ctx.restore();
+          }
         }
 
-        segHitInfo.set(seg.elementId + "_" + i, { primaryY, primaryH, x0, x1, segSec, elDef });
+        // outlier overlay: if segment is outlier for that element, outline it red
+        if (showOutliers && outModel) {
+          const el = elDef;
+          const m = outModel.get(el.id);
+          if (m) {
+            const v = segSec;
+            let isOut = false;
+            if (m.mode === "MULT_1_5") isOut = v > m.hi;
+            else isOut = (m.lo != null && v < m.lo) || (m.hi != null && v > m.hi);
+            if (isOut) {
+              ctx.strokeStyle = "rgba(255,76,106,0.95)";
+              ctx.lineWidth = 2.0;
+              ctx.strokeRect(x0+1, primaryY+1, Math.max(0,width-2), Math.max(0,primaryH-2));
+            }
+          }
+        }
 
         if (segSec > 0) {
           hits.push({
@@ -3928,25 +3701,6 @@
             startSec: Number(seg.startSec || 0),
             endSec: Number(seg.endSec || 0),
           });
-        }
-      }
-
-      // Now draw outlier outlines on top (after all z-sorted bars)
-      for (const [, info] of segHitInfo) {
-        const { primaryY, primaryH, x0, x1, segSec, elDef } = info;
-        const width = Math.max(0, x1 - x0);
-        if (showOutliers && outModel) {
-          const m = outModel.get(elDef.id);
-          if (m) {
-            let isOut = false;
-            if (m.mode === "MULT_1_5") isOut = segSec > m.hi;
-            else isOut = (m.lo != null && segSec < m.lo) || (m.hi != null && segSec > m.hi);
-            if (isOut) {
-              ctx.strokeStyle = "rgba(255,76,106,0.95)";
-              ctx.lineWidth = 2.0;
-              ctx.strokeRect(x0+1, primaryY+1, Math.max(0,width-2), Math.max(0,primaryH-2));
-            }
-          }
         }
       }
 
@@ -4107,25 +3861,6 @@
     ensureUiState(state);
     applyDrawerSectionsUi();
 
-    // Job quick-switch selector
-    const jss = $("jobSwitchSel");
-    if (jss) {
-      const prev = jss.value;
-      jss.innerHTML = "";
-      if (!state.jobs.length) {
-        const o = document.createElement("option"); o.value = ""; o.textContent = "— No jobs —"; jss.appendChild(o);
-      } else {
-        for (const j of state.jobs) {
-          const st2 = getStationById(j.stationId);
-          const o = document.createElement("option");
-          o.value = j.id;
-          o.textContent = (st2 ? st2.code + " · " : "") + j.name + ` (${(j.elements||[]).length} el., ${(j.cycles||[]).length} cyc.)`;
-          jss.appendChild(o);
-        }
-        jss.value = state.activeJobId || "";
-      }
-    }
-
     const sel = $("jobStationSelect");
     sel.innerHTML = "";
     for (const st of state.stations) {
@@ -4151,25 +3886,6 @@
       opt.textContent = `${at.id} - ${at.name}`;
       underlaySel.appendChild(opt);
     }
-    // Restore form inputs if we are currently editing a type (renderAll resets the underlay dropdown)
-    if (editingActionTypeId) {
-      const editing = state.actionTypes.find(x => x.id === editingActionTypeId);
-      if (editing) {
-        $("atId").value = editing.id;
-        $("atName").value = editing.name;
-        $("atLane").value = editing.lane;
-        $("atColor").value = normalizeHexColor(editing.color);
-        $("atHeight").value = String(Math.round(Number(editing.heightPx ?? 6)));
-        $("atLaneOrder").value = String(Math.round(Number(editing.laneOrder ?? 0)));
-        $("atZ").value = String(Math.round(Number(editing.z ?? 10)));
-        $("atOpacity").value = String(Math.round(Math.max(0.05, Math.min(1, Number(editing.opacity ?? 1))) * 100));
-        underlaySel.value = editing.underlayTypeId || "";
-      } else {
-        // Type was deleted or not found, reset edit state
-        editingActionTypeId = null;
-        updateAddTypeButton();
-      }
-    }
     setUiScale(state.ui.uiScale);
     syncViewLayoutInputs();
     const sameBaseChk = $("uiTimelineSameBaseChk");
@@ -4177,7 +3893,6 @@
 
     const disabled = !job;
     for (const id of ["jobStationSelect","jobName","allowancePct","ratingPct","dupJobBtn","delJobBtn"]) $(id).disabled = disabled;
-    if ($("jobSwitchSel")) $("jobSwitchSel").disabled = state.jobs.length === 0;
     $("newJobBtn").disabled = state.stations.length === 0;
 
     if (!job) {
@@ -4261,9 +3976,9 @@
         $("atName").value = at.name;
         $("atLane").value = at.lane;
         $("atColor").value = normalizeHexColor(at.color);
-        $("atHeight").value = String(Math.round(Number(at.heightPx ?? 6)));
-        $("atLaneOrder").value = String(Math.round(Number(at.laneOrder ?? 0)));
-        $("atZ").value = String(Math.round(Number(at.z ?? 10)));
+        $("atHeight").value = String(Math.round(Number(at.heightPx || 6)));
+        $("atLaneOrder").value = String(Math.round(Number(at.laneOrder || 0)));
+        $("atZ").value = String(Math.round(Number(at.z || 10)));
         $("atOpacity").value = String(Math.round(Math.max(0.05, Math.min(1, Number(at.opacity ?? 1))) * 100));
         $("atUnderlay").value = at.underlayTypeId || "";
         updateAddTypeButton();
@@ -4280,12 +3995,14 @@
       name: String($("atName").value || id).trim() || id,
       lane: String($("atLane").value || id.toLowerCase()).trim() || "lane",
       color: normalizeHexColor($("atColor").value),
-      heightPx: $("atHeight").value !== "" ? Number($("atHeight").value) : 6,
-      laneOrder: $("atLaneOrder").value !== "" ? Number($("atLaneOrder").value) : 0,
-      z: $("atZ").value !== "" ? Number($("atZ").value) : 10,
-      opacity: Math.max(0.01, Math.min(1, ($("atOpacity").value !== "" ? Number($("atOpacity").value) : 100) / 100)),
+      heightPx: Number($("atHeight").value || 6),
+      laneOrder: Number($("atLaneOrder").value || 0),
+      z: Number($("atZ").value || 10),
+      opacity: Math.max(0.01, Math.min(1, Number($("atOpacity").value || 100) / 100)),
       underlayTypeId: String($("atUnderlay").value || "").trim().toUpperCase(),
     });
+    // debug log inputs
+    console.log("upsertActionTypeFromInputs", {editingActionTypeId, id, name: $("atName").value, lane: $("atLane").value, color: $("atColor").value, height: $("atHeight").value, laneOrder: $("atLaneOrder").value, z: $("atZ").value, opacity: $("atOpacity").value, underlay: $("atUnderlay").value});
     // handle rename if editing existing
     if (editingActionTypeId && editingActionTypeId !== id) {
       const oldIdx = state.actionTypes.findIndex(x => x.id === editingActionTypeId);
@@ -4295,12 +4012,20 @@
     if (idx >= 0) state.actionTypes[idx] = next;
     else state.actionTypes.push(next);
     ensureActionTypes(state);
-    invalidateActionTypeCache();
     saveState();
     renderAll();
-    // keep the inputs populated with saved values so user sees change
-    editingActionTypeId = id;
+    // clear inputs after save so user can add new type or re-edit with fresh form
+    editingActionTypeId = null;
     updateAddTypeButton();
+    $("atId").value = "";
+    $("atName").value = "";
+    $("atLane").value = "";
+    $("atColor").value = "#000000";
+    $("atHeight").value = "";
+    $("atLaneOrder").value = "";
+    $("atZ").value = "";
+    $("atOpacity").value = "";
+    $("atUnderlay").value = "";
   }
 
   function deleteActionType(typeId) {
@@ -4316,7 +4041,6 @@
       }
     }
     ensureActionTypes(state);
-    invalidateActionTypeCache();
     saveState();
     renderAll();
   }
@@ -4330,7 +4054,6 @@
     // header
     if (!job) {
       $("jobHeader").textContent = t("selectJob", "Select a job");
-      const hjl = $("hJobLabel"); if (hjl) hjl.textContent = t("selectJob", "Select a job");
       $("cyclesCount").textContent = "0";
       $("stdTotal").textContent = "-";
       $("stdExplain").textContent = t("recordCycles", "Record cycles to compute.");
@@ -4349,8 +4072,6 @@
       $("jobHeader").innerHTML =
         `<span class="pill">Station</span> <strong>${esc(st?.code||"")} - ${esc(st?.name||"")}</strong>
          <span class="pill">Job</span> <strong>${esc(job.name)}</strong>`;
-      const hjl = $("hJobLabel");
-      if (hjl) hjl.textContent = `${st?.code ? st.code + " · " : ""}${job.name}`;
       const filteredCycles = (job.cycles || []).filter((c) => tagSet.has(c.tag || "Normal"));
       const cycleStats = computeCycleStats(job, filteredCycles);
       $("cyclesCount").textContent = filteredCycles.length === job.cycles.length
@@ -4467,10 +4188,7 @@
     const canvas = $("timelineChart");
 
     cyclesBody.innerHTML = "";
-    const chipEl0 = $("cyclesShownChip");
-    if (chipEl0) chipEl0.textContent = "0 cycles";
-    const selChip0 = $("selCountChip");
-    if (selChip0) selChip0.textContent = "0 sel.";
+    $("cyclesShownChip").textContent = `${t("allCyclesFiltered", "All cycles")}: 0`;
     $("chartLegend").innerHTML = "";
 
     if (!job || job.cycles.length === 0) {
@@ -4484,12 +4202,7 @@
 
     const tagSet = selectedTagsSet();
     const filteredCycles = job.cycles.filter(c => tagSet.has(c.tag || "Normal"));
-    const chipEl = $("cyclesShownChip");
-    if (chipEl) chipEl.textContent = filteredCycles.length === job.cycles.length
-      ? `${filteredCycles.length} cycle${filteredCycles.length===1?"":"s"}`
-      : `${filteredCycles.length} / ${job.cycles.length} cycles`;
-    const selChip = $("selCountChip");
-    if (selChip) selChip.textContent = `${selectedCycleIdsForLine.size} sel.`;
+    $("cyclesShownChip").textContent = `${t("allCyclesFiltered", "All cycles")}: ${filteredCycles.length} (${t("filtered", "filtered")})`;
 
     if (!selectedCycleId || !job.cycles.some(c => c.id === selectedCycleId)) {
       selectedCycleId = job.cycles[job.cycles.length-1].id;
@@ -4720,53 +4433,23 @@
     const canvas = $("timelineChart");
     const geom = timelineEditState.geom;
     const job = getActiveJob();
-    const tooltip = $("tlTooltip");
-    if (!canvas || !geom) { if (tooltip) { tooltip.classList.remove("show"); } return; }
+    if (!canvas || !geom) return;
     const p = toCanvasPoint(canvas, e);
-    if (!p) { if (tooltip) tooltip.classList.remove("show"); return; }
+    if (!p) return;
 
     const drag = timelineEditState.drag;
     if (!drag || !job) {
       const hit = findTimelineHit(geom, p.x, p.y);
       if (!hit || graphMode !== "SELECTED") {
         canvas.style.cursor = "default";
-        if (tooltip) tooltip.classList.remove("show");
         return;
       }
       const edgePad = 8;
       const nearEnd = Math.abs(p.x - hit.x1) <= edgePad;
       canvas.style.cursor = nearEnd ? "ew-resize" : "move";
-
-      // Show tooltip
-      if (tooltip && job) {
-        const el = job.elements.find(e => e.id === hit.elementId);
-        const at = el ? getActionType(el.type) : null;
-        const cycle = job.cycles.find(c => c.id === hit.cycleId);
-        const cycleDate = cycle ? new Date(cycle.atIso).toLocaleString() : "";
-        const outModel = buildOutlierModel(job, getFilteredCyclesForJob(job), $("outlierModeSel")?.value || "MULT_1_5");
-        const m = outModel.get(hit.elementId);
-        const isOut = m ? (m.mode === "MULT_1_5" ? hit.sec > m.hi : (hit.sec < (m.lo||0)) || hit.sec > m.hi) : false;
-        tooltip.innerHTML = [
-          el ? `<div class="tt-el">${esc(el.name)}</div>` : "",
-          at ? `<div class="tt-row" style="color:var(--muted);">${esc(at.name)} · ${esc(at.lane)}</div>` : "",
-          `<div class="tt-val">${fmtQtySec(hit.sec)} &nbsp; <span style="color:var(--muted);">(${hit.startSec.toFixed(3)}→${hit.endSec.toFixed(3)}s)</span></div>`,
-          cycleDate ? `<div class="tt-row">${cycleDate}</div>` : "",
-          isOut ? `<div class="tt-outlier">⚠ Outlier</div>` : "",
-        ].filter(Boolean).join("");
-        tooltip.classList.add("show");
-        tooltip.style.left = (e.clientX + 14) + "px";
-        tooltip.style.top = (e.clientY - 10) + "px";
-        // Keep in viewport
-        requestAnimationFrame(() => {
-          const r = tooltip.getBoundingClientRect();
-          if (r.right > window.innerWidth - 8) tooltip.style.left = (e.clientX - r.width - 14) + "px";
-          if (r.bottom > window.innerHeight - 8) tooltip.style.top = (e.clientY - r.height + 10) + "px";
-        });
-      }
       return;
     }
 
-    if (tooltip) tooltip.classList.remove("show");
     const dx = p.x - drag.x0;
     const deltaSec = timelineSecDelta(geom, dx);
     if (Math.abs(dx) > 1.5) drag.moved = true;
@@ -5016,8 +4699,7 @@
     });
   }
   $("panelTogglesRow").addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-panel-toggle]");
-    const panel = btn?.dataset?.panelToggle;
+    const panel = e.target?.dataset?.panelToggle;
     if (!panel) return;
     if (panel === "jobs") {
       state.ui.leftPanelVisible = !state.ui.leftPanelVisible;
@@ -5056,46 +4738,9 @@
     });
   });
 
-  // Panel collapse/expand via header buttons
-  document.querySelectorAll(".panelHdr[data-panel-hdr]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const block = btn.closest(".panelBlock");
-      if (block) block.classList.toggle("collapsed");
-    });
-  });
-
   $("newJobBtn").addEventListener("click", createJob);
   $("dupJobBtn").addEventListener("click", duplicateActiveJob);
   $("delJobBtn").addEventListener("click", deleteActiveJob);
-
-  // Job quick-switch
-  const jobSwitchSel = $("jobSwitchSel");
-  if (jobSwitchSel) {
-    jobSwitchSel.addEventListener("change", () => {
-      const id = jobSwitchSel.value;
-      if (id && state.jobs.some(j => j.id === id)) selectJob(id);
-    });
-  }
-
-  // Theme preset buttons
-  const THEME_PRESETS = {
-    dark:     { bg:"#0b0c10", text:"#e8e8e8", accent:"#4c73ff" },
-    midnight: { bg:"#060a1a", text:"#d0e4f8", accent:"#33cfff" },
-    forest:   { bg:"#0a120a", text:"#cce8cc", accent:"#42d18b" },
-    ember:    { bg:"#120a0a", text:"#f0e0d0", accent:"#ff6b35" },
-    light:    { bg:"#f0f2f5", text:"#1a1c22", accent:"#4c73ff" },
-  };
-  document.querySelectorAll(".tpBtn[data-tp]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const p = THEME_PRESETS[btn.dataset.tp]; if (!p) return;
-      state.ui.themeBg = p.bg;
-      state.ui.themeText = p.text;
-      state.ui.themeAccent = p.accent;
-      applyUiLayout(); saveState(); syncViewLayoutInputs();
-      document.querySelectorAll(".tpBtn").forEach(b => b.classList.remove("tpActive"));
-      btn.classList.add("tpActive");
-    });
-  });
 
   $("jobStationSelect").addEventListener("change", () => {
     const job = getActiveJob(); if (!job) return;
@@ -5132,24 +4777,12 @@
   $("moveUpBtn").addEventListener("click", () => moveSelectedElement(-1));
   $("moveDownBtn").addEventListener("click", () => moveSelectedElement(+1));
   $("addActionTypeBtn").addEventListener("click", upsertActionTypeFromInputs);
-  const clearTypeFormBtn = $("clearTypeFormBtn");
-  if (clearTypeFormBtn) clearTypeFormBtn.addEventListener("click", () => {
-    editingActionTypeId = null;
-    $("atId").value = "";
-    $("atName").value = "";
-    $("atLane").value = "";
-    $("atColor").value = "#4c73ff";
-    $("atHeight").value = "6";
-    $("atLaneOrder").value = "0";
-    $("atZ").value = "10";
-    $("atOpacity").value = "100";
-    $("atUnderlay").value = "";
-    updateAddTypeButton();
-  });
   const kpiExportCsvBtn = $("kpiExportCsvBtn");
   if (kpiExportCsvBtn) kpiExportCsvBtn.addEventListener("click", exportKpiActionsCsv);
   const kpiPrintBtn = $("kpiPrintBtn");
-  if (kpiPrintBtn) kpiPrintBtn.addEventListener("click", openPrintReport);
+  if (kpiPrintBtn) kpiPrintBtn.addEventListener("click", () => openPrintReport(false));
+  const kpiPdfBtn = $("kpiPdfBtn");
+  if (kpiPdfBtn) kpiPdfBtn.addEventListener("click", () => openPrintReport(true));
   $("captureModeSel").addEventListener("change", () => {
     refreshCaptureModeUI();
     renderAll();
@@ -5252,7 +4885,7 @@
     timelineCanvas.addEventListener("pointermove", onTimelinePointerMove);
     timelineCanvas.addEventListener("pointerup", onTimelinePointerUp);
     timelineCanvas.addEventListener("pointercancel", onTimelinePointerUp);
-    timelineCanvas.addEventListener("pointerleave", (e) => { onTimelinePointerUp(e); const tt=$("tlTooltip"); if(tt) tt.classList.remove("show"); });
+    timelineCanvas.addEventListener("pointerleave", onTimelinePointerUp);
     timelineCanvas.addEventListener("click", onTimelineClick);
   }
   $("tlEdCloseBtn").addEventListener("click", closeTimelineEditor);
@@ -5280,14 +4913,10 @@
     graphMode = mode;
     $("modeSelectedBtn").classList.toggle("active", mode === "SELECTED");
     $("modeAllBtn").classList.toggle("active", mode === "ALL");
-    const selTb = $("selectionToolbar");
-    if (selTb) selTb.style.opacity = mode === "SELECTED" ? "1" : "0.45";
     renderAll();
   }
   $("modeSelectedBtn").addEventListener("click", () => setMode("SELECTED"));
   $("modeAllBtn").addEventListener("click", () => setMode("ALL"));
-  // Init selection toolbar visibility
-  { const selTb = $("selectionToolbar"); if (selTb) selTb.style.opacity = "1"; }
 
   const rerender = () => renderAll();
   $("showAvgLineChk").addEventListener("change", rerender);
@@ -5300,7 +4929,7 @@
 
   $("selectLast3Btn").addEventListener("click", () => selectLastN(3));
   $("clearSelectionBtn").addEventListener("click", clearLineSelection);
-  $("selectAllCyclesForLineBtn").addEventListener("click", selectAllVisibleCyclesNoCap);
+  $("selectAllCyclesBtn").addEventListener("click", selectAllVisibleCycles);
   $("invertSelectionBtn").addEventListener("click", invertVisibleCyclesSelection);
   // Event delegation for cycle inline inputs
   $("cyclesBody").addEventListener("input", (e) => {

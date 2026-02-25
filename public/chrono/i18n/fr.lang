@@ -16,6 +16,24 @@
     "avgMarkers": "Reperes moy.",
     "tags": "Tags",
     "selectLast3": "3 derniers",
-    "clearSelection": "Effacer selection"
+    "clearSelection": "Effacer selection",
+    "uiScale": "Echelle UI",
+    "uiScaleValue": "Echelle UI x",
+    "uiLayoutMode": "Mode layout",
+    "uiLayoutHorizontal": "Horizontal (cote a cote)",
+    "uiLayoutVertical": "Vertical (empile)",
+    "uiJobsWidth": "Largeur panneau jobs (px)",
+    "uiBgColor": "Fond",
+    "uiTextColor": "Texte",
+    "uiAccentColor": "Accent",
+    "uiTimeUnit": "Unite de temps",
+    "uiTimeUnitSec": "Secondes",
+    "uiTimeUnitMin": "Minutes",
+    "uiTimeResolution": "Resolution temps (s)",
+    "uiResetDefaults": "Reset UI par defaut",
+    "uiLayoutHint": "Ces reglages layout sont sauvegardes en local et exportes en JSON.",
+    "exportActionsCsv": "Exporter actions CSV",
+    "printReport": "Imprimer rapport",
+    "exportPdf": "Exporter PDF"
   }
 }
