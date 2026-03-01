@@ -297,6 +297,10 @@
     </div>
     <!-- New job creation -->
     <div id="newJobSec">
+      <label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;color:var(--text);">
+        <input id="autoSeqChk" type="checkbox" checked />
+        Auto sequence capture (seq1, seq2, ... on each tap until stop)
+      </label>
       <div style="display:flex; align-items:center; justify-content:space-between; margin:10px 0 6px;">
         <div class="pLabel" style="margin:0;">New job elements</div>
         <button class="smBtn" id="addElBtn" type="button" style="padding:5px 12px; font-size:11px;">+ Add</button>
@@ -323,6 +327,13 @@
 
   <div class="pSec">
     <div class="pLabel">Export</div>
+    <label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;color:var(--text);">
+      <input id="saveVideoChk" type="checkbox" />
+      Save camera video + bookmarks JSON on stop
+    </label>
+    <div class="expRow" style="margin-bottom:8px;">
+      <button id="downloadLastVideoBtn" class="smBtn" type="button" disabled>⬇ Download last video bundle</button>
+    </div>
     <div class="expRow">
       <button id="exportBtn" disabled>⬆ Send to Chrono Study</button>
       <button id="clearBtn" disabled>✕</button>
@@ -336,6 +347,7 @@
 <script>
 (() => {
   const KEY = "chrono_drawer_timeline_v5";
+  const VIDEO_BOOKMARKS_KEY = "chrono_video_bookmarks_v1";
   const $ = id => document.getElementById(id);
   const uuid = () => (crypto.randomUUID?.() ?? Date.now()+"_"+Math.random().toString(16).slice(2));
   const now = () => performance.now();
@@ -361,6 +373,11 @@
   let laps = [];
   let cycles = [];
   let panelOpen = false;
+  let captureBookmarks = [];
+  let lastVideoBundle = null; // {blob, bookmarks, fileBase}
+  let mediaRec = null;
+  let mediaChunks = [];
+  let mediaStartPerf = 0;
 
   // Storage
   function loadCS() {
@@ -371,6 +388,23 @@
     state.meta=state.meta||{};
     state.meta.updatedAt=iso();
     localStorage.setItem(KEY,JSON.stringify(state));
+  }
+  function loadVideoBookmarksLib(){
+    try{
+      const raw = localStorage.getItem(VIDEO_BOOKMARKS_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    }catch{return [];}
+  }
+  function saveVideoBookmarksLib(arr){
+    const list = Array.isArray(arr) ? arr : [];
+    localStorage.setItem(VIDEO_BOOKMARKS_KEY, JSON.stringify(list.slice(0, 200)));
+  }
+  function appendVideoBookmarksEntry(entry){
+    if(!entry || !Array.isArray(entry.bookmarks)) return;
+    const list = loadVideoBookmarksLib();
+    list.unshift(entry);
+    saveVideoBookmarksLib(list);
   }
   function sync() { state=loadCS(); populateJobSel(); updateBadge(); }
 
@@ -397,18 +431,49 @@
   }
 
   function getJob(){ return state?.jobs?.find(j=>j.id===jobId)||null; }
+  function isNewJobMode(){ return $("jobSel").value === "__new__"; }
+  function isAutoSeqMode(){ return isNewJobMode() && !!$("autoSeqChk")?.checked; }
+  function seqName(n){ return `seq${n}`; }
+  function sanitizeName(s){
+    return String(s||"capture").trim().replace(/[^\w\-]+/g,"_").replace(/^_+|_+$/g,"").slice(0,64) || "capture";
+  }
+  function ensureStateLoaded(){
+    if(!state) state = loadCS();
+    if(!state) state={meta:{createdAt:iso(),updatedAt:iso()},activeJobId:null,stations:[],jobs:[],actionTypes:defaultATs(),ui:{}};
+    if(!Array.isArray(state.stations)) state.stations=[];
+    if(!Array.isArray(state.jobs)) state.jobs=[];
+    if(!Array.isArray(state.actionTypes) || !state.actionTypes.length) state.actionTypes = defaultATs();
+  }
+  function ensureCameraStationId(){
+    ensureStateLoaded();
+    let st=(state.stations||[]).find(s=>String(s.code||"").toUpperCase()==="CAM");
+    if(!st){
+      st={id:uuid(),code:"CAM",name:"Camera capture"};
+      state.stations.push(st);
+    }
+    return st.id;
+  }
 
   function onJobChange(){
     const v=$("jobSel").value;
     if(v==="__new__"){$("newJobSec").style.display=""; jobId=null; if(!newEls.length) addEl();}
     else if(v){$("newJobSec").style.display="none"; jobId=v; populateSingleSel();}
     else{$("newJobSec").style.display="none"; jobId=null;}
+    if(isAutoSeqMode()){
+      mode="continuous";
+      $("modeCont").classList.add("on");
+      $("modeSingle").classList.remove("on");
+      $("singleSelRow").style.display="none";
+    }
+    $("modeSingle").disabled = isAutoSeqMode();
     updateBtns(); renderLaps(); updateCenter();
   }
   $("jobSel").addEventListener("change",onJobChange);
+  $("autoSeqChk").addEventListener("change",()=>{ onJobChange(); renderEls(); populateSingleSel(); updateBtns(); updateCenter(); });
 
   // New job
   function renderEls(){
+    $("elsList").style.display = isAutoSeqMode() ? "none" : "";
     const l=$("elsList"); l.innerHTML="";
     newEls.forEach((el,i)=>{
       const d=document.createElement("div"); d.className="elRow";
@@ -422,6 +487,7 @@
   $("elsList").addEventListener("click",e=>{ const d=e.target.dataset.d; if(d!=null){newEls.splice(+d,1);renderEls();} });
   $("cancelNewJobBtn").addEventListener("click",()=>{ $("jobSel").value=""; onJobChange(); });
   $("createJobBtn").addEventListener("click",()=>{
+    if(isAutoSeqMode()) return toast("Use Start/Stop to create auto sequence job.","w");
     if(!newEls.length) return toast("Add at least one element.","e");
     const els=newEls.map((el,i)=>({...el,name:el.name.trim()||`Action ${i+1}`}));
     const name=$("newJobName").value.trim()||`Capture ${new Date().toLocaleTimeString()}`;
@@ -486,21 +552,107 @@
   $("skipCamBtn").addEventListener("click",()=>{ $("camPlaceholder").style.display="none"; toast("No camera — timing only","w"); });
 
   // Timer
-  function startTimer(){ running=true; t0=now(); lapT=t0; $("recDot").classList.add("on"); $("statusTxt").textContent="REC"; tick(); }
+  function startVideoRecording(){
+    if(!$("saveVideoChk")?.checked) return;
+    const stream = $("camVideo")?.srcObject;
+    if(!stream || !window.MediaRecorder){
+      toast("Video save unavailable (no camera stream/MediaRecorder)","w");
+      return;
+    }
+    try {
+      mediaChunks = [];
+      mediaStartPerf = now();
+      const opts = [
+        { mimeType: "video/webm;codecs=vp9,opus" },
+        { mimeType: "video/webm;codecs=vp8,opus" },
+        { mimeType: "video/webm" },
+        {}
+      ];
+      let rec = null;
+      for(const opt of opts){
+        try{
+          if(opt.mimeType && !MediaRecorder.isTypeSupported?.(opt.mimeType)) continue;
+          rec = new MediaRecorder(stream, opt);
+          break;
+        }catch{}
+      }
+      if(!rec) throw new Error("MediaRecorder init failed");
+      mediaRec = rec;
+      rec.ondataavailable = (e) => { if(e.data && e.data.size > 0) mediaChunks.push(e.data); };
+      rec.onstop = () => {
+        if(!mediaChunks.length) return;
+        const blob = new Blob(mediaChunks, {type: mediaChunks[0]?.type || "video/webm"});
+        const jobName = getJob()?.name || $("newJobName").value.trim() || "camera_capture";
+        const fileBase = `${sanitizeName(jobName)}_${new Date().toISOString().replace(/[:.]/g,"-")}`;
+        const bookmarks = captureBookmarks.slice();
+        lastVideoBundle = { blob, bookmarks, fileBase };
+        $("downloadLastVideoBtn").disabled = false;
+        if($("saveVideoChk")?.checked) downloadLastVideoBundle();
+      };
+      rec.start(1000);
+    } catch (e) {
+      mediaRec = null;
+      mediaChunks = [];
+      toast("Could not start video recording","e");
+    }
+  }
+  function stopVideoRecording(){
+    if(mediaRec && mediaRec.state !== "inactive"){
+      try { mediaRec.stop(); } catch {}
+    }
+    mediaRec = null;
+  }
+  function downloadLastVideoBundle(){
+    if(!lastVideoBundle?.blob) return;
+    const { blob, bookmarks, fileBase } = lastVideoBundle;
+    const videoUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = videoUrl;
+    a.download = `${fileBase}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(videoUrl);
+    const meta = {
+      createdAt: iso(),
+      jobId: jobId || null,
+      jobName: getJob()?.name || null,
+      recordingStartMs: Math.round(mediaStartPerf),
+      bookmarks
+    };
+    const metaBlob = new Blob([JSON.stringify(meta, null, 2)], {type:"application/json"});
+    const metaUrl = URL.createObjectURL(metaBlob);
+    const b = document.createElement("a");
+    b.href = metaUrl;
+    b.download = `${fileBase}_bookmarks.json`;
+    document.body.appendChild(b);
+    b.click();
+    b.remove();
+    URL.revokeObjectURL(metaUrl);
+    toast("✓ Video + bookmarks saved");
+  }
+
+  function startTimer(){ running=true; t0=now(); lapT=t0; captureBookmarks=[]; $("recDot").classList.add("on"); $("statusTxt").textContent="REC"; startVideoRecording(); tick(); }
   function tick(){ if(!running) return; $("timer").textContent=fmtMs(now()-t0); rafId=requestAnimationFrame(tick); }
-  function stopTimer(){ running=false; if(rafId) cancelAnimationFrame(rafId); $("recDot").classList.remove("on"); $("statusTxt").textContent="IDLE"; }
+  function stopTimer(){ running=false; if(rafId) cancelAnimationFrame(rafId); $("recDot").classList.remove("on"); $("statusTxt").textContent="IDLE"; stopVideoRecording(); }
 
   function getCurEl(){
+    if(isAutoSeqMode()){
+      if(!running) return null;
+      const n = laps.length + 1;
+      return {id:`__auto_${n}`,name:seqName(n),type:"HUMAN"};
+    }
     const job=getJob(); if(!job?.elements?.length) return null;
     return mode==="single"?(job.elements.find(e=>e.id===singleElId)||job.elements[0]):job.elements[Math.min(idx,job.elements.length-1)];
   }
 
   function updateCenter(){
     const el=getCurEl(); const job=getJob(); const c=$("centerEl");
-    if(!el||!job||!running){c.classList.remove("vis"); return;}
+    if(!el||(!job&&!isAutoSeqMode())||!running){c.classList.remove("vis"); return;}
     c.classList.add("vis");
     $("ceName").textContent=el.name||`Element ${idx+1}`;
-    $("ceIdx").textContent=mode==="single"?`${laps.length} captures`:`${idx+1} / ${job.elements.length}`;
+    if(isAutoSeqMode()) $("ceIdx").textContent=`${laps.length} captured`;
+    else $("ceIdx").textContent=mode==="single"?`${laps.length} captures`:`${idx+1} / ${job.elements.length}`;
   }
 
   function renderLaps(){
@@ -512,25 +664,97 @@
     s.innerHTML=h; s.scrollTop=s.scrollHeight;
   }
 
+  function addBookmark(lap){
+    const sumMs = laps.reduce((a,l)=>a+Number(l.ms||0),0);
+    const endMs = Math.max(0, Math.round(sumMs));
+    const durMs = Math.max(0, Math.round(Number(lap?.ms||0)));
+    const startMs = Math.max(0, endMs - durMs);
+    captureBookmarks.push({
+      idx: captureBookmarks.length + 1,
+      elementId: String(lap?.elementId||""),
+      name: String(lap?.name||""),
+      type: String(lap?.type||""),
+      startMs,
+      endMs,
+      durMs
+    });
+  }
+
   function doMain(){
     const job=getJob();
     if(!running){
+      if(!job && !isAutoSeqMode()) return;
       idx=0; laps=[]; startTimer(); updateCenter(); renderLaps(); updateBtns();
     } else {
       const ms=Math.round(now()-lapT); lapT=now();
+      if(isAutoSeqMode()){
+        const n = laps.length + 1;
+        const lap = {elementId:`__seq_${n}`,name:seqName(n),type:"HUMAN",ms};
+        laps.push(lap);
+        addBookmark(lap);
+        updateCenter(); renderLaps(); updateBtns();
+        return;
+      }
       const el=getCurEl(); if(!el) return;
-      laps.push({elementId:el.id,name:el.name||`El.${idx+1}`,type:el.type||"HUMAN",ms});
+      const lap = {elementId:el.id,name:el.name||`El.${idx+1}`,type:el.type||"HUMAN",ms};
+      laps.push(lap);
+      addBookmark(lap);
       if(mode==="single"){ updateCenter(); renderLaps(); updateBtns(); }
       else { const last=idx>=(job?.elements?.length||1)-1; if(last){finish(); return;} idx++; updateCenter(); renderLaps(); updateBtns(); }
     }
   }
 
+  function createAutoSeqJobFromLaps(cycle){
+    if(!cycle?.laps?.length) return null;
+    ensureStateLoaded();
+    const stId = ensureCameraStationId();
+    const jobNameRaw = $("newJobName").value.trim() || `Capture ${new Date().toLocaleTimeString()}`;
+    const seqElements = cycle.laps.map((lap, i) => ({id:uuid(),name:String(lap.name||seqName(i+1)),type:String(lap.type||"HUMAN")}));
+    const remappedLaps = cycle.laps.map((lap, i) => ({
+      ...lap,
+      elementId: seqElements[i].id,
+      name: seqElements[i].name,
+      type: seqElements[i].type
+    }));
+    const j={id:uuid(),stationId:stId,name:jobNameRaw,allowancePct:12,ratingPct:100,elements:seqElements,cycles:[{...cycle,laps:remappedLaps}]};
+    state.jobs.push(j);
+    state.activeJobId=j.id;
+    saveCS();
+    sync();
+    $("jobSel").value=j.id;
+    onJobChange();
+    return j;
+  }
+
   function finish(){
     stopTimer();
     const tot=laps.reduce((a,l)=>a+l.ms,0);
-    if(!laps.length||!tot){reset(); return;}
-    cycles.push({id:uuid(),atIso:iso(),laps:laps.slice(),totalMs:tot,tag:"Normal",note:"Camera capture"});
-    toast(`✓ Cycle ${cycles.length} · ${fmtMs(tot)}`);
+    if(!laps.length||!tot){
+      toast("No sequence captured. Tap Seq+1 at least once before Stop.","w");
+      reset();
+      return;
+    }
+    const cycle={id:uuid(),atIso:iso(),laps:laps.slice(),totalMs:tot,tag:"Normal",note:"Camera capture"};
+    const marks = captureBookmarks.slice();
+    const titleBase = $("newJobName").value.trim() || getJob()?.name || `Capture ${new Date().toLocaleTimeString()}`;
+    appendVideoBookmarksEntry({
+      id: uuid(),
+      createdAt: iso(),
+      source: "camera",
+      title: titleBase,
+      jobId: jobId || null,
+      jobName: getJob()?.name || null,
+      totalMs: tot,
+      bookmarks: marks
+    });
+    if(isAutoSeqMode()){
+      const job = createAutoSeqJobFromLaps(cycle);
+      if(job) toast(`✓ New job "${job.name}" saved (${job.elements.length} seq)`);
+      else toast("Could not create new auto-seq job","e");
+    } else {
+      cycles.push(cycle);
+      toast(`✓ Cycle ${cycles.length} · ${fmtMs(tot)}`);
+    }
     reset();
   }
 
@@ -549,14 +773,15 @@
 
   function updateBtns(){
     const job=getJob();
-    const canStart=!!job&&(mode==="continuous"||!!singleElId);
+    const canStart=(!!job || isAutoSeqMode())&&(mode==="continuous"||!!singleElId||isAutoSeqMode());
     const btn=$("mainBtn");
     if(!running){btn.textContent="▶ Start"; btn.className=""; btn.disabled=!canStart;}
     else if(mode==="single"){btn.textContent="⏺ Capture"; btn.className="w"; btn.disabled=false;}
+    else if(isAutoSeqMode()){btn.textContent="⏭ Seq+1"; btn.className="w"; btn.disabled=false;}
     else{const last=idx>=(job?.elements?.length||1)-1; btn.textContent=last?"⏹ Finish":"⏭ Next"; btn.className=last?"d":"w"; btn.disabled=false;}
     // Single finish btn
     let fb=$("finBtn");
-    if(mode==="single"&&running){
+    if((mode==="single"&&running) || (isAutoSeqMode()&&running)){
       if(!fb){fb=document.createElement("button"); fb.id="finBtn"; fb.className="sb"; fb.style.cssText="color:var(--danger);border-color:var(--danger-b);background:var(--danger-dim);font-size:13px;padding:10px 10px;"; fb.textContent="⏹"; fb.title="Finish (F)"; fb.addEventListener("click",finish); $("bottomBar").insertBefore(fb,$("mainBtn"));}
     } else { const x=$("finBtn"); if(x) x.remove(); }
     $("undoBtn").disabled=!(running&&laps.length>0);
@@ -567,10 +792,12 @@
   $("undoBtn").addEventListener("click",()=>{
     if(!laps.length) return;
     const r=laps.pop(); lapT=now()-laps.reduce((a,l)=>a+l.ms,0);
+    if(captureBookmarks.length) captureBookmarks.pop();
     if(mode==="continuous"&&idx>0) idx--;
     updateCenter(); renderLaps(); updateBtns();
     toast(`↩ ${r.name}`,"w");
   });
+  $("downloadLastVideoBtn").addEventListener("click",downloadLastVideoBundle);
 
   // Panel toggle
   function togglePanel(v){
@@ -611,7 +838,7 @@
     if(["INPUT","SELECT","TEXTAREA"].includes(e.target.tagName)) return;
     if(e.code==="Space"){e.preventDefault(); if(!$("mainBtn").disabled) $("mainBtn").click();}
     if(e.code==="Backspace"){e.preventDefault(); if(!$("undoBtn").disabled) $("undoBtn").click();}
-    if(e.key==="f"||e.key==="F") if(mode==="single"&&running) finish();
+    if(e.key==="f"||e.key==="F") if((mode==="single"&&running)||(isAutoSeqMode()&&running)) finish();
     if(e.key==="s"||e.key==="S") togglePanel();
     if(e.key==="Escape") togglePanel(false);
   });

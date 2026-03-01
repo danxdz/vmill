@@ -328,6 +328,12 @@
     .timelineBarEditor .row3{grid-template-columns:1fr 1fr 1fr;}
     .timelineBarEditor input{padding:8px 8px; border-radius:10px;}
     .timelineBarEditor .btnbar{margin-top:8px;}
+    .timelineBarEditor.draggable{cursor:move;}
+    .timelineBarEditor.draggable input,
+    .timelineBarEditor.draggable button,
+    .timelineBarEditor.draggable select,
+    .timelineBarEditor.draggable textarea,
+    .timelineBarEditor.draggable label{cursor:auto;}
     .right{text-align:right;}
 
     /* Toolbar */
@@ -574,6 +580,36 @@
     body.themeLight .toolbarLabel{ color:rgba(0,0,0,.4); }
     body.themeLight .panelHdr{ border-bottom-color:rgba(0,0,0,.12); }
     body.themeLight .hr{ background:rgba(0,0,0,.10); }
+
+    body.themeLight {
+      --bg: #f0f2f5;
+      --panel: #ffffff;
+      --panel2: #f8f9fa;
+      --border: #d1d5db;
+      --text: #111827;
+      --muted: #4b5563;
+      --muted2: #9ca3af;
+      --accent-10: rgba(76, 115, 255, 0.08);
+      --accent-18: rgba(76, 115, 255, 0.15);
+    }
+    body.themeLight header { background: rgba(240, 242, 245, 0.92); }
+
+    #leftPanelSection .panelHdr{padding-top:2px; margin-bottom:8px;}
+    #leftPanelSection .panelHdrBody{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-height:0;
+      flex:1;
+    }
+
+    .timelineFilterSelect{min-width:170px; max-width:260px;}
+
+    .panelHdr[draggable="true"]{cursor:grab;}
+    .panelHdr[draggable="true"]:active{cursor:grabbing;}
+    .panelHdr.dropBefore{box-shadow:inset 0 2px 0 var(--accent);}
+
+    @media(max-width:1039px){
       header{padding:10px 12px; gap:8px; flex-wrap:wrap; align-items:flex-start;}
       .topRight{width:100%; justify-content:center; flex-wrap:wrap; gap:8px;}
       main{padding:10px;}
@@ -585,42 +621,7 @@
       .btnbar{justify-content:center;}
       #panelTogglesRow{justify-content:center;}
       .row2, .row3{grid-template-columns:1fr;}
-    /* Add this inside your <style> block in chrono.html */
-    body.themeLight {
-      --bg: #f0f2f5;
-      --panel: #ffffff;
-      --panel2: #f8f9fa;
-      --border: #d1d5db;
-      --text: #111827;
-      --muted: #4b5563;
-      --muted2: #9ca3af;
-      --accent-10: rgba(76, 115, 255, 0.08);
-      --accent-18: rgba(76, 115, 255, 0.15);
-      /* Update the header background for light mode */
-      header { background: rgba(240, 242, 245, 0.92); }
     }
-    /* Update your main layout to be flexible */
-    main.layout {
-      display: grid;
-      grid-template-columns: var(--sidebar-width, 820px) 1fr; /* Sidebar fixed, Main grows */
-      gap: 16px;
-      padding: 16px;
-      align-items: start;
-    }
-
-/* Ensure all panels expand to fill the available space in their column */
-.panelBlock {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* Fix the Cycles list specifically */
-#cyclesListContainer {
-  flex-grow: 1; /* Pushes the cycles list to fill the bottom of the panel */
-  min-height: 300px;
-}
   </style>
 </head>
 <body>
@@ -640,10 +641,10 @@
     <!-- Panel visibility toggles -->
     <div class="hPanelToggles" id="panelTogglesRow">
       <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="jobs" title="Show/Hide jobs panel">Jobs</button>
-      <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="timer" draggable="true" title="Click hide/show · Drag to reorder">Timer</button>
-      <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="kpi" draggable="true" title="Click hide/show · Drag to reorder">KPI</button>
-      <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="timeline" draggable="true" title="Click hide/show · Drag to reorder">Timeline</button>
-      <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="cycles" draggable="true" title="Click hide/show · Drag to reorder">Cycles</button>
+      <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="timer" title="Click hide/show · Drag to reorder">Timer</button>
+      <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="kpi" title="Click hide/show · Drag to reorder">KPI</button>
+      <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="timeline" title="Click hide/show · Drag to reorder">Timeline</button>
+      <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="cycles" title="Click hide/show · Drag to reorder">Cycles</button>
     </div>
     <div class="hDivider"></div>
     <a id="openCameraBtn" class="iconBtn hBtn hBtnCamera" href="chrono_camera.html" target="_blank" title="Open Camera module">📷</a>
@@ -658,9 +659,13 @@
 
 <main class="layout">
   <!-- LEFT: stations/jobs list always visible -->
-  <section class="card" id="leftPanelSection">
+  <section class="card panelBlock" id="leftPanelSection">
+    <button class="panelHdr" data-panel-hdr="jobsSidebar">
+      <span class="panelHdrTitle">Stations & Jobs</span>
+      <span class="panelHdrChevron">›</span>
+    </button>
+    <div class="panelHdrBody">
     <div class="sidebarTop">
-      <div class="title" style="margin:0;">Stations & Jobs</div>
       <div class="btnbar" style="gap:6px;">
         <button class="primary" id="newStationBtn">+ Station</button>
       </div>
@@ -673,6 +678,7 @@
 
     <div class="hr"></div>
     <div id="stationsList" class="row" style="gap:10px;"></div>
+    </div>
   </section>
 
   <!-- RIGHT: timer + graph + cycles (config moved to drawer) -->
@@ -731,7 +737,17 @@
               <label>Video file</label>
               <input id="videoFile" type="file" accept="video/*" />
             </div>
-            <div></div>
+            <div>
+              <label>Recorded videos + bookmarks</label>
+              <select id="videoLibSel">
+                <option value="">(none)</option>
+              </select>
+            </div>
+          </div>
+          <div class="videoCmdRow" style="margin-top:8px;">
+            <button id="videoLibLoadBtn" type="button">Load bookmarks</button>
+            <button id="videoLibDeleteBtn" class="danger" type="button">Delete entry</button>
+            <button id="videoLibRefreshBtn" type="button">Refresh list</button>
           </div>
           <div style="margin-top:8px;">
             <video id="videoEl" controls style="width:100%; border:1px solid var(--border); border-radius:12px; background:#000;"></video>
@@ -857,7 +873,14 @@
           </select>
         </div>
 
-        <!-- Row 2: Tag filters -->
+        <!-- Row 2: Scope selectors -->
+        <div class="toolbarGroup">
+          <span class="toolbarLabel">Scope</span>
+          <select id="timelineStationSel" class="miniSelect timelineFilterSelect" title="Switch active station for timeline"></select>
+          <select id="timelineJobSel" class="miniSelect timelineFilterSelect" title="Switch active job for timeline"></select>
+        </div>
+
+        <!-- Row 3: Tag filters -->
         <div class="toolbarGroup">
           <span class="toolbarLabel">Tags</span>
           <label class="chip" title="Include Normal cycles"><input class="checkbox" id="tagNormal" type="checkbox" checked /> Normal</label>
@@ -866,7 +889,7 @@
           <label class="chip" title="Include Disturbance cycles"><input class="checkbox" id="tagDisturbance" type="checkbox" checked /> Disturbance</label>
         </div>
 
-        <!-- Row 3: Cycle selection (only relevant in Selected mode) -->
+        <!-- Row 4: Cycle selection (only relevant in Selected mode) -->
         <div class="toolbarGroup" id="selectionToolbar">
           <span class="toolbarLabel">Select</span>
           <button id="selectLast3Btn" type="button" title="Select the 3 most recent cycles">Last 3</button>
@@ -1111,11 +1134,30 @@
                 </select>
               </div>
             </div>
+            <div class="btnbar" style="margin-top:-2px;">
+              <label class="chip" title="When enabled, this action type pushes next actions on the same resource/lane when duration grows.">
+                <input class="checkbox" id="atStackFlow" type="checkbox" checked /> Push next actions (stack)
+              </label>
+            </div>
+            <div class="row2">
+              <div>
+                <label>Resource behavior</label>
+                <select id="atResourceMode">
+                  <option value="AUTO">Auto (from ID/name)</option>
+                  <option value="HUMAN">Human only</option>
+                  <option value="MACHINE">Machine only</option>
+                  <option value="BOTH">Human + Machine</option>
+                  <option value="LANE">Lane only</option>
+                  <option value="FREE">Free overlap</option>
+                </select>
+              </div>
+              <div></div>
+            </div>
             <div class="btnbar">
               <button class="primary" id="addActionTypeBtn">+ Type</button>
               <button id="clearTypeFormBtn" type="button" title="Clear form / create new type">✕ Clear</button>
             </div>
-            <div class="small muted">Z order controls draw priority: higher Z draws on top (e.g. HUMAN Z=20 over MACHINE Z=5). Lane separates rows vertically. Height sets bar thickness.</div>
+            <div class="small muted">Z order controls draw priority: higher Z draws on top (e.g. HUMAN Z=20 over MACHINE Z=5). Lane separates rows vertically. Height sets bar thickness. Stack controls whether this type pushes following actions. Resource behavior controls which lanes/resources are blocked.</div>
             <div class="scrollBox noScroll" style="margin-top:8px;">
               <table>
                 <thead>
@@ -1125,6 +1167,8 @@
                     <th style="width:80px;">Lane</th>
                     <th style="width:60px;">H</th>
                     <th style="width:60px;">Z</th>
+                    <th style="width:70px;">Stack</th>
+                    <th style="width:90px;">Behavior</th>
                     <th style="width:70px;">Color</th>
                     <th style="width:80px;">Action</th>
                   </tr>
@@ -1206,12 +1250,8 @@
               </div>
               <div>
                 <label id="uiJobsWidthLabelTitle">Jobs panel width</label>
-                <input id="uiJobsWidthRange" type="range" min="280" max="560" step="10" value="420" />
-                <div class="small muted mono" id="uiJobsWidthLabel">420 px</div>
-                <label>Sidebar Width (px):
-                  <input type="range" id="sidebarWidthRange" min="280" max="600" 
-                        oninput="updateSidebarWidth(this.value)">
-                </label>
+                <input id="uiJobsWidthRange" type="range" min="240" max="640" step="10" value="360" />
+                <div class="small muted mono" id="uiJobsWidthLabel">360 px</div>
               </div>
             </div>
             <div class="row2">
@@ -1272,6 +1312,7 @@
 <script>
 (() => {
   const STORAGE_KEY = "chrono_drawer_timeline_v5";
+  const VIDEO_BOOKMARKS_KEY = "chrono_video_bookmarks_v1";
   const LANG_STORAGE_KEY = "chrono_ui_lang_v1";
   const I18N_INDEX_URL = "./i18n/index.json";
   const $ = (id) => document.getElementById(id);
@@ -1610,7 +1651,7 @@
     if (cfgBtn) { const lbl = $("hConfigLabel"); if (lbl) lbl.textContent = t("config", "Config"); }
     const leftBtn = $("toggleLeftPanelBtn");
     if (leftBtn) leftBtn.textContent = state?.ui?.leftPanelVisible ? t("hideJobs", "Hide Jobs") : t("showJobs", "Show Jobs");
-    const stTitle = document.querySelector(".sidebarTop .title");
+    const stTitle = document.querySelector("#leftPanelSection [data-panel-hdr='jobsSidebar'] .panelHdrTitle");
     if (stTitle) stTitle.textContent = t("stationJob", "Stations & Jobs");
     const stHint = document.querySelector(".sidebarTop .small");
     if (stHint) stHint.textContent = t("pickJobHint", "Pick a job, then time cycles. Config is in the right drawer.");
@@ -1878,13 +1919,23 @@
 
   function defaultActionTypes() {
     return [
-      { id: "MACHINE", name: "Tech", color: "#7f8790", lane: "1", laneOrder: 1, heightPx: 30, z: 5, opacity: 0.9, underlayTypeId: "" },
-      { id: "HUMAN", name: "Human", color: "#ffd24a", lane: "1", laneOrder: 1, heightPx: 15, z: 20, opacity: 1.0, underlayTypeId: "" },
-      { id: "HUMAN+MACHINE", name: "Human+Tech", color: "#ffd24a", lane: "1", laneOrder: 1, heightPx: 30, z: 25, opacity: 1.0, underlayTypeId: "MACHINE" },
-      { id: "IDLE", name: "Idle", color: "#4c73ff", lane: "idle", laneOrder: 2, heightPx: 6, z: 12, opacity: 0.8, underlayTypeId: "" },
+      { id: "MACHINE", name: "Tech", color: "#7f8790", lane: "1", laneOrder: 1, heightPx: 30, z: 5, opacity: 0.9, underlayTypeId: "", stackFlow: true, resourceMode: "MACHINE" },
+      { id: "HUMAN", name: "Human", color: "#ffd24a", lane: "1", laneOrder: 1, heightPx: 15, z: 20, opacity: 1.0, underlayTypeId: "", stackFlow: true, resourceMode: "HUMAN" },
+      { id: "HUMAN+MACHINE", name: "Human+Tech", color: "#ffd24a", lane: "1", laneOrder: 1, heightPx: 30, z: 25, opacity: 1.0, underlayTypeId: "MACHINE", stackFlow: true, resourceMode: "BOTH" },
+      { id: "IDLE", name: "Idle", color: "#4c73ff", lane: "idle", laneOrder: 2, heightPx: 6, z: 12, opacity: 0.8, underlayTypeId: "", stackFlow: true, resourceMode: "LANE" },
     ];
   }
+  function inferDefaultStackFlow(v) {
+    const txt = `${String(v?.id || "").toUpperCase()} ${String(v?.name || "").toUpperCase()} ${String(v?.lane || "").toUpperCase()}`;
+    const machine = /\b(MACHINE|TECH|TECCH|ROBOT|CNC|AUTO)\b/.test(txt);
+    const human = /\b(HUMAN|OPERATOR|MANUAL|PERSON)\b/.test(txt);
+    return !(machine && !human);
+  }
   function normalizeActionType(v) {
+    const resourceModeRaw = String(v?.resourceMode || "AUTO").trim().toUpperCase();
+    const resourceMode = ["AUTO", "HUMAN", "MACHINE", "BOTH", "LANE", "FREE"].includes(resourceModeRaw)
+      ? resourceModeRaw
+      : "AUTO";
     return {
       id: String(v?.id || "IDLE").trim().toUpperCase() || "IDLE",
       name: String(v?.name || v?.id || "IDLE").trim() || "IDLE",
@@ -1895,6 +1946,8 @@
       z: Number.isFinite(Number(v?.z)) ? Number(v.z) : 10,
       opacity: Math.max(0.05, Math.min(1, Number(v?.opacity ?? 1))),
       underlayTypeId: String(v?.underlayTypeId || "").trim().toUpperCase(),
+      stackFlow: (typeof v?.stackFlow === "boolean") ? v.stackFlow : true,
+      resourceMode,
     };
   }
   function ensureActionTypes(st) {
@@ -1922,10 +1975,11 @@
     return {
       uiScale: 1,
       leftPanelVisible: true,
+      jobsPanelCollapsed: false,
       collapsedStations: {},
       timelineSameBase: true,
       layoutMode: "horizontal",
-      jobsPanelWidth: 480,
+      jobsPanelWidth: 360,
       themeBg: "#0b0c10",
       themeText: "#e8e8e8",
       themeAccent: "#4c73ff",
@@ -1959,11 +2013,12 @@
     st.ui = st.ui || {};
     st.ui.uiScale = Math.max(0.2, Math.min(2, Number(st.ui.uiScale ?? d.uiScale) || d.uiScale));
     st.ui.leftPanelVisible = st.ui.leftPanelVisible !== false;
+    st.ui.jobsPanelCollapsed = st.ui.jobsPanelCollapsed === true;
     st.ui.collapsedStations = (st.ui.collapsedStations && typeof st.ui.collapsedStations === "object")
       ? st.ui.collapsedStations : {};
     st.ui.timelineSameBase = st.ui.timelineSameBase !== false;
     st.ui.layoutMode = (st.ui.layoutMode === "vertical") ? "vertical" : "horizontal";
-    st.ui.jobsPanelWidth = clamp(st.ui.jobsPanelWidth ?? d.jobsPanelWidth, 280, 1280, d.jobsPanelWidth);
+    st.ui.jobsPanelWidth = clamp(st.ui.jobsPanelWidth ?? d.jobsPanelWidth, 240, 640, d.jobsPanelWidth);
     st.ui.themeBg = hex(st.ui.themeBg, d.themeBg);
     st.ui.themeText = hex(st.ui.themeText, d.themeText);
     st.ui.themeAccent = hex(st.ui.themeAccent, d.themeAccent);
@@ -2036,6 +2091,7 @@
   }
 
   let state = loadState();
+  let lastStateSignature = JSON.stringify(state);
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -2063,7 +2119,9 @@
   }
   function saveState() {
     state.meta.updatedAt = wallIso();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const raw = JSON.stringify(state);
+    localStorage.setItem(STORAGE_KEY, raw);
+    lastStateSignature = raw;
     flashSavePill("✓ Saved");
   }
   function flashSavePill(msg) {
@@ -2103,7 +2161,8 @@
     geom: null, // { padL, padR, padT, padB, cw, ch, xMaxSec, hits: [] }
     drag: null, // { cycleId, elementId, x0, initialMs, mode }
     lastDragTs: 0,
-    editor: { open: false, cycleId: "", elementId: "", x: 0, y: 0 },
+    editor: { open: false, cycleId: "", elementId: "", x: 0, y: 0, manualPos: false, lastField: "" },
+    editorDrag: null,
   };
 
   // ----- Drawer -----
@@ -2192,11 +2251,6 @@
     const a = toHex6(state?.ui?.themeAccent, "#4c73ff");
     return hexToRgba(a, alpha);
   }
-  function updateSidebarWidth(val) {
-    state.ui.sidebarWidth = val;
-    document.documentElement.style.setProperty('--sidebar-width', val + 'px');
-    saveState(); // Ensure your save function is called
-  }
   function syncViewLayoutInputs() {
     ensureUiState(state);
     const modeSel = $("uiLayoutModeSel");
@@ -2259,6 +2313,7 @@
     document.body.classList.toggle("videoMode", captureMode === "video");
     const leftSec = $("leftPanelSection");
     if (leftSec) leftSec.style.display = state.ui.leftPanelVisible ? "" : "none";
+    if (leftSec) leftSec.classList.toggle("collapsed", !!state.ui.jobsPanelCollapsed);
     const rightSec = $("rightMainSection");
     if (rightSec) rightSec.style.display = "";
 
@@ -2268,12 +2323,11 @@
       const horizontal = desktop && state.ui.leftPanelVisible && state.ui.layoutMode !== "vertical";
       
       // Get the width from your settings
-      const jobsW = Math.max(280, Math.min(560, Number(state.ui.jobsPanelWidth) || 420));
+      const jobsW = Math.max(240, Math.min(640, Number(state.ui.jobsPanelWidth) || 360));
       
       if (horizontal) {
-        // Changed from fixed percentages to a fixed sidebar + growing main block
         layout.style.display = "grid";
-        layout.style.gridTemplateColumns = `${jobsW}px 1fr`; 
+        layout.style.gridTemplateColumns = `${jobsW}px minmax(0, 1fr)`; 
       } else {
         layout.style.gridTemplateColumns = "1fr";
       }
@@ -2393,6 +2447,7 @@
         videoBtns.appendChild(b);
       }
     }
+    populateVideoLibrarySelector();
   }
 
   function refreshCaptureModeUI() {
@@ -2505,6 +2560,90 @@
     raf = requestAnimationFrame(tick);
   }
 
+  function loadVideoBookmarksLibrary() {
+    try {
+      const raw = localStorage.getItem(VIDEO_BOOKMARKS_KEY);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return [];
+      return arr.filter((x) => x && Array.isArray(x.bookmarks));
+    } catch {
+      return [];
+    }
+  }
+
+  function saveVideoBookmarksLibrary(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    localStorage.setItem(VIDEO_BOOKMARKS_KEY, JSON.stringify(list.slice(0, 200)));
+  }
+
+  function populateVideoLibrarySelector() {
+    const sel = $("videoLibSel");
+    if (!sel) return;
+    const prev = String(sel.value || "");
+    const entries = loadVideoBookmarksLibrary().slice().sort((a, b) => {
+      const ta = Date.parse(a.createdAt || "") || 0;
+      const tb = Date.parse(b.createdAt || "") || 0;
+      return tb - ta;
+    });
+    sel.innerHTML = `<option value="">(none)</option>`;
+    for (const e of entries) {
+      const id = String(e.id || "");
+      const title = String(e.title || e.jobName || "Recorded video");
+      const t = e.createdAt ? new Date(e.createdAt).toLocaleString() : "";
+      const cnt = Array.isArray(e.bookmarks) ? e.bookmarks.length : 0;
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = `${title} · ${cnt} marks${t ? " · " + t : ""}`;
+      sel.appendChild(opt);
+    }
+    if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
+  }
+
+  function resolveEntryElementId(entryMark, job, fallbackIndex) {
+    const elements = (job?.elements || []);
+    const byId = new Map(elements.map((el) => [String(el.id), el.id]));
+    const byName = new Map(elements.map((el) => [String(el.name || "").trim().toLowerCase(), el.id]));
+    const directId = String(entryMark?.elementId || "");
+    if (directId && byId.has(directId)) return byId.get(directId);
+    const nm = String(entryMark?.name || "").trim().toLowerCase();
+    if (nm && byName.has(nm)) return byName.get(nm);
+    if (fallbackIndex >= 0 && fallbackIndex < elements.length) return elements[fallbackIndex].id;
+    return "";
+  }
+
+  function loadVideoLibraryEntryIntoMarkers(entryId) {
+    const id = String(entryId || "");
+    if (!id) return;
+    const entries = loadVideoBookmarksLibrary();
+    const entry = entries.find((e) => String(e.id || "") === id);
+    if (!entry) return alert("Video bookmarks entry not found.");
+    const job = getActiveJob();
+    if (!job || !job.elements?.length) return alert("Select a job with elements first.");
+    const marks = Array.isArray(entry.bookmarks) ? entry.bookmarks : [];
+    const loaded = [];
+    for (let i = 0; i < marks.length; i++) {
+      const m = marks[i] || {};
+      const startMs = Math.max(0, Number(m.startMs || 0));
+      const endMs = Math.max(startMs, Number(m.endMs || startMs));
+      const elementId = resolveEntryElementId(m, job, i);
+      if (!elementId) continue;
+      loaded.push({
+        id: uuid(),
+        elementId,
+        startSec: quantizeSec(startMs / 1000),
+        endSec: quantizeSec(endMs / 1000),
+      });
+    }
+    if (!loaded.length) return alert("No compatible bookmarks for current job.");
+    videoCapture.markers = loaded;
+    videoCapture.openByElementId = {};
+    videoCapture.editMarkerId = "";
+    renderVideoMarkersList();
+    syncVideoTimeline();
+    alert(`Loaded ${loaded.length} bookmark(s). Load the matching video file if needed.`);
+  }
+
   function loadVideoFile(file) {
     const video = $("videoEl");
     if (!video || !file) return;
@@ -2563,12 +2702,7 @@
       let waitSec = 0;
 
       if (useRules) {
-        const resources = [];
-        const hasMachine = typeId.includes("MACHINE");
-        const hasHuman = typeId.includes("HUMAN");
-        if (hasMachine) resources.push("res:machine");
-        if (hasHuman) resources.push("res:human");
-        if (!resources.length) resources.push(`lane:${laneId}`);
+        const resources = getActionResourceKeys(typeId, laneId);
         const laneBlock = resources.reduce((mx, rk) => Math.max(mx, Number(resourceEnd.get(rk) || 0)), 0);
         const depBlock = depType ? Number(typeEnd.get(depType) || 0) : 0;
         const blockAt = Math.max(laneBlock, depBlock);
@@ -2586,12 +2720,7 @@
 
       if (useRules) {
         const endForRules = Number(e ?? s);
-        const hasMachine = typeId.includes("MACHINE");
-        const hasHuman = typeId.includes("HUMAN");
-        const resources = [];
-        if (hasMachine) resources.push("res:machine");
-        if (hasHuman) resources.push("res:human");
-        if (!resources.length) resources.push(`lane:${laneId}`);
+        const resources = getActionResourceKeys(typeId, laneId);
         for (const rk of resources) {
           resourceEnd.set(rk, Math.max(Number(resourceEnd.get(rk) || 0), endForRules));
         }
@@ -2725,8 +2854,9 @@
         const width = Math.max(0.2, ((e - s) / dur) * 100);
         const editCls = videoCapture.editMarkerId === m.id ? " editing" : "";
         const mType = String(m.type || "").toUpperCase();
-        const isMachineBox = mType === "MACHINE";
-        const withMachineOverlay = mType.includes("MACHINE") && !isMachineBox;
+        const mRoles = actionRoleFlags(mType);
+        const isMachineBox = !!mRoles.machineOnly;
+        const withMachineOverlay = !!(mRoles.machine && !isMachineBox);
         const styleBg = isMachineBox ? "" : `background:${esc(m.color || "#4c73ff")};`;
         html += `<span class="videoSeg${m.open ? " open" : ""}${editCls}${isMachineBox ? " machineBox" : ""}${withMachineOverlay ? " withMachineOverlay" : ""}" data-mid="${esc(m.id)}" title="${esc(m.name)} ${fmtSec(s)} - ${m.open ? "..." : fmtSec(e)}" style="left:${left}%;width:${width}%;${styleBg}">
           ${withMachineOverlay ? '<span class="videoSegOverlay"></span>' : ''}
@@ -3643,6 +3773,15 @@
     return layers.sort((a, b) => a.z - b.z);
   }
 
+  function actionRoleFlags(typeId, laneId = "", atOverride = null) {
+    const at = atOverride || getActionType(typeId);
+    const tid = String(typeId || at?.id || "").toUpperCase();
+    const txt = `${tid} ${String(at?.name || "").toUpperCase()} ${String(laneId || at?.lane || "").toUpperCase()}`;
+    const machine = /\b(MACHINE|TECH|TECCH|ROBOT|CNC|AUTO)\b/.test(txt);
+    const human = /\b(HUMAN|OPERATOR|MANUAL|PERSON)\b/.test(txt);
+    return { machine, human, machineOnly: machine && !human };
+  }
+
   const machinePatternByCtx = new WeakMap();
   function getMachinePattern(ctx) {
     const cached = machinePatternByCtx.get(ctx);
@@ -3728,17 +3867,25 @@
     if (!cycle) return false;
     if (!cycle.timelineOffsetsMs || typeof cycle.timelineOffsetsMs !== "object") cycle.timelineOffsetsMs = {};
     const v = quantizeMs(Math.max(0, Number(startMs || 0)));
-    if (v < 0.5) delete cycle.timelineOffsetsMs[elementId];
-    else cycle.timelineOffsetsMs[elementId] = v;
+    cycle.timelineOffsetsMs[elementId] = v;
     return true;
   }
 
   function getActionResourceKeys(typeId, laneId) {
-    const t = String(typeId || "").toUpperCase();
+    const at = getActionType(typeId);
+    if (at && at.stackFlow === false) return [];
+    const lane = String(laneId || at?.lane || "lane");
+    const mode = String(at?.resourceMode || "AUTO").toUpperCase();
     const keys = [];
-    if (t.includes("MACHINE")) keys.push("res:machine");
-    if (t.includes("HUMAN")) keys.push("res:human");
-    if (!keys.length) keys.push(`lane:${String(laneId || "lane")}`);
+    if (mode === "FREE") return keys;
+    if (mode === "HUMAN") return ["res:human"];
+    if (mode === "MACHINE") return ["res:machine"];
+    if (mode === "BOTH") return ["res:machine", "res:human"];
+    if (mode === "LANE") return [`lane:${lane}`];
+    const roles = actionRoleFlags(typeId, laneId, at);
+    if (roles.machine) keys.push("res:machine");
+    if (roles.human) keys.push("res:human");
+    if (!keys.length) keys.push(`lane:${lane}`);
     return keys;
   }
 
@@ -3762,7 +3909,7 @@
       const resources = getActionResourceKeys(typeId, at.lane);
       const blockAt = resources.reduce((mx, rk) => Math.max(mx, Number(resourceEnd.get(rk) || 0)), 0);
       const reqStart = quantizeSec(Math.max(0, Number(offsets[el.id] || 0) / 1000));
-      const startSec = Math.max(blockAt, reqStart);
+      const startSec = resources.length ? Math.max(blockAt, reqStart) : reqStart;
       const durSec = quantizeSec(ms / 1000);
       const endSec = startSec + durSec;
       for (const rk of resources) resourceEnd.set(rk, Math.max(Number(resourceEnd.get(rk) || 0), endSec));
@@ -3938,7 +4085,8 @@
           const lH = resolveHeightPx(typeId, layer.heightPx, rowH);
           const ly = laneY(y, rowH, lIdx, lH, laneStep);
           if (li === layers.length - 1) { primaryY = ly; primaryH = lH; }
-          const isPureMachine = typeId === "MACHINE" && layers.length === 1;
+          const roles = actionRoleFlags(typeId, at.lane, at);
+          const isPureMachine = roles.machineOnly && layers.length === 1;
           ctx.save();
           ctx.globalAlpha = Math.max(0.05, Math.min(1, Number(layer.opacity ?? 1)));
           if (isPureMachine) {
@@ -3954,12 +4102,28 @@
         }
 
         // Machine-style cyan border for any type containing MACHINE
-        if (typeId.includes("MACHINE")) {
+        if (actionRoleFlags(typeId, at.lane, at).machine) {
           ctx.save();
           ctx.globalAlpha = 0.90;
           ctx.strokeStyle = "rgba(51,198,255,0.92)";
           ctx.lineWidth = 1.5;
           ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.max(0, width - 1), Math.max(0, hPx - 1));
+          ctx.restore();
+        }
+
+        // Start/end ticks for clearer visual boundaries.
+        if (width > 0.6) {
+          const tickH = Math.max(5, Math.min(16, hPx - 2));
+          const yTick = y0 + Math.max(1, (hPx - tickH) / 2);
+          ctx.save();
+          ctx.strokeStyle = "rgba(255,255,255,0.92)";
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(x0 + 0.5, yTick);
+          ctx.lineTo(x0 + 0.5, yTick + tickH);
+          ctx.moveTo(x1 - 0.5, yTick);
+          ctx.lineTo(x1 - 0.5, yTick + tickH);
+          ctx.stroke();
           ctx.restore();
         }
 
@@ -4141,6 +4305,55 @@
     }
   }
 
+  function renderTimelineScopeSelectors() {
+    const stationSel = $("timelineStationSel");
+    const jobSel = $("timelineJobSel");
+    if (!stationSel || !jobSel) return;
+
+    const activeJob = getActiveJob();
+    const activeStationId = activeJob?.stationId || state.stations[0]?.id || "";
+
+    stationSel.innerHTML = "";
+    for (const st of state.stations) {
+      const opt = document.createElement("option");
+      opt.value = st.id;
+      opt.textContent = `${st.code} - ${st.name}`;
+      stationSel.appendChild(opt);
+    }
+    if (!state.stations.length) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "— No stations —";
+      stationSel.appendChild(opt);
+      stationSel.disabled = true;
+    } else {
+      stationSel.disabled = false;
+      stationSel.value = activeStationId;
+    }
+
+    const stationId = stationSel.value || activeStationId;
+    const jobsAtStation = state.jobs.filter((j) => j.stationId === stationId);
+    jobSel.innerHTML = "";
+    for (const job of jobsAtStation) {
+      const opt = document.createElement("option");
+      opt.value = job.id;
+      opt.textContent = job.name;
+      jobSel.appendChild(opt);
+    }
+    if (!jobsAtStation.length) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "— No jobs —";
+      jobSel.appendChild(opt);
+      jobSel.disabled = true;
+    } else {
+      jobSel.disabled = false;
+      const fallbackJobId = jobsAtStation[0].id;
+      const activeInStation = activeJob && jobsAtStation.some((j) => j.id === activeJob.id);
+      jobSel.value = activeInStation ? activeJob.id : fallbackJobId;
+    }
+  }
+
   function setAllStationsCollapsed(collapsed) {
     ensureUiState(state);
     for (const st of state.stations) {
@@ -4213,9 +4426,17 @@
         $("atZ").value = String(Math.round(Number(editing.z ?? 10)));
         $("atOpacity").value = String(Math.round(Math.max(0.05, Math.min(1, Number(editing.opacity ?? 1))) * 100));
         underlaySel.value = editing.underlayTypeId || "";
+        const stackChk = $("atStackFlow");
+        if (stackChk) stackChk.checked = editing.stackFlow !== false;
+        const modeSel = $("atResourceMode");
+        if (modeSel) modeSel.value = String(editing.resourceMode || "AUTO");
       } else {
         // Type was deleted or not found, reset edit state
         editingActionTypeId = null;
+        const stackChk = $("atStackFlow");
+        if (stackChk) stackChk.checked = true;
+        const modeSel = $("atResourceMode");
+        if (modeSel) modeSel.value = "AUTO";
         updateAddTypeButton();
       }
     }
@@ -4294,6 +4515,8 @@
         <td class="mono">${esc(at.lane)}</td>
         <td class="mono">${Number(at.heightPx).toFixed(0)}</td>
         <td class="mono">${Number(at.z).toFixed(0)}</td>
+        <td class="mono">${at.stackFlow === false ? "No" : "Yes"}</td>
+        <td class="mono">${esc(String(at.resourceMode || "AUTO"))}</td>
         <td><span style="display:inline-block;width:24px;height:14px;border-radius:4px;border:1px solid rgba(255,255,255,.18);background:${esc(at.color)};"></span></td>
         <td class="right"><button class="danger" data-del-at="${esc(at.id)}" style="padding:6px 10px; border-radius:10px;">Delete</button></td>
       `;
@@ -4315,6 +4538,8 @@
         $("atZ").value = String(Math.round(Number(at.z ?? 10)));
         $("atOpacity").value = String(Math.round(Math.max(0.05, Math.min(1, Number(at.opacity ?? 1))) * 100));
         $("atUnderlay").value = at.underlayTypeId || "";
+        $("atStackFlow").checked = at.stackFlow !== false;
+        $("atResourceMode").value = String(at.resourceMode || "AUTO");
         updateAddTypeButton();
       });
       body.appendChild(tr);
@@ -4334,11 +4559,27 @@
       z: $("atZ").value !== "" ? Number($("atZ").value) : 10,
       opacity: Math.max(0.01, Math.min(1, ($("atOpacity").value !== "" ? Number($("atOpacity").value) : 100) / 100)),
       underlayTypeId: String($("atUnderlay").value || "").trim().toUpperCase(),
+      stackFlow: !!$("atStackFlow")?.checked,
+      resourceMode: String($("atResourceMode")?.value || "AUTO").toUpperCase(),
     });
     // handle rename if editing existing
     if (editingActionTypeId && editingActionTypeId !== id) {
-      const oldIdx = state.actionTypes.findIndex(x => x.id === editingActionTypeId);
+      const oldId = String(editingActionTypeId).toUpperCase();
+      const oldIdx = state.actionTypes.findIndex(x => x.id === oldId);
       if (oldIdx >= 0) state.actionTypes.splice(oldIdx, 1);
+      for (const at of (state.actionTypes || [])) {
+        if (String(at.underlayTypeId || "").toUpperCase() === oldId) at.underlayTypeId = id;
+      }
+      for (const job of (state.jobs || [])) {
+        for (const el of (job.elements || [])) {
+          if (String(el.type || "").toUpperCase() === oldId) el.type = id;
+        }
+        for (const cyc of (job.cycles || [])) {
+          for (const lap of (cyc.laps || [])) {
+            if (String(lap.type || "").toUpperCase() === oldId) lap.type = id;
+          }
+        }
+      }
     }
     const idx = state.actionTypes.findIndex((x) => x.id === id);
     if (idx >= 0) state.actionTypes[idx] = next;
@@ -4847,6 +5088,7 @@
 
   function closeTimelineEditor() {
     timelineEditState.editor.open = false;
+    timelineEditState.editorDrag = null;
     const box = $("timelineBarEditor");
     if (box) box.classList.remove("show");
   }
@@ -4859,6 +5101,8 @@
       elementId: String(hit.elementId || ""),
       x: Number(x || 0),
       y: Number(y || 0),
+      manualPos: false,
+      lastField: "",
     };
     syncTimelineEditor();
   }
@@ -4893,13 +5137,21 @@
 
     const sx = card.clientWidth / canvas.width;
     const sy = card.clientHeight / canvas.height;
-    const anchorX = ed.x || hit.x1;
-    const anchorY = ed.y || hit.y;
-    const px = Math.max(8, Math.round(anchorX * sx) + 10);
-    const py = Math.max(8, Math.round(anchorY * sy) + 10);
+    let px = 8;
+    let py = 8;
+    if (ed.manualPos) {
+      px = Number(ed.x || 8);
+      py = Number(ed.y || 8);
+    } else {
+      const anchorX = ed.x || hit.x1;
+      const anchorY = ed.y || hit.y;
+      px = Math.max(8, Math.round(anchorX * sx) + 10);
+      py = Math.max(8, Math.round(anchorY * sy) + 10);
+    }
 
     box.style.left = `${px}px`;
     box.style.top = `${py}px`;
+    box.classList.add("draggable");
     box.classList.add("show");
 
     // clamp after visible
@@ -4907,23 +5159,82 @@
     const bh = box.offsetHeight || 180;
     const maxL = Math.max(8, card.clientWidth - bw - 8);
     const maxT = Math.max(8, card.clientHeight - bh - 8);
-    box.style.left = `${Math.max(8, Math.min(maxL, px))}px`;
-    box.style.top = `${Math.max(8, Math.min(maxT, py))}px`;
+    const clampedL = Math.max(8, Math.min(maxL, px));
+    const clampedT = Math.max(8, Math.min(maxT, py));
+    box.style.left = `${clampedL}px`;
+    box.style.top = `${clampedT}px`;
+    if (ed.manualPos) {
+      ed.x = clampedL;
+      ed.y = clampedT;
+    }
   }
 
-  function applyTimelineEditorInputs() {
+  function applyTimelineEditorInputs(sourceField = "") {
     const job = getActiveJob();
     const ed = timelineEditState.editor;
     if (!job || !ed?.open) return;
     const s = Math.max(0, Number($("tlEdStart")?.value || 0));
     const dRaw = Math.max(0, Number($("tlEdDur")?.value || 0));
     const e = Math.max(0, Number($("tlEdEnd")?.value || 0));
-    const d = dRaw > 0 ? dRaw : Math.max(0, e - s);
+    const fallbackDur = Math.max(0, e - s);
+    const field = String(sourceField || ed.lastField || "");
+    let d = dRaw;
+    if (field === "end") d = fallbackDur;
+    else if (field === "dur") d = dRaw;
+    else if (field === "start") d = dRaw > 0 ? dRaw : fallbackDur;
+    else d = dRaw > 0 ? dRaw : fallbackDur;
     setCycleElementOffsetMs(job, ed.cycleId, ed.elementId, s * 1000);
     setCycleElementDurationMs(job, ed.cycleId, ed.elementId, d * 1000);
     selectedCycleId = ed.cycleId;
     saveState();
     renderAll();
+  }
+
+  function beginTimelineEditorDrag(e) {
+    const box = $("timelineBarEditor");
+    const card = $("timelineChartCard");
+    const ed = timelineEditState.editor;
+    if (!box || !card || !ed?.open) return;
+    if (typeof e.button === "number" && e.button !== 0) return;
+    if (e.target?.closest("input,button,select,textarea,label")) return;
+    const rect = box.getBoundingClientRect();
+    timelineEditState.editorDrag = {
+      pointerId: e.pointerId,
+      dx: e.clientX - rect.left,
+      dy: e.clientY - rect.top,
+    };
+    try { box.setPointerCapture?.(e.pointerId); } catch {}
+    e.preventDefault();
+  }
+
+  function onTimelineEditorDragMove(e) {
+    const drag = timelineEditState.editorDrag;
+    const box = $("timelineBarEditor");
+    const card = $("timelineChartCard");
+    const ed = timelineEditState.editor;
+    if (!drag || !box || !card || !ed?.open) return;
+    const cardRect = card.getBoundingClientRect();
+    let left = e.clientX - cardRect.left - drag.dx;
+    let top = e.clientY - cardRect.top - drag.dy;
+    const bw = box.offsetWidth || 300;
+    const bh = box.offsetHeight || 180;
+    const maxL = Math.max(8, card.clientWidth - bw - 8);
+    const maxT = Math.max(8, card.clientHeight - bh - 8);
+    left = Math.max(8, Math.min(maxL, left));
+    top = Math.max(8, Math.min(maxT, top));
+    box.style.left = `${Math.round(left)}px`;
+    box.style.top = `${Math.round(top)}px`;
+    ed.manualPos = true;
+    ed.x = Math.round(left);
+    ed.y = Math.round(top);
+    e.preventDefault();
+  }
+
+  function endTimelineEditorDrag(e) {
+    const box = $("timelineBarEditor");
+    if (!timelineEditState.editorDrag) return;
+    try { box?.releasePointerCapture?.(e.pointerId); } catch {}
+    timelineEditState.editorDrag = null;
   }
 
   function onTimelineClick(e) {
@@ -4999,7 +5310,7 @@
   const uiJobsWidthRange = $("uiJobsWidthRange");
   if (uiJobsWidthRange) {
     uiJobsWidthRange.addEventListener("input", () => {
-      state.ui.jobsPanelWidth = Math.max(280, Math.min(560, Number(uiJobsWidthRange.value || 420) || 420));
+      state.ui.jobsPanelWidth = Math.max(240, Math.min(640, Number(uiJobsWidthRange.value || 360) || 360));
       applyUiLayout();
       saveState();
     });
@@ -5080,7 +5391,12 @@
     saveState();
   });
   let draggingPanelId = "";
+  const reorderablePanels = new Set((state.ui?.panelOrder || []).map((x) => String(x)));
   document.querySelectorAll("#panelTogglesRow [data-panel-toggle]").forEach((btn) => {
+    const panelId = String(btn.dataset.panelToggle || "");
+    const canDrag = reorderablePanels.has(panelId);
+    btn.draggable = canDrag;
+    if (!canDrag) return;
     btn.addEventListener("dragstart", (e) => {
       draggingPanelId = String(btn.dataset.panelToggle || "");
       e.dataTransfer?.setData("text/plain", draggingPanelId);
@@ -5095,6 +5411,33 @@
     });
     btn.addEventListener("dragend", () => { draggingPanelId = ""; });
   });
+  document.querySelectorAll("#panelDock .panelHdr[data-panel-hdr]").forEach((hdr) => {
+    const panelId = String(hdr.dataset.panelHdr || "");
+    if (!reorderablePanels.has(panelId)) return;
+    hdr.draggable = true;
+    hdr.addEventListener("dragstart", (e) => {
+      draggingPanelId = panelId;
+      hdr.classList.add("dragging");
+      e.dataTransfer?.setData("text/plain", panelId);
+    });
+    hdr.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      hdr.classList.add("dropBefore");
+    });
+    hdr.addEventListener("dragleave", () => hdr.classList.remove("dropBefore"));
+    hdr.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const src = draggingPanelId || e.dataTransfer?.getData("text/plain") || "";
+      reorderPanels(src, panelId);
+      hdr.classList.remove("dropBefore");
+      draggingPanelId = "";
+    });
+    hdr.addEventListener("dragend", () => {
+      hdr.classList.remove("dragging");
+      hdr.classList.remove("dropBefore");
+      draggingPanelId = "";
+    });
+  });
   document.querySelectorAll("[data-ui-panel]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       const panel = e.currentTarget?.dataset?.uiPanel;
@@ -5108,6 +5451,13 @@
   // Panel collapse/expand via header buttons
   document.querySelectorAll(".panelHdr[data-panel-hdr]").forEach((btn) => {
     btn.addEventListener("click", () => {
+      const panelId = String(btn.dataset.panelHdr || "");
+      if (panelId === "jobsSidebar") {
+        state.ui.jobsPanelCollapsed = !state.ui.jobsPanelCollapsed;
+        applyUiLayout();
+        saveState();
+        return;
+      }
       const block = btn.closest(".panelBlock");
       if (block) block.classList.toggle("collapsed");
     });
@@ -5123,6 +5473,34 @@
     jobSwitchSel.addEventListener("change", () => {
       const id = jobSwitchSel.value;
       if (id && state.jobs.some(j => j.id === id)) selectJob(id);
+    });
+  }
+  const timelineStationSel = $("timelineStationSel");
+  if (timelineStationSel) {
+    timelineStationSel.addEventListener("change", () => {
+      const stationId = String(timelineStationSel.value || "");
+      const nextJob = state.jobs.find((j) => j.stationId === stationId);
+      if (nextJob) {
+        selectJob(nextJob.id);
+        return;
+      }
+      if (timer.mode === TimerMode.Running) {
+        if (!confirm("Timer running. Switch station and stop current cycle?")) return;
+        stopCycle();
+      }
+      state.activeJobId = null;
+      selectedElementId = null;
+      selectedCycleId = null;
+      selectedCycleIdsForLine = new Set();
+      saveState();
+      renderAll();
+    });
+  }
+  const timelineJobSel = $("timelineJobSel");
+  if (timelineJobSel) {
+    timelineJobSel.addEventListener("change", () => {
+      const id = String(timelineJobSel.value || "");
+      if (id && state.jobs.some((j) => j.id === id)) selectJob(id);
     });
   }
 
@@ -5193,6 +5571,8 @@
     $("atZ").value = "10";
     $("atOpacity").value = "100";
     $("atUnderlay").value = "";
+    $("atStackFlow").checked = true;
+    $("atResourceMode").value = "AUTO";
     updateAddTypeButton();
   });
   const kpiExportCsvBtn = $("kpiExportCsvBtn");
@@ -5230,6 +5610,28 @@
     if (f) loadVideoFile(f);
     e.target.value = "";
   });
+  const videoLibLoadBtn = $("videoLibLoadBtn");
+  if (videoLibLoadBtn) {
+    videoLibLoadBtn.addEventListener("click", () => {
+      const id = $("videoLibSel")?.value || "";
+      if (!id) return alert("Select a recorded entry first.");
+      loadVideoLibraryEntryIntoMarkers(id);
+    });
+  }
+  const videoLibDeleteBtn = $("videoLibDeleteBtn");
+  if (videoLibDeleteBtn) {
+    videoLibDeleteBtn.addEventListener("click", () => {
+      const sel = $("videoLibSel");
+      const id = String(sel?.value || "");
+      if (!id) return;
+      if (!confirm("Delete this recorded bookmarks entry?")) return;
+      const next = loadVideoBookmarksLibrary().filter((e) => String(e.id || "") !== id);
+      saveVideoBookmarksLibrary(next);
+      populateVideoLibrarySelector();
+    });
+  }
+  const videoLibRefreshBtn = $("videoLibRefreshBtn");
+  if (videoLibRefreshBtn) videoLibRefreshBtn.addEventListener("click", populateVideoLibrarySelector);
   $("videoSeqBtn").addEventListener("click", videoSequenceStep);
   $("videoManualStartBtn").addEventListener("click", videoMarkStart);
   $("videoManualEndBtn").addEventListener("click", videoMarkEnd);
@@ -5305,7 +5707,7 @@
     timelineCanvas.addEventListener("click", onTimelineClick);
   }
   $("tlEdCloseBtn").addEventListener("click", closeTimelineEditor);
-  $("tlEdApplyBtn").addEventListener("click", applyTimelineEditorInputs);
+  $("tlEdApplyBtn").addEventListener("click", () => applyTimelineEditorInputs("apply"));
   $("tlEdResetStartBtn").addEventListener("click", () => {
     const ed = timelineEditState.editor;
     const job = getActiveJob();
@@ -5314,9 +5716,25 @@
     saveState();
     renderAll();
   });
-  $("tlEdStart").addEventListener("change", applyTimelineEditorInputs);
-  $("tlEdDur").addEventListener("change", applyTimelineEditorInputs);
-  $("tlEdEnd").addEventListener("change", applyTimelineEditorInputs);
+  $("tlEdStart").addEventListener("input", () => {
+    if (timelineEditState.editor?.open) timelineEditState.editor.lastField = "start";
+  });
+  $("tlEdDur").addEventListener("input", () => {
+    if (timelineEditState.editor?.open) timelineEditState.editor.lastField = "dur";
+  });
+  $("tlEdEnd").addEventListener("input", () => {
+    if (timelineEditState.editor?.open) timelineEditState.editor.lastField = "end";
+  });
+  $("tlEdStart").addEventListener("change", () => applyTimelineEditorInputs("start"));
+  $("tlEdDur").addEventListener("change", () => applyTimelineEditorInputs("dur"));
+  $("tlEdEnd").addEventListener("change", () => applyTimelineEditorInputs("end"));
+  const timelineEditor = $("timelineBarEditor");
+  if (timelineEditor) {
+    timelineEditor.addEventListener("pointerdown", beginTimelineEditorDrag);
+    timelineEditor.addEventListener("pointermove", onTimelineEditorDragMove);
+    timelineEditor.addEventListener("pointerup", endTimelineEditorDrag);
+    timelineEditor.addEventListener("pointercancel", endTimelineEditorDrag);
+  }
   document.addEventListener("pointerdown", (e) => {
     const box = $("timelineBarEditor");
     if (!box || !timelineEditState.editor.open) return;
@@ -5411,13 +5829,37 @@
   function renderAll() {
     applyUiLayout();
     renderStationJobSidebar();
+    renderTimelineScopeSelectors();
     renderJobConfigDrawer();
     renderHeaderKpisTimerGraph();
     renderVideoMarkersList();
     syncVideoTimeline();
   }
 
+  function syncStateFromStorageIfChanged() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw || raw === lastStateSignature) return;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.stations) || !Array.isArray(parsed.jobs)) return;
+      state = loadState();
+      lastStateSignature = raw;
+      renderAll();
+      flashSavePill("↻ Synced");
+    } catch {}
+  }
+
   // init
+  window.addEventListener("storage", (e) => {
+    if (e.key === STORAGE_KEY) syncStateFromStorageIfChanged();
+    if (e.key === VIDEO_BOOKMARKS_KEY) populateVideoLibrarySelector();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      syncStateFromStorageIfChanged();
+      populateVideoLibrarySelector();
+    }
+  });
   initI18n().finally(() => {
     renderAll();
     applyI18nStatic();
