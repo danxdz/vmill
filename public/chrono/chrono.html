@@ -289,6 +289,25 @@
     /* Make cycles panel span full width of the grid */
     #panelCyclesBlock{ grid-column: 1 / -1; }
     #panelDock{display:flex; flex-direction:column; gap:10px;}
+    #panelDock.panelLayoutGrid{
+      display:grid;
+      grid-template-columns:repeat(var(--panel-grid-cols,2), minmax(320px,1fr));
+      align-items:start;
+    }
+    @media(max-width:1280px){
+      #panelDock.panelLayoutGrid{grid-template-columns:repeat(2, minmax(280px,1fr));}
+    }
+    @media(max-width:860px){
+      #panelDock.panelLayoutGrid{grid-template-columns:1fr;}
+    }
+    .panelBlock{transition:transform .15s ease, box-shadow .15s ease, opacity .15s ease;}
+    .panelBlock.dragging{
+      opacity:.75;
+      transform:scale(.99);
+      box-shadow:0 18px 34px rgba(0,0,0,.35);
+    }
+    .panelHdr{cursor:grab;}
+    .panelHdr:active{cursor:grabbing;}
     .panelBlock{display:block;}
     body.videoMode .timerGrid{grid-template-columns:1fr !important;}
     body.videoMode #videoEl{height:min(62vh,560px);}
@@ -637,6 +656,10 @@
   </div>
   <div class="topRight">
     <span class="hSavePill" id="savePill"></span>
+    <select id="quickPanelLayoutSel" class="miniSelect hLangSel" title="Panel layout">
+      <option value="stack">Stack</option>
+      <option value="grid">Grid</option>
+    </select>
     <!-- Panel visibility toggles -->
     <div class="hPanelToggles" id="panelTogglesRow">
       <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="jobs" title="Show/Hide jobs panel">Jobs</button>
@@ -1205,6 +1228,22 @@
                 </select>
               </div>
               <div>
+                <label id="uiPanelLayoutLabel">Panel layout</label>
+                <select id="uiPanelLayoutSel">
+                  <option value="stack">Stacked cards</option>
+                  <option value="grid">Adaptive grid</option>
+                </select>
+              </div>
+            </div>
+            <div class="row2" id="uiPanelGridColsWrap" style="display:none;">
+              <div>
+                <label id="uiPanelGridColsLabel">Grid columns</label>
+                <input id="uiPanelGridColsRange" type="range" min="1" max="4" step="1" value="2" />
+                <div class="small muted mono" id="uiPanelGridColsValue">2 cols</div>
+              </div>
+            </div>
+            <div class="row2">
+              <div>
                 <label id="uiJobsWidthLabelTitle">Jobs panel width</label>
                 <input id="uiJobsWidthRange" type="range" min="280" max="560" step="10" value="420" />
                 <div class="small muted mono" id="uiJobsWidthLabel">420 px</div>
@@ -1382,6 +1421,11 @@
     "uiLayoutMode": "Layout mode",
     "uiLayoutHorizontal": "Horizontal (side by side)",
     "uiLayoutVertical": "Vertical (stacked)",
+    "uiPanelLayout": "Panel layout",
+    "uiPanelLayoutStack": "Stacked cards",
+    "uiPanelLayoutGrid": "Adaptive grid",
+    "uiPanelGridCols": "Grid columns",
+    "uiPanelGridColsValue": "cols",
     "uiJobsWidth": "Jobs panel width (px)",
     "uiBgColor": "Background",
     "uiTextColor": "Text",
@@ -1523,6 +1567,11 @@
     "uiLayoutMode": "Mode layout",
     "uiLayoutHorizontal": "Horizontal (cote a cote)",
     "uiLayoutVertical": "Vertical (empile)",
+    "uiPanelLayout": "Disposition panneaux",
+    "uiPanelLayoutStack": "Cartes empilees",
+    "uiPanelLayoutGrid": "Grille adaptative",
+    "uiPanelGridCols": "Colonnes grille",
+    "uiPanelGridColsValue": "colonnes",
     "uiJobsWidth": "Largeur panneau jobs (px)",
     "uiBgColor": "Fond",
     "uiTextColor": "Texte",
@@ -1700,6 +1749,8 @@
     setText("#uiScaleLabel", "uiScale", "UI Scale");
     setText("#uiScaleValueLabel", "scaleValue", "Scale value");
     setText("#uiLayoutModeLabel", "uiLayoutMode", "Layout mode");
+    setText("#uiPanelLayoutLabel", "uiPanelLayout", "Panel layout");
+    setText("#uiPanelGridColsLabel", "uiPanelGridCols", "Grid columns");
     setText("#uiJobsWidthLabelTitle", "jobsPanelWidth", "Jobs panel width");
     setText("#uiBgColorLabel", "uiBgColor", "Background");
     setText("#uiTextColorLabel", "uiTextColor", "Text");
@@ -1714,6 +1765,17 @@
     if (modeSel && modeSel.options.length >= 2) {
       modeSel.options[0].textContent = t("uiLayoutHorizontal", "Horizontal (side by side)");
       modeSel.options[1].textContent = t("uiLayoutVertical", "Vertical (stacked)");
+    }
+    const panelLayoutSel = $("uiPanelLayoutSel");
+    if (panelLayoutSel && panelLayoutSel.options.length >= 2) {
+      panelLayoutSel.options[0].textContent = t("uiPanelLayoutStack", "Stacked cards");
+      panelLayoutSel.options[1].textContent = t("uiPanelLayoutGrid", "Adaptive grid");
+    }
+    const quickLayoutSel = $("quickPanelLayoutSel");
+    if (quickLayoutSel && quickLayoutSel.options.length >= 2) {
+      quickLayoutSel.options[0].textContent = t("uiPanelLayoutStack", "Stacked cards");
+      quickLayoutSel.options[1].textContent = t("uiPanelLayoutGrid", "Adaptive grid");
+      quickLayoutSel.title = t("uiPanelLayout", "Panel layout");
     }
     const unitSel = $("uiTimeUnitSel");
     if (unitSel && unitSel.options.length >= 2) {
@@ -1925,6 +1987,8 @@
       collapsedStations: {},
       timelineSameBase: true,
       layoutMode: "horizontal",
+      panelLayout: "stack",
+      panelGridCols: 2,
       jobsPanelWidth: 480,
       themeBg: "#0b0c10",
       themeText: "#e8e8e8",
@@ -1963,6 +2027,8 @@
       ? st.ui.collapsedStations : {};
     st.ui.timelineSameBase = st.ui.timelineSameBase !== false;
     st.ui.layoutMode = (st.ui.layoutMode === "vertical") ? "vertical" : "horizontal";
+    st.ui.panelLayout = (st.ui.panelLayout === "grid") ? "grid" : "stack";
+    st.ui.panelGridCols = Math.round(clamp(st.ui.panelGridCols ?? d.panelGridCols, 1, 4, d.panelGridCols));
     st.ui.jobsPanelWidth = clamp(st.ui.jobsPanelWidth ?? d.jobsPanelWidth, 280, 1280, d.jobsPanelWidth);
     st.ui.themeBg = hex(st.ui.themeBg, d.themeBg);
     st.ui.themeText = hex(st.ui.themeText, d.themeText);
@@ -2201,6 +2267,16 @@
     ensureUiState(state);
     const modeSel = $("uiLayoutModeSel");
     if (modeSel) modeSel.value = state.ui.layoutMode;
+    const panelLayoutSel = $("uiPanelLayoutSel");
+    if (panelLayoutSel) panelLayoutSel.value = state.ui.panelLayout === "grid" ? "grid" : "stack";
+    const quickPanelLayoutSel = $("quickPanelLayoutSel");
+    if (quickPanelLayoutSel) quickPanelLayoutSel.value = state.ui.panelLayout === "grid" ? "grid" : "stack";
+    const colsWrap = $("uiPanelGridColsWrap");
+    if (colsWrap) colsWrap.style.display = state.ui.panelLayout === "grid" ? "" : "none";
+    const colsRange = $("uiPanelGridColsRange");
+    if (colsRange) colsRange.value = String(Math.max(1, Math.min(4, Number(state.ui.panelGridCols) || 2)));
+    const colsValue = $("uiPanelGridColsValue");
+    if (colsValue) colsValue.textContent = `${Math.max(1, Math.min(4, Number(state.ui.panelGridCols) || 2))} ${t("uiPanelGridColsValue", "cols")}`;
     const widthRange = $("uiJobsWidthRange");
     if (widthRange) widthRange.value = String(Math.round(state.ui.jobsPanelWidth));
     const widthLabel = $("uiJobsWidthLabel");
@@ -2291,6 +2367,12 @@
     if (kpiCard) kpiCard.style.display = kpiOn ? "" : "none";
     if (timelineBlock) timelineBlock.style.display = timelineOn ? "" : "none";
     if (cyclesBlock) cyclesBlock.style.display = cyclesOn ? "" : "none";
+
+    const panelDock = $("panelDock");
+    if (panelDock) {
+      panelDock.classList.toggle("panelLayoutGrid", state.ui.panelLayout === "grid");
+      panelDock.style.setProperty("--panel-grid-cols", String(Math.max(1, Math.min(4, Number(state.ui.panelGridCols) || 2))));
+    }
 
     const blockMap = {
       timer: $("panelTimerBlock"),
@@ -2564,10 +2646,9 @@
 
       if (useRules) {
         const resources = [];
-        const hasMachine = typeId.includes("MACHINE");
-        const hasHuman = typeId.includes("HUMAN");
-        if (hasMachine) resources.push("res:machine");
-        if (hasHuman) resources.push("res:human");
+        const roles = actionRoleFlags(typeId, laneId, at);
+        if (roles.machine) resources.push("res:machine");
+        if (roles.human) resources.push("res:human");
         if (!resources.length) resources.push(`lane:${laneId}`);
         const laneBlock = resources.reduce((mx, rk) => Math.max(mx, Number(resourceEnd.get(rk) || 0)), 0);
         const depBlock = depType ? Number(typeEnd.get(depType) || 0) : 0;
@@ -2586,11 +2667,10 @@
 
       if (useRules) {
         const endForRules = Number(e ?? s);
-        const hasMachine = typeId.includes("MACHINE");
-        const hasHuman = typeId.includes("HUMAN");
+        const roles = actionRoleFlags(typeId, laneId, at);
         const resources = [];
-        if (hasMachine) resources.push("res:machine");
-        if (hasHuman) resources.push("res:human");
+        if (roles.machine) resources.push("res:machine");
+        if (roles.human) resources.push("res:human");
         if (!resources.length) resources.push(`lane:${laneId}`);
         for (const rk of resources) {
           resourceEnd.set(rk, Math.max(Number(resourceEnd.get(rk) || 0), endForRules));
@@ -2725,8 +2805,9 @@
         const width = Math.max(0.2, ((e - s) / dur) * 100);
         const editCls = videoCapture.editMarkerId === m.id ? " editing" : "";
         const mType = String(m.type || "").toUpperCase();
-        const isMachineBox = mType === "MACHINE";
-        const withMachineOverlay = mType.includes("MACHINE") && !isMachineBox;
+        const mRoles = actionRoleFlags(mType);
+        const isMachineBox = !!mRoles.machineOnly;
+        const withMachineOverlay = !!(mRoles.machine && !isMachineBox);
         const styleBg = isMachineBox ? "" : `background:${esc(m.color || "#4c73ff")};`;
         html += `<span class="videoSeg${m.open ? " open" : ""}${editCls}${isMachineBox ? " machineBox" : ""}${withMachineOverlay ? " withMachineOverlay" : ""}" data-mid="${esc(m.id)}" title="${esc(m.name)} ${fmtSec(s)} - ${m.open ? "..." : fmtSec(e)}" style="left:${left}%;width:${width}%;${styleBg}">
           ${withMachineOverlay ? '<span class="videoSegOverlay"></span>' : ''}
@@ -3643,6 +3724,19 @@
     return layers.sort((a, b) => a.z - b.z);
   }
 
+  function actionRoleFlags(typeId, laneId = "", atOverride = null) {
+    const at = atOverride || getActionType(typeId);
+    const tid = String(typeId || at?.id || "").toUpperCase();
+    const txt = `${tid} ${String(at?.name || "").toUpperCase()} ${String(laneId || at?.lane || "").toUpperCase()}`;
+    const machine = /\b(MACHINE|TECH|TECCH|ROBOT|CNC|AUTO)\b/.test(txt);
+    const human = /\b(HUMAN|OPERATOR|MANUAL|PERSON)\b/.test(txt);
+    return {
+      machine,
+      human,
+      machineOnly: machine && !human,
+    };
+  }
+
   const machinePatternByCtx = new WeakMap();
   function getMachinePattern(ctx) {
     const cached = machinePatternByCtx.get(ctx);
@@ -3734,10 +3828,10 @@
   }
 
   function getActionResourceKeys(typeId, laneId) {
-    const t = String(typeId || "").toUpperCase();
     const keys = [];
-    if (t.includes("MACHINE")) keys.push("res:machine");
-    if (t.includes("HUMAN")) keys.push("res:human");
+    const roles = actionRoleFlags(typeId, laneId);
+    if (roles.machine) keys.push("res:machine");
+    if (roles.human) keys.push("res:human");
     if (!keys.length) keys.push(`lane:${String(laneId || "lane")}`);
     return keys;
   }
@@ -3938,7 +4032,8 @@
           const lH = resolveHeightPx(typeId, layer.heightPx, rowH);
           const ly = laneY(y, rowH, lIdx, lH, laneStep);
           if (li === layers.length - 1) { primaryY = ly; primaryH = lH; }
-          const isPureMachine = typeId === "MACHINE" && layers.length === 1;
+          const roles = actionRoleFlags(typeId, at.lane, at);
+          const isPureMachine = roles.machineOnly && layers.length === 1;
           ctx.save();
           ctx.globalAlpha = Math.max(0.05, Math.min(1, Number(layer.opacity ?? 1)));
           if (isPureMachine) {
@@ -3954,7 +4049,7 @@
         }
 
         // Machine-style cyan border for any type containing MACHINE
-        if (typeId.includes("MACHINE")) {
+        if (actionRoleFlags(typeId, at.lane, at).machine) {
           ctx.save();
           ctx.globalAlpha = 0.90;
           ctx.strokeStyle = "rgba(51,198,255,0.92)";
@@ -4337,8 +4432,22 @@
     });
     // handle rename if editing existing
     if (editingActionTypeId && editingActionTypeId !== id) {
-      const oldIdx = state.actionTypes.findIndex(x => x.id === editingActionTypeId);
+      const oldId = String(editingActionTypeId).toUpperCase();
+      const oldIdx = state.actionTypes.findIndex(x => x.id === oldId);
       if (oldIdx >= 0) state.actionTypes.splice(oldIdx, 1);
+      for (const at of (state.actionTypes || [])) {
+        if (String(at.underlayTypeId || "").toUpperCase() === oldId) at.underlayTypeId = id;
+      }
+      for (const job of (state.jobs || [])) {
+        for (const el of (job.elements || [])) {
+          if (String(el.type || "").toUpperCase() === oldId) el.type = id;
+        }
+        for (const cyc of (job.cycles || [])) {
+          for (const lap of (cyc.laps || [])) {
+            if (String(lap.type || "").toUpperCase() === oldId) lap.type = id;
+          }
+        }
+      }
     }
     const idx = state.actionTypes.findIndex((x) => x.id === id);
     if (idx >= 0) state.actionTypes[idx] = next;
@@ -4996,6 +5105,30 @@
       saveState();
     });
   }
+  const uiPanelLayoutSel = $("uiPanelLayoutSel");
+  if (uiPanelLayoutSel) {
+    uiPanelLayoutSel.addEventListener("change", () => {
+      state.ui.panelLayout = (uiPanelLayoutSel.value === "grid") ? "grid" : "stack";
+      applyUiLayout();
+      saveState();
+    });
+  }
+  const quickPanelLayoutSel = $("quickPanelLayoutSel");
+  if (quickPanelLayoutSel) {
+    quickPanelLayoutSel.addEventListener("change", () => {
+      state.ui.panelLayout = (quickPanelLayoutSel.value === "grid") ? "grid" : "stack";
+      applyUiLayout();
+      saveState();
+    });
+  }
+  const uiPanelGridColsRange = $("uiPanelGridColsRange");
+  if (uiPanelGridColsRange) {
+    uiPanelGridColsRange.addEventListener("input", () => {
+      state.ui.panelGridCols = Math.max(1, Math.min(4, Number(uiPanelGridColsRange.value) || 2));
+      applyUiLayout();
+      saveState();
+    });
+  }
   const uiJobsWidthRange = $("uiJobsWidthRange");
   if (uiJobsWidthRange) {
     uiJobsWidthRange.addEventListener("input", () => {
@@ -5080,20 +5213,42 @@
     saveState();
   });
   let draggingPanelId = "";
+  const bindPanelDropTarget = (el, getDropId) => {
+    if (!el) return;
+    el.addEventListener("dragover", (e) => { e.preventDefault(); });
+    el.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const dropId = String(getDropId(el) || "");
+      const src = draggingPanelId || e.dataTransfer?.getData("text/plain") || "";
+      reorderPanels(src, dropId);
+      draggingPanelId = "";
+      document.querySelectorAll(".panelBlock.dragging").forEach((x) => x.classList.remove("dragging"));
+    });
+  };
+
   document.querySelectorAll("#panelTogglesRow [data-panel-toggle]").forEach((btn) => {
     btn.addEventListener("dragstart", (e) => {
       draggingPanelId = String(btn.dataset.panelToggle || "");
       e.dataTransfer?.setData("text/plain", draggingPanelId);
     });
-    btn.addEventListener("dragover", (e) => { e.preventDefault(); });
-    btn.addEventListener("drop", (e) => {
-      e.preventDefault();
-      const dropId = String(btn.dataset.panelToggle || "");
-      const src = draggingPanelId || e.dataTransfer?.getData("text/plain") || "";
-      reorderPanels(src, dropId);
+    bindPanelDropTarget(btn, (x) => x.dataset.panelToggle);
+    btn.addEventListener("dragend", () => { draggingPanelId = ""; });
+  });
+
+  document.querySelectorAll("#panelDock .panelBlock").forEach((block) => {
+    const panelId = block.id.replace(/^panel/, "").replace(/Block$/, "").toLowerCase();
+    block.setAttribute("draggable", "true");
+    block.dataset.panelId = panelId;
+    block.addEventListener("dragstart", (e) => {
+      draggingPanelId = panelId;
+      block.classList.add("dragging");
+      e.dataTransfer?.setData("text/plain", panelId);
+    });
+    bindPanelDropTarget(block, (x) => x.dataset.panelId);
+    block.addEventListener("dragend", () => {
+      block.classList.remove("dragging");
       draggingPanelId = "";
     });
-    btn.addEventListener("dragend", () => { draggingPanelId = ""; });
   });
   document.querySelectorAll("[data-ui-panel]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
@@ -5335,6 +5490,53 @@
   }
   $("modeSelectedBtn").addEventListener("click", () => setMode("SELECTED"));
   $("modeAllBtn").addEventListener("click", () => setMode("ALL"));
+  // Public API for external integration / automation
+  window.ChronoLayoutAPI = {
+    getState: () => ({
+      panelLayout: state.ui.panelLayout,
+      panelGridCols: state.ui.panelGridCols,
+      panelOrder: (state.ui.panelOrder || []).slice(),
+      panels: { ...(state.ui.panels || {}) },
+    }),
+    setPanelLayout: (layout) => {
+      state.ui.panelLayout = (layout === "grid") ? "grid" : "stack";
+      applyUiLayout();
+      saveState();
+      return window.ChronoLayoutAPI.getState();
+    },
+    setGridColumns: (cols) => {
+      state.ui.panelGridCols = Math.max(1, Math.min(4, Number(cols) || 2));
+      applyUiLayout();
+      saveState();
+      return window.ChronoLayoutAPI.getState();
+    },
+    movePanel: (panelId, beforePanelId) => {
+      reorderPanels(panelId, beforePanelId);
+      return window.ChronoLayoutAPI.getState();
+    },
+    setPanelVisible: (panelId, visible) => {
+      if (panelId === "jobs") {
+        state.ui.leftPanelVisible = !!visible;
+      } else if (state.ui.panels && panelId in state.ui.panels) {
+        state.ui.panels[panelId] = !!visible;
+      }
+      applyUiLayout();
+      saveState();
+      return window.ChronoLayoutAPI.getState();
+    },
+    resetLayout: () => {
+      const defaults = defaultUiState();
+      state.ui.panelOrder = defaults.panelOrder.slice();
+      state.ui.panelLayout = defaults.panelLayout;
+      state.ui.panelGridCols = defaults.panelGridCols;
+      state.ui.panels = { ...defaults.panels };
+      applyUiLayout();
+      saveState();
+      return window.ChronoLayoutAPI.getState();
+    },
+  };
+
+
   // Init selection toolbar visibility
   { const selTb = $("selectionToolbar"); if (selTb) selTb.style.opacity = "1"; }
 
