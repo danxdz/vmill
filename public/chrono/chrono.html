@@ -289,6 +289,25 @@
     /* Make cycles panel span full width of the grid */
     #panelCyclesBlock{ grid-column: 1 / -1; }
     #panelDock{display:flex; flex-direction:column; gap:10px;}
+    #panelDock.panelLayoutGrid{
+      display:grid;
+      grid-template-columns:repeat(var(--panel-grid-cols,2), minmax(320px,1fr));
+      align-items:start;
+    }
+    @media(max-width:1280px){
+      #panelDock.panelLayoutGrid{grid-template-columns:repeat(2, minmax(280px,1fr));}
+    }
+    @media(max-width:860px){
+      #panelDock.panelLayoutGrid{grid-template-columns:1fr;}
+    }
+    .panelBlock{transition:transform .15s ease, box-shadow .15s ease, opacity .15s ease;}
+    .panelBlock.dragging{
+      opacity:.75;
+      transform:scale(.99);
+      box-shadow:0 18px 34px rgba(0,0,0,.35);
+    }
+    .panelHdr{cursor:grab;}
+    .panelHdr:active{cursor:grabbing;}
     .panelBlock{display:block;}
     body.videoMode .timerGrid{grid-template-columns:1fr !important;}
     body.videoMode #videoEl{height:min(62vh,560px);}
@@ -638,6 +657,10 @@
   </div>
   <div class="topRight">
     <span class="hSavePill" id="savePill"></span>
+    <select id="quickPanelLayoutSel" class="miniSelect hLangSel" title="Panel layout">
+      <option value="stack">Stack</option>
+      <option value="grid">Grid</option>
+    </select>
     <!-- Panel visibility toggles -->
     <div class="hPanelToggles" id="panelTogglesRow">
       <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="jobs" title="Show/Hide jobs panel">Jobs</button>
@@ -1249,6 +1272,22 @@
                 </select>
               </div>
               <div>
+                <label id="uiPanelLayoutLabel">Panel layout</label>
+                <select id="uiPanelLayoutSel">
+                  <option value="stack">Stacked cards</option>
+                  <option value="grid">Adaptive grid</option>
+                </select>
+              </div>
+            </div>
+            <div class="row2" id="uiPanelGridColsWrap" style="display:none;">
+              <div>
+                <label id="uiPanelGridColsLabel">Grid columns</label>
+                <input id="uiPanelGridColsRange" type="range" min="1" max="4" step="1" value="2" />
+                <div class="small muted mono" id="uiPanelGridColsValue">2 cols</div>
+              </div>
+            </div>
+            <div class="row2">
+              <div>
                 <label id="uiJobsWidthLabelTitle">Jobs panel width</label>
                 <input id="uiJobsWidthRange" type="range" min="240" max="640" step="10" value="360" />
                 <div class="small muted mono" id="uiJobsWidthLabel">360 px</div>
@@ -1423,6 +1462,11 @@
     "uiLayoutMode": "Layout mode",
     "uiLayoutHorizontal": "Horizontal (side by side)",
     "uiLayoutVertical": "Vertical (stacked)",
+    "uiPanelLayout": "Panel layout",
+    "uiPanelLayoutStack": "Stacked cards",
+    "uiPanelLayoutGrid": "Adaptive grid",
+    "uiPanelGridCols": "Grid columns",
+    "uiPanelGridColsValue": "cols",
     "uiJobsWidth": "Jobs panel width (px)",
     "uiBgColor": "Background",
     "uiTextColor": "Text",
@@ -1564,6 +1608,11 @@
     "uiLayoutMode": "Mode layout",
     "uiLayoutHorizontal": "Horizontal (cote a cote)",
     "uiLayoutVertical": "Vertical (empile)",
+    "uiPanelLayout": "Disposition panneaux",
+    "uiPanelLayoutStack": "Cartes empilees",
+    "uiPanelLayoutGrid": "Grille adaptative",
+    "uiPanelGridCols": "Colonnes grille",
+    "uiPanelGridColsValue": "colonnes",
     "uiJobsWidth": "Largeur panneau jobs (px)",
     "uiBgColor": "Fond",
     "uiTextColor": "Texte",
@@ -1741,6 +1790,8 @@
     setText("#uiScaleLabel", "uiScale", "UI Scale");
     setText("#uiScaleValueLabel", "scaleValue", "Scale value");
     setText("#uiLayoutModeLabel", "uiLayoutMode", "Layout mode");
+    setText("#uiPanelLayoutLabel", "uiPanelLayout", "Panel layout");
+    setText("#uiPanelGridColsLabel", "uiPanelGridCols", "Grid columns");
     setText("#uiJobsWidthLabelTitle", "jobsPanelWidth", "Jobs panel width");
     setText("#uiBgColorLabel", "uiBgColor", "Background");
     setText("#uiTextColorLabel", "uiTextColor", "Text");
@@ -1755,6 +1806,17 @@
     if (modeSel && modeSel.options.length >= 2) {
       modeSel.options[0].textContent = t("uiLayoutHorizontal", "Horizontal (side by side)");
       modeSel.options[1].textContent = t("uiLayoutVertical", "Vertical (stacked)");
+    }
+    const panelLayoutSel = $("uiPanelLayoutSel");
+    if (panelLayoutSel && panelLayoutSel.options.length >= 2) {
+      panelLayoutSel.options[0].textContent = t("uiPanelLayoutStack", "Stacked cards");
+      panelLayoutSel.options[1].textContent = t("uiPanelLayoutGrid", "Adaptive grid");
+    }
+    const quickLayoutSel = $("quickPanelLayoutSel");
+    if (quickLayoutSel && quickLayoutSel.options.length >= 2) {
+      quickLayoutSel.options[0].textContent = t("uiPanelLayoutStack", "Stacked cards");
+      quickLayoutSel.options[1].textContent = t("uiPanelLayoutGrid", "Adaptive grid");
+      quickLayoutSel.title = t("uiPanelLayout", "Panel layout");
     }
     const unitSel = $("uiTimeUnitSel");
     if (unitSel && unitSel.options.length >= 2) {
@@ -2255,6 +2317,16 @@
     ensureUiState(state);
     const modeSel = $("uiLayoutModeSel");
     if (modeSel) modeSel.value = state.ui.layoutMode;
+    const panelLayoutSel = $("uiPanelLayoutSel");
+    if (panelLayoutSel) panelLayoutSel.value = state.ui.panelLayout === "grid" ? "grid" : "stack";
+    const quickPanelLayoutSel = $("quickPanelLayoutSel");
+    if (quickPanelLayoutSel) quickPanelLayoutSel.value = state.ui.panelLayout === "grid" ? "grid" : "stack";
+    const colsWrap = $("uiPanelGridColsWrap");
+    if (colsWrap) colsWrap.style.display = state.ui.panelLayout === "grid" ? "" : "none";
+    const colsRange = $("uiPanelGridColsRange");
+    if (colsRange) colsRange.value = String(Math.max(1, Math.min(4, Number(state.ui.panelGridCols) || 2)));
+    const colsValue = $("uiPanelGridColsValue");
+    if (colsValue) colsValue.textContent = `${Math.max(1, Math.min(4, Number(state.ui.panelGridCols) || 2))} ${t("uiPanelGridColsValue", "cols")}`;
     const widthRange = $("uiJobsWidthRange");
     if (widthRange) widthRange.value = String(Math.round(state.ui.jobsPanelWidth));
     const widthLabel = $("uiJobsWidthLabel");
@@ -2345,6 +2417,12 @@
     if (kpiCard) kpiCard.style.display = kpiOn ? "" : "none";
     if (timelineBlock) timelineBlock.style.display = timelineOn ? "" : "none";
     if (cyclesBlock) cyclesBlock.style.display = cyclesOn ? "" : "none";
+
+    const panelDock = $("panelDock");
+    if (panelDock) {
+      panelDock.classList.toggle("panelLayoutGrid", state.ui.panelLayout === "grid");
+      panelDock.style.setProperty("--panel-grid-cols", String(Math.max(1, Math.min(4, Number(state.ui.panelGridCols) || 2))));
+    }
 
     const blockMap = {
       timer: $("panelTimerBlock"),
@@ -5307,6 +5385,30 @@
       saveState();
     });
   }
+  const uiPanelLayoutSel = $("uiPanelLayoutSel");
+  if (uiPanelLayoutSel) {
+    uiPanelLayoutSel.addEventListener("change", () => {
+      state.ui.panelLayout = (uiPanelLayoutSel.value === "grid") ? "grid" : "stack";
+      applyUiLayout();
+      saveState();
+    });
+  }
+  const quickPanelLayoutSel = $("quickPanelLayoutSel");
+  if (quickPanelLayoutSel) {
+    quickPanelLayoutSel.addEventListener("change", () => {
+      state.ui.panelLayout = (quickPanelLayoutSel.value === "grid") ? "grid" : "stack";
+      applyUiLayout();
+      saveState();
+    });
+  }
+  const uiPanelGridColsRange = $("uiPanelGridColsRange");
+  if (uiPanelGridColsRange) {
+    uiPanelGridColsRange.addEventListener("input", () => {
+      state.ui.panelGridCols = Math.max(1, Math.min(4, Number(uiPanelGridColsRange.value) || 2));
+      applyUiLayout();
+      saveState();
+    });
+  }
   const uiJobsWidthRange = $("uiJobsWidthRange");
   if (uiJobsWidthRange) {
     uiJobsWidthRange.addEventListener("input", () => {
@@ -5401,15 +5503,24 @@
       draggingPanelId = String(btn.dataset.panelToggle || "");
       e.dataTransfer?.setData("text/plain", draggingPanelId);
     });
-    btn.addEventListener("dragover", (e) => { e.preventDefault(); });
-    btn.addEventListener("drop", (e) => {
-      e.preventDefault();
-      const dropId = String(btn.dataset.panelToggle || "");
-      const src = draggingPanelId || e.dataTransfer?.getData("text/plain") || "";
-      reorderPanels(src, dropId);
+    bindPanelDropTarget(btn, (x) => x.dataset.panelToggle);
+    btn.addEventListener("dragend", () => { draggingPanelId = ""; });
+  });
+
+  document.querySelectorAll("#panelDock .panelBlock").forEach((block) => {
+    const panelId = block.id.replace(/^panel/, "").replace(/Block$/, "").toLowerCase();
+    block.setAttribute("draggable", "true");
+    block.dataset.panelId = panelId;
+    block.addEventListener("dragstart", (e) => {
+      draggingPanelId = panelId;
+      block.classList.add("dragging");
+      e.dataTransfer?.setData("text/plain", panelId);
+    });
+    bindPanelDropTarget(block, (x) => x.dataset.panelId);
+    block.addEventListener("dragend", () => {
+      block.classList.remove("dragging");
       draggingPanelId = "";
     });
-    btn.addEventListener("dragend", () => { draggingPanelId = ""; });
   });
   document.querySelectorAll("#panelDock .panelHdr[data-panel-hdr]").forEach((hdr) => {
     const panelId = String(hdr.dataset.panelHdr || "");
@@ -5753,6 +5864,53 @@
   }
   $("modeSelectedBtn").addEventListener("click", () => setMode("SELECTED"));
   $("modeAllBtn").addEventListener("click", () => setMode("ALL"));
+  // Public API for external integration / automation
+  window.ChronoLayoutAPI = {
+    getState: () => ({
+      panelLayout: state.ui.panelLayout,
+      panelGridCols: state.ui.panelGridCols,
+      panelOrder: (state.ui.panelOrder || []).slice(),
+      panels: { ...(state.ui.panels || {}) },
+    }),
+    setPanelLayout: (layout) => {
+      state.ui.panelLayout = (layout === "grid") ? "grid" : "stack";
+      applyUiLayout();
+      saveState();
+      return window.ChronoLayoutAPI.getState();
+    },
+    setGridColumns: (cols) => {
+      state.ui.panelGridCols = Math.max(1, Math.min(4, Number(cols) || 2));
+      applyUiLayout();
+      saveState();
+      return window.ChronoLayoutAPI.getState();
+    },
+    movePanel: (panelId, beforePanelId) => {
+      reorderPanels(panelId, beforePanelId);
+      return window.ChronoLayoutAPI.getState();
+    },
+    setPanelVisible: (panelId, visible) => {
+      if (panelId === "jobs") {
+        state.ui.leftPanelVisible = !!visible;
+      } else if (state.ui.panels && panelId in state.ui.panels) {
+        state.ui.panels[panelId] = !!visible;
+      }
+      applyUiLayout();
+      saveState();
+      return window.ChronoLayoutAPI.getState();
+    },
+    resetLayout: () => {
+      const defaults = defaultUiState();
+      state.ui.panelOrder = defaults.panelOrder.slice();
+      state.ui.panelLayout = defaults.panelLayout;
+      state.ui.panelGridCols = defaults.panelGridCols;
+      state.ui.panels = { ...defaults.panels };
+      applyUiLayout();
+      saveState();
+      return window.ChronoLayoutAPI.getState();
+    },
+  };
+
+
   // Init selection toolbar visibility
   { const selTb = $("selectionToolbar"); if (selTb) selTb.style.opacity = "1"; }
 
