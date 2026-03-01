@@ -50,8 +50,8 @@
     button.primary{border-color:#2f6d9c;background:rgba(89,184,255,.12);color:#bde6ff;}
     button.warn{border-color:#8d7138;background:rgba(255,211,122,.14);color:#ffe8b1;}
     button.danger{border-color:#8a4050;background:rgba(255,106,127,.12);color:#ffbac8;}
-    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;}
-    @media(max-width:980px){.kpis{grid-template-columns:repeat(2,1fr);}}
+    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:10px;}
+    @media(max-width:980px){.kpis{grid-template-columns:repeat(3,1fr);}}
     .kpi{border:1px solid var(--border);border-radius:10px;padding:8px;background:rgba(255,255,255,.02);}
     .kpi .v{font-size:18px;font-weight:700;}
     .kpi .l{font-size:11px;color:var(--muted);}
@@ -60,10 +60,24 @@
     canvas{width:100%;height:auto;display:block;}
     .logList{display:flex;flex-direction:column;gap:8px;margin-top:10px;max-height:420px;overflow:auto;}
     .logItem{border:1px solid var(--border);border-radius:10px;padding:8px;background:rgba(255,255,255,.02);}
+    .list{
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:rgba(0,0,0,.2);
+      padding:8px;
+      max-height:220px;
+      overflow:auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size:11px;
+      white-space:pre-wrap;
+      color:#b7c5d9;
+    }
     .mini{font-size:11px;color:var(--muted);}
     .bad{color:var(--bad);}
     .ok{color:var(--ok);}
     .actions{display:flex;gap:8px;flex-wrap:wrap;}
+    .cfgGrid{display:grid;grid-template-columns:1fr 1fr 1fr 120px;gap:8px;}
+    @media(max-width:980px){.cfgGrid{grid-template-columns:1fr 1fr;}}
   </style>
 </head>
 <body>
@@ -96,6 +110,18 @@
           <div class="kpi"><div class="v" id="kpiMean">-</div><div class="l">Mean (ms)</div></div>
           <div class="kpi"><div class="v" id="kpiUcl">-</div><div class="l">UCL (ms)</div></div>
           <div class="kpi"><div class="v" id="kpiLcl">-</div><div class="l">LCL (ms)</div></div>
+          <div class="kpi"><div class="v" id="kpiSigma">-</div><div class="l">Sigma (ms)</div></div>
+          <div class="kpi"><div class="v" id="kpiCpk">-</div><div class="l">Cpk</div></div>
+        </div>
+        <div class="chartBox">
+          <div class="chartTitle">SPC Setup (per job)</div>
+          <div class="cfgGrid">
+            <input id="spcLsl" type="number" step="0.1" placeholder="LSL (ms)" />
+            <input id="spcUsl" type="number" step="0.1" placeholder="USL (ms)" />
+            <input id="spcTarget" type="number" step="0.1" placeholder="Target (ms)" />
+            <button id="spcSaveBtn" type="button">Save</button>
+          </div>
+          <div class="mini" id="spcCfgInfo" style="margin-top:8px;"></div>
         </div>
         <div class="chartBox">
           <div class="chartTitle">Individuals Chart</div>
@@ -104,6 +130,10 @@
         <div class="chartBox">
           <div class="chartTitle">Moving Range Chart</div>
           <canvas id="mrChart" width="900" height="220"></canvas>
+        </div>
+        <div class="chartBox">
+          <div class="chartTitle">Rule Flags / Samples</div>
+          <div class="list" id="flagList"></div>
         </div>
       </section>
 
@@ -132,6 +162,7 @@
       const KEY = "chrono_drawer_timeline_v5";
       const LEGACY_KEYS = ["chrono_drawer_timeline_v5", "chrono_drawer_timeline_v4", "chrono_drawer_timeline_v3"];
       const NS = "spacial_signals";
+      const NS_CFG = "spacial_job_config";
       const launchParams = new URLSearchParams(window.location.search || "");
       let launchRouteApplied = false;
       let lastStateSig = "";
@@ -149,6 +180,77 @@
         const m = mean(arr);
         const v = arr.reduce((a, x) => a + Math.pow(x - m, 2), 0) / (arr.length - 1);
         return Math.sqrt(v);
+      }
+      function numOrNull(v) {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      }
+      function readJobConfig(jobId) {
+        const id = String(jobId || "");
+        if (!id || !window.VMillData?.listRecords) return { lsl: null, usl: null, target: null };
+        const row = window.VMillData.listRecords(NS_CFG).find((x) => String(x.jobId || "") === id);
+        return {
+          lsl: numOrNull(row?.lsl),
+          usl: numOrNull(row?.usl),
+          target: numOrNull(row?.target),
+        };
+      }
+      function writeJobConfig(jobId, cfg) {
+        const id = String(jobId || "");
+        if (!id || !window.VMillData?.upsertRecord) return;
+        const prev = window.VMillData?.listRecords ? window.VMillData.listRecords(NS_CFG).find((x) => String(x.jobId || "") === id) : null;
+        window.VMillData.upsertRecord(NS_CFG, {
+          id: prev?.id || `cfg_${id}`,
+          jobId: id,
+          lsl: numOrNull(cfg?.lsl),
+          usl: numOrNull(cfg?.usl),
+          target: numOrNull(cfg?.target),
+        });
+      }
+      function readConfigFromInputs() {
+        return {
+          lsl: numOrNull($("spcLsl").value),
+          usl: numOrNull($("spcUsl").value),
+          target: numOrNull($("spcTarget").value),
+        };
+      }
+      function writeConfigToInputs(cfg) {
+        $("spcLsl").value = cfg?.lsl == null ? "" : String(cfg.lsl);
+        $("spcUsl").value = cfg?.usl == null ? "" : String(cfg.usl);
+        $("spcTarget").value = cfg?.target == null ? "" : String(cfg.target);
+      }
+      function flagsForValues(vals, m, s, ucl, lcl, cfg) {
+        const byIndex = new Map();
+        const add = (idx, code) => {
+          if (!byIndex.has(idx)) byIndex.set(idx, []);
+          byIndex.get(idx).push(code);
+        };
+        for (let i = 0; i < vals.length; i++) {
+          const v = vals[i];
+          if (Number.isFinite(ucl) && v > ucl) add(i, "R1>3s");
+          if (Number.isFinite(lcl) && v < lcl) add(i, "R1<3s");
+          if (cfg?.usl != null && v > cfg.usl) add(i, "USL");
+          if (cfg?.lsl != null && v < cfg.lsl) add(i, "LSL");
+        }
+        if (vals.length >= 8 && Number.isFinite(m)) {
+          for (let i = 7; i < vals.length; i++) {
+            const seg = vals.slice(i - 7, i + 1);
+            const allAbove = seg.every((x) => x > m);
+            const allBelow = seg.every((x) => x < m);
+            if (allAbove || allBelow) add(i, "R2:8same");
+          }
+        }
+        if (vals.length >= 3 && Number.isFinite(m) && Number.isFinite(s) && s > 0) {
+          const high2 = m + 2 * s;
+          const low2 = m - 2 * s;
+          for (let i = 2; i < vals.length; i++) {
+            const seg = vals.slice(i - 2, i + 1);
+            const cHigh = seg.filter((x) => x > high2).length;
+            const cLow = seg.filter((x) => x < low2).length;
+            if (cHigh >= 2 || cLow >= 2) add(i, "R3:2of3_2s");
+          }
+        }
+        return byIndex;
       }
       function normalizeState(state) {
         if (!state || typeof state !== "object") return null;
@@ -197,8 +299,8 @@
           ctx.fillText("No data", 14, 20);
           return;
         }
-        const minV = Math.min(...values, lines.lcl ?? Infinity);
-        const maxV = Math.max(...values, lines.ucl ?? -Infinity);
+        const minV = Math.min(...values, lines.lcl ?? Infinity, lines.lsl ?? Infinity, lines.target ?? Infinity);
+        const maxV = Math.max(...values, lines.ucl ?? -Infinity, lines.usl ?? -Infinity, lines.target ?? -Infinity);
         const span = Math.max(1, maxV - minV);
         const pad = { l: 46, r: 12, t: 12, b: 26 };
         const cw = w - pad.l - pad.r;
@@ -225,6 +327,9 @@
         hLine(lines.mean, "rgba(89,184,255,.75)");
         hLine(lines.ucl, "rgba(255,106,127,.75)");
         hLine(lines.lcl, "rgba(255,106,127,.75)");
+        hLine(lines.usl, "rgba(255,211,122,.85)");
+        hLine(lines.lsl, "rgba(255,211,122,.85)");
+        hLine(lines.target, "rgba(104,211,152,.75)");
 
         ctx.strokeStyle = "rgba(104,211,152,.95)";
         ctx.lineWidth = 1.6;
@@ -237,12 +342,27 @@
 
         for (let i = 0; i < values.length; i++) {
           const x = xOf(i), y = yOf(values[i]);
-          const out = (Number.isFinite(lines.ucl) && values[i] > lines.ucl) || (Number.isFinite(lines.lcl) && values[i] < lines.lcl);
+          const out = !!lines.flags?.has(i);
           ctx.fillStyle = out ? "rgba(255,106,127,.95)" : "rgba(104,211,152,.95)";
           ctx.beginPath();
           ctx.arc(x, y, 2.8, 0, Math.PI * 2);
           ctx.fill();
         }
+      }
+      function renderFlagList(values, flags) {
+        const box = $("flagList");
+        if (!values.length) {
+          box.textContent = "No samples.";
+          return;
+        }
+        const lines = [];
+        const start = Math.max(0, values.length - 24);
+        for (let i = start; i < values.length; i++) {
+          const v = values[i];
+          const f = flags.get(i) || [];
+          lines.push(`#${i + 1}  ${fmt(v, 1)} ms  ${f.length ? "[" + f.join("|") + "]" : ""}`.trim());
+        }
+        box.textContent = lines.reverse().join("\n");
       }
 
       function populateSelectors(state) {
@@ -328,12 +448,18 @@
           $("kpiMean").textContent = "-";
           $("kpiUcl").textContent = "-";
           $("kpiLcl").textContent = "-";
+          $("kpiSigma").textContent = "-";
+          $("kpiCpk").textContent = "-";
+          $("spcCfgInfo").textContent = "No job selected.";
           drawChart($("iChart"), []);
           drawChart($("mrChart"), []);
+          renderFlagList([], new Map());
           return;
         }
         if (!$("jobSel").value) $("jobSel").value = job.id;
         setActiveJob($("jobSel").value || job.id);
+        const cfg = readJobConfig(job.id);
+        writeConfigToInputs(cfg);
         const vals = (job.cycles || []).map((c) => Number(c.totalMs || 0)).filter((x) => Number.isFinite(x) && x > 0);
         const m = mean(vals);
         const s = std(vals);
@@ -343,14 +469,33 @@
         for (let i = 1; i < vals.length; i++) mr.push(Math.abs(vals[i] - vals[i - 1]));
         const mMr = mean(mr);
         const uclMr = (mMr ?? 0) * 3.267;
+        const flags = flagsForValues(vals, m, s, ucl, lcl, cfg);
+        const cpk = (cfg.lsl != null || cfg.usl != null) && Number.isFinite(s) && s > 0 && Number.isFinite(m)
+          ? Math.min(
+              cfg.usl != null ? (cfg.usl - m) / (3 * s) : Infinity,
+              cfg.lsl != null ? (m - cfg.lsl) / (3 * s) : Infinity
+            )
+          : null;
 
         $("kpiN").textContent = String(vals.length);
         $("kpiMean").textContent = fmt(m, 1);
         $("kpiUcl").textContent = fmt(ucl, 1);
         $("kpiLcl").textContent = fmt(lcl, 1);
+        $("kpiSigma").textContent = fmt(s, 2);
+        $("kpiCpk").textContent = cpk == null || !Number.isFinite(cpk) ? "-" : fmt(cpk, 2);
+        $("spcCfgInfo").textContent = `Config for "${job.name || "job"}": LSL=${cfg.lsl ?? "-"} | USL=${cfg.usl ?? "-"} | Target=${cfg.target ?? "-"}`;
 
-        drawChart($("iChart"), vals, { mean: m, ucl, lcl });
+        drawChart($("iChart"), vals, {
+          mean: m,
+          ucl,
+          lcl,
+          lsl: cfg.lsl,
+          usl: cfg.usl,
+          target: cfg.target,
+          flags: new Set(flags.keys()),
+        });
         drawChart($("mrChart"), mr, { mean: mMr, ucl: uclMr, lcl: 0 });
+        renderFlagList(vals, flags);
       }
 
       function exportJsonFile(name, payload) {
@@ -393,6 +538,14 @@
             setActiveJob(activeId);
           }
         }
+        refresh();
+      });
+      $("spcSaveBtn").addEventListener("click", () => {
+        const state = readState();
+        const jobId = String($("jobSel").value || state?.activeJobId || "");
+        if (!jobId) return;
+        writeJobConfig(jobId, readConfigFromInputs());
+        window.CANBus?.emit("spacial:config:updated", { jobId }, "spacial");
         refresh();
       });
       $("addSignalBtn").addEventListener("click", () => {
