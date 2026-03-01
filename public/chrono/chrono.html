@@ -9,6 +9,7 @@
       --bg:#0b0c10; --panel:#11131a; --panel2:#0d0f15; --border:#23252f;
       --text:#e8e8e8; --muted:rgba(232,232,232,.75); --muted2:rgba(232,232,232,.55);
       --accent:#4c73ff; --ok:#42d18b; --warn:#ffd37a; --danger:#ff4c6a;
+      --header-bg:rgba(11,12,16,.92); --header-text:#e8e8e8; --header-border:#23252f;
       --accent-10:rgba(76,115,255,.10); --accent-18:rgba(76,115,255,.18);
       --accent-35:rgba(76,115,255,.35); --accent-55:rgba(76,115,255,.55);
       --accent-65:rgba(76,115,255,.65); --accent-75:rgba(76,115,255,.75);
@@ -21,8 +22,9 @@
     body{margin:0; zoom:var(--ui-scale);}
     header{
       padding:14px 16px; border-bottom:1px solid var(--border);
-      position:sticky; top:0; background:rgba(11,12,16,.92); backdrop-filter: blur(10px);
+      position:sticky; top:0; background:var(--header-bg); color:var(--header-text); backdrop-filter: blur(10px);
       z-index:50; display:flex; align-items:center; justify-content:space-between; gap:12px;
+      border-bottom-color:var(--header-border);
     }
     h1{margin:0; font-size:18px;}
     .sub{display:none; color:var(--muted); font-size:13px;}
@@ -58,6 +60,14 @@
       font-size:10px; font-family:ui-monospace,monospace; letter-spacing:.05em;
       color:var(--muted2); border:1px solid var(--border); border-radius:999px;
       padding:3px 8px; white-space:nowrap;
+    }
+    header .hTitle{color:var(--header-text);}
+    header .hJobLabel{color:color-mix(in srgb, var(--header-text) 70%, transparent);}
+    header .hVersion{border-color:color-mix(in srgb, var(--header-text) 18%, transparent);}
+    header .hDivider{background:color-mix(in srgb, var(--header-text) 18%, transparent);}
+    header .hLogoIcon{
+      background:color-mix(in srgb, var(--accent) 20%, transparent);
+      border-color:color-mix(in srgb, var(--accent) 48%, transparent);
     }
 
     /* ── Theme presets ── */
@@ -136,7 +146,7 @@
     .sidebarTop{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
     .searchRow{display:flex; gap:8px;}
     .searchRow input{flex:1;}
-    .stationBlock{border:1px solid var(--border); border-radius:14px; padding:10px; background:rgba(255,255,255,.02);}
+    .stationBlock{border:1px solid var(--border); border-radius:14px; padding:8px; background:color-mix(in srgb, var(--panel2) 72%, transparent);}
     .stationHeader{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;}
     .stationName{font-weight:1000; font-size:13px;}
     .stationMeta{font-size:12px; color:var(--muted);}
@@ -268,15 +278,34 @@
     }
     .videoManualRow .pill{min-width:220px; justify-content:center;}
     .videoPlayhead{position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.9);}
-    .jobList{display:flex; flex-direction:column; gap:8px;}
+    .jobList{display:flex; flex-direction:column; gap:6px;}
     .jobItem{
-      border:1px solid var(--border); border-radius:14px; padding:10px;
-      background:rgba(255,255,255,.03); cursor:pointer;
-      display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+      border:1px solid var(--border); border-radius:12px; padding:7px 8px;
+      background:color-mix(in srgb, var(--panel2) 74%, transparent); cursor:pointer;
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
     }
     .jobItem.active{border-color:var(--accent-65); background:var(--accent-10);}
-    .jobName{font-weight:1000; font-size:13px; margin-bottom:4px;}
-    .jobMeta{font-size:12px; color:var(--muted); display:flex; gap:10px; flex-wrap:wrap;}
+    .jobItem > div:first-child{min-width:0; flex:1;}
+    .jobName{
+      font-weight:900;
+      font-size:clamp(11px,1.05vw,13px);
+      margin-bottom:2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      line-height:1.2;
+    }
+    .jobMeta{
+      font-size:11px;
+      color:var(--muted);
+      display:flex;
+      gap:8px;
+      flex-wrap:nowrap;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      line-height:1.2;
+    }
     .progressWrap{margin-top:8px; height:8px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; border:1px solid rgba(255,255,255,.08);}
     .progressBar{height:100%; width:0%; background:var(--accent-75);}
     .progressBar.good{background:rgba(66,209,139,.75);}
@@ -359,7 +388,7 @@
     .toolbar{
       display:flex; flex-wrap:wrap; gap:8px; align-items:center;
       padding:10px; border:1px solid var(--border); border-radius:14px;
-      background:rgba(255,255,255,.02);
+      background:color-mix(in srgb, var(--panel2) 70%, transparent);
     }
     #panelTimelineBlock .toolbar{
       gap:6px;
@@ -498,7 +527,7 @@
     }
     .drawer{
       position:fixed; top:0; right:0; height:100dvh; width:min(520px, 92vw);
-      background:rgba(17,19,26,.98);
+      background:color-mix(in srgb, var(--panel) 94%, transparent);
       border-left:1px solid var(--border);
       transform:translateX(105%); transition:transform .22s ease;
       z-index:90; display:flex; flex-direction:column;
@@ -512,7 +541,7 @@
     .drawerSection{
       border:1px solid var(--border);
       border-radius:14px;
-      background:rgba(255,255,255,.02);
+      background:color-mix(in srgb, var(--panel2) 70%, transparent);
       margin-bottom:10px;
       overflow:hidden;
     }
@@ -523,10 +552,10 @@
       justify-content:space-between;
       gap:8px;
       border:0;
-      border-bottom:1px solid rgba(255,255,255,.06);
+      border-bottom:1px solid color-mix(in srgb, var(--border) 65%, transparent);
       border-radius:0;
       padding:10px 12px;
-      background:rgba(255,255,255,.03);
+      background:color-mix(in srgb, var(--panel2) 82%, transparent);
       text-align:left;
     }
     .drawerSecBtn .title{margin:0; font-size:14px;}
@@ -536,8 +565,8 @@
       justify-content:center;
       width:22px; height:22px;
       border-radius:8px;
-      border:1px solid rgba(255,255,255,.16);
-      background:rgba(255,255,255,.04);
+      border:1px solid color-mix(in srgb, var(--border) 78%, transparent);
+      background:color-mix(in srgb, var(--panel2) 82%, transparent);
       font-size:12px;
       line-height:1;
       color:var(--muted);
@@ -611,7 +640,7 @@
       --accent-10: rgba(76, 115, 255, 0.08);
       --accent-18: rgba(76, 115, 255, 0.15);
     }
-    body.themeLight header { background: rgba(240, 242, 245, 0.92); }
+    body.themeLight header { color:var(--header-text); }
 
     #leftPanelSection .panelHdr{padding-top:2px; margin-bottom:8px;}
     #leftPanelSection .panelHdrBody{
@@ -670,6 +699,7 @@
       <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="cycles" title="Click hide/show · Drag to reorder">Cycles</button>
     </div>
     <div class="hDivider"></div>
+    <a class="iconBtn hBtn" href="../vmill_hub.html" title="Open VMill Hub">Hub</a>
     <a id="openCameraBtn" class="iconBtn hBtn hBtnCamera" href="chrono_camera.html" target="_blank" title="Open Camera module">📷</a>
     <button id="toggleLeftPanelBtn" class="iconBtn hBtn" title="Show/Hide jobs panel" style="display:none;">Jobs</button>
     <button id="openDrawerBtn" class="primary hBtn hBtnConfig" title="Open configuration">
@@ -1252,6 +1282,16 @@
                 <input id="uiAccentColor" type="color" value="#4c73ff" />
               </div>
             </div>
+            <div class="row2">
+              <div>
+                <label id="uiHeaderBgColorLabel">Header background</label>
+                <input id="uiHeaderBgColor" type="color" value="#101521" />
+              </div>
+              <div>
+                <label id="uiHeaderTextColorLabel">Header text</label>
+                <input id="uiHeaderTextColor" type="color" value="#e8e8e8" />
+              </div>
+            </div>
             <div class="hr" style="margin:8px 0;"></div>
             <div class="row2">
               <div>
@@ -1348,10 +1388,15 @@
   </aside>
 </div>
 
+<script src="../modules/module-shell.js"></script>
+<script src="../modules/module-io.js"></script>
+<script src="../modules/module-data.js"></script>
 <script>
 (() => {
   const STORAGE_KEY = "chrono_drawer_timeline_v5";
   const VIDEO_BOOKMARKS_KEY = "chrono_video_bookmarks_v1";
+  const launchParams = new URLSearchParams(window.location.search || "");
+  let launchRouteApplied = false;
   const LANG_STORAGE_KEY = "chrono_ui_lang_v1";
   const I18N_INDEX_URL = "./i18n/index.json";
   const $ = (id) => document.getElementById(id);
@@ -1471,6 +1516,8 @@
     "uiBgColor": "Background",
     "uiTextColor": "Text",
     "uiAccentColor": "Accent",
+    "uiHeaderBgColor": "Header background",
+    "uiHeaderTextColor": "Header text",
     "uiTimeUnit": "Time unit",
     "uiTimeUnitSec": "Seconds",
     "uiTimeUnitMin": "Minutes",
@@ -1617,6 +1664,8 @@
     "uiBgColor": "Fond",
     "uiTextColor": "Texte",
     "uiAccentColor": "Accent",
+    "uiHeaderBgColor": "Fond d'entete",
+    "uiHeaderTextColor": "Texte d'entete",
     "uiTimeUnit": "Unite de temps",
     "uiTimeUnitSec": "Secondes",
     "uiTimeUnitMin": "Minutes",
@@ -1796,6 +1845,8 @@
     setText("#uiBgColorLabel", "uiBgColor", "Background");
     setText("#uiTextColorLabel", "uiTextColor", "Text");
     setText("#uiAccentColorLabel", "uiAccentColor", "Accent");
+    setText("#uiHeaderBgColorLabel", "uiHeaderBgColor", "Header background");
+    setText("#uiHeaderTextColorLabel", "uiHeaderTextColor", "Header text");
     setText("#uiTimeUnitLabel", "uiTimeUnit", "Time unit");
     setText("#uiTimeResolutionLabel", "resolutionS", "Resolution (s)");
     setText("#uiResetBtn", "resetDefaults", "↺ Reset defaults");
@@ -2045,6 +2096,8 @@
       themeBg: "#0b0c10",
       themeText: "#e8e8e8",
       themeAccent: "#4c73ff",
+      themeHeaderBg: "#101521",
+      themeHeaderText: "#e8e8e8",
       timeDisplayUnit: "s",
       timeResolutionSec: 0.001,
       drawerPrefVersion: 2,
@@ -2084,6 +2137,8 @@
     st.ui.themeBg = hex(st.ui.themeBg, d.themeBg);
     st.ui.themeText = hex(st.ui.themeText, d.themeText);
     st.ui.themeAccent = hex(st.ui.themeAccent, d.themeAccent);
+    st.ui.themeHeaderBg = hex(st.ui.themeHeaderBg, d.themeHeaderBg);
+    st.ui.themeHeaderText = hex(st.ui.themeHeaderText, d.themeHeaderText);
     st.ui.timeDisplayUnit = (String(st.ui.timeDisplayUnit || d.timeDisplayUnit) === "min") ? "min" : "s";
     const q = Number(st.ui.timeResolutionSec ?? d.timeResolutionSec);
     st.ui.timeResolutionSec = [1, 0.1, 0.01, 0.001].includes(q) ? q : d.timeResolutionSec;
@@ -2156,9 +2211,11 @@
   let lastStateSignature = JSON.stringify(state);
   function loadState() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return defaultState();
-      const parsed = JSON.parse(raw);
+      const parsed = window.VMillData?.readAppState ? window.VMillData.readAppState() : (() => {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      })();
+      if (!parsed) return defaultState();
       if (!parsed || !Array.isArray(parsed.stations) || !Array.isArray(parsed.jobs)) return defaultState();
       if (!parsed.activeJobId && parsed.jobs[0]) parsed.activeJobId = parsed.jobs[0].id;
 
@@ -2182,8 +2239,10 @@
   function saveState() {
     state.meta.updatedAt = wallIso();
     const raw = JSON.stringify(state);
-    localStorage.setItem(STORAGE_KEY, raw);
+    if (window.VMillData?.writeAppState) window.VMillData.writeAppState(state);
+    else localStorage.setItem(STORAGE_KEY, raw);
     lastStateSignature = raw;
+    window.CANBus?.emit("chrono:state:saved", { key: STORAGE_KEY }, "chrono");
     flashSavePill("✓ Saved");
   }
   function flashSavePill(msg) {
@@ -2196,6 +2255,21 @@
 
   function getStationById(id){ return state.stations.find(s=>s.id===id) || null; }
   function getActiveJob(){ return state.jobs.find(j=>j.id===state.activeJobId) || null; }
+  function applyLaunchRouteToState(force = false) {
+    if (launchRouteApplied && !force) return;
+    const qJob = String(launchParams.get("job") || "");
+    const qStation = String(launchParams.get("station") || "");
+    if (qJob && state.jobs.some((j) => String(j.id || "") === qJob)) {
+      state.activeJobId = qJob;
+      launchRouteApplied = true;
+      return;
+    }
+    if (qStation) {
+      const j = state.jobs.find((x) => String(x.stationId || "") === qStation);
+      if (j) state.activeJobId = j.id;
+    }
+    launchRouteApplied = true;
+  }
 
   let selectedElementId = null;
   let selectedCycleId = null;
@@ -2262,6 +2336,8 @@
     const bg = toHex6(state.ui.themeBg, "#0b0c10");
     const text = toHex6(state.ui.themeText, "#e8e8e8");
     const accent = toHex6(state.ui.themeAccent, "#4c73ff");
+    const headerBg = toHex6(state.ui.themeHeaderBg, "#101521");
+    const headerText = toHex6(state.ui.themeHeaderText, "#e8e8e8");
     // Detect light vs dark by bg luminance
     const r=parseInt(bg.slice(1,3),16), g=parseInt(bg.slice(3,5),16), b=parseInt(bg.slice(5,7),16);
     const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
@@ -2278,6 +2354,9 @@
     rs.setProperty("--accent-65", hexToRgba(accent, 0.65));
     rs.setProperty("--accent-75", hexToRgba(accent, 0.75));
     rs.setProperty("--accent-85", hexToRgba(accent, 0.85));
+    rs.setProperty("--header-bg", hexToRgba(headerBg, 0.94));
+    rs.setProperty("--header-text", headerText);
+    rs.setProperty("--header-border", hexToRgba(headerText, isLight ? 0.20 : 0.16));
     if (isLight) {
       // Derive panel/border/muted from bg for light themes
       rs.setProperty("--panel", hexToRgba(bg, 1).replace("1)", "1)").replace("rgba","rgba").replace(/,\s*1\)/, ", 1)") + ""); 
@@ -2305,8 +2384,6 @@
       rs.setProperty("--muted", hexToRgba(text, 0.75));
       rs.setProperty("--muted2", hexToRgba(text, 0.55));
     }
-    const hdr = document.querySelector("header");
-    if (hdr) hdr.style.background = hexToRgba(bg, 0.92);
   }
 
   function accentRgba(alpha = 1) {
@@ -2337,6 +2414,10 @@
     if (text) text.value = toHex6(state.ui.themeText, "#e8e8e8");
     const accent = $("uiAccentColor");
     if (accent) accent.value = toHex6(state.ui.themeAccent, "#4c73ff");
+    const headerBg = $("uiHeaderBgColor");
+    if (headerBg) headerBg.value = toHex6(state.ui.themeHeaderBg, "#101521");
+    const headerText = $("uiHeaderTextColor");
+    if (headerText) headerText.value = toHex6(state.ui.themeHeaderText, "#e8e8e8");
     const unitSel = $("uiTimeUnitSel");
     if (unitSel) unitSel.value = timeUnit();
     const resSel = $("uiTimeResolutionSel");
@@ -2374,6 +2455,29 @@
     state.ui.panelOrder = arr;
     applyUiLayout();
     saveState();
+  }
+
+  function bindPanelDropTarget(node, idResolver) {
+    if (!node || typeof idResolver !== "function") return;
+    node.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      node.classList.add("dropBefore");
+    });
+    node.addEventListener("dragleave", () => {
+      node.classList.remove("dropBefore");
+    });
+    node.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const dst = String(idResolver(node) || "");
+      const src = String(
+        draggingPanelId ||
+        e.dataTransfer?.getData("text/plain") ||
+        ""
+      );
+      if (src && dst) reorderPanels(src, dst);
+      node.classList.remove("dropBefore");
+      draggingPanelId = "";
+    });
   }
 
   function applyUiLayout() {
@@ -5441,6 +5545,22 @@
       saveState();
     });
   }
+  const uiHeaderBgColor = $("uiHeaderBgColor");
+  if (uiHeaderBgColor) {
+    uiHeaderBgColor.addEventListener("input", () => {
+      state.ui.themeHeaderBg = toHex6(uiHeaderBgColor.value, "#101521");
+      applyUiLayout();
+      saveState();
+    });
+  }
+  const uiHeaderTextColor = $("uiHeaderTextColor");
+  if (uiHeaderTextColor) {
+    uiHeaderTextColor.addEventListener("input", () => {
+      state.ui.themeHeaderText = toHex6(uiHeaderTextColor.value, "#e8e8e8");
+      applyUiLayout();
+      saveState();
+    });
+  }
   const uiTimeUnitSel = $("uiTimeUnitSel");
   if (uiTimeUnitSel) {
     uiTimeUnitSel.addEventListener("change", () => {
@@ -5617,11 +5737,11 @@
 
   // Theme preset buttons
   const THEME_PRESETS = {
-    dark:     { bg:"#0b0c10", text:"#e8e8e8", accent:"#4c73ff" },
-    midnight: { bg:"#060a1a", text:"#d0e4f8", accent:"#33cfff" },
-    forest:   { bg:"#0a120a", text:"#cce8cc", accent:"#42d18b" },
-    ember:    { bg:"#120a0a", text:"#f0e0d0", accent:"#ff6b35" },
-    light:    { bg:"#f0f2f5", text:"#1a1c22", accent:"#4c73ff" },
+    dark:     { bg:"#0b0c10", text:"#e8e8e8", accent:"#4c73ff", headerBg:"#101521", headerText:"#e8e8e8" },
+    midnight: { bg:"#060a1a", text:"#d0e4f8", accent:"#33cfff", headerBg:"#0b1330", headerText:"#d8ecff" },
+    forest:   { bg:"#0a120a", text:"#cce8cc", accent:"#42d18b", headerBg:"#0f1b10", headerText:"#d7f0d7" },
+    ember:    { bg:"#120a0a", text:"#f0e0d0", accent:"#ff6b35", headerBg:"#22120d", headerText:"#ffe6cf" },
+    light:    { bg:"#f0f2f5", text:"#1a1c22", accent:"#4c73ff", headerBg:"#dbe1ea", headerText:"#10141d" },
   };
   document.querySelectorAll(".tpBtn[data-tp]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -5629,6 +5749,8 @@
       state.ui.themeBg = p.bg;
       state.ui.themeText = p.text;
       state.ui.themeAccent = p.accent;
+      state.ui.themeHeaderBg = p.headerBg || p.bg;
+      state.ui.themeHeaderText = p.headerText || p.text;
       applyUiLayout(); saveState(); syncViewLayoutInputs();
       document.querySelectorAll(".tpBtn").forEach(b => b.classList.remove("tpActive"));
       btn.classList.add("tpActive");
@@ -6019,8 +6141,17 @@
     }
   });
   initI18n().finally(() => {
+    applyLaunchRouteToState(true);
     renderAll();
     applyI18nStatic();
+  });
+  window.CANBus?.onMessage((msg) => {
+    if (!msg?.type) return;
+    if (msg.type === "data:app:updated" || msg.type === "data:snapshot:imported") {
+      state = loadState();
+      renderAll();
+      flashSavePill("↻ Synced");
+    }
   });
 
 })();

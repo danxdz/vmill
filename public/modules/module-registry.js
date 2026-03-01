@@ -1,0 +1,42 @@
+window.VMillModules = [
+  {
+    id: "chrono",
+    name: "Chrono Study",
+    desc: "Timing, timeline editing, KPI, and cycle analysis.",
+    href: "./chrono/chrono.html",
+    status: "ready",
+    tags: ["time-study", "timeline", "kpi"],
+  },
+  {
+    id: "chrono-camera",
+    name: "Chrono Camera",
+    desc: "Camera-assisted capture with sequence marks and bookmark export.",
+    href: "./chrono/chrono_camera.html",
+    status: "ready",
+    tags: ["capture", "camera", "bookmarks"],
+  },
+  {
+    id: "spacial",
+    name: "SPaCial",
+    desc: "SPC analytics with control limits, rule flags, and offline backups.",
+    href: "./SPaCial.html",
+    status: "ready",
+    tags: ["spc", "quality", "control-chart", "offline"],
+  },
+  {
+    id: "cnc-sim",
+    name: "CNC Simulator",
+    desc: "Launches the main CNC simulation workspace directly.",
+    href: "../index.html",
+    status: "ready",
+    tags: ["cnc", "simulation"],
+  },
+  {
+    id: "can-bus",
+    name: "CAN Bus Core",
+    desc: "Common module communication backbone (CANBus-v1).",
+    href: "./vmill_hub.html#io",
+    status: "ready",
+    tags: ["can", "diagnostics", "iot"],
+  },
+];

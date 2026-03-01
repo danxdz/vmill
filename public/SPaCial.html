@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SPaCial</title>
+  <style>
+    :root{
+      --bg:#0a1018;
+      --panel:#111b2b;
+      --panel2:#0e1726;
+      --text:#e8edf7;
+      --muted:#9eabbe;
+      --border:#27354d;
+      --accent:#59b8ff;
+      --warn:#ffd37a;
+      --bad:#ff6a7f;
+      --ok:#68d398;
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:radial-gradient(800px 380px at 0 -10%, rgba(89,184,255,.16), transparent 60%), var(--bg);
+      color:var(--text);
+      min-height:100vh;
+    }
+    .wrap{max-width:1200px;margin:0 auto;padding:16px;}
+    .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;}
+    .sub{color:var(--muted);font-size:13px;margin-top:6px;}
+    .row{display:grid;grid-template-columns:1.2fr .8fr;gap:12px;}
+    @media(max-width:980px){.row{grid-template-columns:1fr;}}
+    .card{
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:linear-gradient(180deg,var(--panel),var(--panel2));
+      padding:12px;
+    }
+    .controls{display:grid;grid-template-columns:1fr 1fr 140px 140px 140px;gap:8px;}
+    @media(max-width:980px){.controls{grid-template-columns:1fr 1fr;}}
+    select,input,textarea,button{
+      width:100%;
+      padding:9px 10px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.03);
+      color:var(--text);
+    }
+    button{cursor:pointer;font-weight:600;}
+    button.primary{border-color:#2f6d9c;background:rgba(89,184,255,.12);color:#bde6ff;}
+    button.warn{border-color:#8d7138;background:rgba(255,211,122,.14);color:#ffe8b1;}
+    button.danger{border-color:#8a4050;background:rgba(255,106,127,.12);color:#ffbac8;}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;}
+    @media(max-width:980px){.kpis{grid-template-columns:repeat(2,1fr);}}
+    .kpi{border:1px solid var(--border);border-radius:10px;padding:8px;background:rgba(255,255,255,.02);}
+    .kpi .v{font-size:18px;font-weight:700;}
+    .kpi .l{font-size:11px;color:var(--muted);}
+    .chartBox{margin-top:10px;border:1px solid var(--border);border-radius:10px;padding:10px;background:#0b1320;}
+    .chartTitle{font-size:12px;color:var(--muted);margin-bottom:8px;}
+    canvas{width:100%;height:auto;display:block;}
+    .logList{display:flex;flex-direction:column;gap:8px;margin-top:10px;max-height:420px;overflow:auto;}
+    .logItem{border:1px solid var(--border);border-radius:10px;padding:8px;background:rgba(255,255,255,.02);}
+    .mini{font-size:11px;color:var(--muted);}
+    .bad{color:var(--bad);}
+    .ok{color:var(--ok);}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <h1 style="margin:0;">SPaCial</h1>
+        <div class="sub">Statistical Process Control module (offline-first, CANBus-enabled).</div>
+      </div>
+      <div class="actions">
+        <a href="./vmill_hub.html" style="text-decoration:none;"><button type="button">Back to Hub</button></a>
+      </div>
+    </div>
+
+    <div class="row">
+      <section class="card">
+        <div class="controls">
+          <select id="stationSel"></select>
+          <select id="jobSel"></select>
+          <button class="primary" id="refreshBtn" type="button">Refresh</button>
+          <button id="exportJsonBtn" type="button">Export JSON</button>
+          <button id="exportCsvBtn" type="button">Export CSV</button>
+        </div>
+        <div class="actions" style="margin-top:8px;">
+          <button id="useActiveJobBtn" type="button">Use Global Active Job</button>
+        </div>
+        <div class="mini" id="stateInfo" style="margin-top:8px;"></div>
+        <div class="kpis">
+          <div class="kpi"><div class="v" id="kpiN">0</div><div class="l">Samples</div></div>
+          <div class="kpi"><div class="v" id="kpiMean">-</div><div class="l">Mean (ms)</div></div>
+          <div class="kpi"><div class="v" id="kpiUcl">-</div><div class="l">UCL (ms)</div></div>
+          <div class="kpi"><div class="v" id="kpiLcl">-</div><div class="l">LCL (ms)</div></div>
+        </div>
+        <div class="chartBox">
+          <div class="chartTitle">Individuals Chart</div>
+          <canvas id="iChart" width="900" height="260"></canvas>
+        </div>
+        <div class="chartBox">
+          <div class="chartTitle">Moving Range Chart</div>
+          <canvas id="mrChart" width="900" height="220"></canvas>
+        </div>
+      </section>
+
+      <section class="card">
+        <div style="font-weight:700;">Signals / Notes (CRUD)</div>
+        <div class="mini">Shared namespace: <code>spacial_signals</code></div>
+        <div style="margin-top:8px;">
+          <textarea id="signalTxt" rows="4" placeholder="Write an SPC signal or observation..."></textarea>
+        </div>
+        <div class="actions" style="margin-top:8px;">
+          <button class="primary" id="addSignalBtn" type="button">Add Signal</button>
+          <button class="warn" id="backupAllBtn" type="button">Backup All Snapshot</button>
+          <button class="danger" id="importSnapshotBtn" type="button">Import Snapshot</button>
+          <input id="importFile" type="file" accept=".json" style="display:none;" />
+        </div>
+        <div id="signals" class="logList"></div>
+      </section>
+    </div>
+  </div>
+
+  <script src="./modules/module-shell.js"></script>
+  <script src="./modules/module-io.js"></script>
+  <script src="./modules/module-data.js"></script>
+  <script>
+    (function () {
+      const KEY = "chrono_drawer_timeline_v5";
+      const LEGACY_KEYS = ["chrono_drawer_timeline_v5", "chrono_drawer_timeline_v4", "chrono_drawer_timeline_v3"];
+      const NS = "spacial_signals";
+      const launchParams = new URLSearchParams(window.location.search || "");
+      let launchRouteApplied = false;
+      let lastStateSig = "";
+      const $ = (id) => document.getElementById(id);
+
+      function fmt(n, d = 1) {
+        return Number.isFinite(Number(n)) ? Number(n).toFixed(d) : "-";
+      }
+      function mean(arr) {
+        if (!arr.length) return null;
+        return arr.reduce((a, b) => a + b, 0) / arr.length;
+      }
+      function std(arr) {
+        if (arr.length < 2) return 0;
+        const m = mean(arr);
+        const v = arr.reduce((a, x) => a + Math.pow(x - m, 2), 0) / (arr.length - 1);
+        return Math.sqrt(v);
+      }
+      function normalizeState(state) {
+        if (!state || typeof state !== "object") return null;
+        if (!Array.isArray(state.stations) || !Array.isArray(state.jobs)) return null;
+        if (!state.activeJobId && state.jobs[0]) state.activeJobId = state.jobs[0].id;
+        return state;
+      }
+      function readStateEnvelope() {
+        const fromApi = normalizeState(window.VMillData?.readAppState ? window.VMillData.readAppState() : null);
+        if (fromApi) return { state: fromApi, source: "VMillData.readAppState" };
+        for (const k of LEGACY_KEYS) {
+          const raw = localStorage.getItem(k);
+          if (!raw) continue;
+          try {
+            const parsed = normalizeState(JSON.parse(raw));
+            if (parsed) return { state: parsed, source: `localStorage:${k}` };
+          } catch {}
+        }
+        return { state: null, source: "not-found" };
+      }
+      function readState() {
+        return readStateEnvelope().state;
+      }
+      function setActiveJob(jobId) {
+        const state = readState();
+        if (!state || !Array.isArray(state.jobs)) return;
+        const id = String(jobId || "");
+        if (!id || !state.jobs.some((j) => String(j.id) === id)) return;
+        if (String(state.activeJobId || "") === id) return;
+        state.activeJobId = id;
+        if (window.VMillData?.writeAppState) window.VMillData.writeAppState(state);
+        else localStorage.setItem(KEY, JSON.stringify(state));
+      }
+      function getJob(state, id) {
+        return (state?.jobs || []).find((j) => String(j.id) === String(id)) || null;
+      }
+      function getStation(state, id) {
+        return (state?.stations || []).find((s) => String(s.id) === String(id)) || null;
+      }
+      function drawChart(canvas, values, lines = {}) {
+        const ctx = canvas.getContext("2d");
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = "rgba(255,255,255,.55)";
+        if (!values.length) {
+          ctx.fillText("No data", 14, 20);
+          return;
+        }
+        const minV = Math.min(...values, lines.lcl ?? Infinity);
+        const maxV = Math.max(...values, lines.ucl ?? -Infinity);
+        const span = Math.max(1, maxV - minV);
+        const pad = { l: 46, r: 12, t: 12, b: 26 };
+        const cw = w - pad.l - pad.r;
+        const ch = h - pad.t - pad.b;
+        const xOf = (i) => pad.l + (values.length <= 1 ? 0 : (i / (values.length - 1)) * cw);
+        const yOf = (v) => pad.t + ch - ((v - minV) / span) * ch;
+
+        ctx.strokeStyle = "rgba(255,255,255,.14)";
+        ctx.beginPath();
+        ctx.moveTo(pad.l, pad.t);
+        ctx.lineTo(pad.l, pad.t + ch);
+        ctx.lineTo(pad.l + cw, pad.t + ch);
+        ctx.stroke();
+
+        function hLine(v, color) {
+          if (!Number.isFinite(v)) return;
+          const y = yOf(v);
+          ctx.strokeStyle = color;
+          ctx.beginPath();
+          ctx.moveTo(pad.l, y);
+          ctx.lineTo(pad.l + cw, y);
+          ctx.stroke();
+        }
+        hLine(lines.mean, "rgba(89,184,255,.75)");
+        hLine(lines.ucl, "rgba(255,106,127,.75)");
+        hLine(lines.lcl, "rgba(255,106,127,.75)");
+
+        ctx.strokeStyle = "rgba(104,211,152,.95)";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        for (let i = 0; i < values.length; i++) {
+          const x = xOf(i), y = yOf(values[i]);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        for (let i = 0; i < values.length; i++) {
+          const x = xOf(i), y = yOf(values[i]);
+          const out = (Number.isFinite(lines.ucl) && values[i] > lines.ucl) || (Number.isFinite(lines.lcl) && values[i] < lines.lcl);
+          ctx.fillStyle = out ? "rgba(255,106,127,.95)" : "rgba(104,211,152,.95)";
+          ctx.beginPath();
+          ctx.arc(x, y, 2.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      function populateSelectors(state) {
+        const stationSel = $("stationSel");
+        const sel = $("jobSel");
+        const prevStation = stationSel.value;
+        const prevJob = sel.value;
+        const stations = state?.stations || [];
+        const jobs = state?.jobs || [];
+        stationSel.innerHTML = `<option value="all">All stations</option>`;
+        for (const st of stations) {
+          const o = document.createElement("option");
+          o.value = st.id;
+          o.textContent = `${st.code || "--"} - ${st.name || "Station"}`;
+          stationSel.appendChild(o);
+        }
+        if (prevStation && [...stationSel.options].some((o) => o.value === prevStation)) stationSel.value = prevStation;
+        if (!launchRouteApplied) {
+          const qStation = String(launchParams.get("station") || "");
+          if (qStation && [...stationSel.options].some((o) => o.value === qStation)) stationSel.value = qStation;
+        }
+
+        const filteredJobs = stationSel.value === "all"
+          ? jobs
+          : jobs.filter((j) => String(j.stationId || "") === String(stationSel.value || ""));
+        sel.innerHTML = "";
+        for (const j of filteredJobs) {
+          const o = document.createElement("option");
+          o.value = j.id;
+          const st = getStation(state, j.stationId);
+          o.textContent = `${st?.code || "--"} · ${j.name} (${(j.cycles || []).length} cycles)`;
+          sel.appendChild(o);
+        }
+        if (prevJob && [...sel.options].some((o) => o.value === prevJob)) sel.value = prevJob;
+        if (!launchRouteApplied) {
+          const qJob = String(launchParams.get("job") || "");
+          if (qJob && [...sel.options].some((o) => o.value === qJob)) sel.value = qJob;
+          launchRouteApplied = true;
+        }
+        if (!sel.value) {
+          const activeId = String(state?.activeJobId || "");
+          if (activeId && [...sel.options].some((o) => o.value === activeId)) sel.value = activeId;
+        }
+      }
+
+      function renderSignals() {
+        const box = $("signals");
+        const rows = window.VMillData.listRecords(NS).sort((a, b) => (Date.parse(b.createdAt || "") || 0) - (Date.parse(a.createdAt || "") || 0));
+        box.innerHTML = "";
+        if (!rows.length) {
+          box.innerHTML = `<div class="mini">No signals yet.</div>`;
+          return;
+        }
+        for (const r of rows) {
+          const item = document.createElement("div");
+          item.className = "logItem";
+          item.innerHTML = `
+            <div>${String(r.text || "")}</div>
+            <div class="mini">${new Date(r.createdAt || Date.now()).toLocaleString()}</div>
+            <div class="actions" style="margin-top:6px;">
+              <button data-del="${r.id}" class="danger" type="button">Delete</button>
+            </div>
+          `;
+          item.querySelector("[data-del]").addEventListener("click", () => {
+            window.VMillData.deleteRecord(NS, r.id);
+            renderSignals();
+          });
+          box.appendChild(item);
+        }
+      }
+
+      function refresh() {
+        const env = readStateEnvelope();
+        const state = env.state;
+        populateSelectors(state);
+        const stations = state?.stations || [];
+        const jobs = state?.jobs || [];
+        const job = getJob(state, $("jobSel").value) || (state?.jobs || [])[0] || null;
+        const updated = state?.meta?.updatedAt ? new Date(state.meta.updatedAt).toLocaleString() : "n/a";
+        $("stateInfo").textContent = `Source: ${env.source} | Stations: ${stations.length} | Jobs: ${jobs.length} | Updated: ${updated}`;
+        if (!job) {
+          $("kpiN").textContent = "0";
+          $("kpiMean").textContent = "-";
+          $("kpiUcl").textContent = "-";
+          $("kpiLcl").textContent = "-";
+          drawChart($("iChart"), []);
+          drawChart($("mrChart"), []);
+          return;
+        }
+        if (!$("jobSel").value) $("jobSel").value = job.id;
+        setActiveJob($("jobSel").value || job.id);
+        const vals = (job.cycles || []).map((c) => Number(c.totalMs || 0)).filter((x) => Number.isFinite(x) && x > 0);
+        const m = mean(vals);
+        const s = std(vals);
+        const ucl = (m ?? 0) + 3 * s;
+        const lcl = Math.max(0, (m ?? 0) - 3 * s);
+        const mr = [];
+        for (let i = 1; i < vals.length; i++) mr.push(Math.abs(vals[i] - vals[i - 1]));
+        const mMr = mean(mr);
+        const uclMr = (mMr ?? 0) * 3.267;
+
+        $("kpiN").textContent = String(vals.length);
+        $("kpiMean").textContent = fmt(m, 1);
+        $("kpiUcl").textContent = fmt(ucl, 1);
+        $("kpiLcl").textContent = fmt(lcl, 1);
+
+        drawChart($("iChart"), vals, { mean: m, ucl, lcl });
+        drawChart($("mrChart"), mr, { mean: mMr, ucl: uclMr, lcl: 0 });
+      }
+
+      function exportJsonFile(name, payload) {
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function exportTextFile(name, text, type = "text/plain") {
+        const blob = new Blob([text], { type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      $("refreshBtn").addEventListener("click", refresh);
+      $("stationSel").addEventListener("change", refresh);
+      $("jobSel").addEventListener("change", () => {
+        setActiveJob($("jobSel").value);
+        refresh();
+      });
+      $("useActiveJobBtn").addEventListener("click", () => {
+        const state = readState();
+        const activeId = String(state?.activeJobId || "");
+        if (activeId) {
+          const sel = $("jobSel");
+          if ([...sel.options].some((o) => o.value === activeId)) {
+            sel.value = activeId;
+            setActiveJob(activeId);
+          }
+        }
+        refresh();
+      });
+      $("addSignalBtn").addEventListener("click", () => {
+        const txt = String($("signalTxt").value || "").trim();
+        if (!txt) return;
+        window.VMillData.upsertRecord(NS, { text: txt });
+        $("signalTxt").value = "";
+        renderSignals();
+      });
+      $("exportJsonBtn").addEventListener("click", () => {
+        exportJsonFile(`SPaCial_${new Date().toISOString().slice(0, 10)}.json`, window.VMillData.exportAllSnapshot());
+      });
+      $("exportCsvBtn").addEventListener("click", () => {
+        exportTextFile(`SPaCial_cycles_${new Date().toISOString().slice(0, 10)}.csv`, window.VMillData.makeCsvForJobs(), "text/csv");
+      });
+      $("backupAllBtn").addEventListener("click", () => {
+        exportJsonFile(`VMill_backup_${new Date().toISOString().slice(0, 10)}.json`, window.VMillData.exportAllSnapshot());
+      });
+      $("importSnapshotBtn").addEventListener("click", () => $("importFile").click());
+      $("importFile").addEventListener("change", (e) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        const fr = new FileReader();
+        fr.onload = () => {
+          try {
+            const payload = JSON.parse(String(fr.result || "{}"));
+            window.VMillData.importAllSnapshot(payload);
+            window.CANBus?.emit("spacial:snapshot:imported", {}, "spacial");
+            refresh();
+            renderSignals();
+            alert("Snapshot imported.");
+          } catch (err) {
+            alert("Import failed: " + (err?.message || "invalid file"));
+          }
+        };
+        fr.readAsText(f);
+        e.target.value = "";
+      });
+
+      window.CANBus?.onMessage((msg) => {
+        if (!msg || !msg.type) return;
+        if (msg.type.startsWith("data:")) {
+          refresh();
+          renderSignals();
+        }
+      });
+      window.addEventListener("storage", (e) => {
+        if (!e.key) return;
+        if (e.key === KEY || LEGACY_KEYS.includes(e.key)) {
+          refresh();
+          return;
+        }
+      });
+      setInterval(() => {
+        const env = readStateEnvelope();
+        const sig = JSON.stringify({
+          s: env.source,
+          c: env.state?.meta?.updatedAt || "",
+          a: env.state?.activeJobId || "",
+          j: (env.state?.jobs || []).length,
+          t: (env.state?.stations || []).length,
+        });
+        if (sig !== lastStateSig) {
+          lastStateSig = sig;
+          refresh();
+        }
+      }, 1500);
+      window.CANBus?.emit("spacial:ready", { module: "SPaCial" }, "spacial");
+
+      refresh();
+      renderSignals();
+    })();
+  </script>
+</body>
+</html>

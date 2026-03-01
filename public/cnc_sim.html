@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CNC Simulator Launcher</title>
+  <style>
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:#0c111a;
+      color:#e6edf7;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    }
+    .card{
+      width:min(560px,100%);
+      border:1px solid #263246;
+      border-radius:14px;
+      background:#111826;
+      padding:18px;
+    }
+    h1{margin:0 0 8px;font-size:22px;}
+    p{margin:0 0 12px;color:#a8b5c8;line-height:1.5;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;}
+    a{
+      display:inline-block;
+      text-decoration:none;
+      border:1px solid #346b9f;
+      background:rgba(63,179,255,.12);
+      color:#bfe8ff;
+      border-radius:10px;
+      padding:9px 12px;
+      font-weight:600;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>CNC Simulator</h1>
+    <p>Open the main app workspace. Works offline once assets are cached by the browser.</p>
+    <div class="row">
+      <a href="../index.html">Open CNC App</a>
+      <a href="./vmill_hub.html">Back to Hub</a>
+    </div>
+  </main>
+  <script src="./modules/module-shell.js"></script>
+</body>
+</html>

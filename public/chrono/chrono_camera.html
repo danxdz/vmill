@@ -258,6 +258,7 @@
 
   <div id="topBar">
     <div class="topL">
+      <a href="../vmill_hub.html" style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;background:var(--glass);border:1px solid var(--border);backdrop-filter:blur(8px);color:var(--muted);font-size:11px;font-weight:700;font-family:var(--mono);text-decoration:none;letter-spacing:.04em;" title="Open VMill Hub">⌂ HUB</a>
       <a href="chrono.html" target="_blank" style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;background:var(--glass);border:1px solid var(--border);backdrop-filter:blur(8px);color:var(--muted);font-size:11px;font-weight:700;font-family:var(--mono);text-decoration:none;letter-spacing:.04em;" title="Open Chrono Study">← CHRONO</a>
       <div class="recPill"><div class="recDot" id="recDot"></div><span id="statusTxt">IDLE</span></div>
       <div id="timer">00:00.0</div>
@@ -344,10 +345,16 @@
 
 <div id="toast"></div>
 
+<script src="../modules/module-shell.js"></script>
+<script src="../modules/module-io.js"></script>
+<script src="../modules/module-data.js"></script>
 <script>
 (() => {
   const KEY = "chrono_drawer_timeline_v5";
   const VIDEO_BOOKMARKS_KEY = "chrono_video_bookmarks_v1";
+  const VIDEO_BOOKMARKS_NS = "camera_video_bookmarks";
+  const launchParams = new URLSearchParams(window.location.search || "");
+  let launchRouteApplied = false;
   const $ = id => document.getElementById(id);
   const uuid = () => (crypto.randomUUID?.() ?? Date.now()+"_"+Math.random().toString(16).slice(2));
   const now = () => performance.now();
@@ -381,32 +388,56 @@
 
   // Storage
   function loadCS() {
-    try { const r=localStorage.getItem(KEY); if(!r) return null; const p=JSON.parse(r); return (p&&Array.isArray(p.jobs))?p:null; } catch{return null;}
+    try {
+      const p = window.VMillData?.readAppState ? window.VMillData.readAppState() : (() => {
+        const r = localStorage.getItem(KEY);
+        return r ? JSON.parse(r) : null;
+      })();
+      return (p && Array.isArray(p.jobs)) ? p : null;
+    } catch { return null; }
   }
   function saveCS() {
     if (!state) return;
     state.meta=state.meta||{};
     state.meta.updatedAt=iso();
-    localStorage.setItem(KEY,JSON.stringify(state));
+    if (window.VMillData?.writeAppState) window.VMillData.writeAppState(state);
+    else localStorage.setItem(KEY,JSON.stringify(state));
+    window.CANBus?.emit("camera:state:saved", { key: KEY }, "chrono-camera");
   }
   function loadVideoBookmarksLib(){
-    try{
+    try {
+      const rows = window.VMillData?.listRecords ? window.VMillData.listRecords(VIDEO_BOOKMARKS_NS) : null;
+      if (Array.isArray(rows) && rows.length) {
+        return rows
+          .map((r) => r?.entry)
+          .filter((x) => x && Array.isArray(x.bookmarks))
+          .slice(0, 200);
+      }
       const raw = localStorage.getItem(VIDEO_BOOKMARKS_KEY);
       const arr = raw ? JSON.parse(raw) : [];
       return Array.isArray(arr) ? arr : [];
-    }catch{return [];}
+    } catch { return []; }
   }
   function saveVideoBookmarksLib(arr){
     const list = Array.isArray(arr) ? arr : [];
-    localStorage.setItem(VIDEO_BOOKMARKS_KEY, JSON.stringify(list.slice(0, 200)));
+    const sliced = list.slice(0, 200);
+    localStorage.setItem(VIDEO_BOOKMARKS_KEY, JSON.stringify(sliced));
+    if (window.VMillData?.listRecords && window.VMillData?.deleteRecord && window.VMillData?.upsertRecord) {
+      const prev = window.VMillData.listRecords(VIDEO_BOOKMARKS_NS);
+      for (const row of prev) window.VMillData.deleteRecord(VIDEO_BOOKMARKS_NS, row.id);
+      for (const entry of sliced) {
+        window.VMillData.upsertRecord(VIDEO_BOOKMARKS_NS, { id: entry.id, entry });
+      }
+    }
   }
   function appendVideoBookmarksEntry(entry){
     if(!entry || !Array.isArray(entry.bookmarks)) return;
     const list = loadVideoBookmarksLib();
     list.unshift(entry);
     saveVideoBookmarksLib(list);
+    window.CANBus?.emit("camera:bookmarks:added", { id: entry.id, count: entry.bookmarks.length }, "chrono-camera");
   }
-  function sync() { state=loadCS(); populateJobSel(); updateBadge(); }
+  function sync() { state=loadCS(); populateJobSel(); updateBadge(); renderVideoBookmarksLibrary(); }
 
   function updateBadge() {
     const b=$("syncBadge");
@@ -427,6 +458,22 @@
       sel.appendChild(o);
     }
     if(prev&&[...sel.options].some(o=>o.value===prev)) sel.value=prev;
+    if (!launchRouteApplied) {
+      const qJob = String(launchParams.get("job") || "");
+      if (qJob && [...sel.options].some((o) => o.value === qJob)) sel.value = qJob;
+      if (!qJob) {
+        const qStation = String(launchParams.get("station") || "");
+        if (qStation) {
+          const j = jobs.find((x) => String(x.stationId || "") === qStation);
+          if (j && [...sel.options].some((o) => o.value === j.id)) sel.value = j.id;
+        }
+      }
+      launchRouteApplied = true;
+    }
+    if (!sel.value) {
+      const activeId = String(state?.activeJobId || "");
+      if (activeId && [...sel.options].some((o) => o.value === activeId)) sel.value = activeId;
+    }
     onJobChange();
   }
 
@@ -457,7 +504,15 @@
   function onJobChange(){
     const v=$("jobSel").value;
     if(v==="__new__"){$("newJobSec").style.display=""; jobId=null; if(!newEls.length) addEl();}
-    else if(v){$("newJobSec").style.display="none"; jobId=v; populateSingleSel();}
+    else if(v){
+      $("newJobSec").style.display="none";
+      jobId=v;
+      if (state && String(state.activeJobId || "") !== String(v)) {
+        state.activeJobId = v;
+        saveCS();
+      }
+      populateSingleSel();
+    }
     else{$("newJobSec").style.display="none"; jobId=null;}
     if(isAutoSeqMode()){
       mode="continuous";
@@ -844,6 +899,10 @@
   });
 
   window.addEventListener("storage",e=>{if(e.key===KEY) sync();});
+  window.CANBus?.onMessage((msg) => {
+    if (!msg?.type) return;
+    if (msg.type === "data:app:updated" || msg.type === "data:snapshot:imported") sync();
+  });
   setInterval(sync,3000);
   sync(); updateBtns(); renderLaps();
 })();
