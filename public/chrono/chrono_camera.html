@@ -348,9 +348,12 @@
 <script src="../modules/module-shell.js"></script>
 <script src="../modules/module-io.js"></script>
 <script src="../modules/module-data.js"></script>
+<script src="../modules/module-data-explorer.js"></script>
 <script>
 (() => {
-  const KEY = "chrono_drawer_timeline_v5";
+  const KEY = "vmill:app-state:v1";
+  const LEGACY_KEYS = ["chrono_drawer_timeline_v5", "chrono_drawer_timeline_v4", "chrono_drawer_timeline_v3"];
+  const WATCH_KEYS = [KEY, ...LEGACY_KEYS];
   const VIDEO_BOOKMARKS_KEY = "chrono_video_bookmarks_v1";
   const VIDEO_BOOKMARKS_NS = "camera_video_bookmarks";
   const launchParams = new URLSearchParams(window.location.search || "");
@@ -390,8 +393,15 @@
   function loadCS() {
     try {
       const p = window.VMillData?.readAppState ? window.VMillData.readAppState() : (() => {
-        const r = localStorage.getItem(KEY);
-        return r ? JSON.parse(r) : null;
+        for (const k of WATCH_KEYS) {
+          const r = localStorage.getItem(k);
+          if (!r) continue;
+          try {
+            const parsed = JSON.parse(r);
+            if (parsed && Array.isArray(parsed.jobs)) return parsed;
+          } catch {}
+        }
+        return null;
       })();
       return (p && Array.isArray(p.jobs)) ? p : null;
     } catch { return null; }
@@ -401,7 +411,11 @@
     state.meta=state.meta||{};
     state.meta.updatedAt=iso();
     if (window.VMillData?.writeAppState) window.VMillData.writeAppState(state);
-    else localStorage.setItem(KEY,JSON.stringify(state));
+    else {
+      const raw = JSON.stringify(state);
+      localStorage.setItem(KEY, raw);
+      for (const k of LEGACY_KEYS) localStorage.setItem(k, raw);
+    }
     window.CANBus?.emit("camera:state:saved", { key: KEY }, "chrono-camera");
   }
   function loadVideoBookmarksLib(){
@@ -898,7 +912,10 @@
     if(e.key==="Escape") togglePanel(false);
   });
 
-  window.addEventListener("storage",e=>{if(e.key===KEY) sync();});
+  window.addEventListener("storage",e=>{
+    if (!e.key) return;
+    if (WATCH_KEYS.includes(e.key)) sync();
+  });
   window.CANBus?.onMessage((msg) => {
     if (!msg?.type) return;
     if (msg.type === "data:app:updated" || msg.type === "data:snapshot:imported") sync();

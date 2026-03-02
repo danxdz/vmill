@@ -2,7 +2,9 @@
   if (typeof window === "undefined" || typeof document === "undefined") return;
   if (document.getElementById("vmillRadialShell")) return;
 
-  const APP_KEY = "chrono_drawer_timeline_v5";
+  const APP_KEY = "vmill:app-state:v1";
+  const LEGACY_APP_KEYS = ["chrono_drawer_timeline_v5", "chrono_drawer_timeline_v4", "chrono_drawer_timeline_v3"];
+  const APP_KEYS = [APP_KEY, ...LEGACY_APP_KEYS];
   const PREF_KEY = "vmill:module-manager:v1";
   const SHELL_JOB_KEY = "vmill:shell:job-id";
 
@@ -15,13 +17,73 @@
     }
   }
 
+  function isValidAppState(st) {
+    return !!(st && typeof st === "object" && Array.isArray(st.stations) && Array.isArray(st.jobs));
+  }
+
+  function stateStamp(v) {
+    const iso = String(v?.meta?.updatedAt || v?.meta?.createdAt || "");
+    const ts = Date.parse(iso);
+    return Number.isFinite(ts) ? ts : -1;
+  }
+
+  function statePayloadScore(v) {
+    const stations = Array.isArray(v?.stations) ? v.stations.length : 0;
+    const jobs = Array.isArray(v?.jobs) ? v.jobs.length : 0;
+    let cycles = 0;
+    for (const j of (v?.jobs || [])) cycles += Array.isArray(j?.cycles) ? j.cycles.length : 0;
+    return (stations * 1000000) + (jobs * 1000) + cycles;
+  }
+
+  function hasPayloadData(v) {
+    return statePayloadScore(v) > 0;
+  }
+
+  function readLocalAppState() {
+    const candidates = [];
+    for (const key of APP_KEYS) {
+      const parsed = safeParse(localStorage.getItem(key), null);
+      if (!isValidAppState(parsed)) continue;
+      candidates.push({ key, state: parsed, stamp: stateStamp(parsed) });
+    }
+    if (!candidates.length) return null;
+    const nonEmpty = candidates.filter((c) => hasPayloadData(c.state));
+    const pool = nonEmpty.length ? nonEmpty : candidates;
+    let best = pool[0];
+    for (let i = 1; i < pool.length; i++) {
+      const c = pool[i];
+      if (c.stamp > best.stamp) best = c;
+      else if (c.stamp === best.stamp) {
+        const cScore = statePayloadScore(c.state);
+        const bScore = statePayloadScore(best.state);
+        if (cScore > bScore) best = c;
+        else if (cScore === bScore && c.key === APP_KEY && best.key !== APP_KEY) best = c;
+      }
+    }
+    const raw = JSON.stringify(best.state);
+    for (const key of APP_KEYS) {
+      if (key === best.key) continue;
+      try { localStorage.setItem(key, raw); } catch {}
+    }
+    return best.state;
+  }
+
   function readAppState() {
-    return safeParse(localStorage.getItem(APP_KEY), null);
+    const fromApi = window.VMillData?.readAppState ? window.VMillData.readAppState() : null;
+    if (isValidAppState(fromApi)) return fromApi;
+    return readLocalAppState();
   }
 
   function writeAppState(next) {
     if (!next || typeof next !== "object") return;
-    localStorage.setItem(APP_KEY, JSON.stringify(next));
+    if (window.VMillData?.writeAppState) {
+      window.VMillData.writeAppState(next);
+      return;
+    }
+    const raw = JSON.stringify(next);
+    for (const key of APP_KEYS) {
+      try { localStorage.setItem(key, raw); } catch {}
+    }
   }
 
   function readPrefs() {
@@ -118,9 +180,42 @@
       const u = new URL(baseHref, location.href);
       if (ctx.stationId) u.searchParams.set("station", String(ctx.stationId));
       if (ctx.jobId) u.searchParams.set("job", String(ctx.jobId));
+      if (ctx.handoff) u.searchParams.set("handoff", String(ctx.handoff));
       return u.href;
     } catch {
       return baseHref;
+    }
+  }
+
+  function buildSpacialHandoff(job, station) {
+    if (!job || !station) return "";
+    const maxCycles = 180;
+    const cycles = Array.isArray(job.cycles) ? job.cycles.slice(-maxCycles) : [];
+    const payload = {
+      v: 1,
+      station: {
+        id: station.id || "",
+        code: station.code || "",
+        name: station.name || "",
+      },
+      job: {
+        id: job.id || "",
+        stationId: job.stationId || station.id || "",
+        name: job.name || "Job",
+        cycles: cycles.map((c) => ({
+          id: c?.id || "",
+          totalMs: Number(c?.totalMs || 0),
+          atIso: c?.atIso || "",
+          tag: c?.tag || "Normal",
+        })),
+      },
+      activeJobId: job.id || "",
+      at: new Date().toISOString(),
+    };
+    try {
+      return encodeURIComponent(JSON.stringify(payload));
+    } catch {
+      return "";
     }
   }
 
@@ -322,6 +417,7 @@
     const activeJobId = String(jobSel.value || ctx.jobId || "");
     const activeJob = ctx.jobs.find((j) => String(j.id || "") === activeJobId) || null;
     const activeStationId = String(activeJob?.stationId || stationSel.value || "");
+    const activeStation = ctx.stations.find((s) => String(s.id || "") === activeStationId) || null;
 
     const radius = window.innerWidth <= 700 ? 86 : 96;
     const cx = window.innerWidth <= 700 ? 114 : 130;
@@ -334,7 +430,8 @@
       const a = document.createElement("a");
       a.className = "item";
       a.textContent = m.label;
-      a.href = makeUrlWithCtx(m.route, { jobId: activeJobId, stationId: activeStationId });
+      const handoff = m.id === "spacial" ? buildSpacialHandoff(activeJob, activeStation) : "";
+      a.href = makeUrlWithCtx(m.route, { jobId: activeJobId, stationId: activeStationId, handoff });
       if (m.id === currentId) a.classList.add("active");
       const angle = (-90 + (360 / n) * i) * (Math.PI / 180);
       const x = cx + Math.cos(angle) * radius;
@@ -428,7 +525,7 @@
   });
 
   window.addEventListener("storage", (e) => {
-    if ([APP_KEY, PREF_KEY, SHELL_JOB_KEY].includes(String(e.key || "")) && host.classList.contains("open")) {
+    if ([...APP_KEYS, PREF_KEY, SHELL_JOB_KEY].includes(String(e.key || "")) && host.classList.contains("open")) {
       renderAll();
     }
   });

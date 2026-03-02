@@ -216,6 +216,40 @@
       overflow: auto;
       padding-right: 2px;
     }
+    .stationCard {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255,255,255,.02);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .stationHdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .stationTitle {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+    .stationTools {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .stationTools .btn {
+      padding: 6px 8px;
+      font-size: 11px;
+    }
+    .stationJobs {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
     .jobRow {
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -355,6 +389,7 @@
             <div class="widgetTitle">Stations & Jobs</div>
             <div class="controlRow">
               <select id="stationFilter" style="max-width:220px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;"></select>
+              <input id="stationJobSearch" type="text" placeholder="Search station/job..." style="max-width:220px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;" />
               <button class="btn ghost" id="addStationBtn" type="button">+ Station</button>
               <button class="btn ghost" id="renameStationBtn" type="button">Rename</button>
               <button class="btn ghost" id="deleteStationBtn" type="button">Delete</button>
@@ -381,6 +416,13 @@
               <button class="btn" id="exportTxtBtn" type="button">Export Summary TXT</button>
               <button class="btn ghost" id="importAllBtn" type="button">Import JSON Snapshot</button>
               <input id="importFile" type="file" accept=".json" style="display:none" />
+            </div>
+            <div class="controlRow" style="margin-top:8px;">
+              <button class="btn alt" id="seedDemoBtn" type="button">Seed Demo</button>
+              <button class="btn ghost" id="demoSmallBtn" type="button">Demo Small</button>
+              <button class="btn ghost" id="demoMediumBtn" type="button">Demo Medium</button>
+              <button class="btn ghost" id="demoLargeBtn" type="button">Demo Large</button>
+              <button class="btn warn" id="removeDemoBtn" type="button">Remove Demo Data</button>
             </div>
           </div>
         </article>
@@ -412,6 +454,7 @@
   <script src="./modules/module-registry.js"></script>
   <script src="./modules/module-io.js"></script>
   <script src="./modules/module-data.js"></script>
+  <script src="./modules/module-data-explorer.js"></script>
   <script>
     (function () {
       const HUB_LAYOUT_KEY = "vmill:hub-layout:v1";
@@ -637,7 +680,17 @@
         next.meta = next.meta || {};
         next.meta.updatedAt = new Date().toISOString();
         if (window.VMillData?.writeAppState) window.VMillData.writeAppState(next);
-        else localStorage.setItem("chrono_drawer_timeline_v5", JSON.stringify(next));
+        else {
+          const raw = JSON.stringify(next);
+          localStorage.setItem("vmill:app-state:v1", raw);
+          localStorage.setItem("chrono_drawer_timeline_v5", raw);
+          localStorage.setItem("chrono_drawer_timeline_v4", raw);
+          localStorage.setItem("chrono_drawer_timeline_v3", raw);
+        }
+      }
+
+      function normText(v) {
+        return String(v || "").toLowerCase().trim();
       }
 
       function addStationFromHub() {
@@ -649,12 +702,11 @@
         writeState(st);
       }
 
-      function renameSelectedStationFromHub() {
-        const sel = document.getElementById("stationFilter");
-        const stationId = String(sel?.value || "");
-        if (!stationId || stationId === "all") return alert("Select one station first.");
+      function renameStationById(stationId) {
+        const sid = String(stationId || "");
+        if (!sid || sid === "all") return;
         const st = getWritableState();
-        const item = st.stations.find((x) => String(x.id || "") === stationId);
+        const item = st.stations.find((x) => String(x.id || "") === sid);
         if (!item) return;
         const code = String(prompt("Station code:", item.code || "") || "").trim();
         if (!code) return;
@@ -663,29 +715,39 @@
         item.name = name;
         writeState(st);
       }
-
-      function deleteSelectedStationFromHub() {
+      function renameSelectedStationFromHub() {
         const sel = document.getElementById("stationFilter");
         const stationId = String(sel?.value || "");
         if (!stationId || stationId === "all") return alert("Select one station first.");
+        renameStationById(stationId);
+      }
+
+      function deleteStationById(stationId) {
+        const sid = String(stationId || "");
+        if (!sid || sid === "all") return;
         const st = getWritableState();
-        const station = st.stations.find((x) => String(x.id || "") === stationId);
+        const station = st.stations.find((x) => String(x.id || "") === sid);
         if (!station) return;
-        const jobsAt = st.jobs.filter((j) => String(j.stationId || "") === stationId).length;
+        const jobsAt = st.jobs.filter((j) => String(j.stationId || "") === sid).length;
         if (!confirm(`Delete station ${station.code || ""} - ${station.name || ""}? This will remove ${jobsAt} job(s).`)) return;
-        st.stations = st.stations.filter((x) => String(x.id || "") !== stationId);
-        st.jobs = st.jobs.filter((j) => String(j.stationId || "") !== stationId);
+        st.stations = st.stations.filter((x) => String(x.id || "") !== sid);
+        st.jobs = st.jobs.filter((j) => String(j.stationId || "") !== sid);
         if (!st.jobs.some((j) => String(j.id || "") === String(st.activeJobId || ""))) {
           st.activeJobId = st.jobs[0]?.id || null;
         }
         writeState(st);
       }
-
-      function addJobFromHub() {
+      function deleteSelectedStationFromHub() {
         const sel = document.getElementById("stationFilter");
         const stationId = String(sel?.value || "");
+        if (!stationId || stationId === "all") return alert("Select one station first.");
+        deleteStationById(stationId);
+      }
+
+      function addJobAtStation(stationId) {
+        const sid = String(stationId || "");
         const st = getWritableState();
-        let targetStationId = stationId;
+        let targetStationId = sid;
         if (!targetStationId || targetStationId === "all") {
           if (st.stations.length === 1) targetStationId = st.stations[0].id;
           else return alert("Select one station to add a job.");
@@ -704,6 +766,10 @@
         st.jobs.unshift(job);
         st.activeJobId = job.id;
         writeState(st);
+      }
+      function addJobFromHub() {
+        const sel = document.getElementById("stationFilter");
+        addJobAtStation(String(sel?.value || ""));
       }
 
       function renameJobFromHub(jobId) {
@@ -743,9 +809,14 @@
         document.getElementById("kpiSignals").textContent = String(signals);
 
         const activeJob = jobs.find((j) => String(j.id || "") === String(st.activeJobId || "")) || jobs[0] || null;
+        const activeStation = stations.find((s) => String(s.id || "") === String(activeJob?.stationId || "")) || null;
         const chronoHref = makeShortcut("./chrono/chrono.html", { job: activeJob?.id, station: activeJob?.stationId });
         const camHref = makeShortcut("./chrono/chrono_camera.html", { job: activeJob?.id, station: activeJob?.stationId });
-        const spcHref = makeShortcut("./SPaCial.html", { job: activeJob?.id, station: activeJob?.stationId });
+        const spcHref = makeShortcut("./SPaCial.html", {
+          job: activeJob?.id,
+          station: activeJob?.stationId,
+          handoff: buildSpacialHandoff(activeJob, activeStation),
+        });
         const links = [
           { el: document.getElementById("overviewChronoLink"), enabled: isModuleEnabled("chrono"), href: chronoHref },
           { el: document.getElementById("overviewCameraLink"), enabled: isModuleEnabled("chrono-camera"), href: camHref },
@@ -763,10 +834,36 @@
         }
       }
 
-      function stationNameById(stations, id) {
-        const st = stations.find((s) => String(s.id || "") === String(id || ""));
-        if (!st) return "No station";
-        return `${st.code || "--"} - ${st.name || "Station"}`;
+      function buildSpacialHandoff(job, station) {
+        if (!job || !station) return "";
+        const MAX_CYCLES = 180;
+        const cycles = Array.isArray(job.cycles) ? job.cycles.slice(-MAX_CYCLES) : [];
+        const payload = {
+          v: 1,
+          station: {
+            id: station.id || "",
+            code: station.code || "",
+            name: station.name || "",
+          },
+          job: {
+            id: job.id || "",
+            stationId: job.stationId || station.id || "",
+            name: job.name || "Job",
+            cycles: cycles.map((c) => ({
+              id: c?.id || "",
+              totalMs: Number(c?.totalMs || 0),
+              atIso: c?.atIso || "",
+              tag: c?.tag || "Normal",
+            })),
+          },
+          activeJobId: job.id || "",
+          at: new Date().toISOString(),
+        };
+        try {
+          return encodeURIComponent(JSON.stringify(payload));
+        } catch {
+          return "";
+        }
       }
 
       function makeShortcut(base, params) {
@@ -780,10 +877,12 @@
 
       function renderStationsJobs() {
         const filter = document.getElementById("stationFilter");
+        const searchInput = document.getElementById("stationJobSearch");
         const box = document.getElementById("jobsList");
         const st = getState() || {};
         const stations = Array.isArray(st.stations) ? st.stations : [];
         const jobs = Array.isArray(st.jobs) ? st.jobs : [];
+        const q = normText(searchInput?.value || "");
 
         const prev = String(filter.value || "all");
         filter.innerHTML = `<option value="all">All stations</option>`;
@@ -801,35 +900,84 @@
           box.innerHTML = `<div class="empty">No stations yet. Click <strong>+ Station</strong> to start.</div>`;
           return;
         }
-        if (!filtered.length) {
-          box.innerHTML = `<div class="empty">No jobs in this scope. Click <strong>+ Job</strong> to create one.</div>`;
-          return;
-        }
-        for (const j of filtered) {
-          const cycCount = Array.isArray(j.cycles) ? j.cycles.length : 0;
-          const row = document.createElement("div");
-          row.className = "jobRow";
-          const chronoHref = makeShortcut("./chrono/chrono.html", { job: j.id, station: j.stationId });
-          const camHref = makeShortcut("./chrono/chrono_camera.html", { job: j.id, station: j.stationId });
-          const spcHref = makeShortcut("./SPaCial.html", { job: j.id, station: j.stationId });
-          const chronoEnabled = isModuleEnabled("chrono");
-          const cameraEnabled = isModuleEnabled("chrono-camera");
-          const spacialEnabled = isModuleEnabled("spacial");
-          row.innerHTML = `
-            <div>
-              <div><strong>${j.name || "Unnamed job"}</strong></div>
-              <div class="jobMeta">${stationNameById(stations, j.stationId)} · ${cycCount} cycles</div>
+        const scopeStations = filter.value === "all"
+          ? stations.slice()
+          : stations.filter((s) => String(s.id || "") === String(filter.value || ""));
+        for (const s of scopeStations) {
+          const stationJobs = filtered.filter((j) => String(j.stationId || "") === String(s.id || ""));
+          const stationMatch = !q || normText(`${s.code} ${s.name}`).includes(q);
+          const visibleJobs = q
+            ? stationJobs.filter((j) => stationMatch || normText(j.name).includes(q))
+            : stationJobs;
+          if (!visibleJobs.length && !stationMatch) continue;
+
+          const stationCard = document.createElement("div");
+          stationCard.className = "stationCard";
+          stationCard.innerHTML = `
+            <div class="stationHdr">
+              <div>
+                <div class="stationTitle">${s.code || "--"} - ${s.name || "Station"}</div>
+                <div class="jobMeta">${stationJobs.length} job(s)</div>
+              </div>
+              <div class="stationTools">
+                <button class="btn ghost" type="button" data-st-add="${s.id}">+ Job</button>
+                <button class="btn ghost" type="button" data-st-ren="${s.id}">Rename</button>
+                <button class="btn ghost" type="button" data-st-del="${s.id}">Delete</button>
+              </div>
             </div>
-            <div class="jobActions">
-              <a class="btn" ${chronoEnabled ? `href="${chronoHref}"` : 'href="#" aria-disabled="true"'}>Chrono</a>
-              <a class="btn alt" ${cameraEnabled ? `href="${camHref}"` : 'href="#" aria-disabled="true"'}>Camera</a>
-              <a class="btn warn" ${spacialEnabled ? `href="${spcHref}"` : 'href="#" aria-disabled="true"'}>SPaCial</a>
-              <button class="btn ghost" type="button" data-job-edit="${j.id}">Rename</button>
-              <button class="btn ghost" type="button" data-job-del="${j.id}">Delete</button>
-            </div>
+            <div class="stationJobs"></div>
           `;
-          box.appendChild(row);
+          const jobBox = stationCard.querySelector(".stationJobs");
+          if (!visibleJobs.length) {
+            const empty = document.createElement("div");
+            empty.className = "empty";
+            empty.textContent = "No jobs for this station.";
+            jobBox.appendChild(empty);
+          } else {
+            for (const j of visibleJobs) {
+              const cycCount = Array.isArray(j.cycles) ? j.cycles.length : 0;
+              const row = document.createElement("div");
+              row.className = "jobRow";
+              const chronoHref = makeShortcut("./chrono/chrono.html", { job: j.id, station: j.stationId });
+              const camHref = makeShortcut("./chrono/chrono_camera.html", { job: j.id, station: j.stationId });
+              const spcHref = makeShortcut("./SPaCial.html", {
+                job: j.id,
+                station: j.stationId,
+                handoff: buildSpacialHandoff(j, s),
+              });
+              const chronoEnabled = isModuleEnabled("chrono");
+              const cameraEnabled = isModuleEnabled("chrono-camera");
+              const spacialEnabled = isModuleEnabled("spacial");
+              row.innerHTML = `
+                <div>
+                  <div><strong>${j.name || "Unnamed job"}</strong></div>
+                  <div class="jobMeta">${cycCount} cycles</div>
+                </div>
+                <div class="jobActions">
+                  <a class="btn" ${chronoEnabled ? `href="${chronoHref}"` : 'href="#" aria-disabled="true"'}>Chrono</a>
+                  <a class="btn alt" ${cameraEnabled ? `href="${camHref}"` : 'href="#" aria-disabled="true"'}>Camera</a>
+                  <a class="btn warn" ${spacialEnabled ? `href="${spcHref}"` : 'href="#" aria-disabled="true"'}>SPaCial</a>
+                  <button class="btn ghost" type="button" data-job-edit="${j.id}">Rename</button>
+                  <button class="btn ghost" type="button" data-job-del="${j.id}">Delete</button>
+                </div>
+              `;
+              jobBox.appendChild(row);
+            }
+          }
+          box.appendChild(stationCard);
         }
+        if (!box.children.length) {
+          box.innerHTML = `<div class="empty">No jobs match the current filter/search.</div>`;
+        }
+        box.querySelectorAll("[data-st-add]").forEach((el) => {
+          el.addEventListener("click", () => addJobAtStation(el.dataset.stAdd));
+        });
+        box.querySelectorAll("[data-st-ren]").forEach((el) => {
+          el.addEventListener("click", () => renameStationById(el.dataset.stRen));
+        });
+        box.querySelectorAll("[data-st-del]").forEach((el) => {
+          el.addEventListener("click", () => deleteStationById(el.dataset.stDel));
+        });
         box.querySelectorAll("[data-job-edit]").forEach((el) => {
           el.addEventListener("click", () => renameJobFromHub(el.dataset.jobEdit));
         });
@@ -839,6 +987,7 @@
       }
 
       document.getElementById("stationFilter").addEventListener("change", renderStationsJobs);
+      document.getElementById("stationJobSearch").addEventListener("input", renderStationsJobs);
       document.getElementById("addStationBtn").addEventListener("click", addStationFromHub);
       document.getElementById("renameStationBtn").addEventListener("click", renameSelectedStationFromHub);
       document.getElementById("deleteStationBtn").addEventListener("click", deleteSelectedStationFromHub);
@@ -888,6 +1037,49 @@
         };
         fr.readAsText(f);
         e.target.value = "";
+      });
+      document.getElementById("seedDemoBtn").addEventListener("click", () => {
+        if (!window.VMillData?.createDefaultAppState || !window.VMillData?.writeAppState) return;
+        window.VMillData.writeAppState(window.VMillData.createDefaultAppState());
+        renderOverview();
+        renderStationsJobs();
+      });
+      document.getElementById("demoSmallBtn").addEventListener("click", async () => {
+        if (!window.VMillData?.loadDemoAppState) return;
+        try {
+          await window.VMillData.loadDemoAppState("small");
+          renderOverview();
+          renderStationsJobs();
+        } catch (err) {
+          alert("Demo load failed: " + (err?.message || "unknown error"));
+        }
+      });
+      document.getElementById("demoMediumBtn").addEventListener("click", async () => {
+        if (!window.VMillData?.loadDemoAppState) return;
+        try {
+          await window.VMillData.loadDemoAppState("medium");
+          renderOverview();
+          renderStationsJobs();
+        } catch (err) {
+          alert("Demo load failed: " + (err?.message || "unknown error"));
+        }
+      });
+      document.getElementById("demoLargeBtn").addEventListener("click", async () => {
+        if (!window.VMillData?.loadDemoAppState) return;
+        try {
+          await window.VMillData.loadDemoAppState("large");
+          renderOverview();
+          renderStationsJobs();
+        } catch (err) {
+          alert("Demo load failed: " + (err?.message || "unknown error"));
+        }
+      });
+      document.getElementById("removeDemoBtn").addEventListener("click", () => {
+        if (!window.VMillData?.clearAppStateToEmpty) return;
+        if (!confirm("Remove demo data and keep global state empty?")) return;
+        window.VMillData.clearAppStateToEmpty();
+        renderOverview();
+        renderStationsJobs();
       });
 
       window.CANBus?.onMessage((msg) => {

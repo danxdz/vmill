@@ -1374,13 +1374,7 @@
               <input id="importFile" type="file" accept=".json" style="display:none" />
               <button id="exportCsvBtn">Export CSV</button>
             </div>
-            <div class="btnbar" style="margin-top:8px;">
-              <button id="demoSmallBtn">Demo Small</button>
-              <button id="demoMediumBtn">Demo Medium</button>
-              <button id="demoLargeBtn">Demo Large</button>
-              <button id="clearLocalBtn" class="danger">Clear Local</button>
-            </div>
-            <div class="small muted">CSV includes tags. Notes are JSON-only.</div>
+            <div class="small muted">CSV includes tags. Notes are JSON-only. Use Global Data Explorer for demo datasets/reset.</div>
           </div>
         </div>
       </section>
@@ -1391,9 +1385,11 @@
 <script src="../modules/module-shell.js"></script>
 <script src="../modules/module-io.js"></script>
 <script src="../modules/module-data.js"></script>
+<script src="../modules/module-data-explorer.js"></script>
 <script>
 (() => {
-  const STORAGE_KEY = "chrono_drawer_timeline_v5";
+  const STORAGE_KEY = "vmill:app-state:v1";
+  const STORAGE_KEYS = window.VMillData?.keys?.ALL_APP_KEYS || [STORAGE_KEY];
   const VIDEO_BOOKMARKS_KEY = "chrono_video_bookmarks_v1";
   const launchParams = new URLSearchParams(window.location.search || "");
   let launchRouteApplied = false;
@@ -1537,10 +1533,6 @@
     "exportJson": "Export JSON",
     "importJson": "Import JSON",
     "exportCsv": "Export CSV",
-    "demoSmall": "Demo Small",
-    "demoMedium": "Demo Medium",
-    "demoLarge": "Demo Large",
-    "clearLocal": "Clear Local",
     "jobsCount": "job(s)",
     "edit": "Edit",
     "cfg": "Cfg",
@@ -1685,10 +1677,6 @@
     "exportJson": "Exporter JSON",
     "importJson": "Importer JSON",
     "exportCsv": "Exporter CSV",
-    "demoSmall": "Demo Petite",
-    "demoMedium": "Demo Moyenne",
-    "demoLarge": "Demo Grande",
-    "clearLocal": "Effacer Local",
     "jobsCount": "job(s)",
     "edit": "Editer",
     "cfg": "Cfg",
@@ -1914,10 +1902,6 @@
     setText("#exportJsonBtn", "exportJson", "Export JSON");
     setText("#importJsonBtn", "importJson", "Import JSON");
     setText("#exportCsvBtn", "exportCsv", "Export CSV");
-    setText("#demoSmallBtn", "demoSmall", "Demo Small");
-    setText("#demoMediumBtn", "demoMedium", "Demo Medium");
-    setText("#demoLargeBtn", "demoLarge", "Demo Large");
-    setText("#clearLocalBtn", "clearLocal", "Clear Local");
   }
   async function initI18n() {
     await loadLanguageCatalogs();
@@ -2184,24 +2168,17 @@
   }
 
   // ----- State -----
-  function defaultState() {
-    const st1 = { id: uuid(), code: "S01", name: "Assembly Line A - Station 1" };
-    const job1 = {
-      id: uuid(), stationId: st1.id,
-      name: "Pick / Place / Machine",
-      allowancePct: 12, ratingPct: 100,
-      elements: [
-        { id: uuid(), name: "Pick part", type: "HUMAN" },
-        { id: uuid(), name: "Place part", type: "HUMAN" },
-        { id: uuid(), name: "Machine cycle", type: "MACHINE" },
-      ],
-      cycles: []
-    };
+  function ensureGlobalState() {
+    if (window.VMillData?.createDefaultAppState && window.VMillData?.writeAppState) {
+      const seeded = window.VMillData.createDefaultAppState();
+      window.VMillData.writeAppState(seeded);
+      return seeded;
+    }
     return {
       meta: { createdAt: wallIso(), updatedAt: wallIso() },
-      activeJobId: job1.id,
-      stations: [st1],
-      jobs: [job1],
+      activeJobId: null,
+      stations: [],
+      jobs: [],
       actionTypes: defaultActionTypes(),
       ui: defaultUiState(),
     };
@@ -2211,12 +2188,10 @@
   let lastStateSignature = JSON.stringify(state);
   function loadState() {
     try {
-      const parsed = window.VMillData?.readAppState ? window.VMillData.readAppState() : (() => {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : null;
-      })();
-      if (!parsed) return defaultState();
-      if (!parsed || !Array.isArray(parsed.stations) || !Array.isArray(parsed.jobs)) return defaultState();
+      if (!window.VMillData?.readAppState) return ensureGlobalState();
+      const parsed = window.VMillData.readAppState({ seedIfMissing: true });
+      if (!parsed) return ensureGlobalState();
+      if (!parsed || !Array.isArray(parsed.stations) || !Array.isArray(parsed.jobs)) return ensureGlobalState();
       if (!parsed.activeJobId && parsed.jobs[0]) parsed.activeJobId = parsed.jobs[0].id;
 
       if (parsed.stations.length > 0) {
@@ -2233,14 +2208,14 @@
       ensureUiState(parsed);
       return parsed;
     } catch {
-      return defaultState();
+      return ensureGlobalState();
     }
   }
   function saveState() {
     state.meta.updatedAt = wallIso();
     const raw = JSON.stringify(state);
-    if (window.VMillData?.writeAppState) window.VMillData.writeAppState(state);
-    else localStorage.setItem(STORAGE_KEY, raw);
+    if (!window.VMillData?.writeAppState) return;
+    window.VMillData.writeAppState(state);
     lastStateSignature = raw;
     window.CANBus?.emit("chrono:state:saved", { key: STORAGE_KEY }, "chrono");
     flashSavePill("✓ Saved");
@@ -3740,57 +3715,6 @@
     return true;
   }
 
-  async function loadDemo(url, label) {
-    const fileName = String(url).split("/").pop() || url;
-    const baseHref = window.location.href.replace(/[^/]*$/, "");
-    const candidates = [
-      url,
-      `./${fileName}`,
-      `/chrono/${fileName}`,
-      `${baseHref}${fileName}`,
-    ];
-
-    const tried = [];
-    for (const candidate of candidates) {
-      try {
-        const res = await fetch(candidate, { cache: "no-store" });
-        if (!res.ok) {
-          tried.push(`${candidate} -> HTTP ${res.status}`);
-          continue;
-        }
-        const parsed = await res.json();
-        applyImportedState(parsed, label);
-        return;
-      } catch (e) {
-        tried.push(`${candidate} -> ${e.message}`);
-      }
-    }
-
-    if (window.location.protocol === "file:") {
-      alert(
-        `Demo load failed (${label}): browser blocks fetch on file:// pages.\n\n` +
-        `Open from a local server, e.g.:\n` +
-        `http://localhost:5173/chrono/chrono.html\n\n` +
-        `Or use "Import JSON" and pick a demo file manually.`
-      );
-      return;
-    }
-
-    alert(`Demo load failed (${label}).\n\n${tried.join("\n")}`);
-  }
-
-  function clearLocalState() {
-    if (!confirm("Clear local chrono data and reset to default?")) return;
-    localStorage.removeItem(STORAGE_KEY);
-    state = defaultState();
-    selectedElementId = null;
-    selectedCycleId = null;
-    selectedCycleIdsForLine = new Set();
-    saveState();
-    stopCycle();
-    renderAll();
-    flashSavePill("✓ Cleared");
-  }
   function exportCsv() {
     const job = getActiveJob();
     if (!job) return alert("Select a job first.");
@@ -6081,10 +6005,6 @@
     e.target.value = "";
   });
   $("exportCsvBtn").addEventListener("click", exportCsv);
-  $("demoSmallBtn").addEventListener("click", () => loadDemo("./chrono_examples_small.json", "Demo Small"));
-  $("demoMediumBtn").addEventListener("click", () => loadDemo("./chrono_examples_medium.json", "Demo Medium"));
-  $("demoLargeBtn").addEventListener("click", () => loadDemo("./chrono_examples_large.json", "Demo Large"));
-  $("clearLocalBtn").addEventListener("click", clearLocalState);
 
   window.addEventListener("keydown", (e) => {
     const t = e.target;
@@ -6117,21 +6037,18 @@
   }
 
   function syncStateFromStorageIfChanged() {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw || raw === lastStateSignature) return;
-    try {
-      const parsed = JSON.parse(raw);
-      if (!parsed || !Array.isArray(parsed.stations) || !Array.isArray(parsed.jobs)) return;
-      state = loadState();
-      lastStateSignature = raw;
-      renderAll();
-      flashSavePill("↻ Synced");
-    } catch {}
+    const next = loadState();
+    const raw = JSON.stringify(next || {});
+    if (raw === lastStateSignature) return;
+    state = next;
+    lastStateSignature = raw;
+    renderAll();
+    flashSavePill("↻ Synced");
   }
 
   // init
   window.addEventListener("storage", (e) => {
-    if (e.key === STORAGE_KEY) syncStateFromStorageIfChanged();
+    if (STORAGE_KEYS.includes(String(e.key || ""))) syncStateFromStorageIfChanged();
     if (e.key === VIDEO_BOOKMARKS_KEY) populateVideoLibrarySelector();
   });
   document.addEventListener("visibilitychange", () => {
