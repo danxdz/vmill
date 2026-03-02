@@ -28,7 +28,7 @@
     .wrap{max-width:1200px;margin:0 auto;padding:16px;}
     .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;}
     .sub{color:var(--muted);font-size:13px;margin-top:6px;}
-    .row{display:grid;grid-template-columns:1.2fr .8fr;gap:12px;}
+    .row{display:grid;grid-template-columns:.8fr 1.2fr;gap:12px;}
     @media(max-width:980px){.row{grid-template-columns:1fr;}}
     .card{
       border:1px solid var(--border);
@@ -50,34 +50,13 @@
     button.primary{border-color:#2f6d9c;background:rgba(89,184,255,.12);color:#bde6ff;}
     button.warn{border-color:#8d7138;background:rgba(255,211,122,.14);color:#ffe8b1;}
     button.danger{border-color:#8a4050;background:rgba(255,106,127,.12);color:#ffbac8;}
-    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:10px;}
-    @media(max-width:980px){.kpis{grid-template-columns:repeat(3,1fr);}}
-    .kpi{border:1px solid var(--border);border-radius:10px;padding:8px;background:rgba(255,255,255,.02);}
-    .kpi .v{font-size:18px;font-weight:700;}
-    .kpi .l{font-size:11px;color:var(--muted);}
     .chartBox{margin-top:10px;border:1px solid var(--border);border-radius:10px;padding:10px;background:#0b1320;}
     .chartTitle{font-size:12px;color:var(--muted);margin-bottom:8px;}
     canvas{width:100%;height:auto;display:block;}
-    .logList{display:flex;flex-direction:column;gap:8px;margin-top:10px;max-height:420px;overflow:auto;}
-    .logItem{border:1px solid var(--border);border-radius:10px;padding:8px;background:rgba(255,255,255,.02);}
-    .list{
-      border:1px solid var(--border);
-      border-radius:10px;
-      background:rgba(0,0,0,.2);
-      padding:8px;
-      max-height:220px;
-      overflow:auto;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size:11px;
-      white-space:pre-wrap;
-      color:#b7c5d9;
-    }
     .mini{font-size:11px;color:var(--muted);}
     .bad{color:var(--bad);}
     .ok{color:var(--ok);}
     .actions{display:flex;gap:8px;flex-wrap:wrap;}
-    .cfgGrid{display:grid;grid-template-columns:1fr 1fr 1fr 120px;gap:8px;}
-    @media(max-width:980px){.cfgGrid{grid-template-columns:1fr 1fr;}}
     .routeGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
     @media(max-width:980px){.routeGrid{grid-template-columns:repeat(2,minmax(0,1fr));}}
     .routeGrid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
@@ -147,10 +126,7 @@
     <div class="head">
       <div>
         <h1 style="margin:0;">SPaCial</h1>
-        <div class="sub">Statistical Process Control module (offline-first, CANBus-enabled).</div>
-      </div>
-      <div class="actions">
-        <a href="./vmill_hub.html" style="text-decoration:none;"><button type="button">Back to Hub</button></a>
+        <div class="sub">Dimensional control and blueprint bubble planning.</div>
       </div>
     </div>
 
@@ -167,42 +143,16 @@
           <button id="useActiveJobBtn" type="button">Use Global Active Job</button>
         </div>
         <div class="mini" id="stateInfo" style="margin-top:8px;"></div>
-        <div class="kpis">
-          <div class="kpi"><div class="v" id="kpiN">0</div><div class="l">Samples</div></div>
-          <div class="kpi"><div class="v" id="kpiMean">-</div><div class="l">Mean (ms)</div></div>
-          <div class="kpi"><div class="v" id="kpiUcl">-</div><div class="l">UCL (ms)</div></div>
-          <div class="kpi"><div class="v" id="kpiLcl">-</div><div class="l">LCL (ms)</div></div>
-          <div class="kpi"><div class="v" id="kpiSigma">-</div><div class="l">Sigma (ms)</div></div>
-          <div class="kpi"><div class="v" id="kpiCpk">-</div><div class="l">Cpk</div></div>
-        </div>
-        <div class="chartBox">
-          <div class="chartTitle">SPC Setup (per job)</div>
-          <div class="cfgGrid">
-            <input id="spcLsl" type="number" step="0.1" placeholder="LSL (ms)" />
-            <input id="spcUsl" type="number" step="0.1" placeholder="USL (ms)" />
-            <input id="spcTarget" type="number" step="0.1" placeholder="Target (ms)" />
-            <button id="spcSaveBtn" type="button">Save</button>
-          </div>
-          <div class="mini" id="spcCfgInfo" style="margin-top:8px;"></div>
-        </div>
-        <div class="chartBox">
-          <div class="chartTitle">Individuals Chart</div>
-          <canvas id="iChart" width="900" height="260"></canvas>
-        </div>
-        <div class="chartBox">
-          <div class="chartTitle">Moving Range Chart</div>
-          <canvas id="mrChart" width="900" height="220"></canvas>
-        </div>
-        <div class="chartBox">
-          <div class="chartTitle">Rule Flags / Samples</div>
-          <div class="list" id="flagList"></div>
+        <div class="chartBox" style="margin-top:10px;">
+          <div class="chartTitle">Focus</div>
+          <div class="mini">Use this panel only to pick station/job and export datasets. All dimensional workflow is on the right side.</div>
         </div>
       </section>
 
       <section class="card">
         <div class="chartBox" style="margin-top:0;">
-          <div style="font-weight:700;">Routing / Control Operations</div>
-          <div class="mini">Per selected job: route (gamme), operations, dimensional bubbles, drawing bubbles.</div>
+          <div style="font-weight:700;">Routing and Dimensional Control</div>
+          <div class="mini">Per selected job: route, operations, dimensional bubbles and blueprint bubbles.</div>
           <div class="routeGrid" style="margin-top:8px;">
             <input id="routeNameIn" type="text" placeholder="Route name" />
             <input id="routeRevisionIn" type="text" placeholder="Revision (A, B...)" />
@@ -310,7 +260,6 @@
       const KEY = "vmill:app-state:v1";
       const LEGACY_KEYS = ["chrono_drawer_timeline_v5", "chrono_drawer_timeline_v4", "chrono_drawer_timeline_v3"];
       const WATCH_KEYS = [KEY, ...LEGACY_KEYS];
-      const NS_CFG = "spacial_job_config";
       const NS_ROUTE = "spacial_routes";
       const launchParams = new URLSearchParams(window.location.search || "");
       let launchRouteApplied = false;
@@ -327,19 +276,6 @@
       let bubbleCanvasLast = null;
       const $ = (id) => document.getElementById(id);
 
-      function fmt(n, d = 1) {
-        return Number.isFinite(Number(n)) ? Number(n).toFixed(d) : "-";
-      }
-      function mean(arr) {
-        if (!arr.length) return null;
-        return arr.reduce((a, b) => a + b, 0) / arr.length;
-      }
-      function std(arr) {
-        if (arr.length < 2) return 0;
-        const m = mean(arr);
-        const v = arr.reduce((a, x) => a + Math.pow(x - m, 2), 0) / (arr.length - 1);
-        return Math.sqrt(v);
-      }
       function numOrNull(v) {
         const n = Number(v);
         return Number.isFinite(n) ? n : null;
@@ -1077,73 +1013,6 @@
         syncCanvasFromRoute();
         refreshRouteInfo();
       }
-      function readJobConfig(jobId) {
-        const id = String(jobId || "");
-        if (!id || !window.VMillData?.listRecords) return { lsl: null, usl: null, target: null };
-        const row = window.VMillData.listRecords(NS_CFG).find((x) => String(x.jobId || "") === id);
-        return {
-          lsl: numOrNull(row?.lsl),
-          usl: numOrNull(row?.usl),
-          target: numOrNull(row?.target),
-        };
-      }
-      function writeJobConfig(jobId, cfg) {
-        const id = String(jobId || "");
-        if (!id || !window.VMillData?.upsertRecord) return;
-        const prev = window.VMillData?.listRecords ? window.VMillData.listRecords(NS_CFG).find((x) => String(x.jobId || "") === id) : null;
-        window.VMillData.upsertRecord(NS_CFG, {
-          id: prev?.id || `cfg_${id}`,
-          jobId: id,
-          lsl: numOrNull(cfg?.lsl),
-          usl: numOrNull(cfg?.usl),
-          target: numOrNull(cfg?.target),
-        });
-      }
-      function readConfigFromInputs() {
-        return {
-          lsl: numOrNull($("spcLsl").value),
-          usl: numOrNull($("spcUsl").value),
-          target: numOrNull($("spcTarget").value),
-        };
-      }
-      function writeConfigToInputs(cfg) {
-        $("spcLsl").value = cfg?.lsl == null ? "" : String(cfg.lsl);
-        $("spcUsl").value = cfg?.usl == null ? "" : String(cfg.usl);
-        $("spcTarget").value = cfg?.target == null ? "" : String(cfg.target);
-      }
-      function flagsForValues(vals, m, s, ucl, lcl, cfg) {
-        const byIndex = new Map();
-        const add = (idx, code) => {
-          if (!byIndex.has(idx)) byIndex.set(idx, []);
-          byIndex.get(idx).push(code);
-        };
-        for (let i = 0; i < vals.length; i++) {
-          const v = vals[i];
-          if (Number.isFinite(ucl) && v > ucl) add(i, "R1>3s");
-          if (Number.isFinite(lcl) && v < lcl) add(i, "R1<3s");
-          if (cfg?.usl != null && v > cfg.usl) add(i, "USL");
-          if (cfg?.lsl != null && v < cfg.lsl) add(i, "LSL");
-        }
-        if (vals.length >= 8 && Number.isFinite(m)) {
-          for (let i = 7; i < vals.length; i++) {
-            const seg = vals.slice(i - 7, i + 1);
-            const allAbove = seg.every((x) => x > m);
-            const allBelow = seg.every((x) => x < m);
-            if (allAbove || allBelow) add(i, "R2:8same");
-          }
-        }
-        if (vals.length >= 3 && Number.isFinite(m) && Number.isFinite(s) && s > 0) {
-          const high2 = m + 2 * s;
-          const low2 = m - 2 * s;
-          for (let i = 2; i < vals.length; i++) {
-            const seg = vals.slice(i - 2, i + 1);
-            const cHigh = seg.filter((x) => x > high2).length;
-            const cLow = seg.filter((x) => x < low2).length;
-            if (cHigh >= 2 || cLow >= 2) add(i, "R3:2of3_2s");
-          }
-        }
-        return byIndex;
-      }
       function normalizeState(state) {
         if (!state || typeof state !== "object") return null;
         if (!Array.isArray(state.stations) || !Array.isArray(state.jobs)) return null;
@@ -1196,81 +1065,6 @@
       function getStation(state, id) {
         return (state?.stations || []).find((s) => String(s.id) === String(id)) || null;
       }
-      function drawChart(canvas, values, lines = {}) {
-        const ctx = canvas.getContext("2d");
-        const w = canvas.width, h = canvas.height;
-        ctx.clearRect(0, 0, w, h);
-        ctx.fillStyle = "rgba(255,255,255,.55)";
-        if (!values.length) {
-          ctx.fillText("No data", 14, 20);
-          return;
-        }
-        const minV = Math.min(...values, lines.lcl ?? Infinity, lines.lsl ?? Infinity, lines.target ?? Infinity);
-        const maxV = Math.max(...values, lines.ucl ?? -Infinity, lines.usl ?? -Infinity, lines.target ?? -Infinity);
-        const span = Math.max(1, maxV - minV);
-        const pad = { l: 46, r: 12, t: 12, b: 26 };
-        const cw = w - pad.l - pad.r;
-        const ch = h - pad.t - pad.b;
-        const xOf = (i) => pad.l + (values.length <= 1 ? 0 : (i / (values.length - 1)) * cw);
-        const yOf = (v) => pad.t + ch - ((v - minV) / span) * ch;
-
-        ctx.strokeStyle = "rgba(255,255,255,.14)";
-        ctx.beginPath();
-        ctx.moveTo(pad.l, pad.t);
-        ctx.lineTo(pad.l, pad.t + ch);
-        ctx.lineTo(pad.l + cw, pad.t + ch);
-        ctx.stroke();
-
-        function hLine(v, color) {
-          if (!Number.isFinite(v)) return;
-          const y = yOf(v);
-          ctx.strokeStyle = color;
-          ctx.beginPath();
-          ctx.moveTo(pad.l, y);
-          ctx.lineTo(pad.l + cw, y);
-          ctx.stroke();
-        }
-        hLine(lines.mean, "rgba(89,184,255,.75)");
-        hLine(lines.ucl, "rgba(255,106,127,.75)");
-        hLine(lines.lcl, "rgba(255,106,127,.75)");
-        hLine(lines.usl, "rgba(255,211,122,.85)");
-        hLine(lines.lsl, "rgba(255,211,122,.85)");
-        hLine(lines.target, "rgba(104,211,152,.75)");
-
-        ctx.strokeStyle = "rgba(104,211,152,.95)";
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        for (let i = 0; i < values.length; i++) {
-          const x = xOf(i), y = yOf(values[i]);
-          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-
-        for (let i = 0; i < values.length; i++) {
-          const x = xOf(i), y = yOf(values[i]);
-          const out = !!lines.flags?.has(i);
-          ctx.fillStyle = out ? "rgba(255,106,127,.95)" : "rgba(104,211,152,.95)";
-          ctx.beginPath();
-          ctx.arc(x, y, 2.8, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-      function renderFlagList(values, flags) {
-        const box = $("flagList");
-        if (!values.length) {
-          box.textContent = "No samples.";
-          return;
-        }
-        const lines = [];
-        const start = Math.max(0, values.length - 24);
-        for (let i = start; i < values.length; i++) {
-          const v = values[i];
-          const f = flags.get(i) || [];
-          lines.push(`#${i + 1}  ${fmt(v, 1)} ms  ${f.length ? "[" + f.join("|") + "]" : ""}`.trim());
-        }
-        box.textContent = lines.reverse().join("\n");
-      }
-
       function populateSelectors(state) {
         const stationSel = $("stationSel");
         const sel = $("jobSel");
@@ -1731,63 +1525,20 @@
         const job = getJob(state, $("jobSel").value) || (state?.jobs || [])[0] || null;
         const updated = state?.meta?.updatedAt ? new Date(state.meta.updatedAt).toLocaleString() : "n/a";
         const noShared = !stations.length && !jobs.length;
-        $("stateInfo").textContent = noShared
-          ? `Source: ${env.source} | No shared stations/jobs found. Open Hub on the same URL and create at least one station + job.`
-          : `Source: ${env.source} | Stations: ${stations.length} | Jobs: ${jobs.length} | Updated: ${updated}`;
+        if (noShared) {
+          $("stateInfo").textContent = `Data source: ${env.source} | No shared stations/jobs yet.`;
+        } else {
+          $("stateInfo").textContent = `Data source: ${env.source} | Stations: ${stations.length} | Jobs: ${jobs.length} | Updated: ${updated}`;
+        }
         if (!job) {
-          $("kpiN").textContent = "0";
-          $("kpiMean").textContent = "-";
-          $("kpiUcl").textContent = "-";
-          $("kpiLcl").textContent = "-";
-          $("kpiSigma").textContent = "-";
-          $("kpiCpk").textContent = "-";
-          $("spcCfgInfo").textContent = "No job selected.";
-          drawChart($("iChart"), []);
-          drawChart($("mrChart"), []);
-          renderFlagList([], new Map());
+          $("stateInfo").textContent += " Select one job to manage routing and bubbles.";
           renderRoutingPanel();
           return;
         }
         if (!$("jobSel").value) $("jobSel").value = job.id;
         setActiveJob($("jobSel").value || job.id);
-        const cfg = readJobConfig(job.id);
-        writeConfigToInputs(cfg);
         const vals = (job.cycles || []).map((c) => Number(c.totalMs || 0)).filter((x) => Number.isFinite(x) && x > 0);
-        const m = mean(vals);
-        const s = std(vals);
-        const ucl = (m ?? 0) + 3 * s;
-        const lcl = Math.max(0, (m ?? 0) - 3 * s);
-        const mr = [];
-        for (let i = 1; i < vals.length; i++) mr.push(Math.abs(vals[i] - vals[i - 1]));
-        const mMr = mean(mr);
-        const uclMr = (mMr ?? 0) * 3.267;
-        const flags = flagsForValues(vals, m, s, ucl, lcl, cfg);
-        const cpk = (cfg.lsl != null || cfg.usl != null) && Number.isFinite(s) && s > 0 && Number.isFinite(m)
-          ? Math.min(
-              cfg.usl != null ? (cfg.usl - m) / (3 * s) : Infinity,
-              cfg.lsl != null ? (m - cfg.lsl) / (3 * s) : Infinity
-            )
-          : null;
-
-        $("kpiN").textContent = String(vals.length);
-        $("kpiMean").textContent = fmt(m, 1);
-        $("kpiUcl").textContent = fmt(ucl, 1);
-        $("kpiLcl").textContent = fmt(lcl, 1);
-        $("kpiSigma").textContent = fmt(s, 2);
-        $("kpiCpk").textContent = cpk == null || !Number.isFinite(cpk) ? "-" : fmt(cpk, 2);
-        $("spcCfgInfo").textContent = `Config for "${job.name || "job"}": LSL=${cfg.lsl ?? "-"} | USL=${cfg.usl ?? "-"} | Target=${cfg.target ?? "-"}`;
-
-        drawChart($("iChart"), vals, {
-          mean: m,
-          ucl,
-          lcl,
-          lsl: cfg.lsl,
-          usl: cfg.usl,
-          target: cfg.target,
-          flags: new Set(flags.keys()),
-        });
-        drawChart($("mrChart"), mr, { mean: mMr, ucl: uclMr, lcl: 0 });
-        renderFlagList(vals, flags);
+        $("stateInfo").textContent = `Data source: ${env.source} | Active job: ${job.name || "Job"} | Captured cycles: ${vals.length} | Updated: ${updated}`;
         renderRoutingPanel();
       }
 
@@ -1831,14 +1582,6 @@
             setActiveJob(activeId);
           }
         }
-        refresh();
-      });
-      $("spcSaveBtn").addEventListener("click", () => {
-        const state = readState();
-        const jobId = String($("jobSel").value || state?.activeJobId || "");
-        if (!jobId) return;
-        writeJobConfig(jobId, readConfigFromInputs());
-        window.CANBus?.emit("spacial:config:updated", { jobId }, "spacial");
         refresh();
       });
       $("routeSaveBtn").addEventListener("click", saveRouteMetaFromInputs);

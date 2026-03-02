@@ -86,6 +86,7 @@
     }
     .main {
       padding: 16px;
+      padding-top: 74px;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -93,33 +94,42 @@
       min-height: 100vh;
     }
     .topbar {
+      position: fixed;
+      top: 12px;
+      left: calc(var(--dockw) + 12px);
+      z-index: 40;
       border: 1px solid var(--border);
-      border-radius: var(--radius);
+      border-radius: 12px;
       background:
-        radial-gradient(700px 220px at 20% -40%, rgba(87,180,255,.16), transparent 60%),
-        linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
-      padding: 14px 16px;
+        radial-gradient(360px 140px at 0% -60%, rgba(87,180,255,.14), transparent 60%),
+        linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      padding: 6px 8px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      gap: 12px;
-      box-shadow: var(--shadow);
+      gap: 8px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.28);
+      backdrop-filter: blur(8px);
+      width: fit-content;
+      max-width: calc(100vw - var(--dockw) - 20px);
     }
-    .topbar h1 { margin: 0; font-size: 26px; letter-spacing: .01em; }
-    .sub { margin-top: 5px; color: var(--muted); font-size: 12px; }
     .topbarTools {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
-      justify-content: flex-end;
+      justify-content: flex-start;
     }
-    .topbarTools .btn { white-space: nowrap; }
+    .topbarTools .btn {
+      white-space: nowrap;
+      padding: 7px 10px;
+      font-size: 11px;
+      border-radius: 9px;
+    }
     .pill {
       border: 1px solid var(--border);
       border-radius: 999px;
-      padding: 7px 12px;
-      font-size: 11px;
+      padding: 6px 10px;
+      font-size: 10px;
       color: #cae6ff;
       background: rgba(87,180,255,.1);
       white-space: nowrap;
@@ -169,7 +179,7 @@
     }
     .main.moduleMode .desktop {
       position: absolute;
-      top: 95px;
+      top: 64px;
       right: 12px;
       bottom: 12px;
       left: 12px;
@@ -410,7 +420,7 @@
     @media (max-width: 1100px) {
       .widget[data-size="wide"], .widget[data-size="half"], .widget[data-size="narrow"] { grid-column: span 12; }
       .kpis { grid-template-columns: repeat(2, 1fr); }
-      .main.moduleMode .desktop { top: 112px; }
+      .main.moduleMode .desktop { top: 70px; }
     }
     @media (max-width: 760px) {
       .layout { grid-template-columns: 1fr; }
@@ -423,9 +433,14 @@
         justify-content: flex-start;
       }
       .main { order: 1; }
+      .topbar {
+        left: 8px;
+        top: 8px;
+        max-width: calc(100vw - 16px);
+      }
       .workspaceFrame { height: 58vh; min-height: 58vh; }
       .main.moduleMode .desktop {
-        top: 122px;
+        top: 72px;
         right: 8px;
         bottom: 8px;
         left: 8px;
@@ -446,13 +461,9 @@
 
     <main class="main">
       <section class="topbar">
-        <div>
-          <h1>VMill Hub</h1>
-          <div class="sub">Shared jobs, stations, modules, and backups in one workspace.</div>
-        </div>
         <div class="topbarTools">
-          <button class="btn ghost" id="toggleDesktopBtn" type="button" style="display:none">Show Hub Overlay</button>
-          <button class="btn ghost" id="closeModuleBtn" type="button" aria-disabled="true" disabled>Back to Hub</button>
+          <button class="btn ghost" id="toggleDesktopBtn" type="button" style="display:none">Overlay</button>
+          <button class="btn ghost" id="closeModuleBtn" type="button" aria-disabled="true" disabled>Close Module</button>
           <div class="pill" id="moduleStatusPill">CAN BUS ONLINE</div>
         </div>
       </section>
@@ -684,7 +695,7 @@
       function setDesktopOverlayVisibility(nextVisible) {
         overlayVisible = !!nextVisible;
         desktop.classList.toggle("desktopHidden", !overlayVisible && activeWorkspaceModuleId !== "hub");
-        toggleDesktopBtn.textContent = overlayVisible ? "Hide Hub Overlay" : "Show Hub Overlay";
+        toggleDesktopBtn.textContent = overlayVisible ? "Hide Overlay" : "Show Overlay";
         writeWorkspacePrefs({
           moduleId: activeWorkspaceModuleId,
           href: workspaceFrame.getAttribute("src") || "",
@@ -694,7 +705,7 @@
 
       function refreshWorkspaceChrome() {
         const inWorkspace = activeWorkspaceModuleId !== "hub";
-        toggleDesktopBtn.textContent = overlayVisible ? "Hide Hub Overlay" : "Show Hub Overlay";
+        toggleDesktopBtn.textContent = overlayVisible ? "Hide Overlay" : "Show Overlay";
         mainEl.classList.toggle("moduleMode", inWorkspace);
         workspace.classList.toggle("active", inWorkspace);
         if (!inWorkspace) workspace.setAttribute("data-loading", "false");
