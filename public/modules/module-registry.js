@@ -24,6 +24,14 @@ window.VMillModules = [
     tags: ["spc", "quality", "control-chart", "offline"],
   },
   {
+    id: "theme",
+    name: "Theme Studio",
+    desc: "Global palette and visual theme controls for all modules.",
+    href: "./theme_studio.html",
+    status: "ready",
+    tags: ["theme", "ui", "palette"],
+  },
+  {
     id: "cnc-sim",
     name: "CNC Simulator",
     desc: "Launches the main CNC simulation workspace directly.",

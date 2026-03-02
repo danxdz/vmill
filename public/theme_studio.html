@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Theme Studio</title>
+  <style>
+    :root{
+      --bg:#0a0f17;
+      --panel:#111a2a;
+      --panel2:#0f1623;
+      --text:#e6edf8;
+      --muted:rgba(230,237,248,.65);
+      --border:rgba(230,237,248,.2);
+      --accent:#57b4ff;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(900px 520px at 12% -12%, rgba(87,180,255,.22), transparent 62%),
+        linear-gradient(180deg,var(--bg),#080d14);
+      min-height:100vh;
+    }
+    .wrap{max-width:1080px;margin:0 auto;padding:18px 14px 26px;}
+    .hero{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:14px;}
+    h1{margin:0;font-size:34px;letter-spacing:.02em}
+    .sub{color:var(--muted);font-size:13px;margin-top:7px}
+    .card{
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:linear-gradient(180deg,var(--panel),var(--panel2));
+      padding:12px;
+      margin-bottom:12px;
+    }
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+    @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+    label{font-size:11px;color:var(--muted);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+    input,button{
+      width:100%;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.03);
+      color:var(--text);
+      padding:10px;
+      font-size:13px;
+    }
+    input[type="color"]{height:42px;padding:4px}
+    button{cursor:pointer;font-weight:700}
+    .btn{width:auto;padding:10px 12px}
+    .btn.primary{border-color:rgba(87,180,255,.55);background:rgba(87,180,255,.16);color:#c7e9ff}
+    .btn.warn{border-color:rgba(255,211,122,.55);background:rgba(255,211,122,.14);color:#ffe8b1}
+    .preset{border:1px solid var(--border);border-radius:10px;padding:8px;cursor:pointer;background:rgba(255,255,255,.02)}
+    .preset .name{font-size:11px;font-weight:700;margin-bottom:6px}
+    .chips{display:flex;gap:6px}
+    .chip{width:18px;height:18px;border-radius:999px;border:1px solid rgba(255,255,255,.2)}
+    .preview{
+      border:1px solid var(--border);
+      border-radius:12px;
+      overflow:hidden;
+      background:var(--bg);
+    }
+    .pvHead{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.08);
+      background:var(--header-bg,#101521);color:var(--header-text,#e8e8e8);
+    }
+    .pvBody{padding:12px;background:linear-gradient(180deg,var(--panel),var(--panel2))}
+    .pvBtn{display:inline-block;padding:8px 10px;border-radius:10px;border:1px solid rgba(87,180,255,.45);background:rgba(87,180,255,.14);color:var(--accent);font-size:12px;font-weight:700}
+    .status{font-size:12px;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1>Theme Studio</h1>
+        <div class="sub">Global theme module for Hub, Chrono, SPaCial and Camera.</div>
+      </div>
+      <div class="row">
+        <button class="btn warn" id="resetBtn" type="button">Reset Default</button>
+        <button class="btn primary" id="saveBtn" type="button">Save Global Theme</button>
+      </div>
+    </div>
+
+    <section class="card">
+      <div style="font-size:12px;font-weight:800;margin-bottom:8px;">Presets</div>
+      <div class="row" id="presetRow"></div>
+    </section>
+
+    <section class="card">
+      <div style="font-size:12px;font-weight:800;margin-bottom:8px;">Palette</div>
+      <div class="grid">
+        <div><label for="bgIn">Background</label><input id="bgIn" type="color" value="#0a0f17" /></div>
+        <div><label for="textIn">Text</label><input id="textIn" type="color" value="#e6edf8" /></div>
+        <div><label for="accentIn">Accent</label><input id="accentIn" type="color" value="#57b4ff" /></div>
+        <div><label for="headerBgIn">Header BG</label><input id="headerBgIn" type="color" value="#101521" /></div>
+        <div><label for="headerTextIn">Header Text</label><input id="headerTextIn" type="color" value="#e8e8e8" /></div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn" id="applyLiveBtn" type="button">Apply Live</button>
+        <span class="status" id="status">Ready.</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div style="font-size:12px;font-weight:800;margin-bottom:8px;">Preview</div>
+      <div class="preview" id="preview">
+        <div class="pvHead"><strong>Header</strong><span>Theme Studio</span></div>
+        <div class="pvBody">
+          <div style="font-size:14px;font-weight:700;margin-bottom:7px;">Module Surface</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">This preview reflects the global theme variables.</div>
+          <span class="pvBtn">Accent Action</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="./modules/module-shell.js"></script>
+  <script src="./modules/module-io.js"></script>
+  <script src="./modules/module-data.js"></script>
+  <script src="./modules/module-theme.js"></script>
+  <script>
+    (function(){
+      const $ = (id) => document.getElementById(id);
+      const PRESETS = {
+        midnight: { name: "Midnight", bg: "#0a0f17", text: "#e6edf8", accent: "#57b4ff", headerBg: "#101521", headerText: "#e8e8e8" },
+        forest: { name: "Forest", bg: "#0a120a", text: "#d8f1db", accent: "#42d18b", headerBg: "#0e1a10", headerText: "#dff3e3" },
+        ember: { name: "Ember", bg: "#130b09", text: "#f5e2d4", accent: "#ff7a45", headerBg: "#24120d", headerText: "#ffe7d7" },
+        steel: { name: "Steel", bg: "#10151c", text: "#e8eef8", accent: "#7ab6ff", headerBg: "#1a2430", headerText: "#eaf1ff" },
+        light: { name: "Light", bg: "#edf1f7", text: "#1a2028", accent: "#2b7fff", headerBg: "#d8e0ec", headerText: "#1a2028" },
+      };
+
+      function themeFromInputs() {
+        return window.VMillTheme.normalizeTheme({
+          name: "Custom",
+          bg: $("bgIn").value,
+          text: $("textIn").value,
+          accent: $("accentIn").value,
+          headerBg: $("headerBgIn").value,
+          headerText: $("headerTextIn").value,
+        });
+      }
+
+      function inputsFromTheme(theme) {
+        $("bgIn").value = theme.bg;
+        $("textIn").value = theme.text;
+        $("accentIn").value = theme.accent;
+        $("headerBgIn").value = theme.headerBg;
+        $("headerTextIn").value = theme.headerText;
+      }
+
+      function applyPreview(theme) {
+        document.documentElement.style.setProperty("--bg", theme.bg);
+        document.documentElement.style.setProperty("--text", theme.text);
+        document.documentElement.style.setProperty("--accent", theme.accent);
+        document.documentElement.style.setProperty("--panel", theme.bg);
+        document.documentElement.style.setProperty("--panel2", theme.bg);
+        document.documentElement.style.setProperty("--border", "rgba(255,255,255,.16)");
+        document.documentElement.style.setProperty("--muted", "rgba(255,255,255,.65)");
+        document.documentElement.style.setProperty("--header-bg", theme.headerBg);
+        document.documentElement.style.setProperty("--header-text", theme.headerText);
+      }
+
+      function setStatus(msg) { $("status").textContent = msg; }
+
+      function renderPresets() {
+        const box = $("presetRow");
+        box.innerHTML = "";
+        for (const key of Object.keys(PRESETS)) {
+          const p = PRESETS[key];
+          const el = document.createElement("button");
+          el.type = "button";
+          el.className = "preset";
+          el.innerHTML = `
+            <div class="name">${p.name}</div>
+            <div class="chips">
+              <span class="chip" style="background:${p.bg}"></span>
+              <span class="chip" style="background:${p.text}"></span>
+              <span class="chip" style="background:${p.accent}"></span>
+              <span class="chip" style="background:${p.headerBg}"></span>
+            </div>
+          `;
+          el.addEventListener("click", () => {
+            const next = window.VMillTheme.normalizeTheme({ ...p, name: p.name });
+            inputsFromTheme(next);
+            applyPreview(next);
+            setStatus(`Preset: ${p.name}`);
+          });
+          box.appendChild(el);
+        }
+      }
+
+      function applyLiveToAll() {
+        const theme = themeFromInputs();
+        window.VMillTheme.writeTheme(theme, "theme-studio");
+        window.VMillTheme.applyTheme(document, "theme");
+        setStatus("Global theme updated.");
+      }
+
+      $("saveBtn").addEventListener("click", applyLiveToAll);
+      $("applyLiveBtn").addEventListener("click", applyLiveToAll);
+      $("resetBtn").addEventListener("click", () => {
+        const d = window.VMillTheme.defaultTheme();
+        inputsFromTheme(d);
+        window.VMillTheme.writeTheme(d, "theme-studio");
+        window.VMillTheme.applyTheme(document, "theme");
+        setStatus("Reset to default.");
+      });
+
+      ["bgIn","textIn","accentIn","headerBgIn","headerTextIn"].forEach((id) => {
+        $(id).addEventListener("input", () => {
+          applyPreview(themeFromInputs());
+        });
+      });
+
+      window.addEventListener("vmill:theme:changed", (e) => {
+        const t = window.VMillTheme.normalizeTheme(e?.detail?.theme || window.VMillTheme.readTheme());
+        inputsFromTheme(t);
+        applyPreview(t);
+      });
+
+      const theme = window.VMillTheme.readTheme();
+      inputsFromTheme(theme);
+      renderPresets();
+      applyPreview(theme);
+      window.VMillTheme.applyTheme(document, "theme");
+    })();
+  </script>
+</body>
+</html>

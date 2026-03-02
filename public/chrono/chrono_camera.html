@@ -399,9 +399,16 @@
 <script src="../modules/module-shell.js"></script>
 <script src="../modules/module-io.js"></script>
 <script src="../modules/module-data.js"></script>
-<script src="../modules/module-data-explorer.js"></script>
+<script src="../modules/module-theme.js"></script>
 <script>
 (() => {
+  function applyGlobalTheme() {
+    if (!window.VMillTheme?.applyTheme) return;
+    window.VMillTheme.applyTheme(document, "camera");
+  }
+  applyGlobalTheme();
+  window.addEventListener("vmill:theme:changed", applyGlobalTheme);
+
   const KEY = "vmill:app-state:v1";
   const LEGACY_KEYS = ["chrono_drawer_timeline_v5", "chrono_drawer_timeline_v4", "chrono_drawer_timeline_v3"];
   const WATCH_KEYS = [KEY, ...LEGACY_KEYS];
@@ -441,6 +448,28 @@
   let mediaStartPerf = 0;
 
   // Storage
+  function normalizeProductsState(st){
+    if(!st || typeof st !== "object") return st;
+    if(!Array.isArray(st.products)) st.products = [];
+    st.products = st.products.map((p, idx) => ({
+      id: String(p?.id || uuid()),
+      code: String(p?.code || `P${String(idx + 1).padStart(3,"0")}`),
+      name: String(p?.name || `Product ${idx + 1}`),
+      parentProductId: String(p?.parentProductId || ""),
+      imageUrl: String(p?.imageUrl || ""),
+    }));
+    if(!st.products.length && Array.isArray(st.jobs) && st.jobs.length){
+      st.products = [{ id: uuid(), code: "P001", name: "Product", parentProductId: "", imageUrl: "" }];
+    }
+    const ids = new Set((st.products||[]).map((p) => String(p.id || "")).filter(Boolean));
+    if(!ids.has(String(st.activeProductId || ""))) st.activeProductId = st.products[0]?.id || null;
+    for(const j of (st.jobs || [])){
+      const pid = String(j?.productId || "");
+      if(!pid || !ids.has(pid)) j.productId = st.products[0]?.id || "";
+    }
+    return st;
+  }
+
   function loadCS() {
     try {
       const p = window.VMillData?.readAppState ? window.VMillData.readAppState() : (() => {
@@ -454,11 +483,13 @@
         }
         return null;
       })();
-      return (p && Array.isArray(p.jobs)) ? p : null;
+      if (!(p && Array.isArray(p.jobs))) return null;
+      return normalizeProductsState(p);
     } catch { return null; }
   }
   function saveCS() {
     if (!state) return;
+    normalizeProductsState(state);
     state.meta=state.meta||{};
     state.meta.updatedAt=iso();
     if (window.VMillData?.writeAppState) window.VMillData.writeAppState(state);
@@ -648,9 +679,10 @@
   }
   function ensureStateLoaded(){
     if(!state) state = loadCS();
-    if(!state) state={meta:{createdAt:iso(),updatedAt:iso()},activeJobId:null,stations:[],jobs:[],actionTypes:defaultATs(),ui:{}};
+    if(!state) state={meta:{createdAt:iso(),updatedAt:iso()},activeProductId:null,activeJobId:null,products:[],stations:[],jobs:[],actionTypes:defaultATs(),ui:{}};
     if(!Array.isArray(state.stations)) state.stations=[];
     if(!Array.isArray(state.jobs)) state.jobs=[];
+    normalizeProductsState(state);
     if(!Array.isArray(state.actionTypes) || !state.actionTypes.length) state.actionTypes = defaultATs();
   }
   function ensureCameraStationId(){
@@ -671,6 +703,8 @@
       jobId=v;
       if (state && String(state.activeJobId || "") !== String(v)) {
         state.activeJobId = v;
+        const picked = getJob();
+        if (picked?.productId) state.activeProductId = picked.productId;
         saveCS();
       }
       populateSingleSel();
@@ -708,10 +742,12 @@
     if(!newEls.length) return toast("Add at least one element.","e");
     const els=newEls.map((el,i)=>({...el,name:el.name.trim()||`Action ${i+1}`}));
     const name=$("newJobName").value.trim()||`Capture ${new Date().toLocaleTimeString()}`;
-    if(!state) state={meta:{createdAt:iso(),updatedAt:iso()},activeJobId:null,stations:[],jobs:[],actionTypes:defaultATs(),ui:{}};
+    if(!state) state={meta:{createdAt:iso(),updatedAt:iso()},activeProductId:null,activeJobId:null,products:[],stations:[],jobs:[],actionTypes:defaultATs(),ui:{}};
+    normalizeProductsState(state);
     let stId=(state.stations||[])[0]?.id;
     if(!stId){stId=uuid(); state.stations.push({id:stId,code:"CAM",name:"Camera capture"});}
-    const j={id:uuid(),stationId:stId,name,allowancePct:12,ratingPct:100,elements:els,cycles:[]};
+    const productId = String(state.activeProductId || state.products?.[0]?.id || "");
+    const j={id:uuid(),productId,stationId:stId,name,allowancePct:12,ratingPct:100,elements:els,cycles:[]};
     state.jobs.push(j); state.activeJobId=j.id; saveCS();
     newEls=[]; $("newJobName").value=""; sync();
     $("jobSel").value=j.id; onJobChange();
@@ -933,7 +969,8 @@
       name: seqElements[i].name,
       type: seqElements[i].type
     }));
-    const j={id:uuid(),stationId:stId,name:jobNameRaw,allowancePct:12,ratingPct:100,elements:seqElements,cycles:[{...cycle,laps:remappedLaps}]};
+    const productId = String(state.activeProductId || state.products?.[0]?.id || "");
+    const j={id:uuid(),productId,stationId:stId,name:jobNameRaw,allowancePct:12,ratingPct:100,elements:seqElements,cycles:[{...cycle,laps:remappedLaps}]};
     state.jobs.push(j);
     state.activeJobId=j.id;
     saveCS();

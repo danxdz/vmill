@@ -8,27 +8,27 @@
     {
       "id": "de870cf1-bcbe-462e-9631-d5dd7cebb592",
       "code": "S01",
-      "name": "Line A — Station 1"
+      "name": "Line A \u2014 Station 1"
     },
     {
       "id": "e4e6b1dc-2eb1-4ff3-a34b-5de6415fafe1",
       "code": "S02",
-      "name": "Line B — Station 2"
+      "name": "Line B \u2014 Station 2"
     },
     {
       "id": "30ffb50f-3109-46aa-9e61-6a748f523e32",
       "code": "S03",
-      "name": "Line C — Station 3"
+      "name": "Line C \u2014 Station 3"
     },
     {
       "id": "885d9b23-148c-436e-b542-3b2e205d4777",
       "code": "S04",
-      "name": "Line D — Station 4"
+      "name": "Line D \u2014 Station 4"
     },
     {
       "id": "750423a7-a34a-4961-86a1-17be2ab340c4",
       "code": "S05",
-      "name": "Line E — Station 5"
+      "name": "Line E \u2014 Station 5"
     }
   ],
   "jobs": [
@@ -2437,7 +2437,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "7a32f97a-4959-467f-b2eb-d25915f30de1"
     },
     {
       "id": "4913b6d9-6582-41b1-9bfa-9e8d80541ab2",
@@ -4712,7 +4713,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "ef54f63c-7688-470d-a1e6-6a35d716cbd4"
     },
     {
       "id": "9d472ffc-6f9e-4ac3-a7ae-0c91210d39ac",
@@ -6723,7 +6725,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "7e79fa97-a186-4a61-9e0a-c9508fbb0837"
     },
     {
       "id": "3dc7a4b7-3f4c-4af5-83e0-7e747d90565c",
@@ -8734,7 +8737,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "c9e168c7-3a0f-4602-90ba-52c91303dacb"
     },
     {
       "id": "45e4b6dc-6f08-4a87-a73e-516079fcb5c3",
@@ -10382,7 +10386,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "7a32f97a-4959-467f-b2eb-d25915f30de1"
     },
     {
       "id": "ee81874e-a167-400c-823b-7ef9f7f6edba",
@@ -11931,7 +11936,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "ef54f63c-7688-470d-a1e6-6a35d716cbd4"
     },
     {
       "id": "936cb594-13d8-441a-989e-91ad655886b9",
@@ -13579,7 +13585,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "7e79fa97-a186-4a61-9e0a-c9508fbb0837"
     },
     {
       "id": "c2b595be-a4cf-4ba9-83d1-79ffbe70e250",
@@ -15590,7 +15597,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "c9e168c7-3a0f-4602-90ba-52c91303dacb"
     },
     {
       "id": "cb97696b-2473-48c3-a25d-89dbbf046bc3",
@@ -17931,7 +17939,8 @@
           "tag": "Rework",
           "note": "Auto sample: Rework"
         }
-      ]
+      ],
+      "productId": "7a32f97a-4959-467f-b2eb-d25915f30de1"
     },
     {
       "id": "1e2b40fe-ac42-4e99-9b6c-e0cbda97a56a",
@@ -20470,7 +20479,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "ef54f63c-7688-470d-a1e6-6a35d716cbd4"
     },
     {
       "id": "02d5dbeb-b6c4-4f07-a505-6eb2b7972d5d",
@@ -22019,7 +22029,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "7e79fa97-a186-4a61-9e0a-c9508fbb0837"
     },
     {
       "id": "27fcb532-92b0-42f4-84dc-ff81e9b86ff3",
@@ -24426,7 +24437,8 @@
           "tag": "Rework",
           "note": "Auto sample: Rework"
         }
-      ]
+      ],
+      "productId": "c9e168c7-3a0f-4602-90ba-52c91303dacb"
     },
     {
       "id": "fbbf9f1a-7fb8-44f6-89af-0266190f199d",
@@ -25975,7 +25987,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "7a32f97a-4959-467f-b2eb-d25915f30de1"
     },
     {
       "id": "e8f283fe-dbbd-4b55-831e-55d0793eca6e",
@@ -27788,7 +27801,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "ef54f63c-7688-470d-a1e6-6a35d716cbd4"
     },
     {
       "id": "6389ead0-51fe-4429-98e9-8b143445f8d5",
@@ -29271,7 +29285,8 @@
           "tag": "Rework",
           "note": "Auto sample: Rework"
         }
-      ]
+      ],
+      "productId": "7e79fa97-a186-4a61-9e0a-c9508fbb0837"
     },
     {
       "id": "b428f218-99fe-467b-a661-1bef3b34b13d",
@@ -31711,7 +31726,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "c9e168c7-3a0f-4602-90ba-52c91303dacb"
     },
     {
       "id": "f47229e9-3560-4a60-be21-9f397e2d7953",
@@ -33590,7 +33606,8 @@
           "tag": "Training",
           "note": "Auto sample: Training"
         }
-      ]
+      ],
+      "productId": "7a32f97a-4959-467f-b2eb-d25915f30de1"
     },
     {
       "id": "3bf4857c-b56b-47d0-865b-13eb05efdbf1",
@@ -35238,7 +35255,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "ef54f63c-7688-470d-a1e6-6a35d716cbd4"
     },
     {
       "id": "71d05786-8470-401f-8079-07837a4f6b05",
@@ -37645,7 +37663,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "7e79fa97-a186-4a61-9e0a-c9508fbb0837"
     },
     {
       "id": "537b7533-7e75-4df8-be14-9ebd29de97e5",
@@ -39623,7 +39642,35 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "c9e168c7-3a0f-4602-90ba-52c91303dacb"
     }
-  ]
+  ],
+  "products": [
+    {
+      "id": "7a32f97a-4959-467f-b2eb-d25915f30de1",
+      "code": "P001",
+      "name": "Alpha Product",
+      "parentProductId": ""
+    },
+    {
+      "id": "ef54f63c-7688-470d-a1e6-6a35d716cbd4",
+      "code": "P002",
+      "name": "Beta Product",
+      "parentProductId": "7a32f97a-4959-467f-b2eb-d25915f30de1"
+    },
+    {
+      "id": "7e79fa97-a186-4a61-9e0a-c9508fbb0837",
+      "code": "P003",
+      "name": "Gamma Product",
+      "parentProductId": "7a32f97a-4959-467f-b2eb-d25915f30de1"
+    },
+    {
+      "id": "c9e168c7-3a0f-4602-90ba-52c91303dacb",
+      "code": "P004",
+      "name": "Delta Product",
+      "parentProductId": ""
+    }
+  ],
+  "activeProductId": "7a32f97a-4959-467f-b2eb-d25915f30de1"
 }

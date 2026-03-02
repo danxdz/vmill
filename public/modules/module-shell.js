@@ -117,6 +117,7 @@
           chrono: "./chrono.html",
           camera: "./chrono_camera.html",
           spacial: "../SPaCial.html",
+          theme: "../theme_studio.html",
         };
       }
       if (inPublicRoot) {
@@ -126,6 +127,7 @@
           chrono: "./chrono/chrono.html",
           camera: "./chrono/chrono_camera.html",
           spacial: "./SPaCial.html",
+          theme: "./theme_studio.html",
         };
       }
       return {
@@ -134,6 +136,7 @@
         chrono: "./public/chrono/chrono.html",
         camera: "./public/chrono/chrono_camera.html",
         spacial: "./public/SPaCial.html",
+        theme: "./public/theme_studio.html",
       };
     }
     if (kind === "chrono") {
@@ -143,6 +146,7 @@
         chrono: "./chrono.html",
         camera: "./chrono_camera.html",
         spacial: "../SPaCial.html",
+        theme: "../theme_studio.html",
       };
     }
     return {
@@ -151,6 +155,7 @@
       chrono: "/chrono/chrono.html",
       camera: "/chrono/chrono_camera.html",
       spacial: "/SPaCial.html",
+      theme: "/theme_studio.html",
     };
   }
 
@@ -161,6 +166,7 @@
     { id: "chrono", label: "Chrono", route: ROUTES.chrono },
     { id: "chrono-camera", label: "Camera", route: ROUTES.camera },
     { id: "spacial", label: "SPaCial", route: ROUTES.spacial },
+    { id: "theme", label: "Theme", route: ROUTES.theme },
   ];
 
   function currentModuleId() {
@@ -169,6 +175,7 @@
     if (p.includes("/chrono/chrono_camera.html")) return "chrono-camera";
     if (p.includes("/chrono/chrono.html")) return "chrono";
     if (p.includes("/SPaCial.html")) return "spacial";
+    if (p.includes("/theme_studio.html")) return "theme";
     if (p === "/" || p.endsWith("/index.html") || p.includes("/cnc_sim.html")) return "cnc-sim";
     return "hub";
   }

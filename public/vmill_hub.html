@@ -41,7 +41,7 @@
     }
     .dock {
       border-right: 1px solid var(--border);
-      background: rgba(8,13,23,.75);
+      background: color-mix(in srgb, var(--panel2) 84%, transparent);
       backdrop-filter: blur(8px);
       padding: 12px 10px;
       display: flex;
@@ -59,7 +59,7 @@
       background: linear-gradient(145deg, rgba(87,180,255,.2), rgba(104,211,154,.12));
       font-weight: 900;
       letter-spacing: .06em;
-      color: #bfe5ff;
+      color: var(--text);
       margin-bottom: 8px;
     }
     .dockBtn {
@@ -96,21 +96,58 @@
     .topbar {
       position: fixed;
       top: 12px;
-      left: calc(var(--dockw) + 12px);
+      right: 12px;
       z-index: 40;
       border: 1px solid var(--border);
       border-radius: 12px;
       background:
         radial-gradient(360px 140px at 0% -60%, rgba(87,180,255,.14), transparent 60%),
         linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-      padding: 6px 8px;
+      padding: 6px 8px 10px;
       display: flex;
-      align-items: center;
+      flex-direction: column;
       gap: 8px;
       box-shadow: 0 10px 24px rgba(0,0,0,.28);
       backdrop-filter: blur(8px);
-      width: fit-content;
+      width: min(430px, calc(100vw - var(--dockw) - 20px));
       max-width: calc(100vw - var(--dockw) - 20px);
+      transition: width .18s ease, padding .18s ease, opacity .18s ease;
+    }
+    .topbar.collapsed {
+      width: 42px;
+      min-width: 42px;
+      max-width: 42px;
+      padding: 6px;
+      opacity: .98;
+    }
+    .topbarHead {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .topbar.collapsed .topbarHead {
+      justify-content: center;
+    }
+    .topbarToggle {
+      position: static;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 20%, transparent), color-mix(in srgb, var(--accent) 8%, transparent));
+      color: var(--text);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1;
+      padding: 0;
+    }
+    .topbarQuick {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-start;
     }
     .topbarTools {
       display: flex;
@@ -118,6 +155,31 @@
       gap: 8px;
       flex-wrap: wrap;
       justify-content: flex-start;
+    }
+    .topbarPanel {
+      display: grid;
+      gap: 8px;
+      max-height: min(62vh, 520px);
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .topbar.collapsed .topbarQuick,
+    .topbar.collapsed .topbarPanel {
+      display: none;
+    }
+    .settingsCard {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--panel2) 86%, transparent);
+      padding: 8px;
+    }
+    .settingsTitle {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
     }
     .topbarTools .btn {
       white-space: nowrap;
@@ -130,8 +192,8 @@
       border-radius: 999px;
       padding: 6px 10px;
       font-size: 10px;
-      color: #cae6ff;
-      background: rgba(87,180,255,.1);
+      color: var(--text);
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
       white-space: nowrap;
     }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
@@ -142,7 +204,7 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       overflow: hidden;
-      background: linear-gradient(180deg, rgba(5,8,14,.92), rgba(9,14,24,.95));
+      background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 94%, transparent), color-mix(in srgb, var(--panel2) 94%, transparent));
       box-shadow: var(--shadow);
       min-height: 68vh;
     }
@@ -152,7 +214,19 @@
       min-height: 68vh;
       height: calc(100vh - 160px);
       border: 0;
-      background: #050811;
+      background: var(--bg2);
+    }
+    .main.moduleMode {
+      padding: 8px;
+      padding-top: 58px;
+    }
+    .main.moduleMode .workspace {
+      min-height: calc(100vh - 70px);
+      border-radius: 10px;
+    }
+    .main.moduleMode .workspaceFrame {
+      min-height: calc(100vh - 70px);
+      height: calc(100vh - 70px);
     }
     .workspaceEmpty,
     .workspaceLoading {
@@ -164,7 +238,7 @@
       font-size: 13px;
       text-align: center;
       padding: 20px;
-      background: linear-gradient(180deg, rgba(7,11,18,.84), rgba(7,11,18,.72));
+      background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 90%, transparent), color-mix(in srgb, var(--panel2) 90%, transparent));
       pointer-events: none;
     }
     .workspace.active .workspaceEmpty { display: none; }
@@ -186,9 +260,9 @@
       z-index: 12;
       overflow: auto;
       padding: 4px;
-      border: 1px solid rgba(87,180,255,.24);
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
       border-radius: var(--radius);
-      background: linear-gradient(180deg, rgba(7,12,20,.84), rgba(6,11,18,.9));
+      background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 90%, transparent), color-mix(in srgb, var(--panel2) 94%, transparent));
       backdrop-filter: blur(10px);
       box-shadow: var(--shadow);
     }
@@ -211,8 +285,8 @@
       align-items: center;
       gap: 8px;
       padding: 10px 12px;
-      border-bottom: 1px solid rgba(255,255,255,.06);
-      background: rgba(0,0,0,.12);
+      border-bottom: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+      background: color-mix(in srgb, var(--panel3) 62%, transparent);
       cursor: move;
     }
     .widgetTitle { font-weight: 800; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
@@ -222,9 +296,9 @@
 
     .controlRow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .btn {
-      border: 1px solid #345478;
-      background: linear-gradient(180deg, rgba(87,180,255,.2), rgba(87,180,255,.08));
-      color: #bde6ff;
+      border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 20%, transparent), color-mix(in srgb, var(--accent) 10%, transparent));
+      color: var(--text);
       border-radius: 10px;
       padding: 8px 10px;
       font-size: 11px;
@@ -234,10 +308,11 @@
       display: inline-block;
       transition: .15s ease;
     }
-    .btn:hover { transform: translateY(-1px); border-color: #4a77a8; }
-    .btn.alt { border-color: #355a4c; background: rgba(104,211,154,.12); color: #bbf4d2; }
-    .btn.warn { border-color: #7d6838; background: rgba(255,211,122,.12); color: #ffe7ae; }
+    .btn:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--accent) 75%, transparent); }
+    .btn.alt { border-color: color-mix(in srgb, var(--ok) 55%, transparent); background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--text); }
+    .btn.warn { border-color: color-mix(in srgb, var(--warn) 55%, transparent); background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--text); }
     .btn.ghost { border-color: var(--border); background: rgba(255,255,255,.03); color: var(--muted); }
+    .btn.active { border-color: color-mix(in srgb, var(--accent) 78%, transparent); color: var(--text); background: color-mix(in srgb, var(--accent) 20%, transparent); }
     .btn[aria-disabled="true"] { opacity: .45; pointer-events: none; }
 
     .moduleGrid {
@@ -338,6 +413,53 @@
     }
     .jobMeta { font-size: 11px; color: var(--muted); }
     .jobActions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    .entityLine {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .entityThumb {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      object-fit: cover;
+      background: rgba(255,255,255,.03);
+      flex: 0 0 auto;
+    }
+    .entityThumb.sm {
+      width: 24px;
+      height: 24px;
+      border-radius: 7px;
+    }
+    .entityTag {
+      font-size: 10px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 7px;
+      background: rgba(255,255,255,.03);
+      white-space: nowrap;
+    }
+    .jobsFlatList {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .jobsFlatRow {
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: rgba(255,255,255,.02);
+      padding: 8px;
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+    @media(max-width:980px){
+      .jobsFlatRow{ grid-template-columns:1fr; }
+    }
 
     .kpis {
       display: grid;
@@ -357,15 +479,15 @@
     .list {
       border: 1px solid var(--border);
       border-radius: 10px;
-      background: rgba(0,0,0,.2);
+      background: color-mix(in srgb, var(--panel3) 72%, transparent);
       padding: 8px;
       max-height: 160px;
       overflow: auto;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 11px;
       white-space: pre-wrap;
-      color: #b8c7de;
-    }
+      color: var(--text);
+      }
     .widgetToggles {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -434,11 +556,21 @@
       }
       .main { order: 1; }
       .topbar {
-        left: 8px;
+        right: 8px;
         top: 8px;
         max-width: calc(100vw - 16px);
+        width: min(420px, calc(100vw - 16px));
       }
       .workspaceFrame { height: 58vh; min-height: 58vh; }
+      .main.moduleMode {
+        padding: 6px;
+        padding-top: 54px;
+      }
+      .main.moduleMode .workspace,
+      .main.moduleMode .workspaceFrame {
+        min-height: calc(100vh - 62px);
+        height: calc(100vh - 62px);
+      }
       .main.moduleMode .desktop {
         top: 72px;
         right: 8px;
@@ -456,15 +588,39 @@
       <a class="dockBtn" data-dock-id="chrono" data-module-id="chrono" href="./chrono/chrono.html">Chrono</a>
       <a class="dockBtn" data-dock-id="chrono-camera" data-module-id="chrono-camera" href="./chrono/chrono_camera.html">Camera</a>
       <a class="dockBtn" data-dock-id="spacial" data-module-id="spacial" href="./SPaCial.html">SPaCial</a>
+      <a class="dockBtn" data-dock-id="theme" data-module-id="theme" href="./theme_studio.html">Theme</a>
       <a class="dockBtn" data-dock-id="cnc-sim" data-module-id="cnc-sim" href="../index.html">CNC Sim</a>
     </aside>
 
     <main class="main">
-      <section class="topbar">
-        <div class="topbarTools">
-          <button class="btn ghost" id="toggleDesktopBtn" type="button" style="display:none">Overlay</button>
-          <button class="btn ghost" id="closeModuleBtn" type="button" aria-disabled="true" disabled>Close Module</button>
-          <div class="pill" id="moduleStatusPill">CAN BUS ONLINE</div>
+      <section class="topbar collapsed" id="topbarPanel">
+        <div class="topbarHead">
+          <button class="topbarToggle" id="topbarToggleBtn" type="button" aria-expanded="false" title="Open settings">&lt;</button>
+        </div>
+        <div class="topbarQuick">
+          <div class="topbarTools">
+            <button class="btn ghost" id="toggleDesktopBtn" type="button" style="display:none">Overlay</button>
+            <button class="btn ghost" id="closeModuleBtn" type="button" aria-disabled="true" disabled>Close Module</button>
+            <div class="pill" id="moduleStatusPill">CAN BUS ONLINE</div>
+            <label class="pill" for="globalLangSel" id="globalLangLabel">Language</label>
+            <select id="globalLangSel" style="padding:6px 8px;border-radius:9px;border:1px solid var(--border);background:var(--panel3);color:var(--text);font-size:11px;">
+              <option value="en">English</option>
+              <option value="fr">Francais</option>
+            </select>
+          </div>
+        </div>
+        <div class="topbarPanel">
+          <div class="settingsCard">
+            <div class="settingsTitle" id="settingsDisplayTitle">Personalize</div>
+            <div class="controlRow">
+              <button class="btn ghost" id="resetLayoutBtn" type="button">Reset Layout</button>
+            </div>
+            <div class="widgetToggles" id="widgetToggles" style="margin-top:8px;"></div>
+          </div>
+          <div class="settingsCard">
+            <div class="settingsTitle" id="settingsModulesTitle">Modules</div>
+            <div class="widgetToggles" id="moduleToggles"></div>
+          </div>
         </div>
       </section>
 
@@ -476,8 +632,8 @@
           loading="eager"
           allow="camera; microphone; fullscreen"
         ></iframe>
-        <div class="workspaceEmpty">Select a module to run in this workspace.</div>
-        <div class="workspaceLoading">Loading module...</div>
+        <div class="workspaceEmpty" id="workspaceEmptyText">Select a module to run in this workspace.</div>
+        <div class="workspaceLoading" id="workspaceLoadingText">Loading module...</div>
       </section>
 
       <section class="desktop" id="desktop">
@@ -488,10 +644,10 @@
           </header>
           <div class="widgetBody">
             <div class="kpis">
-              <div class="kpi"><div class="v" id="kpiStations">0</div><div class="l">Stations</div></div>
-              <div class="kpi"><div class="v" id="kpiJobs">0</div><div class="l">Jobs</div></div>
-              <div class="kpi"><div class="v" id="kpiCycles">0</div><div class="l">Cycles</div></div>
-              <div class="kpi"><div class="v" id="kpiSignals">0</div><div class="l">SPaCial Routes</div></div>
+              <div class="kpi"><div class="v" id="kpiStations">0</div><div class="l" id="kpiStationsLbl">Stations</div></div>
+              <div class="kpi"><div class="v" id="kpiJobs">0</div><div class="l" id="kpiJobsLbl">Jobs</div></div>
+              <div class="kpi"><div class="v" id="kpiCycles">0</div><div class="l" id="kpiCyclesLbl">Cycles</div></div>
+              <div class="kpi"><div class="v" id="kpiSignals">0</div><div class="l" id="kpiSignalsLbl">SPaCial Routes</div></div>
             </div>
             <div class="controlRow">
               <a class="btn" id="overviewChronoLink" data-module-id="chrono" href="./chrono/chrono.html">Chrono</a>
@@ -515,12 +671,18 @@
           <header class="widgetHeader" draggable="true">
             <div class="widgetTitle">Stations & Jobs</div>
             <div class="controlRow">
+              <select id="jobsProductFilter" style="max-width:220px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;"></select>
               <select id="stationFilter" style="max-width:220px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;"></select>
+              <select id="jobsFlowSel" style="max-width:180px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;"></select>
               <input id="stationJobSearch" type="text" placeholder="Search station/job..." style="max-width:220px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;" />
+              <button class="btn ghost" id="jobsViewCardsBtn" type="button">Cards</button>
+              <button class="btn ghost" id="jobsViewListBtn" type="button">List</button>
+              <button class="btn ghost" id="editProductImageBtn" type="button">Prod Img</button>
+              <button class="btn ghost" id="addProductFromJobsBtn" type="button">+ Product</button>
               <button class="btn ghost" id="addStationBtn" type="button">+ Station</button>
               <button class="btn" id="addJobBtn" type="button">+ Job</button>
               <details class="fold" style="margin:0;">
-                <summary>More</summary>
+                <summary id="jobsMoreSummary">More</summary>
                 <div class="toolbarMini" style="margin-top:6px;">
                   <button class="btn ghost" id="renameStationBtn" type="button">Rename Station</button>
                   <button class="btn ghost" id="deleteStationBtn" type="button">Delete Station</button>
@@ -529,7 +691,31 @@
             </div>
           </header>
           <div class="widgetBody">
+            <div class="minor" id="jobsFlowHint" style="margin-bottom:8px;">Edit job name and product directly on each row.</div>
             <div class="jobsList" id="jobsList"></div>
+          </div>
+        </article>
+
+        <article class="widget" data-widget="structure" data-size="half">
+          <header class="widgetHeader" draggable="true">
+            <div class="widgetTitle" id="structureWidgetTitle">Structure & Dependencies</div>
+            <div class="minor" id="structureWidgetMinor">Products > Stations > Jobs</div>
+          </header>
+          <div class="widgetBody">
+            <div class="controlRow">
+              <select id="productFilter" style="max-width:260px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;"></select>
+              <select id="productParentSel" style="max-width:260px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;"></select>
+              <button class="btn ghost" id="addProductBtn" type="button">+ Product</button>
+              <button class="btn ghost" id="renameProductBtn" type="button">Rename Product</button>
+              <button class="btn ghost" id="deleteProductBtn" type="button">Delete Product</button>
+              <button class="btn" id="saveProductParentBtn" type="button">Save Parent</button>
+            </div>
+            <div class="controlRow" style="margin-top:8px;">
+              <label class="toggle"><input id="structShowProducts" type="checkbox" checked /> <span id="structShowProductsLbl">Show products</span></label>
+              <label class="toggle"><input id="structShowStations" type="checkbox" checked /> <span id="structShowStationsLbl">Show stations</span></label>
+              <label class="toggle"><input id="structShowJobs" type="checkbox" checked /> <span id="structShowJobsLbl">Show jobs</span></label>
+            </div>
+            <div class="list" id="structureTree" style="margin-top:8px;"></div>
           </div>
         </article>
 
@@ -548,7 +734,7 @@
               <input id="importFile" type="file" accept=".json" style="display:none" />
             </div>
             <details class="fold">
-              <summary>Advanced Tools</summary>
+              <summary id="advancedToolsSummary">Advanced Tools</summary>
               <div class="controlRow" style="margin-top:8px;">
                 <button class="btn" id="exportCsvBtn" type="button">Export Cycles CSV</button>
                 <button class="btn" id="exportTxtBtn" type="button">Export Summary TXT</button>
@@ -569,15 +755,6 @@
           </div>
         </article>
 
-        <article class="widget" data-widget="widgets" data-size="narrow">
-          <header class="widgetHeader" draggable="true">
-            <div class="widgetTitle">Personalize</div>
-            <button class="btn ghost" id="resetLayoutBtn" type="button">Reset Layout</button>
-          </header>
-          <div class="widgetBody">
-            <div class="widgetToggles" id="widgetToggles"></div>
-          </div>
-        </article>
       </section>
     </main>
   </div>
@@ -585,17 +762,21 @@
   <script src="./modules/module-shell.js"></script>
   <script src="./modules/module-registry.js"></script>
   <script src="./modules/module-io.js"></script>
+  <script src="./modules/module-lang.js"></script>
   <script src="./modules/module-data.js"></script>
-  <script src="./modules/module-data-explorer.js"></script>
+  <script src="./modules/module-theme.js"></script>
   <script>
     (function () {
       const HUB_LAYOUT_KEY = "vmill:hub-layout:v1";
       const MODULE_PREF_KEY = "vmill:module-manager:v1";
       const HUB_WORKSPACE_KEY = "vmill:hub-workspace:v1";
+      const JOBS_VIEW_KEY = "vmill:hub-jobs-view:v1";
+      const HUB_TOPBAR_KEY = "vmill:hub-topbar:v1";
       const FALLBACK_MODULES = [
         { id: "chrono", name: "Chrono Study", desc: "Timing, timeline editing, KPI, and cycle analysis.", href: "./chrono/chrono.html", status: "ready", tags: ["time-study", "timeline", "kpi"] },
         { id: "chrono-camera", name: "Chrono Camera", desc: "Camera-assisted capture with sequence marks and bookmark export.", href: "./chrono/chrono_camera.html", status: "ready", tags: ["capture", "camera", "bookmarks"] },
         { id: "spacial", name: "SPaCial", desc: "SPC analytics with control limits, rule flags, and offline backups.", href: "./SPaCial.html", status: "ready", tags: ["spc", "quality", "control-chart", "offline"] },
+        { id: "theme", name: "Theme Studio", desc: "Global palette and visual theme controls for all modules.", href: "./theme_studio.html", status: "ready", tags: ["theme", "ui", "palette"] },
         { id: "cnc-sim", name: "CNC Simulator", desc: "Launches the main CNC simulation workspace directly.", href: "../index.html", status: "ready", tags: ["cnc", "simulation"] },
         { id: "can-bus", name: "CAN Bus Core", desc: "Common module communication backbone (CANBus-v1).", href: "./vmill_hub.html#io", status: "ready", tags: ["can", "diagnostics", "iot"] },
       ];
@@ -606,7 +787,10 @@
       const moduleStatusPill = document.getElementById("moduleStatusPill");
       const toggleDesktopBtn = document.getElementById("toggleDesktopBtn");
       const closeModuleBtn = document.getElementById("closeModuleBtn");
+      const topbarPanel = document.getElementById("topbarPanel");
+      const topbarToggleBtn = document.getElementById("topbarToggleBtn");
       const busLog = document.getElementById("busLog");
+      const globalLangSel = document.getElementById("globalLangSel");
       const mods = (Array.isArray(window.VMillModules) && window.VMillModules.length)
         ? window.VMillModules
         : FALLBACK_MODULES;
@@ -614,8 +798,131 @@
       const allWidgets = Array.from(desktop.querySelectorAll(".widget"));
       const defaultOrder = allWidgets.map((w) => String(w.dataset.widget || ""));
       const dockButtons = Array.from(document.querySelectorAll(".dock [data-dock-id]"));
+      const jobsViewCardsBtn = document.getElementById("jobsViewCardsBtn");
+      const jobsViewListBtn = document.getElementById("jobsViewListBtn");
+      let jobsViewMode = "cards";
       let overlayVisible = false;
       let activeWorkspaceModuleId = "hub";
+      let topbarCollapsed = true;
+      let topbarAutoHideTimer = 0;
+      function applyGlobalTheme() {
+        if (!window.VMillTheme?.applyTheme) return;
+        window.VMillTheme.applyTheme(document, "hub");
+      }
+      applyGlobalTheme();
+      window.addEventListener("vmill:theme:changed", applyGlobalTheme);
+      function tt(key, fallback = "", vars) {
+        return window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
+      }
+      function escHtml(s) {
+        return String(s ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function applyHubI18nStatic() {
+        const setTxt = (id, key, fallback) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = tt(key, fallback);
+        };
+        setTxt("globalLangLabel", "common.language", "Language");
+        setTxt("workspaceEmptyText", "hub.workspace.empty", "Select a module to run in this workspace.");
+        setTxt("workspaceLoadingText", "hub.workspace.loading", "Loading module...");
+        setTxt("kpiStationsLbl", "hub.overview.stations", "Stations");
+        setTxt("kpiJobsLbl", "hub.overview.jobs", "Jobs");
+        setTxt("kpiCyclesLbl", "hub.overview.cycles", "Cycles");
+        setTxt("kpiSignalsLbl", "hub.overview.routes", "SPaCial Routes");
+        setTxt("jobsMoreSummary", "hub.jobs.more", "More");
+        setTxt("advancedToolsSummary", "hub.data.advanced", "Advanced Tools");
+
+        const dockMap = [
+          ["hub", "hub.dock.hub", "Hub"],
+          ["chrono", "hub.dock.chrono", "Chrono"],
+          ["chrono-camera", "hub.dock.camera", "Camera"],
+          ["spacial", "hub.dock.spacial", "SPaCial"],
+          ["theme", "hub.dock.theme", "Theme"],
+          ["cnc-sim", "hub.dock.cnc", "CNC Sim"],
+        ];
+        for (const [id, key, fallback] of dockMap) {
+          const el = document.querySelector(`.dock [data-dock-id="${id}"]`);
+          if (el) el.textContent = tt(key, fallback);
+        }
+
+        const widgetMap = [
+          ["overview", "hub.overview.title", "Overview"],
+          ["modules", "hub.modules.title", "Modules"],
+          ["jobs", "hub.jobs.title", "Stations & Jobs"],
+          ["structure", "hub.structure.title", "Structure & Dependencies"],
+          ["data", "hub.data.title", "Data & Backup"],
+          ["bus", "hub.bus.title", "CAN Bus Monitor"],
+        ];
+        for (const [widgetId, key, fallback] of widgetMap) {
+          const el = document.querySelector(`[data-widget="${widgetId}"] .widgetTitle`);
+          if (el) el.textContent = tt(key, fallback);
+        }
+        const modulesMinor = document.querySelector('[data-widget="modules"] .minor');
+        if (modulesMinor) modulesMinor.textContent = tt("hub.modules.minor", "Launch and availability");
+        const structureMinor = document.getElementById("structureWidgetMinor");
+        if (structureMinor) structureMinor.textContent = tt("hub.structure.minor", "Products > Stations > Jobs");
+        const dataMinor = document.querySelector('[data-widget="data"] .minor');
+        if (dataMinor) dataMinor.textContent = tt("hub.data.minor", "Global state tools");
+
+        const stationSearch = document.getElementById("stationJobSearch");
+        if (stationSearch) stationSearch.placeholder = tt("hub.jobs.searchPlaceholder", "Search station/job...");
+        const jobsProductFilter = document.getElementById("jobsProductFilter");
+        if (jobsProductFilter) jobsProductFilter.title = tt("hub.jobs.product", "Product");
+        const jobsFlowSel = document.getElementById("jobsFlowSel");
+        if (jobsFlowSel) jobsFlowSel.title = tt("hub.jobs.flowFilter", "Flow filter");
+        setTxt("refreshOverviewBtn", "hub.overview.refresh", "Refresh");
+        setTxt("overviewChronoLink", "hub.dock.chrono", "Chrono");
+        setTxt("overviewCameraLink", "hub.dock.camera", "Camera");
+        setTxt("overviewSpacialLink", "hub.dock.spacial", "SPaCial");
+        setTxt("addProductFromJobsBtn", "hub.structure.addProduct", "+ Product");
+        setTxt("editProductImageBtn", "hub.jobs.productImage", "Prod Img");
+        setTxt("addStationBtn", "hub.jobs.addStation", "+ Station");
+        setTxt("addJobBtn", "hub.jobs.addJob", "+ Job");
+        setTxt("jobsViewCardsBtn", "hub.jobs.viewCards", "Cards");
+        setTxt("jobsViewListBtn", "hub.jobs.viewList", "List");
+        setTxt("jobsFlowHint", "hub.jobs.flowHint", "Filter by product/station, switch cards or list, and map images per item.");
+        setTxt("renameStationBtn", "hub.jobs.renameStation", "Rename Station");
+        setTxt("deleteStationBtn", "hub.jobs.deleteStation", "Delete Station");
+        setTxt("addProductBtn", "hub.structure.addProduct", "+ Product");
+        setTxt("renameProductBtn", "hub.structure.renameProduct", "Rename Product");
+        setTxt("deleteProductBtn", "hub.structure.deleteProduct", "Delete Product");
+        setTxt("saveProductParentBtn", "hub.structure.saveParent", "Save Parent");
+        setTxt("structShowProductsLbl", "hub.structure.showProducts", "Show products");
+        setTxt("structShowStationsLbl", "hub.structure.showStations", "Show stations");
+        setTxt("structShowJobsLbl", "hub.structure.showJobs", "Show jobs");
+        setTxt("importAllBtn", "hub.data.importSnapshot", "Import JSON Snapshot");
+        setTxt("exportAllBtn", "hub.data.exportAll", "Export All JSON");
+        setTxt("seedDemoBtn", "hub.data.seedDemo", "Seed Demo");
+        setTxt("demoMediumBtn", "hub.data.loadDemoM", "Load Demo M");
+        setTxt("removeDemoBtn", "hub.data.removeDemo", "Remove Demo");
+        setTxt("exportCsvBtn", "hub.data.exportCsv", "Export Cycles CSV");
+        setTxt("exportTxtBtn", "hub.data.exportTxt", "Export Summary TXT");
+        setTxt("demoSmallBtn", "hub.data.demoSmall", "Demo Small");
+        setTxt("demoLargeBtn", "hub.data.demoLarge", "Demo Large");
+        setTxt("clearBusBtn", "hub.bus.clear", "Clear");
+        setTxt("settingsDisplayTitle", "hub.personalize.title", "Personalize");
+        setTxt("settingsModulesTitle", "hub.modules.title", "Modules");
+        setTxt("resetLayoutBtn", "hub.personalize.resetLayout", "Reset Layout");
+        setTxt("toggleDesktopBtn", "hub.top.overlay", "Overlay");
+        setTxt("closeModuleBtn", "hub.top.closeModule", "Close Module");
+      }
+
+      function initGlobalLanguageControl() {
+        if (!globalLangSel) return;
+        if (window.VMillLang?.availableLanguages) {
+          const langs = window.VMillLang.availableLanguages();
+          globalLangSel.innerHTML = langs.map((l) => `<option value="${escHtml(l.code)}">${escHtml(l.name)}</option>`).join("");
+        }
+        globalLangSel.value = window.VMillLang?.getLanguage ? window.VMillLang.getLanguage() : "en";
+        globalLangSel.addEventListener("change", () => {
+          window.VMillLang?.setLanguage?.(globalLangSel.value);
+        });
+      }
 
       function uuid() {
         return crypto.randomUUID?.() || `${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -643,6 +950,82 @@
           overlayVisible: !!next.overlayVisible,
         };
         localStorage.setItem(HUB_WORKSPACE_KEY, JSON.stringify(payload));
+      }
+
+      function readJobsViewMode() {
+        try {
+          const raw = String(localStorage.getItem(JOBS_VIEW_KEY) || "").trim().toLowerCase();
+          return raw === "list" ? "list" : "cards";
+        } catch {
+          return "cards";
+        }
+      }
+
+      function writeJobsViewMode(mode) {
+        jobsViewMode = mode === "list" ? "list" : "cards";
+        try { localStorage.setItem(JOBS_VIEW_KEY, jobsViewMode); } catch {}
+        if (jobsViewCardsBtn) jobsViewCardsBtn.classList.toggle("active", jobsViewMode === "cards");
+        if (jobsViewListBtn) jobsViewListBtn.classList.toggle("active", jobsViewMode === "list");
+      }
+
+      function readTopbarPrefs() {
+        try {
+          const raw = localStorage.getItem(HUB_TOPBAR_KEY);
+          const parsed = raw ? JSON.parse(raw) : {};
+          return { collapsed: parsed?.collapsed !== false };
+        } catch {
+          return { collapsed: true };
+        }
+      }
+
+      function writeTopbarPrefs(next) {
+        const payload = { collapsed: next?.collapsed !== false };
+        localStorage.setItem(HUB_TOPBAR_KEY, JSON.stringify(payload));
+      }
+
+      function setTopbarCollapsed(nextCollapsed, persist = true) {
+        topbarCollapsed = !!nextCollapsed;
+        if (!topbarPanel) return;
+        topbarPanel.classList.toggle("collapsed", topbarCollapsed);
+        if (topbarToggleBtn) {
+          topbarToggleBtn.textContent = topbarCollapsed ? "<" : ">";
+          topbarToggleBtn.setAttribute("aria-expanded", topbarCollapsed ? "false" : "true");
+          topbarToggleBtn.title = topbarCollapsed
+            ? tt("hub.top.settingsOpen", "Open settings")
+            : tt("hub.top.settingsClose", "Close settings");
+        }
+        if (persist) writeTopbarPrefs({ collapsed: topbarCollapsed });
+      }
+
+      function clearTopbarAutoHide() {
+        if (!topbarAutoHideTimer) return;
+        clearTimeout(topbarAutoHideTimer);
+        topbarAutoHideTimer = 0;
+      }
+
+      function scheduleTopbarAutoHide() {
+        clearTopbarAutoHide();
+        if (topbarCollapsed) return;
+        topbarAutoHideTimer = setTimeout(() => {
+          const active = document.activeElement;
+          const inFocus = !!(active && topbarPanel?.contains(active));
+          const hovering = !!topbarPanel?.matches(":hover");
+          if (!hovering && !inFocus) setTopbarCollapsed(true);
+        }, 4200);
+      }
+
+      function bindTopbarPanel() {
+        if (!topbarPanel || !topbarToggleBtn) return;
+        topbarToggleBtn.addEventListener("click", () => {
+          setTopbarCollapsed(!topbarCollapsed);
+          if (!topbarCollapsed) scheduleTopbarAutoHide();
+        });
+        topbarPanel.addEventListener("mouseenter", clearTopbarAutoHide);
+        topbarPanel.addEventListener("mouseleave", scheduleTopbarAutoHide);
+        topbarPanel.addEventListener("focusin", clearTopbarAutoHide);
+        topbarPanel.addEventListener("focusout", () => {
+          setTimeout(scheduleTopbarAutoHide, 40);
+        });
       }
 
       function readModulePrefs() {
@@ -680,6 +1063,7 @@
           if (path.includes("/chrono/chrono_camera.html")) return "chrono-camera";
           if (path.includes("/chrono/chrono.html")) return "chrono";
           if (path.includes("/spacial.html")) return "spacial";
+          if (path.includes("/theme_studio.html")) return "theme";
           if (path.endsWith("/index.html") || path === "/" || path.includes("/cnc_sim.html")) return "cnc-sim";
           if (path.includes("/vmill_hub.html")) return "hub";
         } catch {}
@@ -688,14 +1072,17 @@
 
       function moduleLabel(moduleId) {
         const id = String(moduleId || "");
-        if (id === "hub") return "Hub";
-        return String(moduleById.get(id)?.name || id || "Module");
+        if (id === "hub") return tt("hub.dock.hub", "Hub");
+        const base = String(moduleById.get(id)?.name || id || "Module");
+        return tt(`hub.mod.${id}.name`, base);
       }
 
       function setDesktopOverlayVisibility(nextVisible) {
         overlayVisible = !!nextVisible;
         desktop.classList.toggle("desktopHidden", !overlayVisible && activeWorkspaceModuleId !== "hub");
-        toggleDesktopBtn.textContent = overlayVisible ? "Hide Overlay" : "Show Overlay";
+        toggleDesktopBtn.textContent = overlayVisible
+          ? tt("hub.top.hideOverlay", "Hide Overlay")
+          : tt("hub.top.showOverlay", "Show Overlay");
         writeWorkspacePrefs({
           moduleId: activeWorkspaceModuleId,
           href: workspaceFrame.getAttribute("src") || "",
@@ -705,7 +1092,9 @@
 
       function refreshWorkspaceChrome() {
         const inWorkspace = activeWorkspaceModuleId !== "hub";
-        toggleDesktopBtn.textContent = overlayVisible ? "Hide Overlay" : "Show Overlay";
+        toggleDesktopBtn.textContent = overlayVisible
+          ? tt("hub.top.hideOverlay", "Hide Overlay")
+          : tt("hub.top.showOverlay", "Show Overlay");
         mainEl.classList.toggle("moduleMode", inWorkspace);
         workspace.classList.toggle("active", inWorkspace);
         if (!inWorkspace) workspace.setAttribute("data-loading", "false");
@@ -717,8 +1106,8 @@
         if (inWorkspace) closeModuleBtn.removeAttribute("aria-disabled");
         else closeModuleBtn.setAttribute("aria-disabled", "true");
         moduleStatusPill.textContent = inWorkspace
-          ? `${moduleLabel(activeWorkspaceModuleId)} running in workspace`
-          : "CAN BUS ONLINE";
+          ? tt("hub.top.running", "{module} running in workspace", { module: moduleLabel(activeWorkspaceModuleId) })
+          : tt("hub.top.canOnline", "CAN BUS ONLINE");
       }
 
       function ensureWorkspaceModuleAllowed() {
@@ -903,23 +1292,28 @@
         const grid = document.getElementById("moduleGrid");
         grid.innerHTML = "";
         for (const m of mods) {
+          const mName = tt(`hub.mod.${m.id}.name`, m.name || "Module");
+          const mDesc = tt(`hub.mod.${m.id}.desc`, m.desc || "");
           const card = document.createElement("article");
           card.className = "modCard";
           const tags = (m.tags || []).map((x) => `<span class="tag">${x}</span>`).join("");
           const ready = m.status === "ready";
           const enabled = isModuleEnabled(m.id);
           const canDisable = m.id !== "can-bus";
+          const actionLabel = (ready && enabled)
+            ? tt("hub.module.open", "Open")
+            : (enabled ? tt("hub.module.planned", "Planned") : tt("hub.module.disabled", "Disabled"));
           card.innerHTML = `
-            <div class="modName">${m.name || "Module"}</div>
-            <div class="modDesc">${m.desc || ""}</div>
+            <div class="modName">${escHtml(mName)}</div>
+            <div class="modDesc">${escHtml(mDesc)}</div>
             <div class="tags">${tags}</div>
             <div class="jobMeta">${canDisable
-              ? `<label style="display:inline-flex;align-items:center;gap:6px;"><input type="checkbox" data-module-toggle="${m.id}" ${enabled ? "checked" : ""}> Enabled</label>`
-              : `<span class="status ready">core</span>`}
+              ? `<label style="display:inline-flex;align-items:center;gap:6px;"><input type="checkbox" data-module-toggle="${m.id}" ${enabled ? "checked" : ""}> ${escHtml(tt("hub.module.enabled", "Enabled"))}</label>`
+              : `<span class="status ready">${escHtml(tt("hub.module.core", "core"))}</span>`}
             </div>
             <div class="row">
-              <span class="status ${ready ? "ready" : "planned"}">${m.status || "planned"}</span>
-              <a class="btn" ${(ready && enabled) ? `href="${m.href}" data-module-id="${m.id}"` : "href=\"#\" aria-disabled=\"true\""}>${(ready && enabled) ? "Open" : (enabled ? "Planned" : "Disabled")}</a>
+              <span class="status ${ready ? "ready" : "planned"}">${ready ? tt("hub.status.ready", "ready") : tt("hub.status.planned", "planned")}</span>
+              <a class="btn" ${(ready && enabled) ? `href="${m.href}" data-module-id="${m.id}"` : "href=\"#\" aria-disabled=\"true\""}>${escHtml(actionLabel)}</a>
             </div>
           `;
           grid.appendChild(card);
@@ -935,6 +1329,37 @@
             window.CANBus?.emit("module:prefs:updated", { disabled: prefs.disabled.slice() }, "hub");
             renderModules();
             updateDockButtons();
+            ensureWorkspaceModuleAllowed();
+          });
+        });
+        renderModuleToggles();
+      }
+
+      function renderModuleToggles() {
+        const box = document.getElementById("moduleToggles");
+        if (!box) return;
+        box.innerHTML = "";
+        for (const m of mods) {
+          const id = String(m?.id || "");
+          if (!id || id === "hub" || id === "can-bus") continue;
+          const enabled = isModuleEnabled(id);
+          const row = document.createElement("label");
+          row.className = "toggle";
+          row.innerHTML = `<input type="checkbox" data-module-toggle-panel="${escHtml(id)}" ${enabled ? "checked" : ""}> ${escHtml(tt(`hub.mod.${id}.name`, m.name || id))}`;
+          box.appendChild(row);
+        }
+        box.querySelectorAll("[data-module-toggle-panel]").forEach((el) => {
+          el.addEventListener("change", () => {
+            const id = String(el.dataset.moduleTogglePanel || "");
+            if (!id) return;
+            const prefs = readModulePrefs();
+            if (el.checked) prefs.disabled = prefs.disabled.filter((x) => x !== id);
+            else if (!prefs.disabled.includes(id)) prefs.disabled.push(id);
+            writeModulePrefs(prefs);
+            window.CANBus?.emit("module:prefs:updated", { disabled: prefs.disabled.slice() }, "hub");
+            renderModules();
+            updateDockButtons();
+            ensureWorkspaceModuleAllowed();
           });
         });
       }
@@ -950,10 +1375,12 @@
         if (!base.meta || typeof base.meta !== "object") base.meta = { createdAt: now };
         if (!base.meta.createdAt) base.meta.createdAt = now;
         base.meta.updatedAt = now;
+        if (!Array.isArray(base.products)) base.products = [];
         if (!Array.isArray(base.stations)) base.stations = [];
         if (!Array.isArray(base.jobs)) base.jobs = [];
         if (!Array.isArray(base.actionTypes)) base.actionTypes = [];
         if (!base.ui || typeof base.ui !== "object") base.ui = {};
+        if (!base.activeProductId && base.products[0]) base.activeProductId = base.products[0].id;
         if (!base.activeJobId && base.jobs[0]) base.activeJobId = base.jobs[0].id;
         return base;
       }
@@ -976,12 +1403,145 @@
         return String(v || "").toLowerCase().trim();
       }
 
+      function safeImageUrl(v) {
+        const raw = String(v || "").trim();
+        if (!raw) return "";
+        if (/^data:image\//i.test(raw)) return raw;
+        try {
+          const u = new URL(raw, location.href);
+          return u.href;
+        } catch {
+          return "";
+        }
+      }
+
+      function entityImageHtml(url, label, small = false) {
+        const src = safeImageUrl(url);
+        const cls = small ? "entityThumb sm" : "entityThumb";
+        if (!src) return `<div class="${cls}" aria-hidden="true"></div>`;
+        return `<img class="${cls}" src="${escHtml(src)}" alt="${escHtml(label || "")}" loading="lazy" />`;
+      }
+
+      function getProductById(st, productId) {
+        return (st?.products || []).find((p) => String(p.id || "") === String(productId || "")) || null;
+      }
+
+      function addProductFromHub() {
+        const st = getWritableState();
+        const code = String(prompt(tt("hub.prompt.productCode", "Product code (e.g. P001):"), "") || "").trim();
+        if (!code) return;
+        const name = String(prompt(tt("hub.prompt.productName", "Product name:"), "") || "").trim() || tt("hub.structure.productDefault", "Product");
+        const product = {
+          id: uuid(),
+          code,
+          name,
+          parentProductId: "",
+          imageUrl: "",
+        };
+        st.products.unshift(product);
+        st.activeProductId = product.id;
+        writeState(st);
+      }
+
+      function renameProductById(productId) {
+        const st = getWritableState();
+        const item = getProductById(st, productId);
+        if (!item) return;
+        const code = String(prompt(tt("hub.prompt.productCode", "Product code (e.g. P001):"), item.code || "") || "").trim();
+        if (!code) return;
+        const name = String(prompt(tt("hub.prompt.productName", "Product name:"), item.name || "") || "").trim();
+        if (!name) return;
+        item.code = code;
+        item.name = name;
+        writeState(st);
+      }
+
+      function deleteProductById(productId) {
+        const st = getWritableState();
+        const pid = String(productId || "");
+        const item = getProductById(st, pid);
+        if (!item) return;
+        if (!confirm(tt("hub.confirm.deleteProduct", "Delete product {code} - {name}? Jobs will be kept unassigned.", {
+          code: item.code || "",
+          name: item.name || "",
+        }))) return;
+        st.products = st.products.filter((p) => String(p.id || "") !== pid);
+        for (const p of st.products) {
+          if (String(p.parentProductId || "") === pid) p.parentProductId = "";
+        }
+        for (const j of (st.jobs || [])) {
+          if (String(j.productId || "") === pid) j.productId = "";
+        }
+        if (!st.products.some((p) => String(p.id || "") === String(st.activeProductId || ""))) {
+          st.activeProductId = st.products[0]?.id || null;
+        }
+        writeState(st);
+      }
+
+      function renameSelectedProductFromHub() {
+        const sel = document.getElementById("productFilter");
+        const productId = String(sel?.value || "");
+        if (!productId || productId === "all") return;
+        renameProductById(productId);
+      }
+
+      function deleteSelectedProductFromHub() {
+        const sel = document.getElementById("productFilter");
+        const productId = String(sel?.value || "");
+        if (!productId || productId === "all") return;
+        deleteProductById(productId);
+      }
+
+      function saveProductParentFromHub() {
+        const st = getWritableState();
+        const pSel = document.getElementById("productFilter");
+        const parentSel = document.getElementById("productParentSel");
+        const productId = String(pSel?.value || "");
+        if (!productId || productId === "all") return;
+        const item = getProductById(st, productId);
+        if (!item) return;
+        const parentId = String(parentSel?.value || "");
+        item.parentProductId = (!parentId || parentId === productId) ? "" : parentId;
+        st.activeProductId = item.id;
+        writeState(st);
+      }
+
+      function setProductImageById(productId) {
+        const st = getWritableState();
+        const item = getProductById(st, productId);
+        if (!item) return;
+        const next = String(prompt(tt("hub.prompt.productImage", "Product image URL (http or data:image):"), String(item.imageUrl || "")) || "").trim();
+        item.imageUrl = next;
+        writeState(st);
+      }
+
+      function setJobProduct(jobId, productId) {
+        const st = getWritableState();
+        const job = (st.jobs || []).find((j) => String(j.id || "") === String(jobId || ""));
+        if (!job) return;
+        const pid = String(productId || "");
+        job.productId = pid;
+        if (pid) st.activeProductId = pid;
+        writeState(st);
+      }
+
       function addStationFromHub() {
         const st = getWritableState();
-        const code = String(prompt("Station code (e.g. ST01):", "") || "").trim();
+        const code = String(prompt(tt("hub.prompt.stationCode", "Station code (e.g. ST01):"), "") || "").trim();
         if (!code) return;
-        const name = String(prompt("Station name:", "") || "").trim() || "Station";
-        st.stations.push({ id: uuid(), code, name });
+        const name = String(prompt(tt("hub.prompt.stationName", "Station name:"), "") || "").trim() || tt("spacial.stationDefault", "Station");
+        st.stations.push({ id: uuid(), code, name, imageUrl: "" });
+        writeState(st);
+      }
+
+      function setStationImageById(stationId) {
+        const sid = String(stationId || "");
+        if (!sid || sid === "all") return;
+        const st = getWritableState();
+        const item = st.stations.find((x) => String(x.id || "") === sid);
+        if (!item) return;
+        const next = String(prompt(tt("hub.prompt.stationImage", "Station image URL (http or data:image):"), String(item.imageUrl || "")) || "").trim();
+        item.imageUrl = next;
         writeState(st);
       }
 
@@ -991,9 +1551,9 @@
         const st = getWritableState();
         const item = st.stations.find((x) => String(x.id || "") === sid);
         if (!item) return;
-        const code = String(prompt("Station code:", item.code || "") || "").trim();
+        const code = String(prompt(tt("hub.prompt.stationCode", "Station code (e.g. ST01):"), item.code || "") || "").trim();
         if (!code) return;
-        const name = String(prompt("Station name:", item.name || "") || "").trim() || item.name || "Station";
+        const name = String(prompt(tt("hub.prompt.stationName", "Station name:"), item.name || "") || "").trim() || item.name || tt("spacial.stationDefault", "Station");
         item.code = code;
         item.name = name;
         writeState(st);
@@ -1001,7 +1561,7 @@
       function renameSelectedStationFromHub() {
         const sel = document.getElementById("stationFilter");
         const stationId = String(sel?.value || "");
-        if (!stationId || stationId === "all") return alert("Select one station first.");
+        if (!stationId || stationId === "all") return alert(tt("hub.alert.selectStationFirst", "Select one station first."));
         renameStationById(stationId);
       }
 
@@ -1012,7 +1572,11 @@
         const station = st.stations.find((x) => String(x.id || "") === sid);
         if (!station) return;
         const jobsAt = st.jobs.filter((j) => String(j.stationId || "") === sid).length;
-        if (!confirm(`Delete station ${station.code || ""} - ${station.name || ""}? This will remove ${jobsAt} job(s).`)) return;
+        if (!confirm(tt("hub.confirm.deleteStation", "Delete station {code} - {name}? This will remove {count} job(s).", {
+          code: station.code || "",
+          name: station.name || "",
+          count: jobsAt,
+        }))) return;
         st.stations = st.stations.filter((x) => String(x.id || "") !== sid);
         st.jobs = st.jobs.filter((j) => String(j.stationId || "") !== sid);
         if (!st.jobs.some((j) => String(j.id || "") === String(st.activeJobId || ""))) {
@@ -1023,7 +1587,7 @@
       function deleteSelectedStationFromHub() {
         const sel = document.getElementById("stationFilter");
         const stationId = String(sel?.value || "");
-        if (!stationId || stationId === "all") return alert("Select one station first.");
+        if (!stationId || stationId === "all") return alert(tt("hub.alert.selectStationFirst", "Select one station first."));
         deleteStationById(stationId);
       }
 
@@ -1033,14 +1597,19 @@
         let targetStationId = sid;
         if (!targetStationId || targetStationId === "all") {
           if (st.stations.length === 1) targetStationId = st.stations[0].id;
-          else return alert("Select one station to add a job.");
+          else return alert(tt("hub.alert.selectStationToAddJob", "Select one station to add a job."));
         }
-        if (!st.stations.some((x) => String(x.id || "") === targetStationId)) return alert("Station not found.");
-        const name = String(prompt("Job name:", "") || "").trim() || "New job";
+        if (!st.stations.some((x) => String(x.id || "") === targetStationId)) return alert(tt("hub.alert.stationNotFound", "Station not found."));
+        const name = String(prompt(tt("hub.prompt.jobName", "Job name:"), "") || "").trim() || tt("spacial.jobDefault", "Job");
+        let productId = String(st.activeProductId || "");
+        if (productId && !st.products.some((p) => String(p.id || "") === productId)) productId = "";
+        if (!productId && st.products[0]) productId = String(st.products[0].id || "");
         const job = {
           id: uuid(),
+          productId,
           stationId: targetStationId,
           name,
+          imageUrl: "",
           allowancePct: 12,
           ratingPct: 100,
           elements: [],
@@ -1059,10 +1628,19 @@
         const st = getWritableState();
         const job = st.jobs.find((x) => String(x.id || "") === String(jobId || ""));
         if (!job) return;
-        const name = String(prompt("Job name:", job.name || "") || "").trim();
+        const name = String(prompt(tt("hub.prompt.jobName", "Job name:"), job.name || "") || "").trim();
         if (!name) return;
         job.name = name;
         st.activeJobId = job.id;
+        writeState(st);
+      }
+
+      function setJobImageById(jobId) {
+        const st = getWritableState();
+        const job = st.jobs.find((x) => String(x.id || "") === String(jobId || ""));
+        if (!job) return;
+        const next = String(prompt(tt("hub.prompt.jobImage", "Job image URL (http or data:image):"), String(job.imageUrl || "")) || "").trim();
+        job.imageUrl = next;
         writeState(st);
       }
 
@@ -1070,7 +1648,9 @@
         const st = getWritableState();
         const job = st.jobs.find((x) => String(x.id || "") === String(jobId || ""));
         if (!job) return;
-        if (!confirm(`Delete job "${job.name || "Unnamed"}"?`)) return;
+        if (!confirm(tt("hub.confirm.deleteJob", "Delete job \"{name}\"?", {
+          name: job.name || tt("hub.jobs.unnamed", "Unnamed job"),
+        }))) return;
         st.jobs = st.jobs.filter((x) => String(x.id || "") !== String(jobId || ""));
         if (!st.jobs.some((j) => String(j.id || "") === String(st.activeJobId || ""))) {
           st.activeJobId = st.jobs[0]?.id || null;
@@ -1159,104 +1739,233 @@
       }
 
       function renderStationsJobs() {
-        const filter = document.getElementById("stationFilter");
+        const stationFilter = document.getElementById("stationFilter");
+        const productFilter = document.getElementById("jobsProductFilter");
+        const flowSel = document.getElementById("jobsFlowSel");
         const searchInput = document.getElementById("stationJobSearch");
         const box = document.getElementById("jobsList");
-        const st = getState() || {};
-        const stations = Array.isArray(st.stations) ? st.stations : [];
-        const jobs = Array.isArray(st.jobs) ? st.jobs : [];
-        const q = normText(searchInput?.value || "");
+        if (!stationFilter || !productFilter || !flowSel || !searchInput || !box) return;
 
-        const prev = String(filter.value || "all");
-        filter.innerHTML = `<option value="all">All stations</option>`;
+        const st = getState() || {};
+        const products = Array.isArray(st.products) ? st.products : [];
+        const productById = new Map(products.map((p) => [String(p.id || ""), p]));
+        const stations = Array.isArray(st.stations) ? st.stations : [];
+        const stationById = new Map(stations.map((s) => [String(s.id || ""), s]));
+        const jobs = Array.isArray(st.jobs) ? st.jobs : [];
+        const q = normText(searchInput.value || "");
+
+        const prevProduct = String(productFilter.value || st.activeProductId || "all");
+        productFilter.innerHTML = `<option value="all">${escHtml(tt("hub.structure.allProducts", "All products"))}</option>`;
+        for (const p of products) {
+          const opt = document.createElement("option");
+          opt.value = String(p.id || "");
+          opt.textContent = `${p.code || "--"} - ${p.name || tt("hub.structure.productDefault", "Product")}`;
+          productFilter.appendChild(opt);
+        }
+        if ([...productFilter.options].some((o) => o.value === prevProduct)) productFilter.value = prevProduct;
+        else productFilter.value = "all";
+
+        const prevFlow = String(flowSel.value || "all");
+        const flowOptions = [
+          { id: "all", label: tt("hub.jobs.flow.all", "All jobs") },
+          { id: "withCycles", label: tt("hub.jobs.flow.withCycles", "With cycles") },
+          { id: "noCycles", label: tt("hub.jobs.flow.noCycles", "Without cycles") },
+          { id: "unassignedProduct", label: tt("hub.jobs.flow.unassignedProduct", "No product") },
+        ];
+        flowSel.innerHTML = flowOptions.map((f) => `<option value="${escHtml(f.id)}">${escHtml(f.label)}</option>`).join("");
+        if ([...flowSel.options].some((o) => o.value === prevFlow)) flowSel.value = prevFlow;
+        else flowSel.value = "all";
+
+        const selectedProductId = String(productFilter.value || "all");
+        const editProductImageBtn = document.getElementById("editProductImageBtn");
+        if (editProductImageBtn) editProductImageBtn.disabled = (!selectedProductId || selectedProductId === "all");
+        const jobsByProduct = selectedProductId === "all"
+          ? jobs.slice()
+          : jobs.filter((j) => String(j.productId || "") === selectedProductId);
+
+        const stationsInScope = selectedProductId === "all"
+          ? stations.slice()
+          : stations.filter((s) => jobsByProduct.some((j) => String(j.stationId || "") === String(s.id || "")));
+        const prevStation = String(stationFilter.value || "all");
+        stationFilter.innerHTML = `<option value="all">${escHtml(tt("hub.jobs.allStations", "All stations"))}</option>`;
         for (const s of stations) {
           const opt = document.createElement("option");
-          opt.value = s.id;
-          opt.textContent = `${s.code || "--"} - ${s.name || "Station"}`;
-          filter.appendChild(opt);
+          opt.value = String(s.id || "");
+          opt.textContent = `${s.code || "--"} - ${s.name || tt("spacial.stationDefault", "Station")}`;
+          stationFilter.appendChild(opt);
         }
-        if ([...filter.options].some((o) => o.value === prev)) filter.value = prev;
+        if ([...stationFilter.options].some((o) => o.value === prevStation)) stationFilter.value = prevStation;
+        else stationFilter.value = "all";
 
-        const filtered = filter.value === "all" ? jobs : jobs.filter((j) => String(j.stationId || "") === String(filter.value || ""));
+        const flowMode = String(flowSel.value || "all");
+        const flowMatch = (job) => {
+          const cycCount = Array.isArray(job?.cycles) ? job.cycles.length : 0;
+          if (flowMode === "withCycles") return cycCount > 0;
+          if (flowMode === "noCycles") return cycCount === 0;
+          if (flowMode === "unassignedProduct") return !String(job?.productId || "").trim();
+          return true;
+        };
+
+        const stationScopeId = String(stationFilter.value || "all");
+        let filtered = stationScopeId === "all"
+          ? jobsByProduct.slice()
+          : jobsByProduct.filter((j) => String(j.stationId || "") === stationScopeId);
+        filtered = filtered.filter(flowMatch);
+        const visibleJobs = filtered.filter((j) => {
+          if (!q) return true;
+          const p = productById.get(String(j.productId || ""));
+          const s = stationById.get(String(j.stationId || ""));
+          return normText(`${j.name || ""} ${p?.code || ""} ${p?.name || ""} ${s?.code || ""} ${s?.name || ""}`).includes(q);
+        });
+
+        const productOptionsFor = (job) => [
+          `<option value="">-</option>`,
+          ...products.map((p) => `<option value="${escHtml(p.id)}" ${String(p.id || "") === String(job.productId || "") ? "selected" : ""}>${escHtml(`${p.code || "--"} - ${p.name || tt("hub.structure.productDefault", "Product")}`)}</option>`),
+        ].join("");
+
         box.innerHTML = "";
         if (!stations.length) {
-          box.innerHTML = `<div class="empty">No stations yet. Click <strong>+ Station</strong> to start.</div>`;
+          box.innerHTML = `<div class="empty">${escHtml(tt("hub.jobs.noneStations", "No stations yet. Click + Station to start."))}</div>`;
           return;
         }
-        const scopeStations = filter.value === "all"
-          ? stations.slice()
-          : stations.filter((s) => String(s.id || "") === String(filter.value || ""));
-        for (const s of scopeStations) {
-          const stationJobs = filtered.filter((j) => String(j.stationId || "") === String(s.id || ""));
-          const stationMatch = !q || normText(`${s.code} ${s.name}`).includes(q);
-          const visibleJobs = q
-            ? stationJobs.filter((j) => stationMatch || normText(j.name).includes(q))
-            : stationJobs;
-          if (!visibleJobs.length && !stationMatch) continue;
 
-          const stationCard = document.createElement("div");
-          stationCard.className = "stationCard";
-          stationCard.innerHTML = `
-            <div class="stationHdr">
-              <div>
-                <div class="stationTitle">${s.code || "--"} - ${s.name || "Station"}</div>
-                <div class="jobMeta">${stationJobs.length} job(s)</div>
-              </div>
-              <div class="stationTools">
-                <button class="btn ghost" type="button" data-st-add="${s.id}">+ Job</button>
-                <button class="btn ghost" type="button" data-st-ren="${s.id}">Rename</button>
-                <button class="btn ghost" type="button" data-st-del="${s.id}">Delete</button>
-              </div>
-            </div>
-            <div class="stationJobs"></div>
-          `;
-          const jobBox = stationCard.querySelector(".stationJobs");
+        if (jobsViewMode === "list") {
+          const list = document.createElement("div");
+          list.className = "jobsFlatList";
           if (!visibleJobs.length) {
-            const empty = document.createElement("div");
-            empty.className = "empty";
-            empty.textContent = "No jobs for this station.";
-            jobBox.appendChild(empty);
+            list.innerHTML = `<div class="empty">${escHtml(tt("hub.jobs.noneMatch", "No jobs match the current filter/search."))}</div>`;
           } else {
             for (const j of visibleJobs) {
+              const p = productById.get(String(j.productId || "")) || null;
+              const s = stationById.get(String(j.stationId || "")) || null;
               const cycCount = Array.isArray(j.cycles) ? j.cycles.length : 0;
-              const row = document.createElement("div");
-              row.className = "jobRow";
               const chronoHref = makeShortcut("./chrono/chrono.html", { job: j.id, station: j.stationId });
               const camHref = makeShortcut("./chrono/chrono_camera.html", { job: j.id, station: j.stationId });
-              const spcHref = makeShortcut("./SPaCial.html", {
-                job: j.id,
-                station: j.stationId,
-                handoff: buildSpacialHandoff(j, s),
-              });
+              const spcHref = makeShortcut("./SPaCial.html", { job: j.id, station: j.stationId, handoff: buildSpacialHandoff(j, s) });
               const chronoEnabled = isModuleEnabled("chrono");
               const cameraEnabled = isModuleEnabled("chrono-camera");
               const spacialEnabled = isModuleEnabled("spacial");
+              const row = document.createElement("div");
+              row.className = "jobsFlatRow";
               row.innerHTML = `
-                <div>
-                  <div><strong>${j.name || "Unnamed job"}</strong></div>
-                  <div class="jobMeta">${cycCount} cycles</div>
+                <div class="entityLine">
+                  ${entityImageHtml(j.imageUrl, j.name || tt("hub.jobs.unnamed", "Unnamed job"))}
+                  <div style="min-width:0;">
+                    <div><strong>${escHtml(j.name || tt("hub.jobs.unnamed", "Unnamed job"))}</strong></div>
+                    <div class="jobMeta">${escHtml(tt("hub.jobs.cycles", "{count} cycles", { count: cycCount }))}</div>
+                  </div>
+                </div>
+                <div class="entityLine">
+                  ${entityImageHtml(s?.imageUrl, s?.name || tt("spacial.stationDefault", "Station"), true)}
+                  <span class="entityTag">${escHtml(`${s?.code || "--"} - ${s?.name || tt("spacial.stationDefault", "Station")}`)}</span>
+                  ${entityImageHtml(p?.imageUrl, p?.name || tt("hub.structure.productDefault", "Product"), true)}
+                  <span class="entityTag">${escHtml(`${p?.code || "--"} - ${p?.name || tt("hub.structure.productDefault", "Product")}`)}</span>
                 </div>
                 <div class="jobActions">
-                  <a class="btn" ${chronoEnabled ? `href="${chronoHref}" data-module-id="chrono"` : 'href="#" aria-disabled="true"'}>Chrono</a>
-                  <a class="btn alt" ${cameraEnabled ? `href="${camHref}" data-module-id="chrono-camera"` : 'href="#" aria-disabled="true"'}>Camera</a>
-                  <a class="btn warn" ${spacialEnabled ? `href="${spcHref}" data-module-id="spacial"` : 'href="#" aria-disabled="true"'}>SPaCial</a>
-                  <button class="btn ghost" type="button" data-job-edit="${j.id}">Rename</button>
-                  <button class="btn ghost" type="button" data-job-del="${j.id}">Delete</button>
+                  <select data-job-product="${escHtml(j.id || "")}" style="max-width:210px;">${productOptionsFor(j)}</select>
+                  <button class="btn ghost" type="button" data-job-img="${escHtml(j.id || "")}">${escHtml(tt("hub.jobs.jobImage", "Job Img"))}</button>
+                  <button class="btn ghost" type="button" data-product-img="${escHtml(j.productId || "")}" ${j.productId ? "" : "disabled"}>${escHtml(tt("hub.jobs.productImage", "Prod Img"))}</button>
+                  <button class="btn ghost" type="button" data-st-img="${escHtml(j.stationId || "")}">${escHtml(tt("hub.jobs.stationImage", "St Img"))}</button>
+                  <a class="btn" ${chronoEnabled ? `href="${chronoHref}" data-module-id="chrono"` : 'href="#" aria-disabled="true"'}>${escHtml(tt("hub.dock.chrono", "Chrono"))}</a>
+                  <a class="btn alt" ${cameraEnabled ? `href="${camHref}" data-module-id="chrono-camera"` : 'href="#" aria-disabled="true"'}>${escHtml(tt("hub.dock.camera", "Camera"))}</a>
+                  <a class="btn warn" ${spacialEnabled ? `href="${spcHref}" data-module-id="spacial"` : 'href="#" aria-disabled="true"'}>${escHtml(tt("hub.dock.spacial", "SPaCial"))}</a>
+                  <button class="btn ghost" type="button" data-job-edit="${escHtml(j.id || "")}">${escHtml(tt("hub.jobs.rename", "Rename"))}</button>
+                  <button class="btn ghost" type="button" data-job-del="${escHtml(j.id || "")}">${escHtml(tt("hub.jobs.delete", "Delete"))}</button>
                 </div>
               `;
-              jobBox.appendChild(row);
+              list.appendChild(row);
             }
           }
-          box.appendChild(stationCard);
+          box.appendChild(list);
+        } else {
+          const scopeStations = stationScopeId === "all"
+            ? stationsInScope.slice()
+            : stationsInScope.filter((s) => String(s.id || "") === stationScopeId);
+          for (const s of scopeStations) {
+            const stationJobs = filtered.filter((j) => String(j.stationId || "") === String(s.id || ""));
+            const stationMatch = !q || normText(`${s.code} ${s.name}`).includes(q);
+            const jobsForCard = q
+              ? stationJobs.filter((j) => stationMatch || visibleJobs.some((x) => String(x.id || "") === String(j.id || "")))
+              : stationJobs;
+            if (!jobsForCard.length && !stationMatch) continue;
+
+            const stationCard = document.createElement("div");
+            stationCard.className = "stationCard";
+            stationCard.innerHTML = `
+              <div class="stationHdr">
+                <div class="entityLine">
+                  ${entityImageHtml(s.imageUrl, s.name || tt("spacial.stationDefault", "Station"))}
+                  <div style="min-width:0;">
+                    <div class="stationTitle">${escHtml(`${s.code || "--"} - ${s.name || tt("spacial.stationDefault", "Station")}`)}</div>
+                    <div class="jobMeta">${escHtml(tt("hub.jobs.count", "{count} job(s)", { count: stationJobs.length }))}</div>
+                  </div>
+                </div>
+                <div class="stationTools">
+                  <button class="btn ghost" type="button" data-st-img="${escHtml(s.id || "")}">${escHtml(tt("hub.jobs.stationImage", "St Img"))}</button>
+                  <button class="btn ghost" type="button" data-st-add="${escHtml(s.id || "")}">${escHtml(tt("hub.jobs.addJob", "+ Job"))}</button>
+                  <button class="btn ghost" type="button" data-st-ren="${escHtml(s.id || "")}">${escHtml(tt("hub.jobs.rename", "Rename"))}</button>
+                  <button class="btn ghost" type="button" data-st-del="${escHtml(s.id || "")}">${escHtml(tt("hub.jobs.delete", "Delete"))}</button>
+                </div>
+              </div>
+              <div class="stationJobs"></div>
+            `;
+            const jobBox = stationCard.querySelector(".stationJobs");
+            if (!jobsForCard.length) {
+              const empty = document.createElement("div");
+              empty.className = "empty";
+              empty.textContent = tt("hub.jobs.noneInStation", "No jobs for this station.");
+              jobBox.appendChild(empty);
+            } else {
+              for (const j of jobsForCard) {
+                const cycCount = Array.isArray(j.cycles) ? j.cycles.length : 0;
+                const product = productById.get(String(j.productId || "")) || null;
+                const chronoHref = makeShortcut("./chrono/chrono.html", { job: j.id, station: j.stationId });
+                const camHref = makeShortcut("./chrono/chrono_camera.html", { job: j.id, station: j.stationId });
+                const spcHref = makeShortcut("./SPaCial.html", { job: j.id, station: j.stationId, handoff: buildSpacialHandoff(j, s) });
+                const chronoEnabled = isModuleEnabled("chrono");
+                const cameraEnabled = isModuleEnabled("chrono-camera");
+                const spacialEnabled = isModuleEnabled("spacial");
+                const row = document.createElement("div");
+                row.className = "jobRow";
+                row.innerHTML = `
+                  <div class="entityLine">
+                    ${entityImageHtml(j.imageUrl, j.name || tt("hub.jobs.unnamed", "Unnamed job"))}
+                    <div style="min-width:0;">
+                      <div><strong>${escHtml(j.name || tt("hub.jobs.unnamed", "Unnamed job"))}</strong></div>
+                      <div class="jobMeta">${escHtml(tt("hub.jobs.cycles", "{count} cycles", { count: cycCount }))}${product ? ` | ${escHtml(product.code || "")} - ${escHtml(product.name || "")}` : ""}</div>
+                    </div>
+                  </div>
+                  <div class="jobActions">
+                    ${entityImageHtml(product?.imageUrl, product?.name || tt("hub.structure.productDefault", "Product"), true)}
+                    <span class="jobMeta" style="min-width:58px;text-align:right;">${escHtml(tt("hub.jobs.product", "Product"))}</span>
+                    <select data-job-product="${escHtml(j.id || "")}" style="max-width:210px;">${productOptionsFor(j)}</select>
+                    <button class="btn ghost" type="button" data-job-img="${escHtml(j.id || "")}">${escHtml(tt("hub.jobs.jobImage", "Job Img"))}</button>
+                    <button class="btn ghost" type="button" data-product-img="${escHtml(j.productId || "")}" ${j.productId ? "" : "disabled"}>${escHtml(tt("hub.jobs.productImage", "Prod Img"))}</button>
+                    <a class="btn" ${chronoEnabled ? `href="${chronoHref}" data-module-id="chrono"` : 'href="#" aria-disabled="true"'}>${escHtml(tt("hub.dock.chrono", "Chrono"))}</a>
+                    <a class="btn alt" ${cameraEnabled ? `href="${camHref}" data-module-id="chrono-camera"` : 'href="#" aria-disabled="true"'}>${escHtml(tt("hub.dock.camera", "Camera"))}</a>
+                    <a class="btn warn" ${spacialEnabled ? `href="${spcHref}" data-module-id="spacial"` : 'href="#" aria-disabled="true"'}>${escHtml(tt("hub.dock.spacial", "SPaCial"))}</a>
+                    <button class="btn ghost" type="button" data-job-edit="${escHtml(j.id || "")}">${escHtml(tt("hub.jobs.rename", "Rename"))}</button>
+                    <button class="btn ghost" type="button" data-job-del="${escHtml(j.id || "")}">${escHtml(tt("hub.jobs.delete", "Delete"))}</button>
+                  </div>
+                `;
+                jobBox.appendChild(row);
+              }
+            }
+            box.appendChild(stationCard);
+          }
+          if (!box.children.length) {
+            box.innerHTML = `<div class="empty">${escHtml(tt("hub.jobs.noneMatch", "No jobs match the current filter/search."))}</div>`;
+          }
         }
-        if (!box.children.length) {
-          box.innerHTML = `<div class="empty">No jobs match the current filter/search.</div>`;
-        }
+
         box.querySelectorAll("[data-st-add]").forEach((el) => {
           el.addEventListener("click", () => addJobAtStation(el.dataset.stAdd));
         });
         box.querySelectorAll("[data-st-ren]").forEach((el) => {
           el.addEventListener("click", () => renameStationById(el.dataset.stRen));
+        });
+        box.querySelectorAll("[data-st-img]").forEach((el) => {
+          el.addEventListener("click", () => setStationImageById(el.dataset.stImg));
         });
         box.querySelectorAll("[data-st-del]").forEach((el) => {
           el.addEventListener("click", () => deleteStationById(el.dataset.stDel));
@@ -1264,20 +1973,227 @@
         box.querySelectorAll("[data-job-edit]").forEach((el) => {
           el.addEventListener("click", () => renameJobFromHub(el.dataset.jobEdit));
         });
+        box.querySelectorAll("[data-job-img]").forEach((el) => {
+          el.addEventListener("click", () => setJobImageById(el.dataset.jobImg));
+        });
+        box.querySelectorAll("[data-product-img]").forEach((el) => {
+          el.addEventListener("click", () => {
+            const productId = String(el.dataset.productImg || "");
+            if (!productId) return;
+            setProductImageById(productId);
+          });
+        });
         box.querySelectorAll("[data-job-del]").forEach((el) => {
           el.addEventListener("click", () => deleteJobFromHub(el.dataset.jobDel));
         });
+        box.querySelectorAll("[data-job-product]").forEach((el) => {
+          el.addEventListener("change", () => {
+            setJobProduct(el.getAttribute("data-job-product"), el.value);
+            renderStationsJobs();
+            renderStructure();
+          });
+        });
+      }
+
+      function renderStructure() {
+        const st = getState() || {};
+        const products = Array.isArray(st.products) ? st.products : [];
+        const stations = Array.isArray(st.stations) ? st.stations : [];
+        const jobs = Array.isArray(st.jobs) ? st.jobs : [];
+        const productFilter = document.getElementById("productFilter");
+        const parentSel = document.getElementById("productParentSel");
+        const tree = document.getElementById("structureTree");
+        const showProducts = !!document.getElementById("structShowProducts")?.checked;
+        const showStations = !!document.getElementById("structShowStations")?.checked;
+        const showJobs = !!document.getElementById("structShowJobs")?.checked;
+        if (!productFilter || !parentSel || !tree) return;
+
+        const prevFilter = String(productFilter.value || st.activeProductId || "all");
+        productFilter.innerHTML = `<option value="all">${escHtml(tt("hub.structure.allProducts", "All products"))}</option>`;
+        for (const p of products) {
+          const opt = document.createElement("option");
+          opt.value = String(p.id || "");
+          opt.textContent = `${p.code || "--"} - ${p.name || tt("hub.structure.productDefault", "Product")}`;
+          productFilter.appendChild(opt);
+        }
+        if ([...productFilter.options].some((o) => o.value === prevFilter)) productFilter.value = prevFilter;
+        else productFilter.value = "all";
+
+        const selectedProductId = String(productFilter.value || "all");
+        const selectedProduct = products.find((p) => String(p.id || "") === selectedProductId) || null;
+        parentSel.innerHTML = `<option value="">${escHtml(tt("hub.structure.noParent", "No parent"))}</option>`;
+        for (const p of products) {
+          const pid = String(p.id || "");
+          if (selectedProduct && pid === String(selectedProduct.id || "")) continue;
+          const opt = document.createElement("option");
+          opt.value = pid;
+          opt.textContent = `${p.code || "--"} - ${p.name || tt("hub.structure.productDefault", "Product")}`;
+          parentSel.appendChild(opt);
+        }
+        if (selectedProduct?.parentProductId && [...parentSel.options].some((o) => o.value === String(selectedProduct.parentProductId || ""))) {
+          parentSel.value = String(selectedProduct.parentProductId || "");
+        } else {
+          parentSel.value = "";
+        }
+        parentSel.disabled = !selectedProduct;
+        const saveParentBtn = document.getElementById("saveProductParentBtn");
+        const renameProductBtn = document.getElementById("renameProductBtn");
+        const deleteProductBtn = document.getElementById("deleteProductBtn");
+        if (saveParentBtn) saveParentBtn.disabled = !selectedProduct;
+        if (renameProductBtn) renameProductBtn.disabled = !selectedProduct;
+        if (deleteProductBtn) deleteProductBtn.disabled = !selectedProduct;
+
+        const productById = new Map(products.map((p) => [String(p.id || ""), p]));
+        const stationById = new Map(stations.map((s) => [String(s.id || ""), s]));
+        const scopedJobs = selectedProductId === "all"
+          ? jobs.slice()
+          : jobs.filter((j) => String(j.productId || "") === selectedProductId);
+
+        const blocks = [];
+        const renderJobsList = (jobRows) => {
+          if (!showJobs) return "";
+          if (!jobRows.length) return `<div class="empty">${escHtml(tt("hub.structure.noneJobs", "No jobs in this scope."))}</div>`;
+          return jobRows.map((j) => {
+            const stn = stationById.get(String(j.stationId || ""));
+            return `<div class="jobRow"><div><strong>${escHtml(j.name || tt("hub.jobs.unnamed", "Unnamed job"))}</strong><div class="jobMeta">${escHtml((stn?.code || "--") + " - " + (stn?.name || tt("spacial.stationDefault", "Station")))}</div></div></div>`;
+          }).join("");
+        };
+
+        if (showProducts) {
+          const visibleProducts = selectedProductId === "all"
+            ? products.slice()
+            : products.filter((p) => String(p.id || "") === selectedProductId);
+          if (!visibleProducts.length) {
+            blocks.push(`<div class="empty">${escHtml(tt("hub.structure.noneProducts", "No products yet. Create one to organize jobs."))}</div>`);
+          } else {
+            for (const p of visibleProducts) {
+              const pid = String(p.id || "");
+              const pJobs = jobs.filter((j) => String(j.productId || "") === pid);
+              const childCount = products.filter((x) => String(x.parentProductId || "") === pid).length;
+              const parent = productById.get(String(p.parentProductId || ""));
+              let inner = "";
+              if (showStations) {
+                const stIds = [...new Set(pJobs.map((j) => String(j.stationId || "")).filter(Boolean))];
+                inner = stIds.map((sid) => {
+                  const stn = stationById.get(sid) || { code: "--", name: tt("spacial.stationDefault", "Station") };
+                  const stJobs = pJobs.filter((j) => String(j.stationId || "") === sid);
+                  return `
+                    <div class="jobRow">
+                      <div>
+                        <strong>${escHtml(`${stn.code || "--"} - ${stn.name || "Station"}`)}</strong>
+                        <div class="jobMeta">${escHtml(tt("hub.jobs.count", "{count} job(s)", { count: stJobs.length }))}</div>
+                      </div>
+                    </div>
+                    ${showJobs ? renderJobsList(stJobs) : ""}
+                  `;
+                }).join("");
+                if (!inner) inner = `<div class="empty">${escHtml(tt("hub.structure.noneJobs", "No jobs in this scope."))}</div>`;
+              } else {
+                inner = renderJobsList(pJobs);
+              }
+              blocks.push(`
+                <div class="stationCard">
+                  <div class="stationHdr">
+                    <div>
+                      <div class="stationTitle">${escHtml(`${p.code || "--"} - ${p.name || tt("hub.structure.productDefault", "Product")}`)}</div>
+                      <div class="jobMeta">${escHtml(tt("hub.structure.childCount", "{count} child(ren)", { count: childCount }))}${parent ? ` | ${escHtml(tt("hub.structure.parentTag", "Parent: {name}", { name: `${parent.code || "--"} - ${parent.name || ""}` }))}` : ""}</div>
+                    </div>
+                  </div>
+                  <div class="stationJobs">${inner}</div>
+                </div>
+              `);
+            }
+          }
+          if (selectedProductId === "all") {
+            const unassigned = jobs.filter((j) => !String(j.productId || "").trim());
+            if (unassigned.length) {
+              blocks.push(`
+                <div class="stationCard">
+                  <div class="stationHdr"><div class="stationTitle">${escHtml(tt("hub.structure.unassigned", "Unassigned jobs"))}</div></div>
+                  <div class="stationJobs">${renderJobsList(unassigned)}</div>
+                </div>
+              `);
+            }
+          }
+        } else if (showStations) {
+          const stIds = [...new Set(scopedJobs.map((j) => String(j.stationId || "")).filter(Boolean))];
+          if (!stIds.length) {
+            blocks.push(`<div class="empty">${escHtml(tt("hub.structure.noneJobs", "No jobs in this scope."))}</div>`);
+          } else {
+            for (const sid of stIds) {
+              const stn = stationById.get(sid) || { code: "--", name: tt("spacial.stationDefault", "Station") };
+              const stJobs = scopedJobs.filter((j) => String(j.stationId || "") === sid);
+              blocks.push(`
+                <div class="stationCard">
+                  <div class="stationHdr">
+                    <div class="stationTitle">${escHtml(`${stn.code || "--"} - ${stn.name || "Station"}`)}</div>
+                    <div class="jobMeta">${escHtml(tt("hub.jobs.count", "{count} job(s)", { count: stJobs.length }))}</div>
+                  </div>
+                  <div class="stationJobs">${showJobs ? renderJobsList(stJobs) : ""}</div>
+                </div>
+              `);
+            }
+          }
+        } else if (showJobs) {
+          blocks.push(renderJobsList(scopedJobs));
+        }
+
+        tree.innerHTML = blocks.join("") || `<div class="empty">${escHtml(tt("hub.structure.noneJobs", "No jobs in this scope."))}</div>`;
       }
 
       document.getElementById("stationFilter").addEventListener("change", renderStationsJobs);
+      document.getElementById("jobsProductFilter").addEventListener("change", () => {
+        const st = getWritableState();
+        const productId = String(document.getElementById("jobsProductFilter")?.value || "");
+        if (productId && productId !== "all") st.activeProductId = productId;
+        writeState(st);
+        renderStationsJobs();
+        renderStructure();
+      });
+      document.getElementById("jobsFlowSel").addEventListener("change", renderStationsJobs);
       document.getElementById("stationJobSearch").addEventListener("input", renderStationsJobs);
+      document.getElementById("jobsViewCardsBtn").addEventListener("click", () => {
+        writeJobsViewMode("cards");
+        renderStationsJobs();
+      });
+      document.getElementById("jobsViewListBtn").addEventListener("click", () => {
+        writeJobsViewMode("list");
+        renderStationsJobs();
+      });
+      document.getElementById("addProductFromJobsBtn").addEventListener("click", () => {
+        addProductFromHub();
+        renderStationsJobs();
+        renderStructure();
+      });
+      document.getElementById("editProductImageBtn").addEventListener("click", () => {
+        const productId = String(document.getElementById("jobsProductFilter")?.value || "");
+        if (!productId || productId === "all") return;
+        setProductImageById(productId);
+        renderStationsJobs();
+        renderStructure();
+      });
       document.getElementById("addStationBtn").addEventListener("click", addStationFromHub);
       document.getElementById("renameStationBtn").addEventListener("click", renameSelectedStationFromHub);
       document.getElementById("deleteStationBtn").addEventListener("click", deleteSelectedStationFromHub);
       document.getElementById("addJobBtn").addEventListener("click", addJobFromHub);
+      document.getElementById("addProductBtn").addEventListener("click", addProductFromHub);
+      document.getElementById("renameProductBtn").addEventListener("click", renameSelectedProductFromHub);
+      document.getElementById("deleteProductBtn").addEventListener("click", deleteSelectedProductFromHub);
+      document.getElementById("saveProductParentBtn").addEventListener("click", saveProductParentFromHub);
+      document.getElementById("productFilter").addEventListener("change", () => {
+        const st = getWritableState();
+        const productId = String(document.getElementById("productFilter")?.value || "");
+        if (productId && productId !== "all") st.activeProductId = productId;
+        writeState(st);
+        renderStructure();
+      });
+      document.getElementById("structShowProducts").addEventListener("change", renderStructure);
+      document.getElementById("structShowStations").addEventListener("change", renderStructure);
+      document.getElementById("structShowJobs").addEventListener("change", renderStructure);
       document.getElementById("refreshOverviewBtn").addEventListener("click", () => {
         renderOverview();
         renderStationsJobs();
+        renderStructure();
       });
       document.getElementById("resetLayoutBtn").addEventListener("click", () => {
         layout = { order: defaultOrder.slice(), hidden: [] };
@@ -1313,9 +2229,10 @@
             window.CANBus?.emit("hub:backup:imported", {}, "hub");
             renderOverview();
             renderStationsJobs();
-            alert("Snapshot imported.");
+            renderStructure();
+            alert(tt("hub.alert.snapshotImported", "Snapshot imported."));
           } catch (err) {
-            alert("Import failed: " + (err?.message || "invalid file"));
+            alert(tt("hub.alert.importFailed", "Import failed: {err}", { err: err?.message || "invalid file" }));
           }
         };
         fr.readAsText(f);
@@ -1326,6 +2243,7 @@
         window.VMillData.writeAppState(window.VMillData.createDefaultAppState());
         renderOverview();
         renderStationsJobs();
+        renderStructure();
       });
       document.getElementById("demoSmallBtn").addEventListener("click", async () => {
         if (!window.VMillData?.loadDemoAppState) return;
@@ -1333,8 +2251,9 @@
           await window.VMillData.loadDemoAppState("small");
           renderOverview();
           renderStationsJobs();
+          renderStructure();
         } catch (err) {
-          alert("Demo load failed: " + (err?.message || "unknown error"));
+          alert(tt("hub.alert.demoLoadFailed", "Demo load failed: {err}", { err: err?.message || "unknown error" }));
         }
       });
       document.getElementById("demoMediumBtn").addEventListener("click", async () => {
@@ -1343,8 +2262,9 @@
           await window.VMillData.loadDemoAppState("medium");
           renderOverview();
           renderStationsJobs();
+          renderStructure();
         } catch (err) {
-          alert("Demo load failed: " + (err?.message || "unknown error"));
+          alert(tt("hub.alert.demoLoadFailed", "Demo load failed: {err}", { err: err?.message || "unknown error" }));
         }
       });
       document.getElementById("demoLargeBtn").addEventListener("click", async () => {
@@ -1353,16 +2273,18 @@
           await window.VMillData.loadDemoAppState("large");
           renderOverview();
           renderStationsJobs();
+          renderStructure();
         } catch (err) {
-          alert("Demo load failed: " + (err?.message || "unknown error"));
+          alert(tt("hub.alert.demoLoadFailed", "Demo load failed: {err}", { err: err?.message || "unknown error" }));
         }
       });
       document.getElementById("removeDemoBtn").addEventListener("click", () => {
         if (!window.VMillData?.clearAppStateToEmpty) return;
-        if (!confirm("Remove demo data and keep global state empty?")) return;
+        if (!confirm(tt("hub.confirm.removeDemo", "Remove demo data and keep global state empty?"))) return;
         window.VMillData.clearAppStateToEmpty();
         renderOverview();
         renderStationsJobs();
+        renderStructure();
       });
 
       window.CANBus?.onMessage((msg) => {
@@ -1371,6 +2293,7 @@
         if (String(msg.type || "").startsWith("data:")) {
           renderOverview();
           renderStationsJobs();
+          renderStructure();
         }
         if (msg.type === "module:prefs:updated") {
           renderModules();
@@ -1379,6 +2302,11 @@
         }
       });
       window.addEventListener("storage", (e) => {
+        if (e.key === JOBS_VIEW_KEY) {
+          jobsViewMode = readJobsViewMode();
+          writeJobsViewMode(jobsViewMode);
+          renderStationsJobs();
+        }
         if (e.key === MODULE_PREF_KEY) {
           renderModules();
           updateDockButtons();
@@ -1390,9 +2318,30 @@
         updateDockButtons();
         ensureWorkspaceModuleAllowed();
       });
+      window.addEventListener("vmill:lang:changed", () => {
+        if (globalLangSel && window.VMillLang?.getLanguage) {
+          globalLangSel.value = window.VMillLang.getLanguage();
+        }
+        applyHubI18nStatic();
+        renderModules();
+        renderStationsJobs();
+        renderStructure();
+        renderOverview();
+        refreshWorkspaceChrome();
+        setTopbarCollapsed(topbarCollapsed, false);
+      });
 
       const workspacePrefs = readWorkspacePrefs();
+      const topbarPrefs = readTopbarPrefs();
       overlayVisible = workspacePrefs.overlayVisible;
+      topbarCollapsed = topbarPrefs.collapsed;
+      jobsViewMode = readJobsViewMode();
+      writeJobsViewMode(jobsViewMode);
+      initGlobalLanguageControl();
+      applyHubI18nStatic();
+      bindTopbarPanel();
+      setTopbarCollapsed(topbarCollapsed, false);
+      if (!topbarCollapsed) scheduleTopbarAutoHide();
       bindWorkspaceRouting();
       refreshWorkspaceChrome();
       setDesktopOverlayVisibility(overlayVisible);
@@ -1405,6 +2354,7 @@
       ensureWorkspaceModuleAllowed();
       renderOverview();
       renderStationsJobs();
+      renderStructure();
       window.CANBus?.emit("hub:ready", { modules: mods.length }, "hub");
     })();
   </script>

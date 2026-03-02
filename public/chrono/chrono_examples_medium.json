@@ -8,17 +8,17 @@
     {
       "id": "19425df9-f02e-4c97-b59a-6ab149cf7362",
       "code": "S01",
-      "name": "Line A — Station 1"
+      "name": "Line A \u2014 Station 1"
     },
     {
       "id": "8156c0a4-e24f-4398-a484-411a77fa766a",
       "code": "S02",
-      "name": "Line B — Station 2"
+      "name": "Line B \u2014 Station 2"
     },
     {
       "id": "14a7614c-c4af-4108-8134-06627bd81109",
       "code": "S03",
-      "name": "Line C — Station 3"
+      "name": "Line C \u2014 Station 3"
     }
   ],
   "jobs": [
@@ -1503,7 +1503,8 @@
           "tag": "Rework",
           "note": "Auto sample: Rework"
         }
-      ]
+      ],
+      "productId": "234b994d-6c47-4ecd-966d-b2c5a10978d5"
     },
     {
       "id": "dda71f8e-ea9f-41ab-ae49-0cabcd4d988c",
@@ -2887,7 +2888,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "7193b1fc-9171-48bc-b8d3-c0af74c7dd96"
     },
     {
       "id": "c3782cdc-0464-4b7d-8e58-cd49521efb8a",
@@ -4403,7 +4405,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "8792c58d-0e54-4558-bdb8-bde20eb35252"
     },
     {
       "id": "e781a9cc-9388-4526-a8c5-27be9bd00d33",
@@ -5457,7 +5460,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "234b994d-6c47-4ecd-966d-b2c5a10978d5"
     },
     {
       "id": "c01c921a-1123-4f56-a3a6-ade38ff11b10",
@@ -6940,7 +6944,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "7193b1fc-9171-48bc-b8d3-c0af74c7dd96"
     },
     {
       "id": "4fe6fcff-1923-43c3-9b60-8ac3b61c4a61",
@@ -8423,7 +8428,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "8792c58d-0e54-4558-bdb8-bde20eb35252"
     },
     {
       "id": "4127ee3e-ccae-411f-9bb8-4aad5fe36cce",
@@ -9741,7 +9747,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "234b994d-6c47-4ecd-966d-b2c5a10978d5"
     },
     {
       "id": "1fd16e9b-6642-49cf-bc04-5e3f2abf33d0",
@@ -10927,7 +10934,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "7193b1fc-9171-48bc-b8d3-c0af74c7dd96"
     },
     {
       "id": "bfa1d58e-dbc7-4793-b2fa-b66590317665",
@@ -12311,7 +12319,29 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "8792c58d-0e54-4558-bdb8-bde20eb35252"
     }
-  ]
+  ],
+  "products": [
+    {
+      "id": "234b994d-6c47-4ecd-966d-b2c5a10978d5",
+      "code": "P001",
+      "name": "Alpha Product",
+      "parentProductId": ""
+    },
+    {
+      "id": "7193b1fc-9171-48bc-b8d3-c0af74c7dd96",
+      "code": "P002",
+      "name": "Beta Product",
+      "parentProductId": "234b994d-6c47-4ecd-966d-b2c5a10978d5"
+    },
+    {
+      "id": "8792c58d-0e54-4558-bdb8-bde20eb35252",
+      "code": "P003",
+      "name": "Gamma Product",
+      "parentProductId": "234b994d-6c47-4ecd-966d-b2c5a10978d5"
+    }
+  ],
+  "activeProductId": "234b994d-6c47-4ecd-966d-b2c5a10978d5"
 }

@@ -8,12 +8,12 @@
     {
       "id": "f928827d-5ee2-480b-bf31-6df44ce3907c",
       "code": "S01",
-      "name": "Line A — Station 1"
+      "name": "Line A \u2014 Station 1"
     },
     {
       "id": "80c3a9f4-c7dc-482b-a2a3-864d41202466",
       "code": "S02",
-      "name": "Line B — Station 2"
+      "name": "Line B \u2014 Station 2"
     }
   ],
   "jobs": [
@@ -871,7 +871,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "2cc28999-5189-4248-8d14-6333dc4f2639"
     },
     {
       "id": "da9f3e9b-15f7-402a-9e25-0aa2a02cce35",
@@ -1628,7 +1629,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "0e761ae3-1bce-4fde-b081-c856a467d71f"
     },
     {
       "id": "b4596ad9-2e85-4641-a2ff-17a6bc94350b",
@@ -2385,7 +2387,8 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "2cc28999-5189-4248-8d14-6333dc4f2639"
     },
     {
       "id": "6e7b1f91-08e5-4c32-b877-17930a2e7224",
@@ -3109,7 +3112,23 @@
           "tag": "Normal",
           "note": ""
         }
-      ]
+      ],
+      "productId": "0e761ae3-1bce-4fde-b081-c856a467d71f"
     }
-  ]
+  ],
+  "products": [
+    {
+      "id": "2cc28999-5189-4248-8d14-6333dc4f2639",
+      "code": "P001",
+      "name": "Alpha Product",
+      "parentProductId": ""
+    },
+    {
+      "id": "0e761ae3-1bce-4fde-b081-c856a467d71f",
+      "code": "P002",
+      "name": "Beta Product",
+      "parentProductId": "2cc28999-5189-4248-8d14-6333dc4f2639"
+    }
+  ],
+  "activeProductId": "2cc28999-5189-4248-8d14-6333dc4f2639"
 }
