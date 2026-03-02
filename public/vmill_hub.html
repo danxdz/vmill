@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>VMill Hub</title>
   <style>
+    @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap");
     :root {
       --bg:#0a0f17;
       --bg2:#111827;
@@ -26,7 +27,7 @@
     body {
       margin: 0;
       color: var(--text);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-family: "Space Grotesk", "Sora", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       min-height: 100vh;
       background:
         radial-gradient(1200px 600px at 12% -10%, rgba(87,180,255,.18), transparent 60%),
@@ -92,23 +93,25 @@
     .topbar {
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
-      padding: 12px;
+      background:
+        radial-gradient(700px 220px at 20% -40%, rgba(87,180,255,.16), transparent 60%),
+        linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      padding: 14px 16px;
       display: flex;
       justify-content: space-between;
-      align-items: flex-end;
+      align-items: center;
       gap: 12px;
       box-shadow: var(--shadow);
     }
-    .topbar h1 { margin: 0; font-size: 24px; letter-spacing: .02em; }
-    .sub { margin-top: 6px; color: var(--muted); font-size: 13px; }
+    .topbar h1 { margin: 0; font-size: 26px; letter-spacing: .01em; }
+    .sub { margin-top: 5px; color: var(--muted); font-size: 12px; }
     .pill {
       border: 1px solid var(--border);
       border-radius: 999px;
       padding: 7px 12px;
-      font-size: 12px;
-      color: var(--muted);
-      background: rgba(255,255,255,.02);
+      font-size: 11px;
+      color: #cae6ff;
+      background: rgba(87,180,255,.1);
       white-space: nowrap;
     }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
@@ -146,19 +149,21 @@
     .widget.dragging { opacity: .45; }
     .widget.dropBefore .widgetHeader { box-shadow: inset 0 2px 0 var(--accent); }
 
-    .controlRow { display: flex; gap: 8px; flex-wrap: wrap; }
+    .controlRow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .btn {
       border: 1px solid #345478;
-      background: rgba(87,180,255,.12);
+      background: linear-gradient(180deg, rgba(87,180,255,.2), rgba(87,180,255,.08));
       color: #bde6ff;
       border-radius: 10px;
       padding: 8px 10px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       cursor: pointer;
       text-decoration: none;
       display: inline-block;
+      transition: .15s ease;
     }
+    .btn:hover { transform: translateY(-1px); border-color: #4a77a8; }
     .btn.alt { border-color: #355a4c; background: rgba(104,211,154,.12); color: #bbf4d2; }
     .btn.warn { border-color: #7d6838; background: rgba(255,211,122,.12); color: #ffe7ae; }
     .btn.ghost { border-color: var(--border); background: rgba(255,255,255,.03); color: var(--muted); }
@@ -314,6 +319,32 @@
       font-size: 12px;
       text-align: center;
     }
+    .fold {
+      margin-top: 8px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px;
+      background: rgba(255,255,255,.02);
+      padding: 6px 8px;
+    }
+    .fold summary {
+      list-style: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .02em;
+      user-select: none;
+    }
+    .fold summary::-webkit-details-marker { display: none; }
+    .minor {
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .toolbarMini {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+    }
 
     @media (max-width: 1100px) {
       .widget[data-size="wide"], .widget[data-size="half"], .widget[data-size="narrow"] { grid-column: span 12; }
@@ -347,10 +378,10 @@
     <main class="main">
       <section class="topbar">
         <div>
-          <h1>VMill Module Manager</h1>
-          <div class="sub">Desktop launcher with widgets, dynamic shortcuts, shared CRUD sync, and offline backups.</div>
+          <h1>VMill Hub</h1>
+          <div class="sub">Shared jobs, stations, modules, and backups in one workspace.</div>
         </div>
-        <div class="pill">CAN Bus: <span class="mono">vmill:canbus:v1</span></div>
+        <div class="pill">CAN BUS ONLINE</div>
       </section>
 
       <section class="desktop" id="desktop">
@@ -364,12 +395,12 @@
               <div class="kpi"><div class="v" id="kpiStations">0</div><div class="l">Stations</div></div>
               <div class="kpi"><div class="v" id="kpiJobs">0</div><div class="l">Jobs</div></div>
               <div class="kpi"><div class="v" id="kpiCycles">0</div><div class="l">Cycles</div></div>
-              <div class="kpi"><div class="v" id="kpiSignals">0</div><div class="l">SPaCial signals</div></div>
+              <div class="kpi"><div class="v" id="kpiSignals">0</div><div class="l">SPaCial Routes</div></div>
             </div>
             <div class="controlRow">
-              <a class="btn" id="overviewChronoLink" href="./chrono/chrono.html">Open Chrono</a>
-              <a class="btn alt" id="overviewCameraLink" href="./chrono/chrono_camera.html">Open Camera</a>
-              <a class="btn warn" id="overviewSpacialLink" href="./SPaCial.html">Open SPaCial</a>
+              <a class="btn" id="overviewChronoLink" href="./chrono/chrono.html">Chrono</a>
+              <a class="btn alt" id="overviewCameraLink" href="./chrono/chrono_camera.html">Camera</a>
+              <a class="btn warn" id="overviewSpacialLink" href="./SPaCial.html">SPaCial</a>
             </div>
           </div>
         </article>
@@ -377,7 +408,7 @@
         <article class="widget" data-widget="modules" data-size="wide">
           <header class="widgetHeader" draggable="true">
             <div class="widgetTitle">Modules</div>
-            <div class="mono" style="color:var(--muted);font-size:11px;">Launch + status</div>
+            <div class="minor">Launch and availability</div>
           </header>
           <div class="widgetBody">
             <div class="moduleGrid" id="moduleGrid"></div>
@@ -391,9 +422,14 @@
               <select id="stationFilter" style="max-width:220px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;"></select>
               <input id="stationJobSearch" type="text" placeholder="Search station/job..." style="max-width:220px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;" />
               <button class="btn ghost" id="addStationBtn" type="button">+ Station</button>
-              <button class="btn ghost" id="renameStationBtn" type="button">Rename</button>
-              <button class="btn ghost" id="deleteStationBtn" type="button">Delete</button>
               <button class="btn" id="addJobBtn" type="button">+ Job</button>
+              <details class="fold" style="margin:0;">
+                <summary>More</summary>
+                <div class="toolbarMini" style="margin-top:6px;">
+                  <button class="btn ghost" id="renameStationBtn" type="button">Rename Station</button>
+                  <button class="btn ghost" id="deleteStationBtn" type="button">Delete Station</button>
+                </div>
+              </details>
             </div>
           </header>
           <div class="widgetBody">
@@ -404,26 +440,26 @@
         <article class="widget" data-widget="data" data-size="half">
           <header class="widgetHeader" draggable="true">
             <div class="widgetTitle">Data & Backup</div>
-            <div class="mono" style="color:var(--muted);font-size:11px;">JSON/CSV/TXT</div>
+            <div class="minor">Global state tools</div>
           </header>
           <div class="widgetBody">
-            <div style="color:var(--muted);font-size:12px;line-height:1.45;">
-              Shared storage APIs: <span class="mono">window.VMillData</span>. User keeps local ownership of all data.
-            </div>
             <div class="controlRow" style="margin-top:10px;">
-              <button class="btn" id="exportAllBtn" type="button">Export All JSON</button>
-              <button class="btn" id="exportCsvBtn" type="button">Export Cycles CSV</button>
-              <button class="btn" id="exportTxtBtn" type="button">Export Summary TXT</button>
               <button class="btn ghost" id="importAllBtn" type="button">Import JSON Snapshot</button>
+              <button class="btn" id="exportAllBtn" type="button">Export All JSON</button>
+              <button class="btn alt" id="seedDemoBtn" type="button">Seed Demo</button>
+              <button class="btn ghost" id="demoMediumBtn" type="button">Load Demo M</button>
+              <button class="btn warn" id="removeDemoBtn" type="button">Remove Demo</button>
               <input id="importFile" type="file" accept=".json" style="display:none" />
             </div>
-            <div class="controlRow" style="margin-top:8px;">
-              <button class="btn alt" id="seedDemoBtn" type="button">Seed Demo</button>
-              <button class="btn ghost" id="demoSmallBtn" type="button">Demo Small</button>
-              <button class="btn ghost" id="demoMediumBtn" type="button">Demo Medium</button>
-              <button class="btn ghost" id="demoLargeBtn" type="button">Demo Large</button>
-              <button class="btn warn" id="removeDemoBtn" type="button">Remove Demo Data</button>
-            </div>
+            <details class="fold">
+              <summary>Advanced Tools</summary>
+              <div class="controlRow" style="margin-top:8px;">
+                <button class="btn" id="exportCsvBtn" type="button">Export Cycles CSV</button>
+                <button class="btn" id="exportTxtBtn" type="button">Export Summary TXT</button>
+                <button class="btn ghost" id="demoSmallBtn" type="button">Demo Small</button>
+                <button class="btn ghost" id="demoLargeBtn" type="button">Demo Large</button>
+              </div>
+            </details>
           </div>
         </article>
 
@@ -801,12 +837,12 @@
         const jobs = Array.isArray(st.jobs) ? st.jobs : [];
         let cycles = 0;
         for (const j of jobs) cycles += Array.isArray(j.cycles) ? j.cycles.length : 0;
-        const signals = window.VMillData?.listRecords ? window.VMillData.listRecords("spacial_signals").length : 0;
+        const routes = window.VMillData?.listRecords ? window.VMillData.listRecords("spacial_routes").length : 0;
 
         document.getElementById("kpiStations").textContent = String(stations.length);
         document.getElementById("kpiJobs").textContent = String(jobs.length);
         document.getElementById("kpiCycles").textContent = String(cycles);
-        document.getElementById("kpiSignals").textContent = String(signals);
+        document.getElementById("kpiSignals").textContent = String(routes);
 
         const activeJob = jobs.find((j) => String(j.id || "") === String(st.activeJobId || "")) || jobs[0] || null;
         const activeStation = stations.find((s) => String(s.id || "") === String(activeJob?.stationId || "")) || null;
