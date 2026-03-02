@@ -213,6 +213,54 @@
     #clearBtn { padding: 11px 14px; border-radius: 12px; font-size: 13px; border: 1px solid var(--danger-b); background: var(--danger-dim); color: var(--danger); cursor: pointer; }
     #clearBtn:disabled { opacity: .35; cursor: not-allowed; }
     .cycCnt { font-size: 11px; font-family: var(--mono); color: var(--muted); margin-top: 6px; text-align: center; }
+    .libList {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 190px;
+      overflow: auto;
+    }
+    .libItem {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(255,255,255,.03);
+      padding: 8px;
+      display: grid;
+      gap: 6px;
+    }
+    .libHead {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .libTitle {
+      font-weight: 700;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .libMeta {
+      color: var(--muted);
+      font-size: 11px;
+      font-family: var(--mono);
+    }
+    .libBtns {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .libBtns .smBtn {
+      padding: 6px 10px;
+      font-size: 11px;
+    }
+    .libEmpty {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 8px 2px;
+    }
 
     /* Toast */
     #toast {
@@ -341,6 +389,11 @@
     </div>
     <div class="cycCnt" id="cycCnt"></div>
   </div>
+
+  <div class="pSec">
+    <div class="pLabel">Recorded bookmarks</div>
+    <div id="videoBookmarksList" class="libList"></div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -449,7 +502,104 @@
     const list = loadVideoBookmarksLib();
     list.unshift(entry);
     saveVideoBookmarksLib(list);
+    renderVideoBookmarksLibrary();
     window.CANBus?.emit("camera:bookmarks:added", { id: entry.id, count: entry.bookmarks.length }, "chrono-camera");
+  }
+  function entryToLaps(entry){
+    const marks = Array.isArray(entry?.bookmarks) ? entry.bookmarks : [];
+    return marks.map((m, i) => {
+      const durA = Number(m?.durMs || 0);
+      const durB = Number(m?.endMs || 0) - Number(m?.startMs || 0);
+      const ms = Math.max(1, Math.round(Number.isFinite(durA) && durA > 0 ? durA : durB));
+      return {
+        elementId: String(m?.elementId || `__bm_${i+1}`),
+        name: String(m?.name || seqName(i+1)),
+        type: String(m?.type || "HUMAN"),
+        ms
+      };
+    });
+  }
+  function renderVideoBookmarksLibrary(){
+    const box = $("videoBookmarksList");
+    if(!box) return;
+    const list = loadVideoBookmarksLib();
+    if(!list.length){
+      box.innerHTML = `<div class="libEmpty">No bookmark records yet.</div>`;
+      return;
+    }
+    let h = "";
+    for(let i=0;i<list.length;i++){
+      const e = list[i] || {};
+      const title = String(e.title || e.jobName || "Capture");
+      const at = e.createdAt ? new Date(e.createdAt).toLocaleString() : "n/a";
+      const n = Array.isArray(e.bookmarks) ? e.bookmarks.length : 0;
+      const t = Math.max(0, Math.round(Number(e.totalMs || 0)));
+      h += `
+        <div class="libItem">
+          <div class="libHead">
+            <div class="libTitle" title="${esc(title)}">${esc(title)}</div>
+            <div class="libMeta">${fmtMs(t)}</div>
+          </div>
+          <div class="libMeta">${esc(at)} · ${n} marks</div>
+          <div class="libBtns">
+            <button class="smBtn" type="button" data-lib-use="${i}">Load as cycle</button>
+            <button class="smBtn" type="button" data-lib-json="${i}">JSON</button>
+            <button class="smBtn" type="button" data-lib-del="${i}">Delete</button>
+          </div>
+        </div>`;
+    }
+    box.innerHTML = h;
+    box.querySelectorAll("[data-lib-use]").forEach((el) => {
+      el.addEventListener("click", () => {
+        if(running) return toast("Stop recording first","w");
+        const idx = Number(el.dataset.libUse);
+        const entry = list[idx];
+        if(!entry) return;
+        const lapsFromMarks = entryToLaps(entry);
+        if(!lapsFromMarks.length) return toast("No bookmarks in entry","w");
+        const totalMs = lapsFromMarks.reduce((a, l) => a + Number(l.ms || 0), 0);
+        cycles.push({
+          id: uuid(),
+          atIso: entry.createdAt || iso(),
+          laps: lapsFromMarks,
+          totalMs,
+          tag: "Normal",
+          note: "Loaded from camera bookmarks"
+        });
+        updateCycCnt();
+        renderLaps();
+        updateBtns();
+        toast(`Loaded cycle from ${lapsFromMarks.length} marks`);
+      });
+    });
+    box.querySelectorAll("[data-lib-json]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const idx = Number(el.dataset.libJson);
+        const entry = list[idx];
+        if(!entry) return;
+        const name = `${sanitizeName(entry.title || entry.jobName || "capture")}_${String(entry.id || idx)}_bookmarks.json`;
+        const blob = new Blob([JSON.stringify(entry, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      });
+    });
+    box.querySelectorAll("[data-lib-del]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const idx = Number(el.dataset.libDel);
+        const entry = list[idx];
+        if(!entry) return;
+        if(!confirm(`Delete bookmark entry "${entry.title || entry.jobName || "Capture"}"?`)) return;
+        const next = list.filter((_, i) => i !== idx);
+        saveVideoBookmarksLib(next);
+        renderVideoBookmarksLibrary();
+      });
+    });
   }
   function sync() { state=loadCS(); populateJobSel(); updateBadge(); renderVideoBookmarksLibrary(); }
 

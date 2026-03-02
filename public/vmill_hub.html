@@ -89,6 +89,8 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+      position: relative;
+      min-height: 100vh;
     }
     .topbar {
       border: 1px solid var(--border);
@@ -105,6 +107,14 @@
     }
     .topbar h1 { margin: 0; font-size: 26px; letter-spacing: .01em; }
     .sub { margin-top: 5px; color: var(--muted); font-size: 12px; }
+    .topbarTools {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .topbarTools .btn { white-space: nowrap; }
     .pill {
       border: 1px solid var(--border);
       border-radius: 999px;
@@ -116,12 +126,63 @@
     }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
+    .workspace {
+      display: none;
+      position: relative;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(5,8,14,.92), rgba(9,14,24,.95));
+      box-shadow: var(--shadow);
+      min-height: 68vh;
+    }
+    .workspace.active { display: block; }
+    .workspaceFrame {
+      width: 100%;
+      min-height: 68vh;
+      height: calc(100vh - 160px);
+      border: 0;
+      background: #050811;
+    }
+    .workspaceEmpty,
+    .workspaceLoading {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      padding: 20px;
+      background: linear-gradient(180deg, rgba(7,11,18,.84), rgba(7,11,18,.72));
+      pointer-events: none;
+    }
+    .workspace.active .workspaceEmpty { display: none; }
+    .workspaceLoading { display: none; }
+    .workspace[data-loading="true"] .workspaceLoading { display: grid; }
+
     .desktop {
       display: grid;
       grid-template-columns: repeat(12, minmax(0, 1fr));
       gap: 12px;
       align-items: start;
     }
+    .main.moduleMode .desktop {
+      position: absolute;
+      top: 95px;
+      right: 12px;
+      bottom: 12px;
+      left: 12px;
+      z-index: 12;
+      overflow: auto;
+      padding: 4px;
+      border: 1px solid rgba(87,180,255,.24);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(7,12,20,.84), rgba(6,11,18,.9));
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+    }
+    .main.moduleMode .desktop.desktopHidden { display: none; }
     .widget {
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -349,6 +410,7 @@
     @media (max-width: 1100px) {
       .widget[data-size="wide"], .widget[data-size="half"], .widget[data-size="narrow"] { grid-column: span 12; }
       .kpis { grid-template-columns: repeat(2, 1fr); }
+      .main.moduleMode .desktop { top: 112px; }
     }
     @media (max-width: 760px) {
       .layout { grid-template-columns: 1fr; }
@@ -361,6 +423,13 @@
         justify-content: flex-start;
       }
       .main { order: 1; }
+      .workspaceFrame { height: 58vh; min-height: 58vh; }
+      .main.moduleMode .desktop {
+        top: 122px;
+        right: 8px;
+        bottom: 8px;
+        left: 8px;
+      }
     }
   </style>
 </head>
@@ -368,11 +437,11 @@
   <div class="layout">
     <aside class="dock">
       <div class="logo">VM</div>
-      <a class="dockBtn" data-dock-id="hub" href="./vmill_hub.html">Hub</a>
-      <a class="dockBtn" data-dock-id="chrono" href="./chrono/chrono.html">Chrono</a>
-      <a class="dockBtn" data-dock-id="chrono-camera" href="./chrono/chrono_camera.html">Camera</a>
-      <a class="dockBtn" data-dock-id="spacial" href="./SPaCial.html">SPaCial</a>
-      <a class="dockBtn" data-dock-id="cnc-sim" href="../index.html">CNC Sim</a>
+      <a class="dockBtn" data-dock-id="hub" data-module-id="hub" href="./vmill_hub.html">Hub</a>
+      <a class="dockBtn" data-dock-id="chrono" data-module-id="chrono" href="./chrono/chrono.html">Chrono</a>
+      <a class="dockBtn" data-dock-id="chrono-camera" data-module-id="chrono-camera" href="./chrono/chrono_camera.html">Camera</a>
+      <a class="dockBtn" data-dock-id="spacial" data-module-id="spacial" href="./SPaCial.html">SPaCial</a>
+      <a class="dockBtn" data-dock-id="cnc-sim" data-module-id="cnc-sim" href="../index.html">CNC Sim</a>
     </aside>
 
     <main class="main">
@@ -381,7 +450,23 @@
           <h1>VMill Hub</h1>
           <div class="sub">Shared jobs, stations, modules, and backups in one workspace.</div>
         </div>
-        <div class="pill">CAN BUS ONLINE</div>
+        <div class="topbarTools">
+          <button class="btn ghost" id="toggleDesktopBtn" type="button" style="display:none">Show Hub Overlay</button>
+          <button class="btn ghost" id="closeModuleBtn" type="button" aria-disabled="true" disabled>Back to Hub</button>
+          <div class="pill" id="moduleStatusPill">CAN BUS ONLINE</div>
+        </div>
+      </section>
+
+      <section class="workspace" id="workspace" data-loading="false">
+        <iframe
+          class="workspaceFrame"
+          id="workspaceFrame"
+          title="VMill Module Workspace"
+          loading="eager"
+          allow="camera; microphone; fullscreen"
+        ></iframe>
+        <div class="workspaceEmpty">Select a module to run in this workspace.</div>
+        <div class="workspaceLoading">Loading module...</div>
       </section>
 
       <section class="desktop" id="desktop">
@@ -398,9 +483,9 @@
               <div class="kpi"><div class="v" id="kpiSignals">0</div><div class="l">SPaCial Routes</div></div>
             </div>
             <div class="controlRow">
-              <a class="btn" id="overviewChronoLink" href="./chrono/chrono.html">Chrono</a>
-              <a class="btn alt" id="overviewCameraLink" href="./chrono/chrono_camera.html">Camera</a>
-              <a class="btn warn" id="overviewSpacialLink" href="./SPaCial.html">SPaCial</a>
+              <a class="btn" id="overviewChronoLink" data-module-id="chrono" href="./chrono/chrono.html">Chrono</a>
+              <a class="btn alt" id="overviewCameraLink" data-module-id="chrono-camera" href="./chrono/chrono_camera.html">Camera</a>
+              <a class="btn warn" id="overviewSpacialLink" data-module-id="spacial" href="./SPaCial.html">SPaCial</a>
             </div>
           </div>
         </article>
@@ -495,15 +580,49 @@
     (function () {
       const HUB_LAYOUT_KEY = "vmill:hub-layout:v1";
       const MODULE_PREF_KEY = "vmill:module-manager:v1";
+      const HUB_WORKSPACE_KEY = "vmill:hub-workspace:v1";
       const desktop = document.getElementById("desktop");
+      const mainEl = document.querySelector(".main");
+      const workspace = document.getElementById("workspace");
+      const workspaceFrame = document.getElementById("workspaceFrame");
+      const moduleStatusPill = document.getElementById("moduleStatusPill");
+      const toggleDesktopBtn = document.getElementById("toggleDesktopBtn");
+      const closeModuleBtn = document.getElementById("closeModuleBtn");
       const busLog = document.getElementById("busLog");
       const mods = Array.isArray(window.VMillModules) ? window.VMillModules : [];
+      const moduleById = new Map(mods.map((m) => [String(m.id || ""), m]));
       const allWidgets = Array.from(desktop.querySelectorAll(".widget"));
       const defaultOrder = allWidgets.map((w) => String(w.dataset.widget || ""));
       const dockButtons = Array.from(document.querySelectorAll(".dock [data-dock-id]"));
+      let overlayVisible = false;
+      let activeWorkspaceModuleId = "hub";
 
       function uuid() {
         return crypto.randomUUID?.() || `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      }
+
+      function readWorkspacePrefs() {
+        try {
+          const raw = localStorage.getItem(HUB_WORKSPACE_KEY);
+          const parsed = raw ? JSON.parse(raw) : {};
+          return {
+            moduleId: String(parsed?.moduleId || "hub"),
+            href: String(parsed?.href || ""),
+            overlayVisible: parsed?.overlayVisible !== false,
+          };
+        } catch {
+          return { moduleId: "hub", href: "", overlayVisible: true };
+        }
+      }
+
+      function writeWorkspacePrefs(next) {
+        if (!next || typeof next !== "object") return;
+        const payload = {
+          moduleId: String(next.moduleId || "hub"),
+          href: String(next.href || ""),
+          overlayVisible: !!next.overlayVisible,
+        };
+        localStorage.setItem(HUB_WORKSPACE_KEY, JSON.stringify(payload));
       }
 
       function readModulePrefs() {
@@ -532,6 +651,113 @@
         const id = String(moduleId || "");
         if (id === "can-bus") return true;
         return !readModulePrefs().disabled.includes(id);
+      }
+
+      function moduleIdFromHref(href) {
+        if (!href) return "";
+        try {
+          const path = new URL(href, location.href).pathname.toLowerCase();
+          if (path.includes("/chrono/chrono_camera.html")) return "chrono-camera";
+          if (path.includes("/chrono/chrono.html")) return "chrono";
+          if (path.includes("/spacial.html")) return "spacial";
+          if (path.endsWith("/index.html") || path === "/" || path.includes("/cnc_sim.html")) return "cnc-sim";
+          if (path.includes("/vmill_hub.html")) return "hub";
+        } catch {}
+        return "";
+      }
+
+      function moduleLabel(moduleId) {
+        const id = String(moduleId || "");
+        if (id === "hub") return "Hub";
+        return String(moduleById.get(id)?.name || id || "Module");
+      }
+
+      function setDesktopOverlayVisibility(nextVisible) {
+        overlayVisible = !!nextVisible;
+        desktop.classList.toggle("desktopHidden", !overlayVisible && activeWorkspaceModuleId !== "hub");
+        toggleDesktopBtn.textContent = overlayVisible ? "Hide Hub Overlay" : "Show Hub Overlay";
+        writeWorkspacePrefs({
+          moduleId: activeWorkspaceModuleId,
+          href: workspaceFrame.getAttribute("src") || "",
+          overlayVisible,
+        });
+      }
+
+      function refreshWorkspaceChrome() {
+        const inWorkspace = activeWorkspaceModuleId !== "hub";
+        toggleDesktopBtn.textContent = overlayVisible ? "Hide Hub Overlay" : "Show Hub Overlay";
+        mainEl.classList.toggle("moduleMode", inWorkspace);
+        workspace.classList.toggle("active", inWorkspace);
+        if (!inWorkspace) workspace.setAttribute("data-loading", "false");
+        if (!inWorkspace) desktop.classList.remove("desktopHidden");
+        if (inWorkspace) desktop.classList.toggle("desktopHidden", !overlayVisible);
+        if (inWorkspace) toggleDesktopBtn.style.display = "";
+        else toggleDesktopBtn.style.display = "none";
+        closeModuleBtn.disabled = !inWorkspace;
+        if (inWorkspace) closeModuleBtn.removeAttribute("aria-disabled");
+        else closeModuleBtn.setAttribute("aria-disabled", "true");
+        moduleStatusPill.textContent = inWorkspace
+          ? `${moduleLabel(activeWorkspaceModuleId)} running in workspace`
+          : "CAN BUS ONLINE";
+      }
+
+      function ensureWorkspaceModuleAllowed() {
+        if (activeWorkspaceModuleId === "hub") return;
+        if (!isModuleEnabled(activeWorkspaceModuleId)) closeWorkspace();
+      }
+
+      function openModuleInWorkspace(rawHref, moduleId) {
+        const id = String(moduleId || "");
+        if (!id || id === "hub") return closeWorkspace();
+        if (id === "can-bus") return closeWorkspace();
+        if (!isModuleEnabled(id)) return;
+        try {
+          const url = new URL(rawHref, location.href);
+          activeWorkspaceModuleId = id;
+          workspace.setAttribute("data-loading", "true");
+          workspaceFrame.src = url.href;
+          refreshWorkspaceChrome();
+          writeWorkspacePrefs({
+            moduleId: id,
+            href: url.href,
+            overlayVisible,
+          });
+        } catch {}
+      }
+
+      function closeWorkspace() {
+        activeWorkspaceModuleId = "hub";
+        refreshWorkspaceChrome();
+        writeWorkspacePrefs({ moduleId: "hub", href: "", overlayVisible });
+      }
+
+      function bindWorkspaceRouting() {
+        document.addEventListener("click", (e) => {
+          if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          const link = e.target instanceof Element ? e.target.closest("a[href]") : null;
+          if (!link) return;
+          if (link.getAttribute("aria-disabled") === "true") {
+            e.preventDefault();
+            return;
+          }
+          if (link.hasAttribute("download")) return;
+          const href = link.getAttribute("href");
+          const id = String(link.dataset.moduleId || moduleIdFromHref(href));
+          if (!id) return;
+          e.preventDefault();
+          if (id === "hub") closeWorkspace();
+          else openModuleInWorkspace(href, id);
+        });
+
+        workspaceFrame.addEventListener("load", () => {
+          workspace.setAttribute("data-loading", "false");
+        });
+
+        toggleDesktopBtn.addEventListener("click", () => {
+          if (activeWorkspaceModuleId === "hub") return;
+          setDesktopOverlayVisibility(!overlayVisible);
+        });
+        closeModuleBtn.addEventListener("click", closeWorkspace);
       }
 
       function readLayout() {
@@ -672,7 +898,7 @@
             </div>
             <div class="row">
               <span class="status ${ready ? "ready" : "planned"}">${m.status || "planned"}</span>
-              <a class="btn" ${(ready && enabled) ? `href="${m.href}"` : "href=\"#\" aria-disabled=\"true\""}>${(ready && enabled) ? "Open" : (enabled ? "Planned" : "Disabled")}</a>
+              <a class="btn" ${(ready && enabled) ? `href="${m.href}" data-module-id="${m.id}"` : "href=\"#\" aria-disabled=\"true\""}>${(ready && enabled) ? "Open" : (enabled ? "Planned" : "Disabled")}</a>
             </div>
           `;
           grid.appendChild(card);
@@ -990,9 +1216,9 @@
                   <div class="jobMeta">${cycCount} cycles</div>
                 </div>
                 <div class="jobActions">
-                  <a class="btn" ${chronoEnabled ? `href="${chronoHref}"` : 'href="#" aria-disabled="true"'}>Chrono</a>
-                  <a class="btn alt" ${cameraEnabled ? `href="${camHref}"` : 'href="#" aria-disabled="true"'}>Camera</a>
-                  <a class="btn warn" ${spacialEnabled ? `href="${spcHref}"` : 'href="#" aria-disabled="true"'}>SPaCial</a>
+                  <a class="btn" ${chronoEnabled ? `href="${chronoHref}" data-module-id="chrono"` : 'href="#" aria-disabled="true"'}>Chrono</a>
+                  <a class="btn alt" ${cameraEnabled ? `href="${camHref}" data-module-id="chrono-camera"` : 'href="#" aria-disabled="true"'}>Camera</a>
+                  <a class="btn warn" ${spacialEnabled ? `href="${spcHref}" data-module-id="spacial"` : 'href="#" aria-disabled="true"'}>SPaCial</a>
                   <button class="btn ghost" type="button" data-job-edit="${j.id}">Rename</button>
                   <button class="btn ghost" type="button" data-job-del="${j.id}">Delete</button>
                 </div>
@@ -1128,23 +1354,37 @@
         if (msg.type === "module:prefs:updated") {
           renderModules();
           updateDockButtons();
+          ensureWorkspaceModuleAllowed();
         }
       });
       window.addEventListener("storage", (e) => {
         if (e.key === MODULE_PREF_KEY) {
           renderModules();
           updateDockButtons();
+          ensureWorkspaceModuleAllowed();
         }
       });
       window.addEventListener("vmill:module-prefs-changed", () => {
         renderModules();
         updateDockButtons();
+        ensureWorkspaceModuleAllowed();
       });
+
+      const workspacePrefs = readWorkspacePrefs();
+      overlayVisible = workspacePrefs.overlayVisible;
+      bindWorkspaceRouting();
+      refreshWorkspaceChrome();
+      if (workspacePrefs.moduleId !== "hub" && workspacePrefs.href && isModuleEnabled(workspacePrefs.moduleId)) {
+        openModuleInWorkspace(workspacePrefs.href, workspacePrefs.moduleId);
+      } else {
+        setDesktopOverlayVisibility(overlayVisible);
+      }
 
       enableWidgetDnd();
       applyLayout();
       renderModules();
       updateDockButtons();
+      ensureWorkspaceModuleAllowed();
       renderOverview();
       renderStationsJobs();
       window.CANBus?.emit("hub:ready", { modules: mods.length }, "hub");
