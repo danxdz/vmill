@@ -6,10 +6,34 @@
   "outputDirectory": "dist",
   "routes": [
     {
+      "src": "^/$",
+      "dest": "/vmill_hub.html"
+    },
+    {
+      "src": "^/vmill_hub\\.html$",
+      "dest": "/vmill_hub.html"
+    },
+    {
+      "src": "^/SPaCial\\.html$",
+      "dest": "/SPaCial.html"
+    },
+    {
+      "src": "^/cnc_sim\\.html$",
+      "dest": "/cnc_sim.html"
+    },
+    {
+      "src": "^/chrono/(.*)$",
+      "dest": "/chrono/$1"
+    },
+    {
+      "src": "^/modules/(.*)$",
+      "dest": "/modules/$1"
+    },
+    {
       "handle": "filesystem"
     },
     {
-      "src": "/.*",
+      "src": "^/.*$",
       "dest": "/index.html"
     }
   ]
