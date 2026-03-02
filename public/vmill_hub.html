@@ -581,6 +581,13 @@
       const HUB_LAYOUT_KEY = "vmill:hub-layout:v1";
       const MODULE_PREF_KEY = "vmill:module-manager:v1";
       const HUB_WORKSPACE_KEY = "vmill:hub-workspace:v1";
+      const FALLBACK_MODULES = [
+        { id: "chrono", name: "Chrono Study", desc: "Timing, timeline editing, KPI, and cycle analysis.", href: "./chrono/chrono.html", status: "ready", tags: ["time-study", "timeline", "kpi"] },
+        { id: "chrono-camera", name: "Chrono Camera", desc: "Camera-assisted capture with sequence marks and bookmark export.", href: "./chrono/chrono_camera.html", status: "ready", tags: ["capture", "camera", "bookmarks"] },
+        { id: "spacial", name: "SPaCial", desc: "SPC analytics with control limits, rule flags, and offline backups.", href: "./SPaCial.html", status: "ready", tags: ["spc", "quality", "control-chart", "offline"] },
+        { id: "cnc-sim", name: "CNC Simulator", desc: "Launches the main CNC simulation workspace directly.", href: "../index.html", status: "ready", tags: ["cnc", "simulation"] },
+        { id: "can-bus", name: "CAN Bus Core", desc: "Common module communication backbone (CANBus-v1).", href: "./vmill_hub.html#io", status: "ready", tags: ["can", "diagnostics", "iot"] },
+      ];
       const desktop = document.getElementById("desktop");
       const mainEl = document.querySelector(".main");
       const workspace = document.getElementById("workspace");
@@ -589,7 +596,9 @@
       const toggleDesktopBtn = document.getElementById("toggleDesktopBtn");
       const closeModuleBtn = document.getElementById("closeModuleBtn");
       const busLog = document.getElementById("busLog");
-      const mods = Array.isArray(window.VMillModules) ? window.VMillModules : [];
+      const mods = (Array.isArray(window.VMillModules) && window.VMillModules.length)
+        ? window.VMillModules
+        : FALLBACK_MODULES;
       const moduleById = new Map(mods.map((m) => [String(m.id || ""), m]));
       const allWidgets = Array.from(desktop.querySelectorAll(".widget"));
       const defaultOrder = allWidgets.map((w) => String(w.dataset.widget || ""));
@@ -608,10 +617,10 @@
           return {
             moduleId: String(parsed?.moduleId || "hub"),
             href: String(parsed?.href || ""),
-            overlayVisible: parsed?.overlayVisible !== false,
+            overlayVisible: !!parsed?.overlayVisible,
           };
         } catch {
-          return { moduleId: "hub", href: "", overlayVisible: true };
+          return { moduleId: "hub", href: "", overlayVisible: false };
         }
       }
 
@@ -713,6 +722,7 @@
         if (!isModuleEnabled(id)) return;
         try {
           const url = new URL(rawHref, location.href);
+          if (overlayVisible) setDesktopOverlayVisibility(false);
           activeWorkspaceModuleId = id;
           workspace.setAttribute("data-loading", "true");
           workspaceFrame.src = url.href;
@@ -1374,11 +1384,8 @@
       overlayVisible = workspacePrefs.overlayVisible;
       bindWorkspaceRouting();
       refreshWorkspaceChrome();
-      if (workspacePrefs.moduleId !== "hub" && workspacePrefs.href && isModuleEnabled(workspacePrefs.moduleId)) {
-        openModuleInWorkspace(workspacePrefs.href, workspacePrefs.moduleId);
-      } else {
-        setDesktopOverlayVisibility(overlayVisible);
-      }
+      setDesktopOverlayVisibility(overlayVisible);
+      writeWorkspacePrefs({ moduleId: "hub", href: "", overlayVisible });
 
       enableWidgetDnd();
       applyLayout();
