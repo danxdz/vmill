@@ -78,6 +78,68 @@
     .actions{display:flex;gap:8px;flex-wrap:wrap;}
     .cfgGrid{display:grid;grid-template-columns:1fr 1fr 1fr 120px;gap:8px;}
     @media(max-width:980px){.cfgGrid{grid-template-columns:1fr 1fr;}}
+    .routeGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+    @media(max-width:980px){.routeGrid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+    .routeGrid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+    @media(max-width:980px){.routeGrid3{grid-template-columns:1fr;}}
+    .routeTools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+    .routeTools > *{flex:1 1 140px;}
+    .tableWrap{
+      margin-top:8px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      overflow:auto;
+      background:rgba(0,0,0,.18);
+    }
+    .tbl{
+      width:100%;
+      border-collapse:collapse;
+      min-width:880px;
+      font-size:12px;
+    }
+    .tbl th,.tbl td{
+      border-bottom:1px solid rgba(255,255,255,.08);
+      padding:7px 8px;
+      text-align:left;
+      vertical-align:top;
+    }
+    .tbl th{
+      color:var(--muted);
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      position:sticky;
+      top:0;
+      background:#101b2c;
+      z-index:1;
+    }
+    .tbl tr:last-child td{border-bottom:0;}
+    .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size:11px;
+    }
+    .canvasWrap{
+      margin-top:8px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      overflow:auto;
+      background:#090f18;
+    }
+    #bubbleCanvas{
+      display:block;
+      width:100%;
+      height:auto;
+      cursor:crosshair;
+      background:#0a111d;
+    }
+    .inlineCheck{
+      width:auto;
+      padding:0;
+      margin:0;
+    }
+    .tbl tr.sel td{
+      background:rgba(89,184,255,.12);
+    }
   </style>
 </head>
 <body>
@@ -138,18 +200,103 @@
       </section>
 
       <section class="card">
-        <div style="font-weight:700;">Signals / Notes (CRUD)</div>
-        <div class="mini">Shared namespace: <code>spacial_signals</code></div>
-        <div style="margin-top:8px;">
-          <textarea id="signalTxt" rows="4" placeholder="Write an SPC signal or observation..."></textarea>
+        <div class="chartBox" style="margin-top:0;">
+          <div style="font-weight:700;">Routing / Control Operations</div>
+          <div class="mini">Per selected job: route (gamme), operations, dimensional bubbles, drawing bubbles.</div>
+          <div class="routeGrid" style="margin-top:8px;">
+            <input id="routeNameIn" type="text" placeholder="Route name" />
+            <input id="routeRevisionIn" type="text" placeholder="Revision (A, B...)" />
+            <input id="routeProductRefIn" type="text" placeholder="Product / Drawing ref" />
+            <button id="routeSaveBtn" class="primary" type="button">Save Route</button>
+          </div>
+          <div class="routeTools">
+            <button id="routeResetBtn" type="button">Reload</button>
+            <button id="routeExportJsonBtn" type="button">Route JSON</button>
+            <button id="routeExportCsvBtn" type="button">Route CSV</button>
+            <button id="routeExportExcelBtn" type="button">Route Excel</button>
+            <button id="routeExportPdfBtn" class="warn" type="button">Route PDF</button>
+          </div>
+          <div class="mini" id="routeInfo" style="margin-top:8px;"></div>
+          <div class="routeGrid3" style="margin-top:8px;">
+            <select id="routeOpSel"></select>
+            <button id="opAddBtn" class="primary" type="button">+ Operation</button>
+            <button id="opDeleteBtn" class="danger" type="button">Delete Operation</button>
+          </div>
+          <div class="routeTools">
+            <button id="opUpBtn" type="button">Move Up</button>
+            <button id="opDownBtn" type="button">Move Down</button>
+          </div>
+          <div class="routeGrid3" style="margin-top:8px;">
+            <input id="opSeqIn" type="number" step="1" placeholder="Seq" />
+            <input id="opNameIn" type="text" placeholder="Operation name" />
+            <input id="opStationIn" type="text" placeholder="Station code" />
+            <input id="opWorkstationIn" type="text" placeholder="Workstation" />
+            <input id="opEstTimeIn" type="number" step="0.1" placeholder="Estimated time (min)" />
+            <input id="opSampleSizeIn" type="number" step="1" placeholder="Sample size" />
+            <input id="opFrequencyIn" type="text" placeholder="Frequency (e.g. 1/30min)" />
+            <input id="opControlMethodIn" type="text" placeholder="Control method" />
+            <input id="opNotesIn" type="text" placeholder="Operation notes" />
+          </div>
+          <div class="routeTools">
+            <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;">
+              <input id="opCriticalChk" type="checkbox" style="width:auto;padding:0;" />
+              Critical operation
+            </label>
+            <button id="opSaveBtn" class="primary" type="button">Save Operation</button>
+          </div>
+
+          <div class="mini" style="margin-top:10px;">Dimension bubbles for selected operation</div>
+          <div class="routeGrid3" style="margin-top:8px;">
+            <input id="bubbleIdIn" type="text" placeholder="Bubble ID (e.g. B01)" />
+            <input id="bubbleNameIn" type="text" placeholder="Dimension / feature name" />
+            <input id="bubbleNomIn" type="number" step="0.001" placeholder="Nominal" />
+            <input id="bubbleLslIn" type="number" step="0.001" placeholder="LSL" />
+            <input id="bubbleUslIn" type="number" step="0.001" placeholder="USL" />
+            <input id="bubbleUnitIn" type="text" placeholder="Unit (mm)" />
+            <input id="bubbleMethodIn" type="text" placeholder="Method" />
+            <input id="bubbleInstrumentIn" type="text" placeholder="Instrument" />
+            <input id="bubbleReactionIn" type="text" placeholder="Reaction plan" />
+          </div>
+          <div class="routeTools">
+            <button id="bubbleSaveBtn" class="primary" type="button">Save Bubble</button>
+            <button id="bubbleClearBtn" type="button">Clear Bubble Form</button>
+            <button id="bubbleImportBtn" type="button">Import Bubbles CSV</button>
+            <input id="bubbleImportFile" type="file" accept=".csv,text/csv" style="display:none;" />
+          </div>
+          <div class="tableWrap">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>Bubble</th>
+                  <th>Name</th>
+                  <th>Nominal</th>
+                  <th>LSL</th>
+                  <th>USL</th>
+                  <th>Unit</th>
+                  <th>Method</th>
+                  <th>Instrument</th>
+                  <th>Reaction</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="bubbleTableBody"></tbody>
+            </table>
+          </div>
+          <div class="chartTitle" style="margin-top:10px;">Bubble Drawing (OCR Canvas style)</div>
+          <div class="routeTools">
+            <input id="bubbleDrawingFile" type="file" accept="image/*" />
+            <button id="bubbleDrawingClearBtn" type="button">Clear Image</button>
+            <button id="bubbleDeleteSelBtn" type="button" class="danger">Delete Selected Bubble</button>
+            <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;">
+              <input id="bubbleShowBoxesChk" class="inlineCheck" type="checkbox" checked />
+              Show boxes
+            </label>
+          </div>
+          <div class="mini" id="bubbleCanvasInfo">Upload drawing then drag to create/select bubble boxes. Drag circle to move bubble label.</div>
+          <div class="canvasWrap">
+            <canvas id="bubbleCanvas" width="1000" height="560"></canvas>
+          </div>
         </div>
-        <div class="actions" style="margin-top:8px;">
-          <button class="primary" id="addSignalBtn" type="button">Add Signal</button>
-          <button class="warn" id="backupAllBtn" type="button">Backup All Snapshot</button>
-          <button class="danger" id="importSnapshotBtn" type="button">Import Snapshot</button>
-          <input id="importFile" type="file" accept=".json" style="display:none;" />
-        </div>
-        <div id="signals" class="logList"></div>
       </section>
     </div>
   </div>
@@ -159,13 +306,24 @@
   <script src="./modules/module-data.js"></script>
   <script>
     (function () {
-      const KEY = "chrono_drawer_timeline_v5";
+      const KEY = "vmill:app-state:v1";
       const LEGACY_KEYS = ["chrono_drawer_timeline_v5", "chrono_drawer_timeline_v4", "chrono_drawer_timeline_v3"];
-      const NS = "spacial_signals";
+      const WATCH_KEYS = [KEY, ...LEGACY_KEYS];
       const NS_CFG = "spacial_job_config";
+      const NS_ROUTE = "spacial_routes";
       const launchParams = new URLSearchParams(window.location.search || "");
       let launchRouteApplied = false;
       let lastStateSig = "";
+      let routePlan = null;
+      let selectedOpId = "";
+      let editingBubbleId = "";
+      let selectedCanvasBubbleId = "";
+      let bubbleCanvasImage = null;
+      let bubbleCanvasImageSrc = "";
+      let bubbleCanvasMode = "idle"; // idle | draw | dragBox | dragLabel
+      let bubbleCanvasStart = null;
+      let bubbleCanvasRect = null;
+      let bubbleCanvasLast = null;
       const $ = (id) => document.getElementById(id);
 
       function fmt(n, d = 1) {
@@ -184,6 +342,739 @@
       function numOrNull(v) {
         const n = Number(v);
         return Number.isFinite(n) ? n : null;
+      }
+      function cloneJson(v, fallback) {
+        try {
+          return JSON.parse(JSON.stringify(v));
+        } catch {
+          return fallback;
+        }
+      }
+      function persistState(state) {
+        if (!state || typeof state !== "object") return;
+        state.meta = state.meta || {};
+        if (!state.meta.createdAt) state.meta.createdAt = new Date().toISOString();
+        state.meta.updatedAt = new Date().toISOString();
+        if (window.VMillData?.writeAppState) {
+          window.VMillData.writeAppState(state);
+          return;
+        }
+        const raw = JSON.stringify(state);
+        localStorage.setItem(KEY, raw);
+        for (const k of LEGACY_KEYS) localStorage.setItem(k, raw);
+      }
+      function parseLaunchHandoff() {
+        const raw = String(launchParams.get("handoff") || "").trim();
+        if (!raw) return null;
+        try {
+          const decoded = decodeURIComponent(raw);
+          const payload = JSON.parse(decoded);
+          const station = payload?.station && typeof payload.station === "object" ? payload.station : {};
+          const job = payload?.job && typeof payload.job === "object" ? payload.job : {};
+          const jobId = String(job.id || "").trim();
+          if (!jobId) return null;
+          const stationId = String(job.stationId || station.id || `st_${jobId}`).trim();
+          const cycles = Array.isArray(job.cycles) ? job.cycles.map((c) => ({
+            id: c?.id || `cy_${Math.random().toString(16).slice(2)}`,
+            totalMs: Number(c?.totalMs || 0),
+            atIso: c?.atIso || new Date().toISOString(),
+            tag: c?.tag || "Normal",
+          })) : [];
+          return {
+            station: {
+              id: stationId,
+              code: String(station.code || "ST"),
+              name: String(station.name || "Station"),
+            },
+            job: {
+              id: jobId,
+              stationId,
+              name: String(job.name || "Job"),
+              cycles,
+            },
+            activeJobId: String(payload?.activeJobId || jobId),
+          };
+        } catch {
+          return null;
+        }
+      }
+      function createStateFromHandoff(h) {
+        if (!h?.job?.id) return null;
+        return {
+          meta: { createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          activeJobId: h.activeJobId || h.job.id,
+          stations: [h.station],
+          jobs: [h.job],
+          actionTypes: [],
+          ui: {},
+        };
+      }
+      function applyHandoffToState(state, handoff) {
+        if (!handoff?.job?.id) return { state, changed: false };
+        const next = cloneJson(state, state) || {};
+        if (!Array.isArray(next.stations)) next.stations = [];
+        if (!Array.isArray(next.jobs)) next.jobs = [];
+        let changed = false;
+
+        const stationId = String(handoff.station?.id || handoff.job?.stationId || "");
+        if (stationId && !next.stations.some((s) => String(s.id || "") === stationId)) {
+          next.stations.push({
+            id: stationId,
+            code: handoff.station?.code || "ST",
+            name: handoff.station?.name || "Station",
+          });
+          changed = true;
+        }
+
+        const jobId = String(handoff.job.id || "");
+        const jobIdx = next.jobs.findIndex((j) => String(j.id || "") === jobId);
+        if (jobIdx < 0) {
+          next.jobs.push({
+            id: jobId,
+            stationId: stationId || handoff.job.stationId || "",
+            name: handoff.job.name || "Job",
+            allowancePct: 12,
+            ratingPct: 100,
+            elements: [],
+            cycles: Array.isArray(handoff.job.cycles) ? handoff.job.cycles.slice() : [],
+          });
+          changed = true;
+        } else {
+          const existing = next.jobs[jobIdx];
+          if (!existing.stationId && (stationId || handoff.job.stationId)) {
+            existing.stationId = stationId || handoff.job.stationId;
+            changed = true;
+          }
+          if (!existing.name && handoff.job.name) {
+            existing.name = handoff.job.name;
+            changed = true;
+          }
+          if ((!Array.isArray(existing.cycles) || existing.cycles.length === 0) && Array.isArray(handoff.job.cycles) && handoff.job.cycles.length) {
+            existing.cycles = handoff.job.cycles.slice();
+            changed = true;
+          }
+        }
+
+        const wantedActive = String(handoff.activeJobId || jobId || "");
+        if (wantedActive && String(next.activeJobId || "") !== wantedActive) {
+          next.activeJobId = wantedActive;
+          changed = true;
+        }
+        if (changed) {
+          next.meta = next.meta || {};
+          if (!next.meta.createdAt) next.meta.createdAt = new Date().toISOString();
+          next.meta.updatedAt = new Date().toISOString();
+        }
+        return { state: next, changed };
+      }
+      const launchHandoff = parseLaunchHandoff();
+      function strOrEmpty(v) {
+        return String(v == null ? "" : v).trim();
+      }
+      function escHtml(v) {
+        return String(v || "").replace(/[&<>"']/g, (c) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          "\"": "&quot;",
+          "'": "&#39;",
+        }[c]));
+      }
+      function csvCell(v) {
+        const s = String(v == null ? "" : v);
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, "\"\"")}"` : s;
+      }
+      function uid(prefix) {
+        return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
+      }
+      function sortOpsBySeq(list) {
+        return list.slice().sort((a, b) => {
+          const sa = Number(a?.seq);
+          const sb = Number(b?.seq);
+          const va = Number.isFinite(sa) ? sa : 0;
+          const vb = Number.isFinite(sb) ? sb : 0;
+          return va - vb;
+        });
+      }
+      function normalizeBubble(raw, idx = 0) {
+        const id = strOrEmpty(raw?.id || raw?.bubbleId || raw?.bubble || "");
+        const name = strOrEmpty(raw?.name || raw?.feature || raw?.dimension || "");
+        const x1 = Number(raw?.bbox?.x1 ?? raw?.x1);
+        const y1 = Number(raw?.bbox?.y1 ?? raw?.y1);
+        const x2 = Number(raw?.bbox?.x2 ?? raw?.x2);
+        const y2 = Number(raw?.bbox?.y2 ?? raw?.y2);
+        const hasBbox = Number.isFinite(x1) && Number.isFinite(y1) && Number.isFinite(x2) && Number.isFinite(y2);
+        const bx = Number(raw?.bubbleOffset?.x);
+        const by = Number(raw?.bubbleOffset?.y);
+        return {
+          id: id || `B${String(idx + 1).padStart(3, "0")}`,
+          name: name || `Dimension ${idx + 1}`,
+          nominal: numOrNull(raw?.nominal),
+          lsl: numOrNull(raw?.lsl),
+          usl: numOrNull(raw?.usl),
+          unit: strOrEmpty(raw?.unit || "mm"),
+          method: strOrEmpty(raw?.method),
+          instrument: strOrEmpty(raw?.instrument || raw?.gauge || raw?.gage),
+          reactionPlan: strOrEmpty(raw?.reactionPlan || raw?.reaction),
+          bbox: hasBbox ? { x1, y1, x2, y2 } : null,
+          bubbleOffset: (Number.isFinite(bx) && Number.isFinite(by)) ? { x: bx, y: by } : null,
+        };
+      }
+      function normalizeOperation(raw, idx = 0) {
+        const seqNum = Number(raw?.seq);
+        const bubbles = Array.isArray(raw?.bubbles) ? raw.bubbles : [];
+        return {
+          id: strOrEmpty(raw?.id) || uid("op"),
+          seq: Number.isFinite(seqNum) ? seqNum : ((idx + 1) * 10),
+          name: strOrEmpty(raw?.name) || `Operation ${idx + 1}`,
+          stationCode: strOrEmpty(raw?.stationCode),
+          workstation: strOrEmpty(raw?.workstation),
+          estimatedTimeMin: numOrNull(raw?.estimatedTimeMin),
+          sampleSize: numOrNull(raw?.sampleSize),
+          frequency: strOrEmpty(raw?.frequency),
+          controlMethod: strOrEmpty(raw?.controlMethod),
+          critical: !!raw?.critical,
+          notes: strOrEmpty(raw?.notes),
+          bubbles: bubbles.map((b, i) => normalizeBubble(b, i)),
+        };
+      }
+      function normalizeRoutePlan(raw, job, station) {
+        const src = raw && typeof raw === "object" ? raw : {};
+        const operations = Array.isArray(src.operations) ? src.operations : [];
+        const routeName = strOrEmpty(src.routeName || job?.name || "Main route");
+        const revision = strOrEmpty(src.revision || "A");
+        const stationLabel = station ? `${station.code || "--"} - ${station.name || "Station"}` : "";
+        return {
+          id: strOrEmpty(src.id || `routeplan_${job?.id || uid("jobless")}`),
+          jobId: strOrEmpty(src.jobId || job?.id),
+          jobName: strOrEmpty(src.jobName || job?.name),
+          stationId: strOrEmpty(src.stationId || job?.stationId || station?.id),
+          stationLabel: strOrEmpty(src.stationLabel || stationLabel),
+          routeName,
+          revision,
+          productRef: strOrEmpty(src.productRef),
+          drawingImage: typeof src.drawingImage === "string" ? src.drawingImage : "",
+          updatedAt: new Date().toISOString(),
+          operations: sortOpsBySeq(operations.map((op, i) => normalizeOperation(op, i))),
+        };
+      }
+      function currentStateAndJob() {
+        const state = readState();
+        const jobId = strOrEmpty($("jobSel")?.value || state?.activeJobId || "");
+        const job = getJob(state, jobId) || null;
+        const station = getStation(state, job?.stationId) || null;
+        return { state, job, station };
+      }
+      function readRoutePlanForJob(job, state) {
+        if (!job) return null;
+        const rows = window.VMillData?.listRecords ? window.VMillData.listRecords(NS_ROUTE) : [];
+        const found = rows.find((x) => String(x.jobId || "") === String(job.id || ""))
+          || rows.find((x) => String(x.id || "") === `routeplan_${job.id}`);
+        const station = getStation(state, job.stationId) || null;
+        return normalizeRoutePlan(found, job, station);
+      }
+      function writeRoutePlan(plan) {
+        if (!plan || !window.VMillData?.upsertRecord) return;
+        const { job, station } = currentStateAndJob();
+        const normalized = normalizeRoutePlan(plan, job || { id: plan.jobId, name: plan.jobName, stationId: plan.stationId }, station);
+        normalized.updatedAt = new Date().toISOString();
+        window.VMillData.upsertRecord(NS_ROUTE, normalized);
+        routePlan = normalized;
+        window.CANBus?.emit("spacial:route:updated", { jobId: normalized.jobId, ops: normalized.operations.length }, "spacial");
+      }
+      function operationById(opId) {
+        if (!routePlan || !Array.isArray(routePlan.operations)) return null;
+        return routePlan.operations.find((x) => String(x.id || "") === String(opId || "")) || null;
+      }
+      function refreshRouteInfo() {
+        const info = $("routeInfo");
+        if (!info) return;
+        if (!routePlan) {
+          info.textContent = "No active job for route planning.";
+          return;
+        }
+        const bubbleCount = routePlan.operations.reduce((acc, op) => acc + ((op.bubbles || []).length), 0);
+        info.textContent = `Route "${routePlan.routeName || "-"}" rev ${routePlan.revision || "-"} | Ops: ${routePlan.operations.length} | Bubbles: ${bubbleCount}`;
+      }
+      function setRoutingDisabled(disabled) {
+        const ids = [
+          "routeNameIn","routeRevisionIn","routeProductRefIn","routeSaveBtn","routeResetBtn",
+          "routeExportJsonBtn","routeExportCsvBtn","routeExportExcelBtn","routeExportPdfBtn",
+          "routeOpSel","opAddBtn","opDeleteBtn","opUpBtn","opDownBtn","opSeqIn","opNameIn",
+          "opStationIn","opWorkstationIn","opEstTimeIn","opSampleSizeIn","opFrequencyIn","opControlMethodIn",
+          "opNotesIn","opCriticalChk","opSaveBtn","bubbleIdIn","bubbleNameIn","bubbleNomIn","bubbleLslIn",
+          "bubbleUslIn","bubbleUnitIn","bubbleMethodIn","bubbleInstrumentIn","bubbleReactionIn",
+          "bubbleSaveBtn","bubbleClearBtn","bubbleImportBtn","bubbleDrawingFile","bubbleDrawingClearBtn",
+          "bubbleDeleteSelBtn","bubbleShowBoxesChk",
+        ];
+        for (const id of ids) {
+          const el = $(id);
+          if (!el) continue;
+          el.disabled = !!disabled;
+        }
+      }
+      function renderOperationSelect() {
+        const sel = $("routeOpSel");
+        if (!sel) return;
+        sel.innerHTML = "";
+        const ops = Array.isArray(routePlan?.operations) ? routePlan.operations : [];
+        if (!ops.length) {
+          sel.innerHTML = `<option value="">No operations</option>`;
+          selectedOpId = "";
+          return;
+        }
+        for (const op of ops) {
+          const o = document.createElement("option");
+          o.value = op.id;
+          o.textContent = `${op.seq} - ${op.name}`;
+          sel.appendChild(o);
+        }
+        if (!ops.some((x) => String(x.id) === String(selectedOpId || ""))) selectedOpId = ops[0].id;
+        sel.value = selectedOpId;
+      }
+      function writeOperationToInputs(op) {
+        $("opSeqIn").value = op?.seq == null ? "" : String(op.seq);
+        $("opNameIn").value = op?.name || "";
+        $("opStationIn").value = op?.stationCode || "";
+        $("opWorkstationIn").value = op?.workstation || "";
+        $("opEstTimeIn").value = op?.estimatedTimeMin == null ? "" : String(op.estimatedTimeMin);
+        $("opSampleSizeIn").value = op?.sampleSize == null ? "" : String(op.sampleSize);
+        $("opFrequencyIn").value = op?.frequency || "";
+        $("opControlMethodIn").value = op?.controlMethod || "";
+        $("opNotesIn").value = op?.notes || "";
+        $("opCriticalChk").checked = !!op?.critical;
+      }
+      function clearBubbleForm() {
+        editingBubbleId = "";
+        selectedCanvasBubbleId = "";
+        $("bubbleIdIn").value = "";
+        $("bubbleNameIn").value = "";
+        $("bubbleNomIn").value = "";
+        $("bubbleLslIn").value = "";
+        $("bubbleUslIn").value = "";
+        $("bubbleUnitIn").value = "mm";
+        $("bubbleMethodIn").value = "";
+        $("bubbleInstrumentIn").value = "";
+        $("bubbleReactionIn").value = "";
+      }
+      function readBubbleForm() {
+        return normalizeBubble({
+          id: $("bubbleIdIn").value,
+          name: $("bubbleNameIn").value,
+          nominal: $("bubbleNomIn").value,
+          lsl: $("bubbleLslIn").value,
+          usl: $("bubbleUslIn").value,
+          unit: $("bubbleUnitIn").value,
+          method: $("bubbleMethodIn").value,
+          instrument: $("bubbleInstrumentIn").value,
+          reactionPlan: $("bubbleReactionIn").value,
+        }, 0);
+      }
+      function renderBubbleTable() {
+        const body = $("bubbleTableBody");
+        if (!body) return;
+        const op = operationById(selectedOpId);
+        if (!op) {
+          body.innerHTML = `<tr><td colspan="10" class="mini">Select or create an operation first.</td></tr>`;
+          return;
+        }
+        const bubbles = Array.isArray(op.bubbles) ? op.bubbles : [];
+        if (!bubbles.length) {
+          body.innerHTML = `<tr><td colspan="10" class="mini">No bubbles yet for this operation.</td></tr>`;
+          return;
+        }
+        body.innerHTML = bubbles.map((b, idx) => `
+          <tr class="${String(selectedCanvasBubbleId || "") === String(b.id || "") ? "sel" : ""}" data-bubble-pick="${idx}">
+            <td class="mono">${escHtml(b.id || "")}</td>
+            <td>${escHtml(b.name || "")}</td>
+            <td>${b.nominal == null ? "" : escHtml(b.nominal)}</td>
+            <td>${b.lsl == null ? "" : escHtml(b.lsl)}</td>
+            <td>${b.usl == null ? "" : escHtml(b.usl)}</td>
+            <td>${escHtml(b.unit || "")}</td>
+            <td>${escHtml(b.method || "")}</td>
+            <td>${escHtml(b.instrument || "")}</td>
+            <td>${escHtml(b.reactionPlan || "")}</td>
+            <td>
+              <div class="actions">
+                <button data-bubble-pick-btn="${idx}" type="button">Pick</button>
+                <button data-bubble-edit="${idx}" type="button">Edit</button>
+                <button data-bubble-del="${idx}" type="button" class="danger">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `).join("");
+        body.querySelectorAll("[data-bubble-edit]").forEach((el) => {
+          el.addEventListener("click", () => {
+            const i = Number(el.getAttribute("data-bubble-edit"));
+            const src = op.bubbles[i];
+            if (!src) return;
+            editingBubbleId = String(src.id || "");
+            selectedCanvasBubbleId = String(src.id || "");
+            $("bubbleIdIn").value = src.id || "";
+            $("bubbleNameIn").value = src.name || "";
+            $("bubbleNomIn").value = src.nominal == null ? "" : String(src.nominal);
+            $("bubbleLslIn").value = src.lsl == null ? "" : String(src.lsl);
+            $("bubbleUslIn").value = src.usl == null ? "" : String(src.usl);
+            $("bubbleUnitIn").value = src.unit || "";
+            $("bubbleMethodIn").value = src.method || "";
+            $("bubbleInstrumentIn").value = src.instrument || "";
+            $("bubbleReactionIn").value = src.reactionPlan || "";
+            drawBubbleCanvas();
+          });
+        });
+        body.querySelectorAll("[data-bubble-pick]").forEach((el) => {
+          el.addEventListener("click", (e) => {
+            if ((e.target?.closest?.("button"))) return;
+            const i = Number(el.getAttribute("data-bubble-pick"));
+            const src = op.bubbles[i];
+            if (!src) return;
+            selectedCanvasBubbleId = String(src.id || "");
+            renderBubbleTable();
+            drawBubbleCanvas();
+          });
+        });
+        body.querySelectorAll("[data-bubble-pick-btn]").forEach((el) => {
+          el.addEventListener("click", () => {
+            const i = Number(el.getAttribute("data-bubble-pick-btn"));
+            const src = op.bubbles[i];
+            if (!src) return;
+            selectedCanvasBubbleId = String(src.id || "");
+            renderBubbleTable();
+            drawBubbleCanvas();
+          });
+        });
+        body.querySelectorAll("[data-bubble-del]").forEach((el) => {
+          el.addEventListener("click", () => {
+            const i = Number(el.getAttribute("data-bubble-del"));
+            if (!Number.isFinite(i)) return;
+            if (!confirm("Delete this bubble?")) return;
+            op.bubbles = op.bubbles.filter((_, idx) => idx !== i);
+            if (!op.bubbles.some((x) => String(x.id || "") === String(selectedCanvasBubbleId || ""))) {
+              selectedCanvasBubbleId = op.bubbles[0]?.id || "";
+            }
+            writeRoutePlan(routePlan);
+            renderRoutingPanel();
+          });
+        });
+      }
+      function getSelectedOperation() {
+        return operationById(selectedOpId);
+      }
+      function normalizeBbox(b) {
+        const x1 = Number(b?.x1);
+        const y1 = Number(b?.y1);
+        const x2 = Number(b?.x2);
+        const y2 = Number(b?.y2);
+        if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
+        const nx1 = Math.min(x1, x2);
+        const nx2 = Math.max(x1, x2);
+        const ny1 = Math.min(y1, y2);
+        const ny2 = Math.max(y1, y2);
+        if (nx2 - nx1 < 2 || ny2 - ny1 < 2) return null;
+        return { x1: nx1, y1: ny1, x2: nx2, y2: ny2 };
+      }
+      function bubbleLabelPosition(b) {
+        const box = normalizeBbox(b?.bbox);
+        if (!box) return null;
+        const off = b?.bubbleOffset && Number.isFinite(Number(b.bubbleOffset.x)) && Number.isFinite(Number(b.bubbleOffset.y))
+          ? { x: Number(b.bubbleOffset.x), y: Number(b.bubbleOffset.y) }
+          : { x: -14, y: -14 };
+        return { x: box.x1 + off.x, y: box.y1 + off.y, r: 14 };
+      }
+      function setCanvasImageFromDataUrl(src) {
+        bubbleCanvasImageSrc = String(src || "");
+        bubbleCanvasImage = null;
+        if (!bubbleCanvasImageSrc) {
+          drawBubbleCanvas();
+          return;
+        }
+        const img = new Image();
+        img.onload = () => {
+          bubbleCanvasImage = img;
+          const cv = $("bubbleCanvas");
+          if (cv) {
+            cv.width = img.width;
+            cv.height = img.height;
+          }
+          drawBubbleCanvas();
+        };
+        img.onerror = () => {
+          bubbleCanvasImage = null;
+          drawBubbleCanvas();
+        };
+        img.src = bubbleCanvasImageSrc;
+      }
+      function ensureCanvasReady() {
+        const cv = $("bubbleCanvas");
+        if (!cv) return null;
+        const ctx = cv.getContext("2d");
+        if (!ctx) return null;
+        return { cv, ctx };
+      }
+      function pointFromCanvasEvent(e) {
+        const cv = $("bubbleCanvas");
+        if (!cv) return { x: 0, y: 0 };
+        const rect = cv.getBoundingClientRect();
+        const scaleX = cv.width / Math.max(1, rect.width);
+        const scaleY = cv.height / Math.max(1, rect.height);
+        return {
+          x: (e.clientX - rect.left) * scaleX,
+          y: (e.clientY - rect.top) * scaleY,
+        };
+      }
+      function findBubbleAtPoint(x, y) {
+        const op = getSelectedOperation();
+        if (!op || !Array.isArray(op.bubbles)) return { bubble: null, onLabel: false };
+        for (let i = op.bubbles.length - 1; i >= 0; i--) {
+          const b = op.bubbles[i];
+          const label = bubbleLabelPosition(b);
+          if (label) {
+            const d = Math.hypot(x - label.x, y - label.y);
+            if (d <= label.r) return { bubble: b, onLabel: true };
+          }
+        }
+        for (let i = op.bubbles.length - 1; i >= 0; i--) {
+          const b = op.bubbles[i];
+          const box = normalizeBbox(b?.bbox);
+          if (!box) continue;
+          if (x >= box.x1 && x <= box.x2 && y >= box.y1 && y <= box.y2) return { bubble: b, onLabel: false };
+        }
+        return { bubble: null, onLabel: false };
+      }
+      function drawBubbleCanvas() {
+        const box = ensureCanvasReady();
+        if (!box) return;
+        const { cv, ctx } = box;
+        const info = $("bubbleCanvasInfo");
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        if (bubbleCanvasImage) ctx.drawImage(bubbleCanvasImage, 0, 0, cv.width, cv.height);
+        else {
+          ctx.fillStyle = "#0b1320";
+          ctx.fillRect(0, 0, cv.width, cv.height);
+          ctx.fillStyle = "rgba(210,220,235,.8)";
+          ctx.font = "14px sans-serif";
+          ctx.fillText("Upload drawing image to place bubbles", 14, 26);
+        }
+        const op = getSelectedOperation();
+        const showBoxes = !!$("bubbleShowBoxesChk")?.checked;
+        if (info) {
+          const opName = op?.name || "No operation";
+          const sel = selectedCanvasBubbleId ? ` | Selected: ${selectedCanvasBubbleId}` : "";
+          info.textContent = `Operation: ${opName}${sel}. Drag empty area to create box; drag box to move; drag circle to move bubble label.`;
+        }
+        if (op && Array.isArray(op.bubbles)) {
+          op.bubbles.forEach((b, idx) => {
+            const boxB = normalizeBbox(b?.bbox);
+            if (!boxB) return;
+            const isSel = String(b.id || "") === String(selectedCanvasBubbleId || "");
+            if (showBoxes) {
+              ctx.strokeStyle = isSel ? "#00ff8f" : "#4dafff";
+              ctx.lineWidth = isSel ? 3 : 2;
+              ctx.fillStyle = isSel ? "rgba(0,255,143,.08)" : "rgba(77,175,255,.06)";
+              ctx.strokeRect(boxB.x1, boxB.y1, boxB.x2 - boxB.x1, boxB.y2 - boxB.y1);
+              ctx.fillRect(boxB.x1, boxB.y1, boxB.x2 - boxB.x1, boxB.y2 - boxB.y1);
+            }
+            const label = bubbleLabelPosition(b);
+            if (label) {
+              ctx.fillStyle = isSel ? "rgba(0,255,143,.92)" : "rgba(77,175,255,.86)";
+              ctx.beginPath();
+              ctx.arc(label.x, label.y, label.r, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = "#ffffff";
+              ctx.lineWidth = 2;
+              ctx.stroke();
+              ctx.fillStyle = "#0f1724";
+              ctx.font = "bold 12px sans-serif";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(String(idx + 1), label.x, label.y);
+              ctx.textAlign = "left";
+              ctx.textBaseline = "alphabetic";
+            }
+          });
+        }
+        if (bubbleCanvasMode === "draw" && bubbleCanvasRect) {
+          const r = normalizeBbox(bubbleCanvasRect);
+          if (r) {
+            ctx.strokeStyle = "#ffd37a";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
+            ctx.strokeRect(r.x1, r.y1, r.x2 - r.x1, r.y2 - r.y1);
+            ctx.setLineDash([]);
+          }
+        }
+      }
+      function syncCanvasFromRoute() {
+        const src = String(routePlan?.drawingImage || "");
+        if (src !== bubbleCanvasImageSrc) setCanvasImageFromDataUrl(src);
+        else drawBubbleCanvas();
+      }
+      function startDrawAt(x, y) {
+        bubbleCanvasMode = "draw";
+        bubbleCanvasStart = { x, y };
+        bubbleCanvasRect = { x1: x, y1: y, x2: x, y2: y };
+      }
+      function canvasPickBubble(b) {
+        selectedCanvasBubbleId = String(b?.id || "");
+        editingBubbleId = selectedCanvasBubbleId;
+        if (b) {
+          $("bubbleIdIn").value = b.id || "";
+          $("bubbleNameIn").value = b.name || "";
+          $("bubbleNomIn").value = b.nominal == null ? "" : String(b.nominal);
+          $("bubbleLslIn").value = b.lsl == null ? "" : String(b.lsl);
+          $("bubbleUslIn").value = b.usl == null ? "" : String(b.usl);
+          $("bubbleUnitIn").value = b.unit || "";
+          $("bubbleMethodIn").value = b.method || "";
+          $("bubbleInstrumentIn").value = b.instrument || "";
+          $("bubbleReactionIn").value = b.reactionPlan || "";
+        }
+        renderBubbleTable();
+        drawBubbleCanvas();
+      }
+      function upsertCanvasBubbleWithRect(rect) {
+        const op = getSelectedOperation();
+        if (!op) return;
+        const r = normalizeBbox(rect);
+        if (!r) return;
+        op.bubbles = Array.isArray(op.bubbles) ? op.bubbles : [];
+        let id = strOrEmpty(selectedCanvasBubbleId || editingBubbleId || $("bubbleIdIn").value);
+        if (!id) id = `B${String(op.bubbles.length + 1).padStart(3, "0")}`;
+        let bubble = op.bubbles.find((x) => String(x.id || "") === id);
+        if (!bubble) {
+          bubble = normalizeBubble({
+            id,
+            name: $("bubbleNameIn").value || `Dimension ${op.bubbles.length + 1}`,
+            nominal: $("bubbleNomIn").value,
+            lsl: $("bubbleLslIn").value,
+            usl: $("bubbleUslIn").value,
+            unit: $("bubbleUnitIn").value || "mm",
+            method: $("bubbleMethodIn").value,
+            instrument: $("bubbleInstrumentIn").value,
+            reactionPlan: $("bubbleReactionIn").value,
+          }, op.bubbles.length);
+          op.bubbles.push(bubble);
+        }
+        bubble.id = id;
+        if (!$("bubbleNameIn").value && !bubble.name) bubble.name = `Dimension ${op.bubbles.length}`;
+        if ($("bubbleNameIn").value) bubble.name = $("bubbleNameIn").value;
+        bubble.nominal = numOrNull($("bubbleNomIn").value);
+        bubble.lsl = numOrNull($("bubbleLslIn").value);
+        bubble.usl = numOrNull($("bubbleUslIn").value);
+        bubble.unit = strOrEmpty($("bubbleUnitIn").value || "mm");
+        bubble.method = strOrEmpty($("bubbleMethodIn").value);
+        bubble.instrument = strOrEmpty($("bubbleInstrumentIn").value);
+        bubble.reactionPlan = strOrEmpty($("bubbleReactionIn").value);
+        bubble.bbox = r;
+        if (!bubble.bubbleOffset) bubble.bubbleOffset = { x: -14, y: -14 };
+        selectedCanvasBubbleId = bubble.id;
+        editingBubbleId = bubble.id;
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+      }
+      function saveCanvasInteractions() {
+        if (!routePlan) return;
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+      }
+      function bindBubbleCanvas() {
+        const cv = $("bubbleCanvas");
+        if (!cv || cv.dataset.bound === "1") return;
+        cv.dataset.bound = "1";
+        cv.addEventListener("mousedown", (e) => {
+          const op = getSelectedOperation();
+          if (!op) return;
+          const p = pointFromCanvasEvent(e);
+          const hit = findBubbleAtPoint(p.x, p.y);
+          if (hit.bubble) {
+            canvasPickBubble(hit.bubble);
+            bubbleCanvasMode = hit.onLabel ? "dragLabel" : "dragBox";
+            bubbleCanvasLast = p;
+            e.preventDefault();
+            return;
+          }
+          selectedCanvasBubbleId = "";
+          startDrawAt(p.x, p.y);
+          bubbleCanvasLast = p;
+          renderBubbleTable();
+          drawBubbleCanvas();
+        });
+        cv.addEventListener("mousemove", (e) => {
+          const op = getSelectedOperation();
+          if (!op || !bubbleCanvasMode || bubbleCanvasMode === "idle") return;
+          const p = pointFromCanvasEvent(e);
+          if (bubbleCanvasMode === "draw" && bubbleCanvasStart) {
+            bubbleCanvasRect = { x1: bubbleCanvasStart.x, y1: bubbleCanvasStart.y, x2: p.x, y2: p.y };
+            drawBubbleCanvas();
+            return;
+          }
+          const sel = op.bubbles.find((x) => String(x.id || "") === String(selectedCanvasBubbleId || ""));
+          if (!sel) return;
+          const prev = bubbleCanvasLast || p;
+          const dx = p.x - prev.x;
+          const dy = p.y - prev.y;
+          if (bubbleCanvasMode === "dragLabel") {
+            const cur = sel.bubbleOffset || { x: -14, y: -14 };
+            sel.bubbleOffset = { x: Number(cur.x || 0) + dx, y: Number(cur.y || 0) + dy };
+          } else if (bubbleCanvasMode === "dragBox") {
+            const b = normalizeBbox(sel.bbox);
+            if (b) sel.bbox = { x1: b.x1 + dx, y1: b.y1 + dy, x2: b.x2 + dx, y2: b.y2 + dy };
+          }
+          bubbleCanvasLast = p;
+          drawBubbleCanvas();
+        });
+        const onUp = () => {
+          const mode = bubbleCanvasMode;
+          const rect = bubbleCanvasRect;
+          bubbleCanvasMode = "idle";
+          bubbleCanvasStart = null;
+          bubbleCanvasRect = null;
+          bubbleCanvasLast = null;
+          if (mode === "draw" && rect) {
+            upsertCanvasBubbleWithRect(rect);
+            return;
+          }
+          if (mode === "dragLabel" || mode === "dragBox") {
+            saveCanvasInteractions();
+            return;
+          }
+          drawBubbleCanvas();
+        };
+        cv.addEventListener("mouseup", onUp);
+        cv.addEventListener("mouseleave", onUp);
+      }
+      function renderRoutingPanel() {
+        bindBubbleCanvas();
+        const { state, job, station } = currentStateAndJob();
+        routePlan = readRoutePlanForJob(job, state);
+        if (!routePlan || !job) {
+          setRoutingDisabled(true);
+          $("routeNameIn").value = "";
+          $("routeRevisionIn").value = "";
+          $("routeProductRefIn").value = "";
+          $("routeOpSel").innerHTML = `<option value="">No operations</option>`;
+          $("bubbleTableBody").innerHTML = `<tr><td colspan="10" class="mini">No active job.</td></tr>`;
+          writeOperationToInputs(null);
+          clearBubbleForm();
+          selectedCanvasBubbleId = "";
+          bubbleCanvasImageSrc = "";
+          bubbleCanvasImage = null;
+          drawBubbleCanvas();
+          refreshRouteInfo();
+          return;
+        }
+        setRoutingDisabled(false);
+        routePlan.stationLabel = station ? `${station.code || "--"} - ${station.name || "Station"}` : routePlan.stationLabel;
+        $("routeNameIn").value = routePlan.routeName || "";
+        $("routeRevisionIn").value = routePlan.revision || "";
+        $("routeProductRefIn").value = routePlan.productRef || "";
+        renderOperationSelect();
+        writeOperationToInputs(operationById(selectedOpId));
+        if (!routePlan.operations.some((op) => (op.bubbles || []).some((b) => String(b.id || "") === String(selectedCanvasBubbleId || "")))) {
+          selectedCanvasBubbleId = "";
+        }
+        renderBubbleTable();
+        syncCanvasFromRoute();
+        refreshRouteInfo();
       }
       function readJobConfig(jobId) {
         const id = String(jobId || "");
@@ -260,14 +1151,29 @@
       }
       function readStateEnvelope() {
         const fromApi = normalizeState(window.VMillData?.readAppState ? window.VMillData.readAppState() : null);
-        if (fromApi) return { state: fromApi, source: "VMillData.readAppState" };
-        for (const k of LEGACY_KEYS) {
+        if (fromApi) {
+          const merged = applyHandoffToState(fromApi, launchHandoff);
+          if (merged.changed) persistState(merged.state);
+          return { state: merged.state, source: merged.changed ? "VMillData.readAppState+handoff" : "VMillData.readAppState" };
+        }
+        for (const k of WATCH_KEYS) {
           const raw = localStorage.getItem(k);
           if (!raw) continue;
           try {
             const parsed = normalizeState(JSON.parse(raw));
-            if (parsed) return { state: parsed, source: `localStorage:${k}` };
+            if (parsed) {
+              const merged = applyHandoffToState(parsed, launchHandoff);
+              if (merged.changed) persistState(merged.state);
+              return { state: merged.state, source: merged.changed ? `localStorage:${k}+handoff` : `localStorage:${k}` };
+            }
           } catch {}
+        }
+        if (launchHandoff) {
+          const seeded = createStateFromHandoff(launchHandoff);
+          if (seeded) {
+            persistState(seeded);
+            return { state: seeded, source: "query:handoff" };
+          }
         }
         return { state: null, source: "not-found" };
       }
@@ -281,8 +1187,7 @@
         if (!id || !state.jobs.some((j) => String(j.id) === id)) return;
         if (String(state.activeJobId || "") === id) return;
         state.activeJobId = id;
-        if (window.VMillData?.writeAppState) window.VMillData.writeAppState(state);
-        else localStorage.setItem(KEY, JSON.stringify(state));
+        persistState(state);
       }
       function getJob(state, id) {
         return (state?.jobs || []).find((j) => String(j.id) === String(id)) || null;
@@ -385,9 +1290,22 @@
           if (qStation && [...stationSel.options].some((o) => o.value === qStation)) stationSel.value = qStation;
         }
 
-        const filteredJobs = stationSel.value === "all"
+        let filteredJobs = stationSel.value === "all"
           ? jobs
           : jobs.filter((j) => String(j.stationId || "") === String(stationSel.value || ""));
+        const activeId = String(state?.activeJobId || "");
+        const activeJob = jobs.find((j) => String(j.id || "") === activeId) || null;
+        // Keep selectors usable: if the current station filter hides every job, jump to active job station.
+        if (!filteredJobs.length && jobs.length) {
+          const fallbackStationId = String(activeJob?.stationId || jobs[0]?.stationId || "");
+          if (fallbackStationId && [...stationSel.options].some((o) => o.value === fallbackStationId)) {
+            stationSel.value = fallbackStationId;
+            filteredJobs = jobs.filter((j) => String(j.stationId || "") === fallbackStationId);
+          } else {
+            stationSel.value = "all";
+            filteredJobs = jobs.slice();
+          }
+        }
         sel.innerHTML = "";
         for (const j of filteredJobs) {
           const o = document.createElement("option");
@@ -403,35 +1321,404 @@
           launchRouteApplied = true;
         }
         if (!sel.value) {
-          const activeId = String(state?.activeJobId || "");
           if (activeId && [...sel.options].some((o) => o.value === activeId)) sel.value = activeId;
+          else if (filteredJobs[0]) sel.value = String(filteredJobs[0].id || "");
         }
       }
 
-      function renderSignals() {
-        const box = $("signals");
-        const rows = window.VMillData.listRecords(NS).sort((a, b) => (Date.parse(b.createdAt || "") || 0) - (Date.parse(a.createdAt || "") || 0));
-        box.innerHTML = "";
-        if (!rows.length) {
-          box.innerHTML = `<div class="mini">No signals yet.</div>`;
+      function saveRouteMetaFromInputs() {
+        if (!routePlan) return;
+        routePlan.routeName = strOrEmpty($("routeNameIn").value) || routePlan.routeName || "Main route";
+        routePlan.revision = strOrEmpty($("routeRevisionIn").value) || "A";
+        routePlan.productRef = strOrEmpty($("routeProductRefIn").value);
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+      }
+      function addOperation() {
+        if (!routePlan) return;
+        const ops = Array.isArray(routePlan.operations) ? routePlan.operations : [];
+        const maxSeq = ops.reduce((acc, op) => Math.max(acc, Number(op?.seq || 0)), 0);
+        const op = normalizeOperation({
+          id: uid("op"),
+          seq: maxSeq + 10,
+          name: `Operation ${ops.length + 1}`,
+          stationCode: "",
+          workstation: "",
+          estimatedTimeMin: null,
+          sampleSize: null,
+          frequency: "",
+          controlMethod: "",
+          critical: false,
+          notes: "",
+          bubbles: [],
+        }, ops.length);
+        routePlan.operations.push(op);
+        routePlan.operations = sortOpsBySeq(routePlan.operations);
+        selectedOpId = op.id;
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+      }
+      function saveSelectedOperation() {
+        if (!routePlan) return;
+        const op = operationById(selectedOpId);
+        if (!op) return;
+        const seq = Number($("opSeqIn").value);
+        op.seq = Number.isFinite(seq) ? seq : op.seq;
+        op.name = strOrEmpty($("opNameIn").value) || op.name;
+        op.stationCode = strOrEmpty($("opStationIn").value);
+        op.workstation = strOrEmpty($("opWorkstationIn").value);
+        op.estimatedTimeMin = numOrNull($("opEstTimeIn").value);
+        op.sampleSize = numOrNull($("opSampleSizeIn").value);
+        op.frequency = strOrEmpty($("opFrequencyIn").value);
+        op.controlMethod = strOrEmpty($("opControlMethodIn").value);
+        op.notes = strOrEmpty($("opNotesIn").value);
+        op.critical = !!$("opCriticalChk").checked;
+        routePlan.operations = sortOpsBySeq(routePlan.operations);
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+      }
+      function deleteSelectedOperation() {
+        if (!routePlan || !selectedOpId) return;
+        if (!confirm("Delete selected operation and all its bubbles?")) return;
+        routePlan.operations = routePlan.operations.filter((x) => String(x.id || "") !== String(selectedOpId || ""));
+        selectedOpId = routePlan.operations[0]?.id || "";
+        clearBubbleForm();
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+      }
+      function moveSelectedOperation(dir) {
+        if (!routePlan || !selectedOpId || !Array.isArray(routePlan.operations)) return;
+        const idx = routePlan.operations.findIndex((x) => String(x.id || "") === String(selectedOpId || ""));
+        if (idx < 0) return;
+        const target = idx + Number(dir || 0);
+        if (target < 0 || target >= routePlan.operations.length) return;
+        const tmp = routePlan.operations[idx];
+        routePlan.operations[idx] = routePlan.operations[target];
+        routePlan.operations[target] = tmp;
+        routePlan.operations.forEach((op, i) => { op.seq = (i + 1) * 10; });
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+      }
+      function saveBubbleFromInputs() {
+        if (!routePlan) return;
+        const op = operationById(selectedOpId);
+        if (!op) return;
+        const b = readBubbleForm();
+        if (!strOrEmpty(b.id)) b.id = `B${String((op.bubbles || []).length + 1).padStart(3, "0")}`;
+        if (!strOrEmpty(b.name)) {
+          alert("Bubble name is required.");
           return;
         }
-        for (const r of rows) {
-          const item = document.createElement("div");
-          item.className = "logItem";
-          item.innerHTML = `
-            <div>${String(r.text || "")}</div>
-            <div class="mini">${new Date(r.createdAt || Date.now()).toLocaleString()}</div>
-            <div class="actions" style="margin-top:6px;">
-              <button data-del="${r.id}" class="danger" type="button">Delete</button>
-            </div>
-          `;
-          item.querySelector("[data-del]").addEventListener("click", () => {
-            window.VMillData.deleteRecord(NS, r.id);
-            renderSignals();
-          });
-          box.appendChild(item);
+        op.bubbles = Array.isArray(op.bubbles) ? op.bubbles : [];
+        const editIdx = op.bubbles.findIndex((x) => String(x.id || "") === String(editingBubbleId || ""));
+        const idIdx = op.bubbles.findIndex((x) => String(x.id || "") === String(b.id || ""));
+        const prev = editIdx >= 0 ? op.bubbles[editIdx] : (idIdx >= 0 ? op.bubbles[idIdx] : null);
+        if (prev?.bbox && !b?.bbox) b.bbox = prev.bbox;
+        if (prev?.bubbleOffset && !b?.bubbleOffset) b.bubbleOffset = prev.bubbleOffset;
+        if (editIdx >= 0) op.bubbles[editIdx] = b;
+        else if (idIdx >= 0) op.bubbles[idIdx] = b;
+        else op.bubbles.push(b);
+        selectedCanvasBubbleId = b.id;
+        clearBubbleForm();
+        selectedCanvasBubbleId = b.id;
+        editingBubbleId = b.id;
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+      }
+      function splitCsvLine(line, sep) {
+        const out = [];
+        let cur = "";
+        let inQuote = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          const next = line[i + 1];
+          if (ch === "\"") {
+            if (inQuote && next === "\"") { cur += "\""; i++; continue; }
+            inQuote = !inQuote;
+            continue;
+          }
+          if (ch === sep && !inQuote) {
+            out.push(cur);
+            cur = "";
+            continue;
+          }
+          cur += ch;
         }
+        out.push(cur);
+        return out.map((x) => x.trim());
+      }
+      function parseCsvRows(text) {
+        const lines = String(text || "").replace(/\r/g, "\n").split("\n").map((x) => x.trim()).filter(Boolean);
+        if (!lines.length) return [];
+        const seps = [",", ";", "\t"];
+        let bestSep = ",";
+        let bestScore = -1;
+        for (const sep of seps) {
+          const score = splitCsvLine(lines[0], sep).length;
+          if (score > bestScore) { bestScore = score; bestSep = sep; }
+        }
+        const header = splitCsvLine(lines[0], bestSep).map((h) => String(h || "").toLowerCase().replace(/[^a-z0-9]+/g, ""));
+        const rows = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cells = splitCsvLine(lines[i], bestSep);
+          if (!cells.some((x) => String(x || "").trim())) continue;
+          const obj = {};
+          for (let c = 0; c < header.length; c++) obj[header[c]] = cells[c] ?? "";
+          rows.push(obj);
+        }
+        return rows;
+      }
+      function fromAlias(row, aliases) {
+        for (const key of aliases) {
+          const k = String(key || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+          const val = row[k];
+          if (val != null && String(val).trim() !== "") return String(val).trim();
+        }
+        return "";
+      }
+      function numFromAlias(row, aliases) {
+        const raw = fromAlias(row, aliases);
+        if (!raw) return null;
+        const n = Number(String(raw).replace(",", "."));
+        return Number.isFinite(n) ? n : null;
+      }
+      function importBubblesCsv(file) {
+        if (!file) return;
+        const op = operationById(selectedOpId);
+        if (!op) {
+          alert("Create/select one operation first.");
+          return;
+        }
+        const fr = new FileReader();
+        fr.onload = () => {
+          try {
+            const rows = parseCsvRows(String(fr.result || ""));
+            if (!rows.length) throw new Error("No rows found.");
+            const imported = [];
+            for (const row of rows) {
+              const id = fromAlias(row, ["bubble", "bubbleid", "id", "num", "number", "char"]);
+              const name = fromAlias(row, ["name", "dimension", "feature", "characteristic"]);
+              const nominal = fromAlias(row, ["nominal", "target", "nom"]);
+              const lsl = fromAlias(row, ["lsl", "min", "lower", "specmin"]);
+              const usl = fromAlias(row, ["usl", "max", "upper", "specmax"]);
+              const unit = fromAlias(row, ["unit", "uom"]);
+              const method = fromAlias(row, ["method", "controlmethod", "inspectionmethod"]);
+              const instrument = fromAlias(row, ["instrument", "gauge", "gage", "tool"]);
+              const reaction = fromAlias(row, ["reaction", "reactionplan", "plan", "action"]);
+              const x1 = numFromAlias(row, ["x1", "left", "xmin", "bboxx1"]);
+              const y1 = numFromAlias(row, ["y1", "top", "ymin", "bboxy1"]);
+              const x2Raw = numFromAlias(row, ["x2", "right", "xmax", "bboxx2"]);
+              const y2Raw = numFromAlias(row, ["y2", "bottom", "ymax", "bboxy2"]);
+              const width = numFromAlias(row, ["width", "w", "bboxwidth"]);
+              const height = numFromAlias(row, ["height", "h", "bboxheight"]);
+              const x2 = x2Raw != null ? x2Raw : (x1 != null && width != null ? x1 + width : null);
+              const y2 = y2Raw != null ? y2Raw : (y1 != null && height != null ? y1 + height : null);
+              const labelX = numFromAlias(row, ["bubbleoffsetx", "offsetx", "labelx", "bubblex"]);
+              const labelY = numFromAlias(row, ["bubbleoffsety", "offsety", "labely", "bubbley"]);
+              if (!id && !name) continue;
+              imported.push(normalizeBubble({
+                id: id || "",
+                name: name || "",
+                nominal,
+                lsl,
+                usl,
+                unit,
+                method,
+                instrument,
+                reactionPlan: reaction,
+                bbox: (x1 != null && y1 != null && x2 != null && y2 != null) ? { x1, y1, x2, y2 } : null,
+                bubbleOffset: (labelX != null && labelY != null) ? { x: labelX, y: labelY } : null,
+              }, op.bubbles.length + imported.length));
+            }
+            if (!imported.length) throw new Error("No valid bubbles found.");
+            op.bubbles = Array.isArray(op.bubbles) ? op.bubbles : [];
+            for (const b of imported) {
+              const idx = op.bubbles.findIndex((x) => String(x.id || "") === String(b.id || ""));
+              if (idx >= 0) op.bubbles[idx] = b;
+              else op.bubbles.push(b);
+            }
+            writeRoutePlan(routePlan);
+            renderRoutingPanel();
+            alert(`Imported ${imported.length} bubble(s).`);
+          } catch (err) {
+            alert(`CSV import failed: ${err?.message || "invalid file"}`);
+          }
+        };
+        fr.readAsText(file);
+      }
+      function routeRowsForExport(plan) {
+        const rows = [];
+        if (!plan) return rows;
+        const ops = Array.isArray(plan.operations) ? plan.operations : [];
+        for (const op of ops) {
+          const bubbles = Array.isArray(op.bubbles) ? op.bubbles : [];
+          if (!bubbles.length) {
+            rows.push({
+              routeName: plan.routeName,
+              revision: plan.revision,
+              productRef: plan.productRef,
+              jobName: plan.jobName,
+              station: plan.stationLabel,
+              opSeq: op.seq,
+              opName: op.name,
+              opStation: op.stationCode,
+              opWorkstation: op.workstation,
+              opEstMin: op.estimatedTimeMin,
+              opSampleSize: op.sampleSize,
+              opFrequency: op.frequency,
+              opControl: op.controlMethod,
+              opCritical: op.critical ? "YES" : "NO",
+              opNotes: op.notes,
+              bubbleId: "",
+              bubbleName: "",
+              nominal: "",
+              lsl: "",
+              usl: "",
+              unit: "",
+              method: "",
+              instrument: "",
+              reaction: "",
+              bubbleX1: "",
+              bubbleY1: "",
+              bubbleX2: "",
+              bubbleY2: "",
+              bubbleWidth: "",
+              bubbleHeight: "",
+              bubbleLabelX: "",
+              bubbleLabelY: "",
+            });
+            continue;
+          }
+          for (const b of bubbles) {
+            const bb = normalizeBbox(b?.bbox);
+            const off = (b?.bubbleOffset && Number.isFinite(Number(b.bubbleOffset.x)) && Number.isFinite(Number(b.bubbleOffset.y)))
+              ? { x: Number(b.bubbleOffset.x), y: Number(b.bubbleOffset.y) }
+              : null;
+            rows.push({
+              routeName: plan.routeName,
+              revision: plan.revision,
+              productRef: plan.productRef,
+              jobName: plan.jobName,
+              station: plan.stationLabel,
+              opSeq: op.seq,
+              opName: op.name,
+              opStation: op.stationCode,
+              opWorkstation: op.workstation,
+              opEstMin: op.estimatedTimeMin ?? "",
+              opSampleSize: op.sampleSize ?? "",
+              opFrequency: op.frequency,
+              opControl: op.controlMethod,
+              opCritical: op.critical ? "YES" : "NO",
+              opNotes: op.notes,
+              bubbleId: b.id,
+              bubbleName: b.name,
+              nominal: b.nominal ?? "",
+              lsl: b.lsl ?? "",
+              usl: b.usl ?? "",
+              unit: b.unit,
+              method: b.method,
+              instrument: b.instrument,
+              reaction: b.reactionPlan,
+              bubbleX1: bb?.x1 ?? "",
+              bubbleY1: bb?.y1 ?? "",
+              bubbleX2: bb?.x2 ?? "",
+              bubbleY2: bb?.y2 ?? "",
+              bubbleWidth: bb ? (bb.x2 - bb.x1) : "",
+              bubbleHeight: bb ? (bb.y2 - bb.y1) : "",
+              bubbleLabelX: off?.x ?? "",
+              bubbleLabelY: off?.y ?? "",
+            });
+          }
+        }
+        return rows;
+      }
+      function exportRouteCsv() {
+        if (!routePlan) return;
+        const rows = routeRowsForExport(routePlan);
+        const headers = ["routeName","revision","productRef","jobName","station","opSeq","opName","opStation","opWorkstation","opEstMin","opSampleSize","opFrequency","opControl","opCritical","opNotes","bubbleId","bubbleName","nominal","lsl","usl","unit","method","instrument","reaction","bubbleX1","bubbleY1","bubbleX2","bubbleY2","bubbleWidth","bubbleHeight","bubbleLabelX","bubbleLabelY"];
+        const lines = [headers.join(",")];
+        for (const row of rows) lines.push(headers.map((h) => csvCell(row[h])).join(","));
+        exportTextFile(`Route_${routePlan.jobName || "job"}_${new Date().toISOString().slice(0, 10)}.csv`, lines.join("\n"), "text/csv");
+      }
+      function exportRouteExcel() {
+        if (!routePlan) return;
+        const rows = routeRowsForExport(routePlan);
+        const headers = ["routeName","revision","productRef","jobName","station","opSeq","opName","opStation","opWorkstation","opEstMin","opSampleSize","opFrequency","opControl","opCritical","opNotes","bubbleId","bubbleName","nominal","lsl","usl","unit","method","instrument","reaction","bubbleX1","bubbleY1","bubbleX2","bubbleY2","bubbleWidth","bubbleHeight","bubbleLabelX","bubbleLabelY"];
+        const headHtml = headers.map((h) => `<th>${escHtml(h)}</th>`).join("");
+        const bodyHtml = rows.map((r) => `<tr>${headers.map((h) => `<td>${escHtml(r[h])}</td>`).join("")}</tr>`).join("");
+        const html = `<!doctype html><html><head><meta charset="utf-8"></head><body><table border="1"><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></body></html>`;
+        const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Route_${routePlan.jobName || "job"}_${new Date().toISOString().slice(0, 10)}.xls`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+      function exportRoutePdf() {
+        if (!routePlan) return;
+        const rows = routeRowsForExport(routePlan);
+        const win = window.open("", "_blank", "width=1200,height=900");
+        if (!win) {
+          alert("Popup blocked. Allow popups to export PDF.");
+          return;
+        }
+        const tableRows = rows.map((r) => `
+          <tr>
+            <td>${escHtml(r.opSeq)}</td>
+            <td>${escHtml(r.opName)}</td>
+            <td>${escHtml(r.opStation)}</td>
+            <td>${escHtml(r.opWorkstation)}</td>
+            <td>${escHtml(r.opControl)}</td>
+            <td>${escHtml(r.bubbleId)}</td>
+            <td>${escHtml(r.bubbleName)}</td>
+            <td>${escHtml(r.nominal)}</td>
+            <td>${escHtml(r.lsl)}</td>
+            <td>${escHtml(r.usl)}</td>
+            <td>${escHtml(r.unit)}</td>
+            <td>${escHtml(r.method)}</td>
+            <td>${escHtml(r.instrument)}</td>
+            <td>${escHtml(r.bubbleX1)}</td>
+            <td>${escHtml(r.bubbleY1)}</td>
+            <td>${escHtml(r.bubbleX2)}</td>
+            <td>${escHtml(r.bubbleY2)}</td>
+          </tr>
+        `).join("");
+        win.document.write(`
+          <!doctype html>
+          <html>
+          <head>
+            <meta charset="utf-8" />
+            <title>Route Report</title>
+            <style>
+              body{font-family:Arial,sans-serif;padding:14px;color:#222;}
+              h1,h2{margin:0 0 8px 0;}
+              .m{margin-bottom:12px;font-size:12px;}
+              table{width:100%;border-collapse:collapse;font-size:11px;}
+              th,td{border:1px solid #bbb;padding:4px 6px;text-align:left;}
+              th{background:#eee;}
+            </style>
+          </head>
+          <body>
+            <h1>Route Control Plan</h1>
+            <div class="m">Route: ${escHtml(routePlan.routeName)} | Rev: ${escHtml(routePlan.revision)} | Product: ${escHtml(routePlan.productRef)} | Job: ${escHtml(routePlan.jobName)} | Station: ${escHtml(routePlan.stationLabel)}</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Seq</th><th>Operation</th><th>Station</th><th>Workstation</th><th>Control</th>
+                  <th>Bubble</th><th>Name</th><th>Nom</th><th>LSL</th><th>USL</th><th>Unit</th><th>Method</th><th>Instrument</th><th>X1</th><th>Y1</th><th>X2</th><th>Y2</th>
+                </tr>
+              </thead>
+              <tbody>${tableRows}</tbody>
+            </table>
+          </body>
+          </html>
+        `);
+        win.document.close();
+        win.focus();
+        win.print();
       }
 
       function refresh() {
@@ -442,7 +1729,10 @@
         const jobs = state?.jobs || [];
         const job = getJob(state, $("jobSel").value) || (state?.jobs || [])[0] || null;
         const updated = state?.meta?.updatedAt ? new Date(state.meta.updatedAt).toLocaleString() : "n/a";
-        $("stateInfo").textContent = `Source: ${env.source} | Stations: ${stations.length} | Jobs: ${jobs.length} | Updated: ${updated}`;
+        const noShared = !stations.length && !jobs.length;
+        $("stateInfo").textContent = noShared
+          ? `Source: ${env.source} | No shared stations/jobs found. Open Hub on the same URL and create at least one station + job.`
+          : `Source: ${env.source} | Stations: ${stations.length} | Jobs: ${jobs.length} | Updated: ${updated}`;
         if (!job) {
           $("kpiN").textContent = "0";
           $("kpiMean").textContent = "-";
@@ -454,6 +1744,7 @@
           drawChart($("iChart"), []);
           drawChart($("mrChart"), []);
           renderFlagList([], new Map());
+          renderRoutingPanel();
           return;
         }
         if (!$("jobSel").value) $("jobSel").value = job.id;
@@ -496,6 +1787,7 @@
         });
         drawChart($("mrChart"), mr, { mean: mMr, ucl: uclMr, lcl: 0 });
         renderFlagList(vals, flags);
+        renderRoutingPanel();
       }
 
       function exportJsonFile(name, payload) {
@@ -548,53 +1840,80 @@
         window.CANBus?.emit("spacial:config:updated", { jobId }, "spacial");
         refresh();
       });
-      $("addSignalBtn").addEventListener("click", () => {
-        const txt = String($("signalTxt").value || "").trim();
-        if (!txt) return;
-        window.VMillData.upsertRecord(NS, { text: txt });
-        $("signalTxt").value = "";
-        renderSignals();
+      $("routeSaveBtn").addEventListener("click", saveRouteMetaFromInputs);
+      $("routeResetBtn").addEventListener("click", renderRoutingPanel);
+      $("routeOpSel").addEventListener("change", () => {
+        selectedOpId = strOrEmpty($("routeOpSel").value);
+        writeOperationToInputs(operationById(selectedOpId));
+        clearBubbleForm();
+        renderBubbleTable();
+        drawBubbleCanvas();
       });
+      $("opAddBtn").addEventListener("click", addOperation);
+      $("opSaveBtn").addEventListener("click", saveSelectedOperation);
+      $("opDeleteBtn").addEventListener("click", deleteSelectedOperation);
+      $("opUpBtn").addEventListener("click", () => moveSelectedOperation(-1));
+      $("opDownBtn").addEventListener("click", () => moveSelectedOperation(1));
+      $("bubbleSaveBtn").addEventListener("click", saveBubbleFromInputs);
+      $("bubbleClearBtn").addEventListener("click", clearBubbleForm);
+      $("bubbleImportBtn").addEventListener("click", () => $("bubbleImportFile").click());
+      $("bubbleImportFile").addEventListener("change", (e) => {
+        const f = e.target.files?.[0];
+        if (f) importBubblesCsv(f);
+        e.target.value = "";
+      });
+      $("bubbleDrawingFile").addEventListener("change", (e) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        const fr = new FileReader();
+        fr.onload = () => {
+          if (!routePlan) return;
+          routePlan.drawingImage = String(fr.result || "");
+          writeRoutePlan(routePlan);
+          renderRoutingPanel();
+        };
+        fr.readAsDataURL(f);
+        e.target.value = "";
+      });
+      $("bubbleDrawingClearBtn").addEventListener("click", () => {
+        if (!routePlan) return;
+        routePlan.drawingImage = "";
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+      });
+      $("bubbleDeleteSelBtn").addEventListener("click", () => {
+        const op = getSelectedOperation();
+        if (!op || !selectedCanvasBubbleId) return;
+        if (!confirm("Delete selected bubble?")) return;
+        op.bubbles = (op.bubbles || []).filter((x) => String(x.id || "") !== String(selectedCanvasBubbleId || ""));
+        selectedCanvasBubbleId = op.bubbles[0]?.id || "";
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+      });
+      $("bubbleShowBoxesChk").addEventListener("change", drawBubbleCanvas);
+      $("routeExportJsonBtn").addEventListener("click", () => {
+        if (!routePlan) return;
+        exportJsonFile(`Route_${routePlan.jobName || "job"}_${new Date().toISOString().slice(0, 10)}.json`, routePlan);
+      });
+      $("routeExportCsvBtn").addEventListener("click", exportRouteCsv);
+      $("routeExportExcelBtn").addEventListener("click", exportRouteExcel);
+      $("routeExportPdfBtn").addEventListener("click", exportRoutePdf);
       $("exportJsonBtn").addEventListener("click", () => {
         exportJsonFile(`SPaCial_${new Date().toISOString().slice(0, 10)}.json`, window.VMillData.exportAllSnapshot());
       });
       $("exportCsvBtn").addEventListener("click", () => {
         exportTextFile(`SPaCial_cycles_${new Date().toISOString().slice(0, 10)}.csv`, window.VMillData.makeCsvForJobs(), "text/csv");
       });
-      $("backupAllBtn").addEventListener("click", () => {
-        exportJsonFile(`VMill_backup_${new Date().toISOString().slice(0, 10)}.json`, window.VMillData.exportAllSnapshot());
-      });
-      $("importSnapshotBtn").addEventListener("click", () => $("importFile").click());
-      $("importFile").addEventListener("change", (e) => {
-        const f = e.target.files?.[0];
-        if (!f) return;
-        const fr = new FileReader();
-        fr.onload = () => {
-          try {
-            const payload = JSON.parse(String(fr.result || "{}"));
-            window.VMillData.importAllSnapshot(payload);
-            window.CANBus?.emit("spacial:snapshot:imported", {}, "spacial");
-            refresh();
-            renderSignals();
-            alert("Snapshot imported.");
-          } catch (err) {
-            alert("Import failed: " + (err?.message || "invalid file"));
-          }
-        };
-        fr.readAsText(f);
-        e.target.value = "";
-      });
 
       window.CANBus?.onMessage((msg) => {
         if (!msg || !msg.type) return;
         if (msg.type.startsWith("data:")) {
           refresh();
-          renderSignals();
         }
       });
       window.addEventListener("storage", (e) => {
         if (!e.key) return;
-        if (e.key === KEY || LEGACY_KEYS.includes(e.key)) {
+        if (WATCH_KEYS.includes(e.key)) {
           refresh();
           return;
         }
@@ -616,7 +1935,6 @@
       window.CANBus?.emit("spacial:ready", { module: "SPaCial" }, "spacial");
 
       refresh();
-      renderSignals();
     })();
   </script>
 </body>
