@@ -28,14 +28,57 @@
     .wrap{max-width:1200px;margin:0 auto;padding:16px;}
     .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;}
     .sub{color:var(--muted);font-size:13px;margin-top:6px;}
-    .row{display:grid;grid-template-columns:.8fr 1.2fr;gap:12px;}
-    @media(max-width:980px){.row{grid-template-columns:1fr;}}
+    .head .actions button{width:auto;min-width:110px;}
+    .panelDock{display:grid;grid-template-columns:1fr;gap:12px;}
+    .panelDock.split{grid-template-columns:minmax(320px,.8fr) minmax(420px,1.2fr);}
+    @media(max-width:980px){.panelDock,.panelDock.split{grid-template-columns:1fr;}}
     .card{
       border:1px solid var(--border);
       border-radius:14px;
       background:linear-gradient(180deg,var(--panel),var(--panel2));
       padding:12px;
     }
+    .panelCard{
+      padding:0;
+      overflow:hidden;
+    }
+    .panelHdr{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      padding:10px 12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.03);
+      cursor:grab;
+      user-select:none;
+    }
+    .panelHdr:active{cursor:grabbing;}
+    .panelTitle{
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+      color:#b9cce6;
+    }
+    .panelBody{padding:12px;}
+    .panelCard.collapsed .panelBody{display:none;}
+    .panelCard.collapsed .panelChevron{transform:rotate(-90deg);}
+    .panelChevron{transition:transform .14s ease;}
+    .panelIconBtn{
+      width:auto;
+      min-width:28px;
+      padding:5px 8px;
+      border-radius:8px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      font-size:12px;
+      line-height:1;
+      cursor:pointer;
+    }
+    .panelCard.dragging{opacity:.45;}
+    .panelCard.dropBefore .panelHdr{box-shadow:inset 0 2px 0 var(--accent);}
     .controls{display:grid;grid-template-columns:1fr 1fr 140px 140px 140px;gap:8px;}
     @media(max-width:980px){.controls{grid-template-columns:1fr 1fr;}}
     select,input,textarea,button{
@@ -128,10 +171,19 @@
         <h1 style="margin:0;">SPaCial</h1>
         <div class="sub">Dimensional control and blueprint bubble planning.</div>
       </div>
+      <div class="actions">
+        <button id="panelLayoutModeBtn" type="button">Split View</button>
+        <button id="panelResetBtn" type="button">Reset Panels</button>
+      </div>
     </div>
 
-    <div class="row">
-      <section class="card">
+    <div id="panelDock" class="panelDock split">
+      <section class="card panelCard" data-panel-id="context">
+        <div class="panelHdr" draggable="true">
+          <div class="panelTitle">Context</div>
+          <button class="panelIconBtn panelChevron" type="button" data-panel-collapse="context" title="Collapse/Expand">▾</button>
+        </div>
+        <div class="panelBody">
         <div class="controls">
           <select id="stationSel"></select>
           <select id="jobSel"></select>
@@ -147,9 +199,15 @@
           <div class="chartTitle">Focus</div>
           <div class="mini">Use this panel only to pick station/job and export datasets. All dimensional workflow is on the right side.</div>
         </div>
+        </div>
       </section>
 
-      <section class="card">
+      <section class="card panelCard" data-panel-id="routing">
+        <div class="panelHdr" draggable="true">
+          <div class="panelTitle">Routing and Bubbles</div>
+          <button class="panelIconBtn panelChevron" type="button" data-panel-collapse="routing" title="Collapse/Expand">▾</button>
+        </div>
+        <div class="panelBody">
         <div class="chartBox" style="margin-top:0;">
           <div style="font-weight:700;">Routing and Dimensional Control</div>
           <div class="mini">Per selected job: route, operations, dimensional bubbles and blueprint bubbles.</div>
@@ -247,6 +305,7 @@
             <canvas id="bubbleCanvas" width="1000" height="560"></canvas>
           </div>
         </div>
+        </div>
       </section>
     </div>
   </div>
@@ -257,10 +316,15 @@
   <script src="./modules/module-data-explorer.js"></script>
   <script>
     (function () {
-      const KEY = "vmill:app-state:v1";
-      const LEGACY_KEYS = ["chrono_drawer_timeline_v5", "chrono_drawer_timeline_v4", "chrono_drawer_timeline_v3"];
-      const WATCH_KEYS = [KEY, ...LEGACY_KEYS];
+      const KEY = window.VMillData?.keys?.APP_KEY || "vmill:app-state:v1";
+      const LEGACY_KEYS = Array.isArray(window.VMillData?.keys?.LEGACY_APP_KEYS)
+        ? window.VMillData.keys.LEGACY_APP_KEYS.slice()
+        : ["chrono_drawer_timeline_v5", "chrono_drawer_timeline_v4", "chrono_drawer_timeline_v3"];
+      const WATCH_KEYS = Array.isArray(window.VMillData?.keys?.ALL_APP_KEYS)
+        ? window.VMillData.keys.ALL_APP_KEYS.slice()
+        : [KEY, ...LEGACY_KEYS];
       const NS_ROUTE = "spacial_routes";
+      const PANEL_LAYOUT_KEY = "spacial:panel-layout:v1";
       const launchParams = new URLSearchParams(window.location.search || "");
       let launchRouteApplied = false;
       let lastStateSig = "";
@@ -274,7 +338,13 @@
       let bubbleCanvasStart = null;
       let bubbleCanvasRect = null;
       let bubbleCanvasLast = null;
+      let panelDragId = "";
       const $ = (id) => document.getElementById(id);
+      let panelUi = {
+        mode: "split",
+        order: ["context", "routing"],
+        collapsed: {},
+      };
 
       function numOrNull(v) {
         const n = Number(v);
@@ -286,6 +356,112 @@
         } catch {
           return fallback;
         }
+      }
+      function readPanelUi() {
+        try {
+          const raw = localStorage.getItem(PANEL_LAYOUT_KEY);
+          const parsed = raw ? JSON.parse(raw) : {};
+          const order = Array.isArray(parsed?.order)
+            ? parsed.order.map((x) => String(x || "")).filter(Boolean)
+            : ["context", "routing"];
+          const collapsed = (parsed?.collapsed && typeof parsed.collapsed === "object")
+            ? parsed.collapsed
+            : {};
+          return {
+            mode: parsed?.mode === "stack" ? "stack" : "split",
+            order,
+            collapsed,
+          };
+        } catch {
+          return { mode: "split", order: ["context", "routing"], collapsed: {} };
+        }
+      }
+      function writePanelUi() {
+        localStorage.setItem(PANEL_LAYOUT_KEY, JSON.stringify(panelUi));
+      }
+      function applyPanelUi() {
+        const dock = $("panelDock");
+        if (!dock) return;
+        dock.classList.toggle("split", panelUi.mode === "split");
+        const modeBtn = $("panelLayoutModeBtn");
+        if (modeBtn) modeBtn.textContent = panelUi.mode === "split" ? "Stack View" : "Split View";
+        const cards = Array.from(dock.querySelectorAll(".panelCard"));
+        const ids = cards.map((c) => String(c.dataset.panelId || ""));
+        const fullOrder = panelUi.order.filter((id) => ids.includes(id));
+        for (const id of ids) if (!fullOrder.includes(id)) fullOrder.push(id);
+        panelUi.order = fullOrder;
+        for (const id of fullOrder) {
+          const node = dock.querySelector(`.panelCard[data-panel-id="${id}"]`);
+          if (node) dock.appendChild(node);
+        }
+        cards.forEach((card) => {
+          const id = String(card.dataset.panelId || "");
+          card.classList.toggle("collapsed", !!panelUi.collapsed[id]);
+        });
+      }
+      function reorderPanels(srcId, dstId) {
+        const src = String(srcId || "");
+        const dst = String(dstId || "");
+        if (!src || !dst || src === dst) return;
+        const next = panelUi.order.filter((x) => x !== src);
+        const idx = next.indexOf(dst);
+        next.splice(idx < 0 ? next.length : idx, 0, src);
+        panelUi.order = next;
+        writePanelUi();
+        applyPanelUi();
+      }
+      function initPanelUi() {
+        panelUi = readPanelUi();
+        const dock = $("panelDock");
+        if (!dock) return;
+        dock.querySelectorAll("[data-panel-collapse]").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const id = String(btn.getAttribute("data-panel-collapse") || "");
+            if (!id) return;
+            panelUi.collapsed[id] = !panelUi.collapsed[id];
+            writePanelUi();
+            applyPanelUi();
+          });
+        });
+        dock.querySelectorAll(".panelCard").forEach((card) => {
+          const id = String(card.dataset.panelId || "");
+          const hdr = card.querySelector(".panelHdr");
+          if (!id || !hdr) return;
+          hdr.addEventListener("dragstart", (e) => {
+            panelDragId = id;
+            card.classList.add("dragging");
+            e.dataTransfer?.setData("text/plain", id);
+          });
+          hdr.addEventListener("dragend", () => {
+            panelDragId = "";
+            card.classList.remove("dragging");
+            card.classList.remove("dropBefore");
+          });
+          card.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            card.classList.add("dropBefore");
+          });
+          card.addEventListener("dragleave", () => card.classList.remove("dropBefore"));
+          card.addEventListener("drop", (e) => {
+            e.preventDefault();
+            card.classList.remove("dropBefore");
+            const src = panelDragId || e.dataTransfer?.getData("text/plain") || "";
+            reorderPanels(src, id);
+          });
+        });
+        $("panelLayoutModeBtn")?.addEventListener("click", () => {
+          panelUi.mode = panelUi.mode === "split" ? "stack" : "split";
+          writePanelUi();
+          applyPanelUi();
+        });
+        $("panelResetBtn")?.addEventListener("click", () => {
+          panelUi = { mode: "split", order: ["context", "routing"], collapsed: {} };
+          writePanelUi();
+          applyPanelUi();
+        });
+        applyPanelUi();
       }
       function persistState(state) {
         if (!state || typeof state !== "object") return;
@@ -904,7 +1080,7 @@
         bubble.bbox = r;
         if (!bubble.bubbleOffset) bubble.bubbleOffset = { x: -14, y: -14 };
         selectedCanvasBubbleId = bubble.id;
-        editingBubbleId = bubble.id;
+        editingBubbleId = "";
         writeRoutePlan(routePlan);
         renderRoutingPanel();
       }
@@ -929,7 +1105,7 @@
             e.preventDefault();
             return;
           }
-          selectedCanvasBubbleId = "";
+          clearBubbleForm();
           startDrawAt(p.x, p.y);
           bubbleCanvasLast = p;
           renderBubbleTable();
@@ -1019,24 +1195,61 @@
         if (!state.activeJobId && state.jobs[0]) state.activeJobId = state.jobs[0].id;
         return state;
       }
+      function stateStamp(state) {
+        const iso = String(state?.meta?.updatedAt || state?.meta?.createdAt || "");
+        const ts = Date.parse(iso);
+        return Number.isFinite(ts) ? ts : -1;
+      }
+      function stateScore(state) {
+        const stations = Array.isArray(state?.stations) ? state.stations.length : 0;
+        const jobs = Array.isArray(state?.jobs) ? state.jobs.length : 0;
+        let cycles = 0;
+        for (const j of (state?.jobs || [])) cycles += Array.isArray(j?.cycles) ? j.cycles.length : 0;
+        return (stations * 1000000) + (jobs * 1000) + cycles;
+      }
+      function hasPayloadData(state) {
+        return stateScore(state) > 0;
+      }
+      function pickBestState(candidates) {
+        if (!Array.isArray(candidates) || !candidates.length) return null;
+        const nonEmpty = candidates.filter((c) => hasPayloadData(c.state));
+        const pool = nonEmpty.length ? nonEmpty : candidates;
+        let best = pool[0];
+        for (let i = 1; i < pool.length; i++) {
+          const c = pool[i];
+          if ((c.stamp || -1) > (best.stamp || -1)) {
+            best = c;
+            continue;
+          }
+          if ((c.stamp || -1) === (best.stamp || -1) && (c.score || 0) > (best.score || 0)) {
+            best = c;
+          }
+        }
+        return best;
+      }
       function readStateEnvelope() {
-        const fromApi = normalizeState(window.VMillData?.readAppState ? window.VMillData.readAppState() : null);
+        const fromApi = normalizeState(window.VMillData?.readAppState ? window.VMillData.readAppState({ seedIfMissing: false }) : null);
         if (fromApi) {
           const merged = applyHandoffToState(fromApi, launchHandoff);
           if (merged.changed) persistState(merged.state);
           return { state: merged.state, source: merged.changed ? "VMillData.readAppState+handoff" : "VMillData.readAppState" };
         }
+        const candidates = [];
         for (const k of WATCH_KEYS) {
           const raw = localStorage.getItem(k);
           if (!raw) continue;
           try {
             const parsed = normalizeState(JSON.parse(raw));
             if (parsed) {
-              const merged = applyHandoffToState(parsed, launchHandoff);
-              if (merged.changed) persistState(merged.state);
-              return { state: merged.state, source: merged.changed ? `localStorage:${k}+handoff` : `localStorage:${k}` };
+              candidates.push({ state: parsed, source: `localStorage:${k}`, stamp: stateStamp(parsed), score: stateScore(parsed) });
             }
           } catch {}
+        }
+        const best = pickBestState(candidates);
+        if (best?.state) {
+          const merged = applyHandoffToState(best.state, launchHandoff);
+          if (merged.changed) persistState(merged.state);
+          return { state: merged.state, source: merged.changed ? `${best.source}+handoff` : best.source };
         }
         if (launchHandoff) {
           const seeded = createStateFromHandoff(launchHandoff);
@@ -1216,7 +1429,7 @@
         selectedCanvasBubbleId = b.id;
         clearBubbleForm();
         selectedCanvasBubbleId = b.id;
-        editingBubbleId = b.id;
+        editingBubbleId = "";
         writeRoutePlan(routePlan);
         renderRoutingPanel();
       }
@@ -1676,6 +1889,7 @@
           refresh();
         }
       }, 1500);
+      initPanelUi();
       window.CANBus?.emit("spacial:ready", { module: "SPaCial" }, "spacial");
 
       refresh();

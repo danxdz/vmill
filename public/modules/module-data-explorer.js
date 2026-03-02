@@ -1,5 +1,11 @@
 (() => {
   if (typeof window === "undefined" || typeof document === "undefined") return;
+  // Keep a single launcher in top-level pages; avoid duplicates in embedded module iframes.
+  try {
+    if (window.self !== window.top) return;
+  } catch {
+    return;
+  }
   if (document.getElementById("vmillDataExplorer")) return;
 
   const APP_KEY = "vmill:app-state:v1";
