@@ -281,6 +281,11 @@
       overflow: hidden;
       min-height: 120px;
     }
+    .widget[data-widget="jobs"] {
+      overflow: visible;
+      position: relative;
+      z-index: 8;
+    }
     .widget.hidden { display: none; }
     .widget[data-size="wide"] { grid-column: span 8; }
     .widget[data-size="half"] { grid-column: span 6; }
@@ -339,11 +344,20 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      min-height: 140px;
+      min-height: 116px;
     }
     .modName { font-weight: 800; }
-    .modDesc { color: var(--muted); font-size: 12px; line-height: 1.35; min-height: 32px; }
-    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .modDesc {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      margin-bottom: 2px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .tags { display: none; }
     .tag {
       font-size: 10px;
       color: var(--muted);
@@ -414,6 +428,8 @@
       display: flex;
       flex-direction: column;
       gap: 7px;
+      position: relative;
+      overflow: visible;
     }
     .jobsList[data-view="cards"] .jobsExplorerCard {
       min-height: 184px;
@@ -543,11 +559,14 @@
       border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
       background: color-mix(in srgb, var(--accent) 14%, transparent);
     }
+    .actionsMenu[open] {
+      z-index: 90;
+    }
     .actionsMenuList {
       position: absolute;
       right: 0;
       top: calc(100% + 6px);
-      z-index: 30;
+      z-index: 120;
       min-width: 170px;
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -660,6 +679,8 @@
       grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) minmax(220px, 1fr);
       gap: 8px;
       align-items: center;
+      position: relative;
+      overflow: visible;
     }
     .jobsFlatRow .actionsMenuList { right: 0; left: auto; }
     @media(max-width:980px){
@@ -1838,7 +1859,6 @@
           const mDesc = tt(`hub.mod.${m.id}.desc`, m.desc || "");
           const card = document.createElement("article");
           card.className = "modCard";
-          const tags = (m.tags || []).map((x) => `<span class="tag">${x}</span>`).join("");
           const ready = m.status === "ready";
           const enabled = isModuleEnabled(m.id);
           const canDisable = m.id !== "can-bus";
@@ -1848,7 +1868,6 @@
           card.innerHTML = `
             <div class="modName">${escHtml(mName)}</div>
             <div class="modDesc">${escHtml(mDesc)}</div>
-            <div class="tags">${tags}</div>
             <div class="jobMeta">${canDisable
               ? `<label style="display:inline-flex;align-items:center;gap:6px;"><input type="checkbox" data-module-toggle="${m.id}" ${enabled ? "checked" : ""}> ${escHtml(tt("hub.module.enabled", "Enabled"))}</label>`
               : `<span class="status ready">${escHtml(tt("hub.module.core", "core"))}</span>`}

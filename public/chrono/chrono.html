@@ -671,10 +671,6 @@
   </div>
   <div class="topRight">
     <span class="hSavePill" id="savePill"></span>
-    <select id="quickPanelLayoutSel" class="miniSelect hLangSel" title="Panel layout">
-      <option value="stack">Stack</option>
-      <option value="grid">Grid</option>
-    </select>
     <!-- Panel visibility toggles -->
     <div class="hPanelToggles" id="panelTogglesRow">
       <button class="iconBtn hPanelBtn active" type="button" data-panel-toggle="jobs" title="Show/Hide jobs panel">Jobs</button>
@@ -1235,46 +1231,6 @@
           <div class="row">
             <div class="row2">
               <div>
-                <label id="uiScaleLabel">UI Scale</label>
-                <input id="uiScaleRange" type="range" min="20" max="200" step="1" value="100" />
-              </div>
-              <div>
-                <label id="uiScaleValueLabel">Scale value</label>
-                <input id="uiScaleInput" type="number" min="0.2" max="2" step="0.05" value="1" />
-              </div>
-            </div>
-            <div class="row2">
-              <div>
-                <label id="uiLayoutModeLabel">Layout mode</label>
-                <select id="uiLayoutModeSel">
-                  <option value="horizontal">Horizontal (side by side)</option>
-                  <option value="vertical">Vertical (stacked)</option>
-                </select>
-              </div>
-              <div>
-                <label id="uiPanelLayoutLabel">Panel layout</label>
-                <select id="uiPanelLayoutSel">
-                  <option value="stack">Stacked cards</option>
-                  <option value="grid">Adaptive grid</option>
-                </select>
-              </div>
-            </div>
-            <div class="row2" id="uiPanelGridColsWrap" style="display:none;">
-              <div>
-                <label id="uiPanelGridColsLabel">Grid columns</label>
-                <input id="uiPanelGridColsRange" type="range" min="1" max="4" step="1" value="2" />
-                <div class="small muted mono" id="uiPanelGridColsValue">2 cols</div>
-              </div>
-            </div>
-            <div class="row2">
-              <div>
-                <label id="uiJobsWidthLabelTitle">Jobs panel width</label>
-                <input id="uiJobsWidthRange" type="range" min="240" max="640" step="10" value="360" />
-                <div class="small muted mono" id="uiJobsWidthLabel">360 px</div>
-              </div>
-            </div>
-            <div class="row2">
-              <div>
                 <label id="uiTimeUnitLabel">Time unit</label>
                 <select id="uiTimeUnitSel">
                   <option value="s">Seconds</option>
@@ -1284,18 +1240,10 @@
               <div>
                 <label id="uiTimeResolutionLabel">Resolution (s)</label>
                 <select id="uiTimeResolutionSel">
-                  <option value="1">1</option>
                   <option value="0.1">0.1</option>
-                  <option value="0.01">0.01</option>
-                  <option value="0.001">0.001</option>
                 </select>
               </div>
             </div>
-            <div class="btnbar" style="margin-top:4px;">
-              <label class="chip"><input class="checkbox" id="uiTimelineSameBaseChk" type="checkbox" checked /> Timeline same base</label>
-              <button id="uiResetBtn" type="button">↺ Reset defaults</button>
-            </div>
-            <div class="small muted" id="uiLayoutHint">Layout settings are saved locally and exported in JSON.</div>
           </div>
         </div>
       </section>
@@ -1785,12 +1733,6 @@
       panelLayoutSel.options[0].textContent = t("uiPanelLayoutStack", "Stacked cards");
       panelLayoutSel.options[1].textContent = t("uiPanelLayoutGrid", "Adaptive grid");
     }
-    const quickLayoutSel = $("quickPanelLayoutSel");
-    if (quickLayoutSel && quickLayoutSel.options.length >= 2) {
-      quickLayoutSel.options[0].textContent = t("uiPanelLayoutStack", "Stacked cards");
-      quickLayoutSel.options[1].textContent = t("uiPanelLayoutGrid", "Adaptive grid");
-      quickLayoutSel.title = t("uiPanelLayout", "Panel layout");
-    }
     const unitSel = $("uiTimeUnitSel");
     if (unitSel && unitSel.options.length >= 2) {
       unitSel.options[0].textContent = t("uiTimeUnitSec", "Seconds");
@@ -1882,8 +1824,7 @@
     return `${sign}${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}.${String(mm).padStart(3,"0")}`;
   }
   function timeResolutionSec() {
-    const q = Number(state?.ui?.timeResolutionSec ?? 0.001);
-    return [1, 0.1, 0.01, 0.001].includes(q) ? q : 0.001;
+    return 0.1;
   }
   function timeUnit() {
     return String(state?.ui?.timeDisplayUnit || "s") === "min" ? "min" : "s";
@@ -2014,7 +1955,7 @@
       layoutMode: "horizontal",
       jobsPanelWidth: 360,
       timeDisplayUnit: "s",
-      timeResolutionSec: 0.001,
+      timeResolutionSec: 0.1,
       drawerPrefVersion: 2,
       drawerSections: {
         job: false,
@@ -2049,8 +1990,7 @@
     st.ui.layoutMode = (st.ui.layoutMode === "vertical") ? "vertical" : "horizontal";
     st.ui.jobsPanelWidth = clamp(st.ui.jobsPanelWidth ?? d.jobsPanelWidth, 240, 640, d.jobsPanelWidth);
     st.ui.timeDisplayUnit = (String(st.ui.timeDisplayUnit || d.timeDisplayUnit) === "min") ? "min" : "s";
-    const q = Number(st.ui.timeResolutionSec ?? d.timeResolutionSec);
-    st.ui.timeResolutionSec = [1, 0.1, 0.01, 0.001].includes(q) ? q : d.timeResolutionSec;
+    st.ui.timeResolutionSec = 0.1;
     st.ui.drawerPrefVersion = Number.isFinite(Number(st.ui.drawerPrefVersion))
       ? Number(st.ui.drawerPrefVersion)
       : 0;
@@ -2311,8 +2251,6 @@
     if (modeSel) modeSel.value = state.ui.layoutMode;
     const panelLayoutSel = $("uiPanelLayoutSel");
     if (panelLayoutSel) panelLayoutSel.value = state.ui.panelLayout === "grid" ? "grid" : "stack";
-    const quickPanelLayoutSel = $("quickPanelLayoutSel");
-    if (quickPanelLayoutSel) quickPanelLayoutSel.value = state.ui.panelLayout === "grid" ? "grid" : "stack";
     const colsWrap = $("uiPanelGridColsWrap");
     if (colsWrap) colsWrap.style.display = state.ui.panelLayout === "grid" ? "" : "none";
     const colsRange = $("uiPanelGridColsRange");
@@ -5382,14 +5320,6 @@
       saveState();
     });
   }
-  const quickPanelLayoutSel = $("quickPanelLayoutSel");
-  if (quickPanelLayoutSel) {
-    quickPanelLayoutSel.addEventListener("change", () => {
-      state.ui.panelLayout = (quickPanelLayoutSel.value === "grid") ? "grid" : "stack";
-      applyUiLayout();
-      saveState();
-    });
-  }
   const uiPanelGridColsRange = $("uiPanelGridColsRange");
   if (uiPanelGridColsRange) {
     uiPanelGridColsRange.addEventListener("input", () => {
@@ -5417,8 +5347,8 @@
   const uiTimeResolutionSel = $("uiTimeResolutionSel");
   if (uiTimeResolutionSel) {
     uiTimeResolutionSel.addEventListener("change", () => {
-      const q = Number(uiTimeResolutionSel.value || 0.001);
-      state.ui.timeResolutionSec = [1, 0.1, 0.01, 0.001].includes(q) ? q : 0.001;
+      state.ui.timeResolutionSec = 0.1;
+      uiTimeResolutionSel.value = "0.1";
       saveState();
       renderAll();
     });
