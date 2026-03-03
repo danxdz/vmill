@@ -4,6 +4,7 @@
   const ALL_APP_KEYS = [APP_KEY, ...LEGACY_APP_KEYS];
   const MODULE_KEY = "vmill:module-data:v1";
   const WINDOW_STORE_PREFIX = "__VMILL_STORE__:";
+  const NS_ROUTE = "spacial_routes";
   const DEMO_PRESETS = {
     small: "chrono_examples_small.json",
     medium: "chrono_examples_medium.json",
@@ -25,16 +26,45 @@
 
   function normalizeProductsAndJobs(st) {
     if (!isValidAppState(st)) return st;
+    if (!Array.isArray(st.categories)) st.categories = [];
+    st.categories = st.categories.map((c, idx) => ({
+      id: String(c?.id || uuid()),
+      code: String(c?.code || `CAT${String(idx + 1).padStart(3, "0")}`),
+      name: String(c?.name || `Category ${idx + 1}`),
+      parentCategoryId: String(c?.parentCategoryId || ""),
+    }));
+    const categoryIds = new Set(st.categories.map((c) => String(c?.id || "")).filter(Boolean));
     if (!Array.isArray(st.products)) st.products = [];
     st.products = st.products.map((p, idx) => ({
       id: String(p?.id || uuid()),
       code: String(p?.code || `P${String(idx + 1).padStart(3, "0")}`),
       name: String(p?.name || `Product ${idx + 1}`),
       parentProductId: String(p?.parentProductId || ""),
+      categoryIds: Array.isArray(p?.categoryIds) ? p.categoryIds.map((x) => String(x || "")).filter((x) => categoryIds.has(x)) : [],
       imageUrl: String(p?.imageUrl || ""),
     }));
     if (!st.products.length && Array.isArray(st.jobs) && st.jobs.length) {
-      st.products = [{ id: uuid(), code: "P001", name: "Default Product", parentProductId: "", imageUrl: "" }];
+      const map = new Map();
+      for (let i = 0; i < st.jobs.length; i++) {
+        const job = st.jobs[i] || {};
+        const rawPid = String(job?.productId || "").trim();
+        const key = rawPid || `auto:${String(job?.stationId || i)}`;
+        if (!map.has(key)) {
+          const n = map.size + 1;
+          const baseName = String(job?.name || "").split("#")[0].trim();
+          map.set(key, {
+            id: uuid(),
+            code: `P${String(n).padStart(3, "0")}`,
+            name: baseName ? `${baseName} Product` : `Product ${n}`,
+            parentProductId: "",
+            imageUrl: "",
+          });
+        }
+        const prod = map.get(key);
+        job.productId = prod.id;
+        st.jobs[i] = job;
+      }
+      st.products = [...map.values()];
     }
     const productIds = new Set(st.products.map((p) => String(p?.id || "")).filter(Boolean));
     if (!productIds.has(String(st.activeProductId || ""))) st.activeProductId = st.products[0]?.id || null;
@@ -44,8 +74,14 @@
     for (const j of (st.jobs || [])) {
       if (!j.stationId && fallbackStationId) j.stationId = fallbackStationId;
       if (!Array.isArray(j.cycles)) j.cycles = [];
+      if (!Array.isArray(j.categoryIds)) j.categoryIds = [];
+      j.categoryIds = j.categoryIds.map((x) => String(x || "")).filter((x) => categoryIds.has(x));
       const pid = String(j?.productId || "");
       if (!pid || !productIds.has(pid)) j.productId = st.products[0]?.id || "";
+    }
+    for (const s of (st.stations || [])) {
+      if (!Array.isArray(s?.categoryIds)) s.categoryIds = [];
+      s.categoryIds = s.categoryIds.map((x) => String(x || "")).filter((x) => categoryIds.has(x));
     }
     return st;
   }
@@ -207,10 +243,12 @@
   }
 
   function createDefaultAppState() {
-    const p1 = { id: uuid(), code: "P001", name: "Alpha Product", parentProductId: "", imageUrl: "" };
-    const p2 = { id: uuid(), code: "P002", name: "Beta Product", parentProductId: p1.id, imageUrl: "" };
-    const st1 = { id: uuid(), code: "S01", name: "Assembly Line A - Station 1" };
-    const st2 = { id: uuid(), code: "S02", name: "Packaging Cell - Station 2" };
+    const c1 = { id: uuid(), code: "CAT001", name: "Assembly", parentCategoryId: "" };
+    const c2 = { id: uuid(), code: "CAT002", name: "Packaging", parentCategoryId: "" };
+    const p1 = { id: uuid(), code: "P001", name: "Alpha Product", parentProductId: "", categoryIds: [c1.id], imageUrl: "" };
+    const p2 = { id: uuid(), code: "P002", name: "Beta Product", parentProductId: p1.id, categoryIds: [c2.id], imageUrl: "" };
+    const st1 = { id: uuid(), code: "S01", name: "Assembly Line A - Station 1", categoryIds: [c1.id] };
+    const st2 = { id: uuid(), code: "S02", name: "Packaging Cell - Station 2", categoryIds: [c2.id] };
     const e1 = { id: uuid(), name: "Pick part", type: "HUMAN" };
     const e2 = { id: uuid(), name: "Place part", type: "HUMAN" };
     const e3 = { id: uuid(), name: "Machine cycle", type: "MACHINE" };
@@ -221,6 +259,7 @@
       productId: p1.id,
       stationId: st1.id,
       name: "Pick / Place / Machine",
+      categoryIds: [c1.id],
       allowancePct: 12,
       ratingPct: 100,
       elements: [e1, e2, e3],
@@ -256,6 +295,7 @@
       productId: p2.id,
       stationId: st2.id,
       name: "Inspect / Pack",
+      categoryIds: [c2.id],
       allowancePct: 10,
       ratingPct: 100,
       elements: [e4, e5],
@@ -276,6 +316,7 @@
     return ensureStateMeta({
       activeProductId: p1.id,
       activeJobId: job1.id,
+      categories: [c1, c2],
       products: [p1, p2],
       stations: [st1, st2],
       jobs: [job1, job2],
@@ -288,12 +329,68 @@
     return ensureStateMeta({
       activeProductId: null,
       activeJobId: null,
+      categories: [],
       products: [],
       stations: [],
       jobs: [],
       actionTypes: defaultActionTypes(),
       ui: defaultUiState(),
     });
+  }
+
+  function avgElementMs(job, elementId) {
+    const eid = String(elementId || "");
+    if (!eid || !Array.isArray(job?.cycles)) return null;
+    let sum = 0;
+    let count = 0;
+    for (const cyc of job.cycles) {
+      for (const lap of (cyc?.laps || [])) {
+        if (String(lap?.elementId || "") !== eid) continue;
+        const ms = Number(lap?.ms || 0);
+        if (!Number.isFinite(ms) || ms <= 0) continue;
+        sum += ms;
+        count += 1;
+      }
+    }
+    if (!count) return null;
+    return sum / count;
+  }
+
+  function buildRouteForJob(job, station, product) {
+    const j = job && typeof job === "object" ? job : {};
+    const st = station && typeof station === "object" ? station : {};
+    const pd = product && typeof product === "object" ? product : {};
+    const elements = Array.isArray(j.elements) ? j.elements : [];
+    const ops = elements.map((el, i) => {
+      const ms = avgElementMs(j, el?.id);
+      const estMin = ms && Number.isFinite(ms) ? Math.max(0.01, Number((ms / 60000).toFixed(3))) : null;
+      return {
+        id: String(el?.id || uuid()),
+        seq: (i + 1) * 10,
+        name: String(el?.name || `Operation ${i + 1}`),
+        stationCode: String(st?.code || ""),
+        workstation: String(st?.name || ""),
+        estimatedTimeMin: estMin,
+        sampleSize: null,
+        frequency: "",
+        controlMethod: "",
+        critical: false,
+        notes: "",
+        bubbles: [],
+      };
+    });
+    return {
+      id: `routeplan_${String(j.id || uuid())}`,
+      jobId: String(j.id || ""),
+      stationId: String(j.stationId || st?.id || ""),
+      jobName: String(j.name || "Job"),
+      stationLabel: st?.id ? `${st.code || "--"} - ${st.name || "Station"}` : "",
+      routeName: String(j.name || "Route"),
+      revision: "A",
+      productRef: pd?.id ? `${pd.code || "--"} - ${pd.name || "Product"}` : "",
+      operations: ops,
+      updatedAt: new Date().toISOString(),
+    };
   }
 
   function clearAppStateStorage() {
@@ -342,6 +439,7 @@
       if (!seedIfMissing) return null;
       const seeded = createDefaultAppState();
       writeAppState(seeded);
+      seedRoutesForState(seeded, { overwrite: false, pruneMissing: false });
       return seeded;
     }
     const best = chooseBestState(candidates);
@@ -349,6 +447,7 @@
       if (!seedIfMissing) return null;
       const seeded = createDefaultAppState();
       writeAppState(seeded);
+      seedRoutesForState(seeded, { overwrite: false, pruneMissing: false });
       return seeded;
     }
     const raw = JSON.stringify(best.state);
@@ -375,6 +474,7 @@
     clearAppStateStorage();
     const seeded = createDefaultAppState();
     writeAppState(seeded);
+    seedRoutesForState(seeded, { overwrite: true, pruneMissing: true });
     return seeded;
   }
 
@@ -383,6 +483,24 @@
     const empty = createEmptyAppState();
     writeAppState(empty);
     return empty;
+  }
+
+  function resetAllData(options = {}) {
+    const withRoutes = options?.withRoutes !== false;
+    const app = resetAppStateToDefault();
+    const st = readModuleState();
+    st.store = {};
+    writeModuleState(st);
+    const seededRoutes = withRoutes ? seedRoutesForState(app, { overwrite: true, pruneMissing: true }) : 0;
+    return { app, seededRoutes };
+  }
+
+  function clearAllData() {
+    const app = clearAppStateToEmpty();
+    const st = readModuleState();
+    st.store = {};
+    writeModuleState(st);
+    return { app };
   }
 
   async function loadDemoAppState(presetOrFile) {
@@ -404,6 +522,7 @@
           continue;
         }
         writeAppState(normalized);
+        seedRoutesForState(normalized, { overwrite: true, pruneMissing: true });
         return { state: normalized, source: candidate };
       } catch (err) {
         tries.push(`${candidate} -> ${err?.message || "fetch failed"}`);
@@ -419,6 +538,98 @@
     base.meta.updatedAt = new Date().toISOString();
     if (!base.store || typeof base.store !== "object") base.store = {};
     return base;
+  }
+
+  function normalizeRouteRecord(input) {
+    if (!input || typeof input !== "object") return null;
+    const src = { ...input };
+    const jobId = String(src.jobId || "").trim();
+    const id = String(src.id || (jobId ? `routeplan_${jobId}` : `routeplan_${uuid()}`)).trim();
+    if (!id) return null;
+    return {
+      ...src,
+      id,
+      jobId,
+      stationId: String(src.stationId || ""),
+      jobName: String(src.jobName || ""),
+      stationLabel: String(src.stationLabel || ""),
+      routeName: String(src.routeName || src.jobName || "Route"),
+      revision: String(src.revision || "A"),
+      productRef: String(src.productRef || ""),
+      operations: Array.isArray(src.operations) ? src.operations.slice() : [],
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  function importRouteRecords(records, options = {}) {
+    const replace = options?.replace === true;
+    const rows = Array.isArray(records) ? records : [records];
+    const normalized = rows.map(normalizeRouteRecord).filter(Boolean);
+    if (!normalized.length) return 0;
+    const st = readModuleState();
+    if (!Array.isArray(st.store[NS_ROUTE]) || replace) st.store[NS_ROUTE] = [];
+    const target = Array.isArray(st.store[NS_ROUTE]) ? st.store[NS_ROUTE] : [];
+    for (const rec of normalized) {
+      const recJobId = String(rec.jobId || "");
+      const idx = target.findIndex((x) =>
+        String(x?.id || "") === String(rec.id || "") ||
+        (recJobId && String(x?.jobId || "") === recJobId)
+      );
+      if (idx >= 0) {
+        target[idx] = { ...target[idx], ...rec, updatedAt: new Date().toISOString() };
+      } else {
+        target.push({ createdAt: new Date().toISOString(), ...rec, updatedAt: new Date().toISOString() });
+      }
+    }
+    st.store[NS_ROUTE] = target;
+    writeModuleState(st);
+    return normalized.length;
+  }
+
+  function seedRoutesForState(appState, options = {}) {
+    const overwrite = options?.overwrite === true;
+    const pruneMissing = options?.pruneMissing === true;
+    const app = normalizeImportedAppState(appState);
+    if (!app) return 0;
+    const jobs = Array.isArray(app.jobs) ? app.jobs : [];
+    const stationById = new Map((app.stations || []).map((s) => [String(s.id || ""), s]));
+    const productById = new Map((app.products || []).map((p) => [String(p.id || ""), p]));
+    const st = readModuleState();
+    if (!Array.isArray(st.store[NS_ROUTE])) st.store[NS_ROUTE] = [];
+    const routes = st.store[NS_ROUTE];
+    const jobIds = new Set(jobs.map((j) => String(j?.id || "")).filter(Boolean));
+    let changed = 0;
+    if (pruneMissing) {
+      const before = routes.length;
+      st.store[NS_ROUTE] = routes.filter((r) => {
+        const rid = String(r?.jobId || "");
+        return !rid || jobIds.has(rid);
+      });
+      if (st.store[NS_ROUTE].length !== before) changed += (before - st.store[NS_ROUTE].length);
+    }
+    const target = st.store[NS_ROUTE];
+    for (const job of jobs) {
+      const jid = String(job?.id || "");
+      if (!jid) continue;
+      const idx = target.findIndex((r) =>
+        String(r?.jobId || "") === jid || String(r?.id || "") === `routeplan_${jid}`
+      );
+      if (idx >= 0 && !overwrite) continue;
+      const station = stationById.get(String(job?.stationId || "")) || null;
+      const product = productById.get(String(job?.productId || "")) || null;
+      const route = buildRouteForJob(job, station, product);
+      if (idx >= 0) target[idx] = { ...target[idx], ...route, updatedAt: new Date().toISOString() };
+      else target.push({ createdAt: new Date().toISOString(), ...route, updatedAt: new Date().toISOString() });
+      changed += 1;
+    }
+    if (changed > 0) writeModuleState(st);
+    return changed;
+  }
+
+  function seedRoutesForCurrentApp(options = {}) {
+    const app = readAppState({ seedIfMissing: false });
+    if (!app) return 0;
+    return seedRoutesForState(app, options);
   }
 
   function readModuleState() {
@@ -482,11 +693,58 @@
     };
   }
 
-  function importAllSnapshot(snapshot) {
-    if (!snapshot || typeof snapshot !== "object") throw new Error("Invalid snapshot format.");
-    if (snapshot.app) writeAppState(snapshot.app);
-    if (snapshot.modules) writeModuleState(snapshot.modules);
-    window.CANBus?.emit("data:snapshot:imported", {}, "module-data");
+  function importJsonPayload(payload, options = {}) {
+    if (!payload || (typeof payload !== "object" && !Array.isArray(payload))) {
+      throw new Error("Invalid JSON payload.");
+    }
+    const result = {
+      mode: "",
+      importedApp: false,
+      importedModules: false,
+      importedRoutes: 0,
+      seededRoutes: 0,
+    };
+    if (Array.isArray(payload)) {
+      result.mode = "routes-array";
+      result.importedRoutes = importRouteRecords(payload, { replace: options?.replaceRoutes === true });
+    } else if (payload.app || payload.modules) {
+      result.mode = "snapshot";
+      if (payload.app) {
+        writeAppState(payload.app);
+        result.importedApp = true;
+      }
+      if (payload.modules) {
+        writeModuleState(payload.modules);
+        result.importedModules = true;
+      }
+      if (result.importedApp && options?.seedRoutes !== false) {
+        result.seededRoutes = seedRoutesForCurrentApp({ overwrite: false, pruneMissing: false });
+      }
+    } else {
+      const app = normalizeImportedAppState(payload);
+      if (app) {
+        result.mode = "app";
+        writeAppState(app);
+        result.importedApp = true;
+        if (options?.seedRoutes !== false) {
+          result.seededRoutes = seedRoutesForState(app, { overwrite: false, pruneMissing: false });
+        }
+      } else if (Array.isArray(payload.routes)) {
+        result.mode = "routes-object";
+        result.importedRoutes = importRouteRecords(payload.routes, { replace: options?.replaceRoutes === true });
+      } else if (payload.operations || payload.jobId || payload.routeName) {
+        result.mode = "route";
+        result.importedRoutes = importRouteRecords(payload, { replace: options?.replaceRoutes === true });
+      } else {
+        throw new Error("Unsupported JSON structure. Expected app, snapshot, or route JSON.");
+      }
+    }
+    window.CANBus?.emit("data:snapshot:imported", result, "module-data");
+    return result;
+  }
+
+  function importAllSnapshot(snapshot, options = {}) {
+    return importJsonPayload(snapshot, options);
   }
 
   function makeCsvForJobs() {
@@ -531,12 +789,14 @@
   function makeTextReport() {
     const app = readAppState();
     const modules = readModuleState();
+    const categories = Array.isArray(app?.categories) ? app.categories : [];
     const products = Array.isArray(app?.products) ? app.products : [];
     const stations = Array.isArray(app?.stations) ? app.stations : [];
     const jobs = Array.isArray(app?.jobs) ? app.jobs : [];
     const lines = [];
     lines.push("VMill Offline Backup Report");
     lines.push(`ExportedAt: ${new Date().toISOString()}`);
+    lines.push(`Categories: ${categories.length}`);
     lines.push(`Products: ${products.length}`);
     lines.push(`Stations: ${stations.length}`);
     lines.push(`Jobs: ${jobs.length}`);
@@ -572,8 +832,14 @@
     createEmptyAppState,
     resetAppStateToDefault,
     clearAppStateToEmpty,
+    resetAllData,
+    clearAllData,
     loadDemoAppState,
     normalizeImportedAppState,
+    seedRoutesForState,
+    seedRoutesForCurrentApp,
+    importRouteRecords,
+    importJsonPayload,
     readModuleState,
     writeModuleState,
     upsertRecord,
