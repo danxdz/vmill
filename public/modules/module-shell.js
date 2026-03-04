@@ -60,11 +60,6 @@
         else if (cScore === bScore && c.key === APP_KEY && best.key !== APP_KEY) best = c;
       }
     }
-    const raw = JSON.stringify(best.state);
-    for (const key of APP_KEYS) {
-      if (key === best.key) continue;
-      try { localStorage.setItem(key, raw); } catch {}
-    }
     return best.state;
   }
 
@@ -117,7 +112,10 @@
           chrono: "./chrono.html",
           camera: "./chrono_camera.html",
           spacial: "../SPaCial.html",
+          contas: "../contas_calc.html",
+          structure: "../structure_studio.html",
           theme: "../theme_studio.html",
+          translations: "../translation_studio.html",
         };
       }
       if (inPublicRoot) {
@@ -127,7 +125,10 @@
           chrono: "./chrono/chrono.html",
           camera: "./chrono/chrono_camera.html",
           spacial: "./SPaCial.html",
+          contas: "./contas_calc.html",
+          structure: "./structure_studio.html",
           theme: "./theme_studio.html",
+          translations: "./translation_studio.html",
         };
       }
       return {
@@ -136,7 +137,10 @@
         chrono: "./public/chrono/chrono.html",
         camera: "./public/chrono/chrono_camera.html",
         spacial: "./public/SPaCial.html",
+        contas: "./public/contas_calc.html",
+        structure: "./public/structure_studio.html",
         theme: "./public/theme_studio.html",
+        translations: "./public/translation_studio.html",
       };
     }
     if (kind === "chrono") {
@@ -146,7 +150,10 @@
         chrono: "./chrono.html",
         camera: "./chrono_camera.html",
         spacial: "../SPaCial.html",
+        contas: "../contas_calc.html",
+        structure: "../structure_studio.html",
         theme: "../theme_studio.html",
+        translations: "../translation_studio.html",
       };
     }
     return {
@@ -155,19 +162,32 @@
       chrono: "/chrono/chrono.html",
       camera: "/chrono/chrono_camera.html",
       spacial: "/SPaCial.html",
+      contas: "/contas_calc.html",
+      structure: "/structure_studio.html",
       theme: "/theme_studio.html",
+      translations: "/translation_studio.html",
     };
   }
 
   const ROUTES = routes();
   const MODULES = [
-    { id: "hub", label: "Hub", route: ROUTES.hub, fixed: true },
-    { id: "cnc-sim", label: "CNC", route: ROUTES.cnc },
-    { id: "chrono", label: "Chrono", route: ROUTES.chrono },
-    { id: "chrono-camera", label: "Camera", route: ROUTES.camera },
-    { id: "spacial", label: "SPaCial", route: ROUTES.spacial },
-    { id: "theme", label: "Theme", route: ROUTES.theme },
+    { id: "hub", labelKey: "hub.dock.hub", fallback: "Hub", route: ROUTES.hub, fixed: true },
+    { id: "cnc-sim", labelKey: "hub.dock.cnc", fallback: "CNC", route: ROUTES.cnc },
+    { id: "chrono", labelKey: "hub.dock.chrono", fallback: "Chrono", route: ROUTES.chrono },
+    { id: "chrono-camera", labelKey: "hub.dock.camera", fallback: "Camera", route: ROUTES.camera },
+    { id: "spacial", labelKey: "hub.dock.spacial", fallback: "SPaCial", route: ROUTES.spacial },
+    { id: "contas", labelKey: "hub.dock.contas", fallback: "Contas", route: ROUTES.contas },
+    { id: "structure", labelKey: "hub.dock.structure", fallback: "Structure", route: ROUTES.structure },
+    { id: "theme", labelKey: "hub.dock.theme", fallback: "Theme", route: ROUTES.theme },
+    { id: "translations", labelKey: "hub.top.translationsSettings", fallback: "i18n", route: ROUTES.translations },
   ];
+  const IS_EMBEDDED_FRAME = (() => {
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true;
+    }
+  })();
 
   function currentModuleId() {
     const p = String(location.pathname || "");
@@ -175,7 +195,10 @@
     if (p.includes("/chrono/chrono_camera.html")) return "chrono-camera";
     if (p.includes("/chrono/chrono.html")) return "chrono";
     if (p.includes("/SPaCial.html")) return "spacial";
+    if (p.includes("/contas_calc.html")) return "contas";
+    if (p.includes("/structure_studio.html")) return "structure";
     if (p.includes("/theme_studio.html")) return "theme";
+    if (p.includes("/translation_studio.html")) return "translations";
     if (p === "/" || p.endsWith("/index.html") || p.includes("/cnc_sim.html")) return "cnc-sim";
     return "hub";
   }
@@ -208,7 +231,7 @@
       job: {
         id: job.id || "",
         stationId: job.stationId || station.id || "",
-        name: job.name || "Job",
+        name: job.name || tt("spacial.jobDefault", "Job"),
         cycles: cycles.map((c) => ({
           id: c?.id || "",
           totalMs: Number(c?.totalMs || 0),
@@ -265,6 +288,10 @@
     return false;
   }
 
+  function tt(key, fallback = "", vars) {
+    return window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
+  }
+
   const host = document.createElement("div");
   host.id = "vmillRadialShell";
   host.innerHTML = `
@@ -291,14 +318,22 @@
         transform: translate(-50%, -50%) scale(.96);
         opacity: 0;
         transition: transform .14s ease, opacity .14s ease;
+        --shell-bg: rgba(var(--vm-theme-bg-rgb, 10,16,28), .88);
+        --shell-border: rgba(var(--vm-theme-text-rgb, 220,238,254), .35);
+        --shell-text: var(--vm-theme-text, #dceefe);
+        --shell-muted: rgba(var(--vm-theme-text-rgb, 157,180,206), .72);
+        --shell-accent: rgba(var(--vm-theme-accent-rgb, 87,180,255), .18);
+        --shell-accent-border: rgba(var(--vm-theme-accent-rgb, 87,180,255), .48);
+        --shell-active: rgba(var(--ok-rgb, 104,211,154), .22);
+        --shell-active-border: rgba(var(--ok-rgb, 104,211,154), .82);
       }
       #vmillRadialShell.open .menu { transform: translate(-50%, -50%) scale(1); opacity: 1; }
       #vmillRadialShell .ring {
         width: 260px;
         height: 260px;
         border-radius: 999px;
-        border: 1px solid rgba(120,145,175,.45);
-        background: radial-gradient(circle at center, rgba(255,255,255,.08) 0, rgba(10,16,28,.86) 62%);
+        border: 1px solid var(--shell-border);
+        background: radial-gradient(circle at center, rgba(255,255,255,.08) 0, var(--shell-bg) 62%);
         backdrop-filter: blur(8px);
         box-shadow: 0 12px 28px rgba(0,0,0,.36);
         position: relative;
@@ -310,9 +345,9 @@
         width: 86px;
         height: 86px;
         border-radius: 999px;
-        border: 1px solid rgba(120,145,175,.55);
-        background: rgba(87,180,255,.16);
-        color: #d9eeff;
+        border: 1px solid var(--shell-accent-border);
+        background: var(--shell-accent);
+        color: var(--shell-text);
         font-size: 12px;
         font-weight: 800;
         letter-spacing: .06em;
@@ -329,9 +364,9 @@
         margin-top: -17px;
         text-decoration: none;
         border-radius: 999px;
-        border: 1px solid rgba(120,145,175,.55);
-        background: rgba(87,180,255,.18);
-        color: #dceefe;
+        border: 1px solid var(--shell-accent-border);
+        background: var(--shell-accent);
+        color: var(--shell-text);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -339,15 +374,15 @@
         font-weight: 700;
       }
       #vmillRadialShell .item.active {
-        border-color: rgba(104,211,154,.85);
-        background: rgba(104,211,154,.22);
-        color: #c9f7df;
+        border-color: var(--shell-active-border);
+        background: var(--shell-active);
+        color: var(--shell-text);
       }
       #vmillRadialShell .ctx {
         margin-top: 8px;
-        border: 1px solid rgba(120,145,175,.45);
+        border: 1px solid var(--shell-border);
         border-radius: 12px;
-        background: rgba(10,16,28,.86);
+        background: var(--shell-bg);
         backdrop-filter: blur(8px);
         padding: 8px;
         display: grid;
@@ -355,15 +390,15 @@
       }
       #vmillRadialShell .ctx select {
         width: 100%;
-        border: 1px solid rgba(120,145,175,.45);
+        border: 1px solid var(--shell-border);
         border-radius: 999px;
         background: rgba(255,255,255,.06);
-        color: #dceefe;
+        color: var(--shell-text);
         padding: 6px 8px;
         font-size: 11px;
       }
       #vmillRadialShell .closeHint {
-        color: #9db4ce;
+        color: var(--shell-muted);
         font-size: 10px;
         text-align: center;
       }
@@ -377,12 +412,12 @@
     <div class="backdrop" id="vmillRadialBackdrop"></div>
     <div class="menu" id="vmillRadialMenu" style="left:50%;top:50%;">
       <div class="ring" id="vmillRadialRing">
-        <button class="center" id="vmillRadialCenter" type="button">VMILL</button>
+        <button class="center" id="vmillRadialCenter" type="button">VM</button>
       </div>
       <div class="ctx">
         <select id="vmillRadialStation" title="Global station"></select>
         <select id="vmillRadialJob" title="Global job"></select>
-        <div class="closeHint">Right click opens. Esc or click outside closes.</div>
+        <div class="closeHint" id="vmillRadialHint">Right click opens. Esc or click outside closes.</div>
       </div>
     </div>
   `;
@@ -394,6 +429,13 @@
   const centerBtn = host.querySelector("#vmillRadialCenter");
   const stationSel = host.querySelector("#vmillRadialStation");
   const jobSel = host.querySelector("#vmillRadialJob");
+  const hintEl = host.querySelector("#vmillRadialHint");
+
+  function applyI18n() {
+    stationSel.title = tt("shell.ctx.stationTitle", "Global station");
+    jobSel.title = tt("shell.ctx.jobTitle", "Global job");
+    if (hintEl) hintEl.textContent = tt("shell.hint.close", "Right click opens. Esc or click outside closes.");
+  }
 
   function clearItems() {
     ring.querySelectorAll("a.item").forEach((n) => n.remove());
@@ -417,6 +459,7 @@
     const prefs = readPrefs();
     const currentId = currentModuleId();
     const visibleModules = MODULES.filter((m) => {
+      if (IS_EMBEDDED_FRAME && m.id === "hub") return false;
       const disabled = !m.fixed && prefs.disabled.includes(String(m.id || ""));
       return !(disabled && m.id !== currentId);
     });
@@ -436,7 +479,7 @@
       const m = visibleModules[i];
       const a = document.createElement("a");
       a.className = "item";
-      a.textContent = m.label;
+      a.textContent = tt(m.labelKey || "", m.fallback || m.id);
       const handoff = m.id === "spacial" ? buildSpacialHandoff(activeJob, activeStation) : "";
       a.href = makeUrlWithCtx(m.route, { jobId: activeJobId, stationId: activeStationId, handoff });
       if (m.id === currentId) a.classList.add("active");
@@ -459,7 +502,7 @@
     for (const st of ctx.stations) {
       const opt = document.createElement("option");
       opt.value = st.id;
-      opt.textContent = `${st.code || "--"} ${st.name || "Station"}`;
+      opt.textContent = `${st.code || "--"} ${st.name || tt("spacial.stationDefault", "Station")}`;
       stationSel.appendChild(opt);
     }
     if (prevStation && stationOptions.has(prevStation)) stationSel.value = prevStation;
@@ -475,7 +518,7 @@
     for (const j of jobsForStation) {
       const opt = document.createElement("option");
       opt.value = j.id;
-      opt.textContent = j.name || "Unnamed job";
+      opt.textContent = j.name || tt("hub.jobs.unnamed", "Unnamed job");
       jobSel.appendChild(opt);
     }
 
@@ -490,6 +533,7 @@
   }
 
   function renderAll() {
+    applyI18n();
     renderContextSelectors();
     renderMenuItems();
   }
@@ -540,4 +584,17 @@
   window.addEventListener("vmill:module-prefs-changed", () => {
     if (host.classList.contains("open")) renderAll();
   });
+  window.addEventListener("vmill:lang:changed", () => {
+    if (host.classList.contains("open")) renderAll();
+    else applyI18n();
+  });
+  window.addEventListener("vmill:lang:catalog:changed", () => {
+    if (host.classList.contains("open")) renderAll();
+    else applyI18n();
+  });
+  window.addEventListener("load", () => {
+    if (host.classList.contains("open")) renderAll();
+    else applyI18n();
+  });
+  applyI18n();
 })();

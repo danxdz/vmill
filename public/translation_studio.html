@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Translation Manager</title>
+  <style>
+    :root {
+      --bg:var(--vm-theme-bg, #0a0f17);
+      --panel:var(--vm-theme-panel, #111a2a);
+      --panel2:var(--vm-theme-panel-2, #0f1623);
+      --text:var(--vm-theme-text, #e6edf8);
+      --muted:var(--vm-theme-muted, rgba(230,237,248,.66));
+      --border:var(--vm-theme-border, rgba(230,237,248,.2));
+      --accent:var(--vm-theme-accent, #57b4ff);
+      --accent-rgb:var(--vm-theme-accent-rgb, 87,180,255);
+      --warn:var(--vm-theme-warn, #ffd37a);
+      --warn-rgb:var(--vm-theme-warn-rgb, 255,211,122);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(980px 540px at 10% -12%, rgba(var(--accent-rgb), .20), transparent 62%),
+        linear-gradient(180deg,var(--bg),color-mix(in srgb, var(--bg) 84%, #000));
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1220px; margin: 0 auto; padding: 16px 14px 24px; }
+    .hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-bottom: 12px; }
+    h1 { margin: 0; font-size: 30px; letter-spacing: .02em; }
+    .sub { color: var(--muted); font-size: 13px; margin-top: 6px; }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .btn {
+      width: auto;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn.primary { border-color: rgba(var(--accent-rgb), .55); background: rgba(var(--accent-rgb), .16); color: var(--accent); }
+    .btn.warn { border-color: rgba(var(--warn-rgb), .55); background: rgba(var(--warn-rgb), .14); color: var(--warn); }
+    .btn:disabled { opacity: .45; cursor: default; }
+    select, input, textarea {
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      padding: 8px;
+      font-size: 12px;
+    }
+    input[type="text"] { min-width: 240px; }
+    .status { color: var(--muted); font-size: 12px; }
+    .headGrid {
+      display: grid;
+      grid-template-columns: 2.2fr 3fr 3fr 80px;
+      gap: 8px;
+      padding: 7px 8px;
+      border-bottom: 1px solid rgba(255,255,255,.09);
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-weight: 700;
+    }
+    .rows {
+      max-height: calc(100vh - 250px);
+      overflow: auto;
+      padding: 4px;
+    }
+    .item {
+      display: grid;
+      grid-template-columns: 2.2fr 3fr 3fr 80px;
+      gap: 8px;
+      padding: 8px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      align-items: start;
+    }
+    .item:last-child { border-bottom: 0; }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      word-break: break-word;
+    }
+    .baseVal {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 30px;
+    }
+    .valIn {
+      width: 100%;
+      min-height: 52px;
+      resize: vertical;
+      font-family: inherit;
+      line-height: 1.35;
+    }
+    .chg {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      min-width: 40px;
+      padding: 4px 8px;
+      font-size: 11px;
+      color: var(--muted);
+      background: rgba(255,255,255,.02);
+    }
+    .chg.yes {
+      border-color: rgba(var(--accent-rgb), .58);
+      color: var(--accent);
+      background: rgba(var(--accent-rgb), .12);
+    }
+    .empty {
+      border: 1px dashed rgba(255,255,255,.16);
+      border-radius: 10px;
+      padding: 14px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+    }
+    @media(max-width:980px) {
+      .headGrid { display: none; }
+      .item {
+        grid-template-columns: 1fr;
+        border: 1px solid rgba(255,255,255,.1);
+        border-radius: 10px;
+        margin-bottom: 8px;
+      }
+      .rows { max-height: none; }
+      input[type="text"] { min-width: 180px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1 id="tTitle">Translation Manager</h1>
+        <div class="sub" id="tSubtitle">Edit EN/FR/PT strings globally and save overrides offline.</div>
+      </div>
+      <div class="row">
+        <button class="btn warn" id="discardBtn" type="button">Discard Changes</button>
+        <button class="btn primary" id="saveBtn" type="button">Save Overrides</button>
+      </div>
+    </div>
+
+    <section class="card">
+      <div class="row">
+        <label for="langSel" id="langLbl">Language</label>
+        <select id="langSel"></select>
+        <input id="searchIn" type="text" placeholder="Search key/value" />
+        <button class="btn" id="resetLangBtn" type="button">Reset Language</button>
+        <button class="btn" id="exportBtn" type="button">Export JSON</button>
+        <select id="importModeSel">
+          <option value="merge">Merge</option>
+          <option value="replace">Replace</option>
+        </select>
+        <button class="btn" id="importBtn" type="button">Import JSON</button>
+        <input id="importFile" type="file" accept=".json,application/json" style="display:none;" />
+      </div>
+      <div class="status" id="status" style="margin-top:8px;">Ready.</div>
+    </section>
+
+    <section class="card">
+      <div class="headGrid">
+        <div id="hKey">Key</div>
+        <div id="hBase">Base</div>
+        <div id="hValue">Value</div>
+        <div id="hChanged">Changed</div>
+      </div>
+      <div class="rows" id="rows"></div>
+    </section>
+  </div>
+
+  <script src="./modules/module-shell.js"></script>
+  <script src="./modules/module-io.js"></script>
+  <script src="./modules/module-lang.js"></script>
+  <script src="./modules/module-theme.js"></script>
+  <script>
+    (function () {
+      const $ = (id) => document.getElementById(id);
+      let activeLang = "en";
+      let baseMap = {};
+      let draftMap = {};
+      let keys = [];
+      let dirty = false;
+      let searchTerm = "";
+
+      function tt(key, fallback = "", vars) {
+        return window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
+      }
+
+      function esc(v) {
+        return String(v ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;");
+      }
+
+      function clone(obj) {
+        try { return JSON.parse(JSON.stringify(obj)); } catch { return {}; }
+      }
+
+      function applyGlobalTheme(event) {
+        if (!window.VMillTheme?.applyTheme) return;
+        window.VMillTheme.applyTheme(document, "translations", event?.detail?.theme || null);
+      }
+
+      function setStatus(msgKey, fallback, vars) {
+        const el = $("status");
+        if (!el) return;
+        el.textContent = tt(msgKey, fallback, vars);
+      }
+
+      function normalizeDraft() {
+        const out = {};
+        for (const key of keys) {
+          out[key] = String(draftMap[key] ?? "");
+        }
+        return out;
+      }
+
+      function computeOverrides() {
+        const overrides = {};
+        for (const key of keys) {
+          const base = String(baseMap[key] ?? "");
+          const next = String(draftMap[key] ?? "");
+          if (next !== base) overrides[key] = next;
+        }
+        return overrides;
+      }
+
+      function syncDirty() {
+        const overrides = computeOverrides();
+        dirty = Object.keys(overrides).length > 0;
+        $("saveBtn").disabled = !dirty;
+        if (dirty) setStatus("i18n.status.unsaved", "Unsaved changes.");
+        else setStatus("i18n.status.ready", "Ready.");
+        notifyDirty();
+      }
+
+      function filteredKeys() {
+        if (!searchTerm) return keys;
+        const q = searchTerm.toLowerCase();
+        return keys.filter((k) => {
+          const b = String(baseMap[k] ?? "").toLowerCase();
+          const d = String(draftMap[k] ?? "").toLowerCase();
+          return String(k).toLowerCase().includes(q) || b.includes(q) || d.includes(q);
+        });
+      }
+
+      function renderRows() {
+        const box = $("rows");
+        const rows = filteredKeys();
+        if (!rows.length) {
+          box.innerHTML = `<div class="empty">${esc(tt("i18n.none", "No translation keys match the filter."))}</div>`;
+          return;
+        }
+        box.innerHTML = rows.map((k) => {
+          const baseVal = String(baseMap[k] ?? "");
+          const curVal = String(draftMap[k] ?? "");
+          const changed = baseVal !== curVal;
+          return `
+            <div class="item" data-key-row="${esc(k)}">
+              <div class="mono">${esc(k)}</div>
+              <div class="baseVal">${esc(baseVal)}</div>
+              <div><textarea class="valIn" data-key-input="${esc(k)}">${esc(curVal)}</textarea></div>
+              <div><span class="chg ${changed ? "yes" : ""}">${esc(changed ? tt("i18n.yes", "Yes") : tt("i18n.no", "No"))}</span></div>
+            </div>
+          `;
+        }).join("");
+        box.querySelectorAll("[data-key-input]").forEach((el) => {
+          el.addEventListener("input", () => {
+            const key = String(el.getAttribute("data-key-input") || "");
+            draftMap[key] = String(el.value ?? "");
+            syncDirty();
+            const row = el.closest("[data-key-row]");
+            const mark = row?.querySelector(".chg");
+            if (mark) {
+              const yes = String(baseMap[key] ?? "") !== String(draftMap[key] ?? "");
+              mark.classList.toggle("yes", yes);
+              mark.textContent = yes ? tt("i18n.yes", "Yes") : tt("i18n.no", "No");
+            }
+          });
+        });
+      }
+
+      function loadLanguage(lang) {
+        const requested = String(lang || "en").toLowerCase();
+        const supported = (window.VMillLang?.availableLanguages?.() || []).map((x) => String(x?.code || "").toLowerCase());
+        activeLang = supported.includes(requested) ? requested : "en";
+        const list = window.VMillLang?.listKeys ? window.VMillLang.listKeys({ lang: activeLang }) : [];
+        const base = window.VMillLang?.getBaseCatalog ? window.VMillLang.getBaseCatalog(activeLang) : {};
+        const merged = window.VMillLang?.getCatalog ? window.VMillLang.getCatalog(activeLang, { merged: true }) : base;
+        keys = Array.isArray(list) && list.length
+          ? list
+          : [...new Set([...Object.keys(base || {}), ...Object.keys(merged || {})])].sort((a, b) => String(a).localeCompare(String(b)));
+        baseMap = {};
+        draftMap = {};
+        for (const k of keys) {
+          baseMap[k] = String(base?.[k] ?? "");
+          draftMap[k] = String(merged?.[k] ?? baseMap[k]);
+        }
+        $("langSel").value = activeLang;
+        renderRows();
+        syncDirty();
+      }
+
+      function saveChanges() {
+        const overrides = computeOverrides();
+        if (!window.VMillLang?.setOverrides) return;
+        window.VMillLang.setOverrides(activeLang, overrides, { replace: true });
+        loadLanguage(activeLang);
+        setStatus("i18n.status.saved", "Overrides saved.");
+      }
+
+      function discardChanges() {
+        if (dirty && !confirm(tt("i18n.confirm.discard", "Discard unsaved translation changes?"))) return;
+        loadLanguage(activeLang);
+        setStatus("i18n.status.discarded", "Changes discarded.");
+      }
+
+      function resetLanguage() {
+        if (!confirm(tt("i18n.confirm.reset", "Reset all overrides for this language?"))) return;
+        window.VMillLang?.clearOverrides?.(activeLang);
+        loadLanguage(activeLang);
+        setStatus("i18n.status.reset", "Language overrides reset.");
+      }
+
+      function exportJson() {
+        const langs = (window.VMillLang?.availableLanguages?.() || [{ code: "en" }, { code: "fr" }, { code: "pt" }])
+          .map((x) => String(x?.code || "").toLowerCase())
+          .filter(Boolean);
+        const merged = {};
+        for (const code of langs) {
+          merged[code] = window.VMillLang?.getCatalog ? window.VMillLang.getCatalog(code, { merged: true }) : {};
+        }
+        const payload = {
+          exportedAt: new Date().toISOString(),
+          overrides: window.VMillLang?.getOverrides ? window.VMillLang.getOverrides() : {},
+          merged,
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `vmill_translations_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setStatus("i18n.status.exported", "Translations exported.");
+      }
+
+      function applyImported(payload) {
+        const mode = String($("importModeSel")?.value || "merge");
+        const replace = mode === "replace";
+        const hasOverrides = payload && typeof payload === "object" && payload.overrides && typeof payload.overrides === "object";
+        const langs = (window.VMillLang?.availableLanguages?.() || [{ code: "en" }, { code: "fr" }, { code: "pt" }])
+          .map((x) => String(x?.code || "").toLowerCase())
+          .filter(Boolean);
+        const hasFlat = payload && typeof payload === "object" && langs.some((code) => payload?.[code] && typeof payload[code] === "object");
+        if (!hasOverrides && !hasFlat) throw new Error(tt("i18n.alert.invalidPayload", "Invalid translation payload."));
+        if (hasOverrides) {
+          const ov = payload.overrides || {};
+          for (const code of langs) {
+            if (ov[code] && typeof ov[code] === "object") window.VMillLang?.setOverrides?.(code, ov[code], { replace });
+          }
+        }
+        if (hasFlat) {
+          for (const code of langs) {
+            if (payload[code] && typeof payload[code] === "object") window.VMillLang?.setOverrides?.(code, payload[code], { replace });
+          }
+        }
+        loadLanguage(activeLang);
+        setStatus("i18n.status.imported", "Translations imported.");
+      }
+
+      function notifyDirty() {
+        window.__vmTranslationStudioDirty = !!dirty;
+        try {
+          window.parent?.postMessage({ type: "vmill:translation-studio-dirty", dirty: !!dirty }, location.origin);
+        } catch {}
+      }
+
+      function applyI18nText() {
+        $("tTitle").textContent = tt("i18n.title", "Translation Manager");
+        $("tSubtitle").textContent = tt("i18n.subtitle", "Edit EN/FR/PT strings globally and save overrides offline.");
+        $("langLbl").textContent = tt("i18n.language", "Language");
+        $("searchIn").placeholder = tt("i18n.search", "Search key/value");
+        $("saveBtn").textContent = tt("i18n.save", "Save Overrides");
+        $("discardBtn").textContent = tt("i18n.discard", "Discard Changes");
+        $("resetLangBtn").textContent = tt("i18n.reset", "Reset Language");
+        $("exportBtn").textContent = tt("i18n.export", "Export JSON");
+        $("importBtn").textContent = tt("i18n.import", "Import JSON");
+        const mergeOpt = $("importModeSel")?.querySelector('option[value="merge"]');
+        const replaceOpt = $("importModeSel")?.querySelector('option[value="replace"]');
+        if (mergeOpt) mergeOpt.textContent = tt("i18n.mode.merge", "Merge");
+        if (replaceOpt) replaceOpt.textContent = tt("i18n.mode.replace", "Replace");
+        $("hKey").textContent = tt("i18n.key", "Key");
+        $("hBase").textContent = tt("i18n.base", "Base");
+        $("hValue").textContent = tt("i18n.value", "Value");
+        $("hChanged").textContent = tt("i18n.changed", "Changed");
+      }
+
+      function initLanguageSelector() {
+        const sel = $("langSel");
+        const langs = window.VMillLang?.availableLanguages ? window.VMillLang.availableLanguages() : [{ code: "en", name: "English" }, { code: "fr", name: "Francais" }, { code: "pt", name: "Portugues" }];
+        sel.innerHTML = langs.map((l) => `<option value="${esc(l.code)}">${esc(l.name)}</option>`).join("");
+        const active = window.VMillLang?.getLanguage ? window.VMillLang.getLanguage() : "en";
+        sel.value = langs.some((l) => String(l.code || "") === String(active || "")) ? active : "en";
+        loadLanguage(sel.value);
+      }
+
+      function bindUi() {
+        $("langSel").addEventListener("change", () => {
+          if (dirty && !confirm(tt("i18n.confirm.discard", "Discard unsaved translation changes?"))) {
+            $("langSel").value = activeLang;
+            return;
+          }
+          loadLanguage($("langSel").value);
+        });
+        $("searchIn").addEventListener("input", () => {
+          searchTerm = String($("searchIn").value || "").trim();
+          renderRows();
+        });
+        $("saveBtn").addEventListener("click", saveChanges);
+        $("discardBtn").addEventListener("click", discardChanges);
+        $("resetLangBtn").addEventListener("click", resetLanguage);
+        $("exportBtn").addEventListener("click", exportJson);
+        $("importBtn").addEventListener("click", () => $("importFile").click());
+        $("importFile").addEventListener("change", (e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (!file) return;
+          const fr = new FileReader();
+          fr.onload = () => {
+            try {
+              const payload = JSON.parse(String(fr.result || "{}"));
+              applyImported(payload);
+            } catch (err) {
+              alert(tt("i18n.alert.importFailed", "Import failed: {err}", { err: err?.message || "invalid file" }));
+            }
+          };
+          fr.readAsText(file);
+        });
+      }
+
+      function hasUnsavedChanges() { return !!dirty; }
+      function confirmLeaveIfDirty() {
+        if (!dirty) return true;
+        return confirm(tt("i18n.confirm.discard", "Discard unsaved translation changes?"));
+      }
+
+      applyGlobalTheme();
+      window.addEventListener("vmill:theme:changed", applyGlobalTheme);
+      applyI18nText();
+      initLanguageSelector();
+      bindUi();
+
+      window.addEventListener("vmill:lang:changed", () => {
+        applyI18nText();
+      });
+      window.addEventListener("vmill:lang:catalog:changed", () => {
+        loadLanguage(activeLang);
+      });
+
+      window.VMillTranslationStudio = {
+        hasUnsavedChanges,
+        saveChanges,
+        discardChanges,
+        confirmLeaveIfDirty,
+      };
+
+      window.addEventListener("beforeunload", (e) => {
+        if (!dirty) return;
+        e.preventDefault();
+        e.returnValue = "";
+      });
+    })();
+  </script>
+</body>
+</html>

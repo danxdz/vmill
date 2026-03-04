@@ -3,19 +3,99 @@
   if (window.VMillLang) return;
 
   const LANG_KEY = "vmill:lang:v1";
-  const SUPPORTED = ["en", "fr"];
-  const LABELS = { en: "English", fr: "Francais" };
+  const LANG_OVERRIDES_KEY = "vmill:lang-overrides:v1";
+  const SUPPORTED = ["en", "fr", "pt"];
+  const LABELS = { en: "English", fr: "Francais", pt: "Portugues" };
 
   const CATALOGS = {
     en: {
       "common.language": "Language",
       "common.lang.en": "English",
       "common.lang.fr": "Francais",
+      "common.lang.pt": "Portugues",
+      "common.refresh": "Refresh",
+      "common.new": "New",
+      "common.add": "+ Add",
+      "common.save": "Save",
+      "common.delete": "Delete",
+      "common.optional": "Optional",
+      "common.id": "id",
+      "common.base": "base",
+      "common.custom": "custom",
+      "common.status.refreshed": "Refreshed.",
+
+      "shell.ctx.stationTitle": "Global station",
+      "shell.ctx.jobTitle": "Global job",
+      "shell.hint.close": "Right click opens. Esc or click outside closes.",
+
+      "structure.title": "Structure Studio",
+      "structure.subtitle": "One form only. Internal codes are auto CAT###; users manage names and parent/child tree.",
+      "structure.openHub": "Open Hub",
+      "structure.form.title": "Category Form",
+      "structure.form.category": "Category",
+      "structure.form.code": "Internal Code",
+      "structure.form.key": "Internal Key",
+      "structure.form.singular": "Singular Name",
+      "structure.form.plural": "Plural Name",
+      "structure.form.description": "Description",
+      "structure.form.parent": "Parent Category",
+      "structure.form.relation": "Parent Relation",
+      "structure.children.title": "Selected Category Children",
+      "structure.placeholder.code": "CAT###",
+      "structure.placeholder.key": "cat###",
+      "structure.placeholder.singular": "Atelier",
+      "structure.placeholder.plural": "Ateliers",
+      "structure.placeholder.relation": "contains",
+      "structure.option.new": "(new category)",
+      "structure.option.noParent": "(no parent)",
+      "structure.relation.default": "contains",
+      "structure.children.noneSelected": "No category selected.",
+      "structure.children.none": "No child category.",
+      "structure.parent.root": "root",
+      "structure.parent.tag": "parent",
+      "structure.none": "No categories",
+      "structure.error.singularRequired": "Singular name is required.",
+      "structure.error.addFailed": "Failed to add category.",
+      "structure.error.saveFailed": "Failed to save category.",
+      "structure.error.deleteFailed": "Delete failed (base or linked category).",
+      "structure.status.added": "Category added ({code}).",
+      "structure.status.saved": "Category saved.",
+      "structure.status.deleted": "Category deleted.",
+      "structure.status.ready": "Structure Studio ready.",
+      "structure.confirm.delete": "Delete selected category?",
+
+      "theme.title": "Theme Studio",
+      "theme.subtitle": "Global theme module for Hub, Chrono, SPaCial and Camera.",
+      "theme.resetDefault": "Reset Default",
+      "theme.save": "Save Global Theme",
+      "theme.presets": "Presets",
+      "theme.palette": "Palette",
+      "theme.field.bg": "Background",
+      "theme.field.text": "Text",
+      "theme.field.accent": "Accent",
+      "theme.field.headerBg": "Header BG",
+      "theme.field.headerText": "Header Text",
+      "theme.applyLive": "Apply Live",
+      "theme.preview": "Preview",
+      "theme.preview.header": "Header",
+      "theme.preview.surface": "Module Surface",
+      "theme.preview.desc": "This preview reflects the global theme variables.",
+      "theme.preview.action": "Accent Action",
+      "theme.status.saved": "Theme saved.",
+      "theme.status.discarded": "Changes discarded.",
+      "theme.status.presetSaved": "Preset saved: {name}",
+      "theme.status.liveUnsaved": "Live preview (not saved).",
+      "theme.status.matches": "Theme matches saved config.",
+      "theme.status.defaultLoaded": "Default loaded (not saved).",
+      "theme.status.unsaved": "Unsaved changes.",
+      "theme.confirm.unsaved": "Theme changes are not saved. OK = Save, Cancel = Discard.",
 
       "hub.dock.hub": "Hub",
       "hub.dock.chrono": "Chrono",
       "hub.dock.camera": "Camera",
       "hub.dock.spacial": "SPaCial",
+      "hub.dock.structure": "Structure",
+      "hub.dock.contas": "Contas",
       "hub.dock.theme": "Theme",
       "hub.dock.cnc": "CNC Sim",
       "hub.top.overlay": "Overlay",
@@ -25,6 +105,7 @@
       "hub.top.settingsClose": "Close settings",
       "hub.top.closeModule": "Close Module",
       "hub.top.themeSettings": "Theme Settings",
+      "hub.top.translationsSettings": "Translations",
       "hub.top.canOnline": "CAN BUS ONLINE",
       "hub.top.running": "{module} running in workspace",
       "hub.workspace.empty": "Select a module to run in this workspace.",
@@ -34,15 +115,17 @@
       "hub.overview.stations": "Stations",
       "hub.overview.jobs": "Jobs",
       "hub.overview.cycles": "Cycles",
-      "hub.overview.routes": "SPaCial Routes",
+      "hub.overview.routes": "Routes",
       "hub.modules.title": "Modules",
       "hub.modules.minor": "Launch and availability",
       "hub.jobs.title": "Stations & Jobs",
       "hub.jobs.searchPlaceholder": "Search product/station/job...",
       "hub.jobs.entity": "Browse",
+      "hub.jobs.entity.job": "Job",
       "hub.jobs.entity.jobs": "Jobs",
       "hub.jobs.entity.stations": "Stations",
       "hub.jobs.entity.products": "Products",
+      "hub.common.all": "All",
       "hub.jobs.addStation": "+ Station",
       "hub.jobs.addJob": "+ Job",
       "hub.jobs.flowHint": "Filter and browse as cards or details list.",
@@ -98,6 +181,23 @@
       "hub.structure.productDefault": "Product",
       "hub.structure.childCount": "{count} child(ren)",
       "hub.structure.parentTag": "Parent: {name}",
+      "hub.structure.dynamic.summary": "Dynamic Entity Model",
+      "hub.structure.dynamic.types": "Entity Types",
+      "hub.structure.dynamic.items": "Entity Items",
+      "hub.structure.dynamic.links": "Dependencies",
+      "hub.structure.dynamic.selectType": "Select type",
+      "hub.structure.dynamic.selectItem": "Select item",
+      "hub.structure.dynamic.addType": "+ Type",
+      "hub.structure.dynamic.renameType": "Rename Type",
+      "hub.structure.dynamic.deleteType": "Delete Type",
+      "hub.structure.dynamic.addItem": "+ Item",
+      "hub.structure.dynamic.renameItem": "Rename Item",
+      "hub.structure.dynamic.deleteItem": "Delete Item",
+      "hub.structure.dynamic.linkSave": "Save Link",
+      "hub.structure.dynamic.linkDelete": "Delete Link",
+      "hub.structure.dynamic.none": "No dynamic entities yet.",
+      "hub.structure.dynamic.noneLinks": "No links yet.",
+      "hub.structure.dynamic.linkRelation": "Relation",
       "hub.cat.default": "Category",
       "hub.cat.none": "No categories",
       "hub.cat.noneAssigned": "No category linked",
@@ -123,6 +223,10 @@
       "hub.data.importJson": "Import JSON",
       "hub.data.importSnapshot": "Import JSON Snapshot",
       "hub.data.exportAll": "Export All JSON",
+      "hub.data.demoPreset": "Demo preset",
+      "hub.data.demoPreset.small": "Small",
+      "hub.data.demoPreset.medium": "Medium",
+      "hub.data.demoPreset.large": "Large",
       "hub.data.seedDemo": "Seed Demo",
       "hub.data.seedRoutes": "Seed Routes",
       "hub.data.loadDemoM": "Load Demo M",
@@ -138,6 +242,9 @@
       "hub.bus.clear": "Clear",
       "hub.personalize.title": "Personalize",
       "hub.personalize.resetLayout": "Reset Layout",
+      "hub.personalize.panelStack": "Panel stack",
+      "hub.personalize.panelStack.horizontal": "Horizontal",
+      "hub.personalize.panelStack.vertical": "Vertical",
       "hub.personalize.autoScale": "Auto scale",
       "hub.personalize.scale": "Scale",
       "hub.personalize.scaleValue": "{pct}%",
@@ -157,8 +264,14 @@
       "hub.mod.chrono-camera.desc": "Camera-assisted capture with sequence marks and bookmark export.",
       "hub.mod.spacial.name": "SPaCial",
       "hub.mod.spacial.desc": "Dimensional routing and blueprint bubble planning.",
+      "hub.mod.structure.name": "Structure Studio",
+      "hub.mod.structure.desc": "Global products, stations, jobs, and dependency model controller.",
+      "hub.mod.contas.name": "Contas CNC",
+      "hub.mod.contas.desc": "Legacy CNC calculators: thread, milling, turning, and trig helpers.",
       "hub.mod.theme.name": "Theme Studio",
       "hub.mod.theme.desc": "Global palette and visual theme controls for all modules.",
+      "hub.mod.translations.name": "Translations",
+      "hub.mod.translations.desc": "Global translation manager for EN/FR/PT strings.",
       "hub.mod.cnc-sim.name": "CNC Simulator",
       "hub.mod.cnc-sim.desc": "Launches the main CNC simulation workspace directly.",
       "hub.mod.can-bus.name": "CAN Bus Core",
@@ -166,15 +279,26 @@
       "hub.prompt.stationCode": "Station code (e.g. ST01):",
       "hub.prompt.stationName": "Station name:",
       "hub.prompt.jobName": "Job name:",
+      "hub.prompt.entityTypeSingular": "Type singular name (e.g. Machine):",
+      "hub.prompt.entityTypePlural": "Type plural name (e.g. Machines):",
+      "hub.prompt.entityItemCode": "Item code (optional):",
+      "hub.prompt.entityItemName": "Item name:",
       "hub.prompt.stationImage": "Station image URL (http or data:image):",
       "hub.prompt.jobImage": "Job image URL (http or data:image):",
       "hub.alert.selectStationFirst": "Select one station first.",
       "hub.alert.selectStationToAddJob": "Select one station to add a job.",
       "hub.alert.stationNotFound": "Station not found.",
       "hub.alert.productNotFound": "Product not found.",
+      "hub.alert.dynamic.selectType": "Select one entity type first.",
+      "hub.alert.dynamic.selectItem": "Select one entity item first.",
+      "hub.alert.dynamic.lockedType": "This base type is locked. You can rename it but not delete it.",
+      "hub.alert.dynamic.lockedItem": "This item is managed by base app data and cannot be deleted here.",
       "hub.confirm.deleteStation": "Delete station {code} - {name}? This will remove {count} job(s).",
       "hub.confirm.deleteJob": "Delete job \"{name}\"?",
       "hub.confirm.deleteCategory": "Delete category {code} - {name}?",
+      "hub.confirm.deleteType": "Delete type \"{name}\" and its items/links?",
+      "hub.confirm.deleteItem": "Delete item \"{name}\"?",
+      "hub.confirm.deleteLink": "Delete this dependency link?",
       "hub.confirm.removeDemo": "Remove demo data and keep global state empty?",
       "hub.confirm.resetData": "Reset all data to default sample set?",
       "hub.confirm.clearSettings": "Clear local UI settings and reload? Data will be kept.",
@@ -187,16 +311,66 @@
       "hub.alert.imageTypeInvalid": "Please select an image file.",
       "hub.alert.imageReadFailed": "Failed to read image file.",
 
+      "i18n.title": "Translation Manager",
+      "i18n.subtitle": "Edit EN/FR/PT strings globally and save overrides offline.",
+      "i18n.language": "Language",
+      "i18n.search": "Search key/value",
+      "i18n.save": "Save Overrides",
+      "i18n.discard": "Discard Changes",
+      "i18n.reset": "Reset Language",
+      "i18n.export": "Export JSON",
+      "i18n.import": "Import JSON",
+      "i18n.mode.merge": "Merge",
+      "i18n.mode.replace": "Replace",
+      "i18n.key": "Key",
+      "i18n.base": "Base",
+      "i18n.value": "Value",
+      "i18n.changed": "Changed",
+      "i18n.yes": "Yes",
+      "i18n.no": "No",
+      "i18n.status.ready": "Ready.",
+      "i18n.status.unsaved": "Unsaved changes.",
+      "i18n.status.saved": "Overrides saved.",
+      "i18n.status.discarded": "Changes discarded.",
+      "i18n.status.reset": "Language overrides reset.",
+      "i18n.status.imported": "Translations imported.",
+      "i18n.status.exported": "Translations exported.",
+      "i18n.none": "No translation keys match the filter.",
+      "i18n.confirm.discard": "Discard unsaved translation changes?",
+      "i18n.confirm.reset": "Reset all overrides for this language?",
+      "i18n.alert.importFailed": "Import failed: {err}",
+      "i18n.alert.invalidPayload": "Invalid translation payload.",
+
       "spacial.title": "SPaCial",
       "spacial.subtitle": "Dimensional control and blueprint bubble planning.",
       "spacial.refresh": "Refresh",
       "spacial.useActiveJob": "Use Global Active Job",
+      "spacial.filter.allScopes": "All scopes",
+      "spacial.filter.allScopeItems": "All items",
+      "spacial.filter.allProducts": "All products",
+      "spacial.filter.allStations": "All stations",
+      "spacial.filter.allJobs": "All jobs",
+      "spacial.filter.pickRoute": "Pick route",
+      "spacial.route.new": "+ Route",
+      "spacial.route.duplicate": "Duplicate Route",
+      "spacial.route.delete": "Delete Route",
+      "spacial.route.none": "No routes",
       "spacial.routing.title": "Routing and Dimensional Control",
       "spacial.routing.hint": "Per selected job: route, operations, dimensional bubbles and blueprint bubbles.",
       "spacial.section.route": "Route",
       "spacial.section.operations": "Operations",
       "spacial.section.bubbles": "Bubbles",
       "spacial.section.blueprint": "Blueprint",
+      "spacial.file.default": "File",
+      "spacial.file.label": "File",
+      "spacial.file.add": "+ File(s)",
+      "spacial.file.rename": "Rename File",
+      "spacial.file.delete": "Delete File",
+      "spacial.file.exportJpg": "Export Annotated JPG",
+      "spacial.file.exportOpPdf": "Operation PDF",
+      "spacial.file.hint": "Each operation file has independent annotations.",
+      "spacial.file.previewNA": "Preview not available for this file type.",
+      "spacial.none.file": "No files",
       "spacial.routeName": "Route name",
       "spacial.routeRev": "Revision (A, B...)",
       "spacial.routeProductRef": "Product / Drawing ref",
@@ -246,6 +420,7 @@
       "spacial.canvas.showBoxes": "Show boxes",
       "spacial.canvas.help": "Upload drawing then drag to create/select bubble boxes. Drag circle to move bubble label.",
       "spacial.none.activeJob": "No active job.",
+      "spacial.none.routeSelected": "Select or create a route.",
       "spacial.none.operation": "Select or create an operation first.",
       "spacial.none.bubbles": "No bubbles yet for this operation.",
       "spacial.none.operations": "No operations",
@@ -253,15 +428,24 @@
       "spacial.routeInfo": "Route \"{name}\" rev {rev} | Ops: {ops} | Bubbles: {bubbles}",
       "spacial.state.none": "Data source: {source} | No shared stations/jobs yet.",
       "spacial.state.withCounts": "Data source: {source} | Stations: {stations} | Jobs: {jobs} | Updated: {updated}",
-      "spacial.state.withCountsProducts": "Data source: {source} | Products: {products} | Stations: {stations} | Jobs: {jobs} | Updated: {updated}",
+      "spacial.state.withCountsProducts": "Data source: {source} | Products: {products} | Stations: {stations} | Jobs: {jobs} | Routes: {routes} | Updated: {updated}",
       "spacial.state.active": "Data source: {source} | Active job: {job} | Product: {product} | Captured cycles: {cycles} | Updated: {updated}",
+      "spacial.state.routeActive": "Data source: {source} | Route: {route} ({rev}) | Product: {product} | Job: {job} | Updated: {updated}",
+      "spacial.state.scope": "Scope: {scope}",
       "spacial.state.selectOne": " Select one job to manage routing and bubbles.",
       "spacial.stationDefault": "Station",
       "spacial.jobDefault": "Job",
+      "spacial.copySuffix": "Copy",
       "spacial.confirm.deleteBubble": "Delete this bubble?",
       "spacial.confirm.deleteSelectedBubble": "Delete selected bubble?",
       "spacial.confirm.deleteOperation": "Delete selected operation and all its bubbles?",
+      "spacial.confirm.deleteRoute": "Delete selected route?",
+      "spacial.confirm.deleteFile": "Delete selected file and its annotations?",
       "spacial.alert.bubbleNameRequired": "Bubble name is required.",
+      "spacial.alert.routeNeedScope": "Select at least one product/job scope first.",
+      "spacial.alert.imageFileRequired": "Current file is not an image. Upload/select an image file first.",
+      "spacial.alert.imageLoadFailed": "Failed to load image for export.",
+      "spacial.prompt.fileName": "File name:",
       "spacial.import.noRows": "No rows found.",
       "spacial.import.noValid": "No valid bubbles found.",
       "spacial.import.done": "Imported {count} bubble(s).",
@@ -276,11 +460,90 @@
       "common.language": "Langue",
       "common.lang.en": "English",
       "common.lang.fr": "Francais",
+      "common.lang.pt": "Portugues",
+      "common.refresh": "Actualiser",
+      "common.new": "Nouveau",
+      "common.add": "+ Ajouter",
+      "common.save": "Sauver",
+      "common.delete": "Supprimer",
+      "common.optional": "Optionnel",
+      "common.id": "id",
+      "common.base": "base",
+      "common.custom": "personnalise",
+      "common.status.refreshed": "Actualise.",
+
+      "shell.ctx.stationTitle": "Station globale",
+      "shell.ctx.jobTitle": "Job global",
+      "shell.hint.close": "Clic droit ouvre. Echap ou clic externe ferme.",
+
+      "structure.title": "Structure Studio",
+      "structure.subtitle": "Un seul formulaire. Les codes internes sont auto CAT###; l'utilisateur gere les noms et l'arbre parent/enfant.",
+      "structure.openHub": "Ouvrir Hub",
+      "structure.form.title": "Formulaire de Categorie",
+      "structure.form.category": "Categorie",
+      "structure.form.code": "Code Interne",
+      "structure.form.key": "Cle Interne",
+      "structure.form.singular": "Nom Singulier",
+      "structure.form.plural": "Nom Pluriel",
+      "structure.form.description": "Description",
+      "structure.form.parent": "Categorie Parent",
+      "structure.form.relation": "Relation Parent",
+      "structure.children.title": "Enfants de la Categorie Selectionnee",
+      "structure.placeholder.code": "CAT###",
+      "structure.placeholder.key": "cat###",
+      "structure.placeholder.singular": "Atelier",
+      "structure.placeholder.plural": "Ateliers",
+      "structure.placeholder.relation": "contains",
+      "structure.option.new": "(nouvelle categorie)",
+      "structure.option.noParent": "(sans parent)",
+      "structure.relation.default": "contains",
+      "structure.children.noneSelected": "Aucune categorie selectionnee.",
+      "structure.children.none": "Aucune categorie enfant.",
+      "structure.parent.root": "racine",
+      "structure.parent.tag": "parent",
+      "structure.none": "Aucune categorie",
+      "structure.error.singularRequired": "Le nom singulier est obligatoire.",
+      "structure.error.addFailed": "Echec ajout categorie.",
+      "structure.error.saveFailed": "Echec sauvegarde categorie.",
+      "structure.error.deleteFailed": "Echec suppression (categorie de base ou liee).",
+      "structure.status.added": "Categorie ajoutee ({code}).",
+      "structure.status.saved": "Categorie sauvee.",
+      "structure.status.deleted": "Categorie supprimee.",
+      "structure.status.ready": "Structure Studio pret.",
+      "structure.confirm.delete": "Supprimer la categorie selectionnee ?",
+
+      "theme.title": "Theme Studio",
+      "theme.subtitle": "Module de theme global pour Hub, Chrono, SPaCial et Camera.",
+      "theme.resetDefault": "Reset Defaut",
+      "theme.save": "Sauver Theme Global",
+      "theme.presets": "Presets",
+      "theme.palette": "Palette",
+      "theme.field.bg": "Fond",
+      "theme.field.text": "Texte",
+      "theme.field.accent": "Accent",
+      "theme.field.headerBg": "Fond Header",
+      "theme.field.headerText": "Texte Header",
+      "theme.applyLive": "Appliquer Live",
+      "theme.preview": "Apercu",
+      "theme.preview.header": "Header",
+      "theme.preview.surface": "Surface Module",
+      "theme.preview.desc": "Cet apercu reflete les variables globales du theme.",
+      "theme.preview.action": "Action Accent",
+      "theme.status.saved": "Theme sauve.",
+      "theme.status.discarded": "Changements annules.",
+      "theme.status.presetSaved": "Preset sauve: {name}",
+      "theme.status.liveUnsaved": "Apercu live (non sauve).",
+      "theme.status.matches": "Le theme correspond a la config sauvee.",
+      "theme.status.defaultLoaded": "Defaut charge (non sauve).",
+      "theme.status.unsaved": "Changements non sauves.",
+      "theme.confirm.unsaved": "Les changements de theme ne sont pas sauves. OK = Sauver, Annuler = Annuler changements.",
 
       "hub.dock.hub": "Hub",
       "hub.dock.chrono": "Chrono",
       "hub.dock.camera": "Camera",
       "hub.dock.spacial": "SPaCial",
+      "hub.dock.structure": "Structure",
+      "hub.dock.contas": "Contas",
       "hub.dock.theme": "Theme",
       "hub.dock.cnc": "Sim CNC",
       "hub.top.overlay": "Overlay",
@@ -290,6 +553,7 @@
       "hub.top.settingsClose": "Fermer reglages",
       "hub.top.closeModule": "Fermer Module",
       "hub.top.themeSettings": "Reglages Theme",
+      "hub.top.translationsSettings": "Traductions",
       "hub.top.canOnline": "CAN BUS EN LIGNE",
       "hub.top.running": "{module} actif dans l'espace",
       "hub.workspace.empty": "Selectionnez un module a lancer dans cet espace.",
@@ -299,15 +563,17 @@
       "hub.overview.stations": "Stations",
       "hub.overview.jobs": "Jobs",
       "hub.overview.cycles": "Cycles",
-      "hub.overview.routes": "Routes SPaCial",
+      "hub.overview.routes": "Routes",
       "hub.modules.title": "Modules",
       "hub.modules.minor": "Lancement et disponibilite",
       "hub.jobs.title": "Stations & Jobs",
       "hub.jobs.searchPlaceholder": "Rechercher produit/station/job...",
       "hub.jobs.entity": "Parcourir",
+      "hub.jobs.entity.job": "Job",
       "hub.jobs.entity.jobs": "Jobs",
       "hub.jobs.entity.stations": "Stations",
       "hub.jobs.entity.products": "Produits",
+      "hub.common.all": "Tous",
       "hub.jobs.addStation": "+ Station",
       "hub.jobs.addJob": "+ Job",
       "hub.jobs.flowHint": "Filtrez puis parcourez en cartes ou en liste detaillee.",
@@ -363,6 +629,23 @@
       "hub.structure.productDefault": "Produit",
       "hub.structure.childCount": "{count} enfant(s)",
       "hub.structure.parentTag": "Parent: {name}",
+      "hub.structure.dynamic.summary": "Modele Entites Dynamique",
+      "hub.structure.dynamic.types": "Types d'entites",
+      "hub.structure.dynamic.items": "Elements",
+      "hub.structure.dynamic.links": "Dependances",
+      "hub.structure.dynamic.selectType": "Selectionner type",
+      "hub.structure.dynamic.selectItem": "Selectionner element",
+      "hub.structure.dynamic.addType": "+ Type",
+      "hub.structure.dynamic.renameType": "Renommer Type",
+      "hub.structure.dynamic.deleteType": "Supprimer Type",
+      "hub.structure.dynamic.addItem": "+ Element",
+      "hub.structure.dynamic.renameItem": "Renommer Element",
+      "hub.structure.dynamic.deleteItem": "Supprimer Element",
+      "hub.structure.dynamic.linkSave": "Sauver Lien",
+      "hub.structure.dynamic.linkDelete": "Supprimer Lien",
+      "hub.structure.dynamic.none": "Aucune entite dynamique.",
+      "hub.structure.dynamic.noneLinks": "Aucun lien.",
+      "hub.structure.dynamic.linkRelation": "Relation",
       "hub.cat.default": "Categorie",
       "hub.cat.none": "Aucune categorie",
       "hub.cat.noneAssigned": "Aucune categorie liee",
@@ -388,6 +671,10 @@
       "hub.data.importJson": "Importer JSON",
       "hub.data.importSnapshot": "Importer Snapshot JSON",
       "hub.data.exportAll": "Exporter Tout en JSON",
+      "hub.data.demoPreset": "Preset demo",
+      "hub.data.demoPreset.small": "Petit",
+      "hub.data.demoPreset.medium": "Moyen",
+      "hub.data.demoPreset.large": "Grand",
       "hub.data.seedDemo": "Seed Demo",
       "hub.data.seedRoutes": "Generer Routes",
       "hub.data.loadDemoM": "Charger Demo M",
@@ -403,6 +690,9 @@
       "hub.bus.clear": "Vider",
       "hub.personalize.title": "Personnaliser",
       "hub.personalize.resetLayout": "Reinitialiser Layout",
+      "hub.personalize.panelStack": "Empilement panneaux",
+      "hub.personalize.panelStack.horizontal": "Horizontal",
+      "hub.personalize.panelStack.vertical": "Vertical",
       "hub.personalize.autoScale": "Auto echelle",
       "hub.personalize.scale": "Echelle",
       "hub.personalize.scaleValue": "{pct}%",
@@ -422,8 +712,14 @@
       "hub.mod.chrono-camera.desc": "Capture assistee camera avec marquages de sequence et export bookmarks.",
       "hub.mod.spacial.name": "SPaCial",
       "hub.mod.spacial.desc": "Routage dimensionnel et planification de bulles sur plan.",
+      "hub.mod.structure.name": "Structure Studio",
+      "hub.mod.structure.desc": "Controleur global des produits, stations, jobs et dependances.",
+      "hub.mod.contas.name": "Contas CNC",
+      "hub.mod.contas.desc": "Calculs CNC historiques: filetage, fraisage, tournage et trigo.",
       "hub.mod.theme.name": "Theme Studio",
       "hub.mod.theme.desc": "Palette globale et controles visuels du theme pour tous les modules.",
+      "hub.mod.translations.name": "Traductions",
+      "hub.mod.translations.desc": "Gestionnaire global des textes EN/FR/PT.",
       "hub.mod.cnc-sim.name": "Simulateur CNC",
       "hub.mod.cnc-sim.desc": "Lance directement l'espace principal de simulation CNC.",
       "hub.mod.can-bus.name": "Noyau CAN Bus",
@@ -431,15 +727,26 @@
       "hub.prompt.stationCode": "Code station (ex. ST01):",
       "hub.prompt.stationName": "Nom de station:",
       "hub.prompt.jobName": "Nom du job:",
+      "hub.prompt.entityTypeSingular": "Nom type singulier (ex. Machine):",
+      "hub.prompt.entityTypePlural": "Nom type pluriel (ex. Machines):",
+      "hub.prompt.entityItemCode": "Code element (optionnel):",
+      "hub.prompt.entityItemName": "Nom element:",
       "hub.prompt.stationImage": "URL image station (http ou data:image):",
       "hub.prompt.jobImage": "URL image job (http ou data:image):",
       "hub.alert.selectStationFirst": "Selectionnez d'abord une station.",
       "hub.alert.selectStationToAddJob": "Selectionnez une station pour ajouter un job.",
       "hub.alert.stationNotFound": "Station introuvable.",
       "hub.alert.productNotFound": "Produit introuvable.",
+      "hub.alert.dynamic.selectType": "Selectionnez d'abord un type d'entite.",
+      "hub.alert.dynamic.selectItem": "Selectionnez d'abord un element.",
+      "hub.alert.dynamic.lockedType": "Ce type de base est verrouille. Vous pouvez le renommer mais pas le supprimer.",
+      "hub.alert.dynamic.lockedItem": "Cet element est gere par les donnees de base et ne peut pas etre supprime ici.",
       "hub.confirm.deleteStation": "Supprimer station {code} - {name} ? Cela supprimera {count} job(s).",
       "hub.confirm.deleteJob": "Supprimer le job \"{name}\" ?",
       "hub.confirm.deleteCategory": "Supprimer categorie {code} - {name} ?",
+      "hub.confirm.deleteType": "Supprimer le type \"{name}\" et ses elements/liens ?",
+      "hub.confirm.deleteItem": "Supprimer l'element \"{name}\" ?",
+      "hub.confirm.deleteLink": "Supprimer ce lien de dependance ?",
       "hub.confirm.removeDemo": "Supprimer les donnees demo et garder un etat global vide ?",
       "hub.confirm.resetData": "Reinitialiser toutes les donnees avec le jeu par defaut ?",
       "hub.confirm.clearSettings": "Vider les reglages locaux et recharger ? Les donnees sont conservees.",
@@ -452,16 +759,66 @@
       "hub.alert.imageTypeInvalid": "Selectionnez un fichier image.",
       "hub.alert.imageReadFailed": "Lecture de l'image impossible.",
 
+      "i18n.title": "Gestionnaire de Traductions",
+      "i18n.subtitle": "Editez les textes EN/FR/PT globalement et sauvez des surcharges offline.",
+      "i18n.language": "Langue",
+      "i18n.search": "Rechercher cle/valeur",
+      "i18n.save": "Sauver Surcharges",
+      "i18n.discard": "Annuler Changements",
+      "i18n.reset": "Reset Langue",
+      "i18n.export": "Exporter JSON",
+      "i18n.import": "Importer JSON",
+      "i18n.mode.merge": "Fusionner",
+      "i18n.mode.replace": "Remplacer",
+      "i18n.key": "Cle",
+      "i18n.base": "Base",
+      "i18n.value": "Valeur",
+      "i18n.changed": "Modifie",
+      "i18n.yes": "Oui",
+      "i18n.no": "Non",
+      "i18n.status.ready": "Pret.",
+      "i18n.status.unsaved": "Changements non sauves.",
+      "i18n.status.saved": "Surcharges sauvees.",
+      "i18n.status.discarded": "Changements annules.",
+      "i18n.status.reset": "Surcharges de langue reinitialisees.",
+      "i18n.status.imported": "Traductions importees.",
+      "i18n.status.exported": "Traductions exportees.",
+      "i18n.none": "Aucune cle ne correspond au filtre.",
+      "i18n.confirm.discard": "Annuler les changements de traduction non sauves ?",
+      "i18n.confirm.reset": "Reinitialiser toutes les surcharges de cette langue ?",
+      "i18n.alert.importFailed": "Echec import: {err}",
+      "i18n.alert.invalidPayload": "Payload de traduction invalide.",
+
       "spacial.title": "SPaCial",
       "spacial.subtitle": "Controle dimensionnel et planification des bulles de plan.",
       "spacial.refresh": "Actualiser",
       "spacial.useActiveJob": "Utiliser Job Actif Global",
+      "spacial.filter.allScopes": "Tous scopes",
+      "spacial.filter.allScopeItems": "Tous elements",
+      "spacial.filter.allProducts": "Tous produits",
+      "spacial.filter.allStations": "Toutes stations",
+      "spacial.filter.allJobs": "Tous jobs",
+      "spacial.filter.pickRoute": "Choisir route",
+      "spacial.route.new": "+ Route",
+      "spacial.route.duplicate": "Dupliquer Route",
+      "spacial.route.delete": "Supprimer Route",
+      "spacial.route.none": "Aucune route",
       "spacial.routing.title": "Routage et Controle Dimensionnel",
       "spacial.routing.hint": "Par job selectionne : route, operations, bulles dimensionnelles et bulles plan.",
       "spacial.section.route": "Route",
       "spacial.section.operations": "Operations",
       "spacial.section.bubbles": "Bulles",
       "spacial.section.blueprint": "Plan",
+      "spacial.file.default": "Fichier",
+      "spacial.file.label": "Fichier",
+      "spacial.file.add": "+ Fichier(s)",
+      "spacial.file.rename": "Renommer Fichier",
+      "spacial.file.delete": "Supprimer Fichier",
+      "spacial.file.exportJpg": "Exporter JPG annote",
+      "spacial.file.exportOpPdf": "PDF Operation",
+      "spacial.file.hint": "Chaque fichier operation a ses annotations independantes.",
+      "spacial.file.previewNA": "Apercu indisponible pour ce type de fichier.",
+      "spacial.none.file": "Aucun fichier",
       "spacial.routeName": "Nom route",
       "spacial.routeRev": "Revision (A, B...)",
       "spacial.routeProductRef": "Ref produit / plan",
@@ -511,6 +868,7 @@
       "spacial.canvas.showBoxes": "Afficher boites",
       "spacial.canvas.help": "Chargez un plan puis glissez pour creer/selectionner des boites. Glissez le cercle pour deplacer le label.",
       "spacial.none.activeJob": "Aucun job actif.",
+      "spacial.none.routeSelected": "Selectionnez ou creez une route.",
       "spacial.none.operation": "Selectionnez ou creez d'abord une operation.",
       "spacial.none.bubbles": "Aucune bulle pour cette operation.",
       "spacial.none.operations": "Aucune operation",
@@ -518,15 +876,24 @@
       "spacial.routeInfo": "Route \"{name}\" rev {rev} | Ops: {ops} | Bulles: {bubbles}",
       "spacial.state.none": "Source: {source} | Aucune station/job partage.",
       "spacial.state.withCounts": "Source: {source} | Stations: {stations} | Jobs: {jobs} | Maj: {updated}",
-      "spacial.state.withCountsProducts": "Source: {source} | Produits: {products} | Stations: {stations} | Jobs: {jobs} | Maj: {updated}",
+      "spacial.state.withCountsProducts": "Source: {source} | Produits: {products} | Stations: {stations} | Jobs: {jobs} | Routes: {routes} | Maj: {updated}",
       "spacial.state.active": "Source: {source} | Job actif: {job} | Produit: {product} | Cycles captures: {cycles} | Maj: {updated}",
+      "spacial.state.routeActive": "Source: {source} | Route: {route} ({rev}) | Produit: {product} | Job: {job} | Maj: {updated}",
+      "spacial.state.scope": "Scope: {scope}",
       "spacial.state.selectOne": " Selectionnez un job pour gerer routage et bulles.",
       "spacial.stationDefault": "Station",
       "spacial.jobDefault": "Job",
+      "spacial.copySuffix": "Copie",
       "spacial.confirm.deleteBubble": "Supprimer cette bulle ?",
       "spacial.confirm.deleteSelectedBubble": "Supprimer la bulle selectionnee ?",
       "spacial.confirm.deleteOperation": "Supprimer l'operation selectionnee et toutes ses bulles ?",
+      "spacial.confirm.deleteRoute": "Supprimer la route selectionnee ?",
+      "spacial.confirm.deleteFile": "Supprimer le fichier selectionne et ses annotations ?",
       "spacial.alert.bubbleNameRequired": "Le nom de bulle est obligatoire.",
+      "spacial.alert.routeNeedScope": "Selectionnez au moins un scope produit/job.",
+      "spacial.alert.imageFileRequired": "Le fichier courant n'est pas une image. Selectionnez une image.",
+      "spacial.alert.imageLoadFailed": "Echec chargement image pour export.",
+      "spacial.prompt.fileName": "Nom du fichier :",
       "spacial.import.noRows": "Aucune ligne trouvee.",
       "spacial.import.noValid": "Aucune bulle valide trouvee.",
       "spacial.import.done": "{count} bulle(s) importee(s).",
@@ -537,12 +904,257 @@
       "spacial.canvas.instructions": "Operation: {op}{selected}. Glissez zone vide pour creer une boite; glissez boite pour deplacer; glissez cercle pour deplacer le label.",
       "spacial.canvas.uploadHint": "Chargez une image de plan pour placer les bulles",
     },
+    pt: {
+      "common.language": "Idioma",
+      "common.lang.en": "Ingles",
+      "common.lang.fr": "Francais",
+      "common.lang.pt": "Portugues",
+      "common.refresh": "Atualizar",
+      "common.new": "Novo",
+      "common.add": "+ Adicionar",
+      "common.save": "Salvar",
+      "common.delete": "Apagar",
+      "common.optional": "Opcional",
+      "common.id": "id",
+      "common.base": "base",
+      "common.custom": "personalizado",
+      "common.status.refreshed": "Atualizado.",
+
+      "shell.ctx.stationTitle": "Estacao global",
+      "shell.ctx.jobTitle": "Job global",
+      "shell.hint.close": "Clique direito abre. Esc ou clique fora fecha.",
+
+      "structure.title": "Structure Studio",
+      "structure.subtitle": "Um so formulario. Codigos internos sao auto CAT###; usuario gere nomes e arvore pai/filho.",
+      "structure.openHub": "Abrir Hub",
+      "structure.form.title": "Formulario de Categoria",
+      "structure.form.category": "Categoria",
+      "structure.form.code": "Codigo Interno",
+      "structure.form.key": "Chave Interna",
+      "structure.form.singular": "Nome Singular",
+      "structure.form.plural": "Nome Plural",
+      "structure.form.description": "Descricao",
+      "structure.form.parent": "Categoria Pai",
+      "structure.form.relation": "Relacao Pai",
+      "structure.children.title": "Filhos da Categoria Selecionada",
+      "structure.placeholder.code": "CAT###",
+      "structure.placeholder.key": "cat###",
+      "structure.placeholder.singular": "Atelier",
+      "structure.placeholder.plural": "Ateliers",
+      "structure.placeholder.relation": "contains",
+      "structure.option.new": "(nova categoria)",
+      "structure.option.noParent": "(sem pai)",
+      "structure.relation.default": "contains",
+      "structure.children.noneSelected": "Nenhuma categoria selecionada.",
+      "structure.children.none": "Nenhuma categoria filha.",
+      "structure.parent.root": "raiz",
+      "structure.parent.tag": "pai",
+      "structure.none": "Sem categorias",
+      "structure.error.singularRequired": "Nome singular e obrigatorio.",
+      "structure.error.addFailed": "Falha ao adicionar categoria.",
+      "structure.error.saveFailed": "Falha ao salvar categoria.",
+      "structure.error.deleteFailed": "Falha ao apagar (categoria base ou ligada).",
+      "structure.status.added": "Categoria adicionada ({code}).",
+      "structure.status.saved": "Categoria salva.",
+      "structure.status.deleted": "Categoria apagada.",
+      "structure.status.ready": "Structure Studio pronto.",
+      "structure.confirm.delete": "Apagar categoria selecionada?",
+
+      "theme.title": "Theme Studio",
+      "theme.subtitle": "Modulo global de tema para Hub, Chrono, SPaCial e Camera.",
+      "theme.resetDefault": "Resetar Padrao",
+      "theme.save": "Salvar Tema Global",
+      "theme.presets": "Presets",
+      "theme.palette": "Paleta",
+      "theme.field.bg": "Fundo",
+      "theme.field.text": "Texto",
+      "theme.field.accent": "Accent",
+      "theme.field.headerBg": "Fundo Header",
+      "theme.field.headerText": "Texto Header",
+      "theme.applyLive": "Aplicar Live",
+      "theme.preview": "Preview",
+      "theme.preview.header": "Header",
+      "theme.preview.surface": "Superficie do Modulo",
+      "theme.preview.desc": "Este preview reflete as variaveis globais de tema.",
+      "theme.preview.action": "Acao Accent",
+      "theme.status.saved": "Tema salvo.",
+      "theme.status.discarded": "Alteracoes descartadas.",
+      "theme.status.presetSaved": "Preset salvo: {name}",
+      "theme.status.liveUnsaved": "Preview live (nao salvo).",
+      "theme.status.matches": "Tema igual a configuracao salva.",
+      "theme.status.defaultLoaded": "Padrao carregado (nao salvo).",
+      "theme.status.unsaved": "Alteracoes nao salvas.",
+      "theme.confirm.unsaved": "Alteracoes de tema nao foram salvas. OK = Salvar, Cancelar = Descartar.",
+
+      "hub.dock.hub": "Hub",
+      "hub.dock.chrono": "Chrono",
+      "hub.dock.camera": "Camera",
+      "hub.dock.spacial": "SPaCial",
+      "hub.dock.structure": "Estrutura",
+      "hub.dock.contas": "Contas",
+      "hub.dock.theme": "Tema",
+      "hub.dock.cnc": "Sim CNC",
+      "hub.top.overlay": "Overlay",
+      "hub.top.showOverlay": "Mostrar Overlay",
+      "hub.top.hideOverlay": "Esconder Overlay",
+      "hub.top.settingsOpen": "Abrir configuracoes",
+      "hub.top.settingsClose": "Fechar configuracoes",
+      "hub.top.closeModule": "Fechar modulo",
+      "hub.top.themeSettings": "Tema",
+      "hub.top.translationsSettings": "Traducoes",
+      "hub.top.canOnline": "CAN BUS ONLINE",
+      "hub.top.running": "{module} em execucao no workspace",
+      "hub.workspace.empty": "Selecione um modulo para abrir no workspace.",
+      "hub.workspace.loading": "Carregando modulo...",
+      "hub.overview.title": "Resumo",
+      "hub.overview.refresh": "Atualizar",
+      "hub.overview.stations": "Estacoes",
+      "hub.overview.jobs": "Jobs",
+      "hub.overview.cycles": "Ciclos",
+      "hub.overview.routes": "Rotas",
+      "hub.modules.title": "Modulos",
+      "hub.modules.minor": "Lancar e disponibilidade",
+      "hub.jobs.title": "Estacoes e Jobs",
+      "hub.jobs.searchPlaceholder": "Pesquisar produto/estacao/job...",
+      "hub.jobs.entity": "Explorar",
+      "hub.jobs.entity.job": "Job",
+      "hub.jobs.entity.jobs": "Jobs",
+      "hub.jobs.entity.stations": "Estacoes",
+      "hub.jobs.entity.products": "Produtos",
+      "hub.common.all": "Todos",
+      "hub.jobs.viewCards": "Cards",
+      "hub.jobs.viewList": "Lista",
+      "hub.jobs.more": "Gerir",
+      "hub.jobs.actions": "Acoes",
+      "hub.jobs.rename": "Renomear",
+      "hub.jobs.delete": "Apagar",
+      "hub.structure.title": "Estrutura e Dependencias",
+      "hub.structure.minor": "Produtos > Estacoes > Jobs",
+      "hub.structure.addProduct": "+ Produto",
+      "hub.structure.renameProduct": "Renomear Produto",
+      "hub.structure.deleteProduct": "Apagar Produto",
+      "hub.structure.showProducts": "Mostrar produtos",
+      "hub.structure.showStations": "Mostrar estacoes",
+      "hub.structure.showJobs": "Mostrar jobs",
+      "hub.structure.productDefault": "Produto",
+      "hub.structure.dynamic.summary": "Modelo dinamico de entidades",
+      "hub.structure.dynamic.addType": "+ Tipo",
+      "hub.structure.dynamic.renameType": "Renomear Tipo",
+      "hub.structure.dynamic.deleteType": "Apagar Tipo",
+      "hub.structure.dynamic.addItem": "+ Item",
+      "hub.structure.dynamic.renameItem": "Renomear Item",
+      "hub.structure.dynamic.deleteItem": "Apagar Item",
+      "hub.structure.dynamic.linkSave": "Salvar Ligacao",
+      "hub.structure.dynamic.linkDelete": "Apagar Ligacao",
+      "hub.structure.dynamic.none": "Sem entidades dinamicas.",
+      "hub.structure.dynamic.noneLinks": "Sem ligacoes.",
+      "hub.structure.dynamic.linkRelation": "Relacao",
+      "hub.cat.default": "Categoria",
+      "hub.data.title": "Dados e Backup",
+      "hub.data.minor": "Ferramentas de estado global",
+      "hub.data.importJson": "Importar JSON",
+      "hub.data.exportAll": "Exportar JSON",
+      "hub.data.demoPreset": "Preset demo",
+      "hub.data.demoPreset.small": "Pequeno",
+      "hub.data.demoPreset.medium": "Medio",
+      "hub.data.demoPreset.large": "Grande",
+      "hub.data.seedDemo": "Popular Demo",
+      "hub.data.removeDemo": "Remover Demo",
+      "hub.data.resetData": "Resetar Dados",
+      "hub.data.clearSettings": "Limpar Config local",
+      "hub.personalize.title": "Personalizar",
+      "hub.personalize.resetLayout": "Resetar Layout",
+      "hub.personalize.panelStack": "Empilhar paineis",
+      "hub.personalize.panelStack.horizontal": "Horizontal",
+      "hub.personalize.panelStack.vertical": "Vertical",
+      "hub.personalize.autoScale": "Escala automatica",
+      "hub.personalize.scale": "Escala",
+      "hub.personalize.compact": "UI compacta",
+      "hub.personalize.reduceMotion": "Reduzir animacao",
+      "hub.mod.translations.name": "Traducoes",
+      "hub.mod.translations.desc": "Gestor global de traducoes EN/FR/PT.",
+      "hub.mod.structure.name": "Structure Studio",
+      "hub.mod.structure.desc": "Controlador global de produtos, estacoes, jobs e dependencias.",
+      "hub.mod.contas.name": "Contas CNC",
+      "hub.mod.contas.desc": "Calculadoras CNC antigas: rosca, fresagem, torneamento e trigonometria.",
+
+      "i18n.title": "Gestor de Traducoes",
+      "i18n.subtitle": "Edite textos EN/FR/PT globalmente e guarde overrides offline.",
+      "i18n.language": "Idioma",
+      "i18n.search": "Pesquisar chave/valor",
+      "i18n.save": "Salvar Overrides",
+      "i18n.discard": "Descartar Alteracoes",
+      "i18n.reset": "Resetar Idioma",
+      "i18n.export": "Exportar JSON",
+      "i18n.import": "Importar JSON",
+      "i18n.mode.merge": "Merge",
+      "i18n.mode.replace": "Substituir",
+      "i18n.key": "Chave",
+      "i18n.base": "Base",
+      "i18n.value": "Valor",
+      "i18n.changed": "Alterado",
+      "i18n.yes": "Sim",
+      "i18n.no": "Nao",
+      "i18n.status.ready": "Pronto.",
+      "i18n.status.unsaved": "Alteracoes nao salvas.",
+      "i18n.status.saved": "Overrides salvos.",
+      "i18n.status.discarded": "Alteracoes descartadas.",
+      "i18n.status.reset": "Overrides do idioma foram resetados.",
+      "i18n.status.imported": "Traducoes importadas.",
+      "i18n.status.exported": "Traducoes exportadas.",
+      "i18n.none": "Nenhuma chave corresponde ao filtro.",
+      "i18n.confirm.discard": "Descartar alteracoes nao salvas?",
+      "i18n.confirm.reset": "Resetar todos os overrides deste idioma?",
+      "i18n.alert.importFailed": "Falha ao importar: {err}",
+      "i18n.alert.invalidPayload": "Payload de traducao invalido.",
+
+      "spacial.title": "SPaCial",
+      "spacial.subtitle": "Controle dimensional e planeamento de bolhas no desenho.",
+      "spacial.refresh": "Atualizar",
+      "spacial.useActiveJob": "Usar job ativo global",
+      "spacial.filter.allScopes": "Todos escopos",
+      "spacial.filter.allScopeItems": "Todos itens",
+      "spacial.filter.allProducts": "Todos produtos",
+      "spacial.filter.allStations": "Todas estacoes",
+      "spacial.filter.allJobs": "Todos jobs",
+      "spacial.filter.pickRoute": "Escolher rota",
+      "spacial.route.new": "+ Rota",
+      "spacial.route.delete": "Apagar Rota",
+      "spacial.route.none": "Sem rotas",
+      "spacial.routing.title": "Roteiro e Controle Dimensional",
+      "spacial.none.activeJob": "Sem job ativo.",
+      "spacial.none.routeSelected": "Selecione ou crie uma rota.",
+      "spacial.none.operation": "Selecione ou crie uma operacao primeiro.",
+      "spacial.none.operations": "Sem operacoes",
+      "spacial.state.scope": "Escopo: {scope}",
+      "spacial.stationDefault": "Estacao",
+      "spacial.jobDefault": "Job",
+    },
   };
 
   function normalizeLang(raw) {
     const x = String(raw || "").toLowerCase().trim();
     if (SUPPORTED.includes(x)) return x;
     return "";
+  }
+
+  function normalizeCatalogMap(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [k, v] of Object.entries(raw)) {
+      const key = String(k || "").trim();
+      if (!key) continue;
+      out[key] = String(v ?? "");
+    }
+    return out;
+  }
+
+  function normalizeOverrides(raw) {
+    const next = {};
+    for (const lang of SUPPORTED) {
+      next[lang] = normalizeCatalogMap(raw?.[lang]);
+    }
+    return next;
   }
 
   function readStoredLang() {
@@ -553,16 +1165,33 @@
     }
   }
 
+  function readStoredOverrides() {
+    try {
+      const raw = localStorage.getItem(LANG_OVERRIDES_KEY);
+      if (!raw) return normalizeOverrides({});
+      return normalizeOverrides(JSON.parse(raw));
+    } catch {
+      return normalizeOverrides({});
+    }
+  }
+
   function getBrowserLang() {
     return normalizeLang(String(navigator.language || "").slice(0, 2));
   }
 
   let active = readStoredLang() || getBrowserLang() || "en";
   if (!SUPPORTED.includes(active)) active = "en";
+  let overrides = readStoredOverrides();
 
   function saveLang(next) {
     try {
       localStorage.setItem(LANG_KEY, next);
+    } catch {}
+  }
+
+  function saveOverrides(next) {
+    try {
+      localStorage.setItem(LANG_OVERRIDES_KEY, JSON.stringify(normalizeOverrides(next)));
     } catch {}
   }
 
@@ -572,9 +1201,11 @@
   }
 
   function t(key, fallback = "", vars) {
+    const langOverride = overrides?.[active] && typeof overrides[active] === "object" ? overrides[active] : {};
     const langCat = CATALOGS[active] || CATALOGS.en || {};
+    const overrideVal = Object.prototype.hasOwnProperty.call(langOverride, key) ? langOverride[key] : undefined;
     const enCat = CATALOGS.en || {};
-    const base = langCat[key] ?? enCat[key] ?? fallback ?? key;
+    const base = overrideVal ?? langCat[key] ?? enCat[key] ?? fallback ?? key;
     return interpolate(base, vars);
   }
 
@@ -598,22 +1229,99 @@
     return SUPPORTED.map((code) => ({ code, name: LABELS[code] || code }));
   }
 
-  window.addEventListener("storage", (e) => {
-    if (e.key !== LANG_KEY) return;
-    const next = normalizeLang(e.newValue) || "en";
-    if (next === active) return;
-    active = next;
+  function getCatalog(lang = "", options = {}) {
+    const code = normalizeLang(lang) || active;
+    const merged = options?.merged !== false;
+    const base = { ...(CATALOGS.en || {}), ...(CATALOGS[code] || {}) };
+    if (!merged) return { ...base };
+    return { ...base, ...(overrides?.[code] || {}) };
+  }
+
+  function getBaseCatalog(lang = "") {
+    return getCatalog(lang, { merged: false });
+  }
+
+  function getOverrides(lang = "") {
+    const code = normalizeLang(lang);
+    if (!code) return normalizeOverrides(overrides);
+    return { ...(overrides?.[code] || {}) };
+  }
+
+  function setOverrides(lang, entries, options = {}) {
+    const code = normalizeLang(lang);
+    if (!code) return getOverrides();
+    const incoming = normalizeCatalogMap(entries);
+    const replace = options?.replace === true;
+    const nextLang = replace ? incoming : { ...(overrides?.[code] || {}), ...incoming };
+    overrides = { ...normalizeOverrides(overrides), [code]: nextLang };
+    saveOverrides(overrides);
     try {
-      window.dispatchEvent(new CustomEvent("vmill:lang:changed", { detail: { lang: active } }));
+      window.dispatchEvent(new CustomEvent("vmill:lang:catalog:changed", { detail: { lang: code } }));
     } catch {}
+    window.CANBus?.emit("lang:catalog:changed", { lang: code }, "module-lang");
+    return getOverrides(code);
+  }
+
+  function clearOverrides(lang = "") {
+    const code = normalizeLang(lang);
+    if (!code) {
+      overrides = normalizeOverrides({});
+      saveOverrides(overrides);
+      try {
+        window.dispatchEvent(new CustomEvent("vmill:lang:catalog:changed", { detail: { lang: "" } }));
+      } catch {}
+      window.CANBus?.emit("lang:catalog:changed", { lang: "" }, "module-lang");
+      return getOverrides();
+    }
+    overrides = { ...normalizeOverrides(overrides), [code]: {} };
+    saveOverrides(overrides);
+    try {
+      window.dispatchEvent(new CustomEvent("vmill:lang:catalog:changed", { detail: { lang: code } }));
+    } catch {}
+    window.CANBus?.emit("lang:catalog:changed", { lang: code }, "module-lang");
+    return getOverrides(code);
+  }
+
+  function listKeys(options = {}) {
+    const code = normalizeLang(options?.lang || "") || active;
+    const keys = new Set();
+    for (const k of Object.keys(CATALOGS.en || {})) keys.add(k);
+    for (const k of Object.keys(CATALOGS[code] || {})) keys.add(k);
+    for (const k of Object.keys(overrides?.[code] || {})) keys.add(k);
+    return [...keys].sort((a, b) => String(a).localeCompare(String(b)));
+  }
+
+  window.addEventListener("storage", (e) => {
+    if (e.key === LANG_KEY) {
+      const next = normalizeLang(e.newValue) || "en";
+      if (next === active) return;
+      active = next;
+      try {
+        window.dispatchEvent(new CustomEvent("vmill:lang:changed", { detail: { lang: active } }));
+      } catch {}
+      return;
+    }
+    if (e.key === LANG_OVERRIDES_KEY) {
+      overrides = readStoredOverrides();
+      try {
+        window.dispatchEvent(new CustomEvent("vmill:lang:catalog:changed", { detail: { lang: "" } }));
+      } catch {}
+    }
   });
 
   window.VMillLang = {
     key: LANG_KEY,
+    overridesKey: LANG_OVERRIDES_KEY,
     t,
     setLanguage,
     getLanguage,
     availableLanguages,
+    getCatalog,
+    getBaseCatalog,
+    getOverrides,
+    setOverrides,
+    clearOverrides,
+    listKeys,
     catalogs: CATALOGS,
   };
 })();

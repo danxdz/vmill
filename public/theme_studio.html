@@ -6,13 +6,16 @@
   <title>Theme Studio</title>
   <style>
     :root{
-      --bg:#0a0f17;
-      --panel:#111a2a;
-      --panel2:#0f1623;
-      --text:#e6edf8;
-      --muted:rgba(230,237,248,.65);
-      --border:rgba(230,237,248,.2);
-      --accent:#57b4ff;
+      --bg:var(--vm-theme-bg, #0a0f17);
+      --panel:var(--vm-theme-panel, #111a2a);
+      --panel2:var(--vm-theme-panel-2, #0f1623);
+      --text:var(--vm-theme-text, #e6edf8);
+      --muted:var(--vm-theme-muted, rgba(230,237,248,.65));
+      --border:var(--vm-theme-border, rgba(230,237,248,.2));
+      --accent:var(--vm-theme-accent, #57b4ff);
+      --accent-rgb:var(--vm-theme-accent-rgb, 87,180,255);
+      --warn:var(--vm-theme-warn, #ffd37a);
+      --warn-rgb:var(--vm-theme-warn-rgb, 255,211,122);
     }
     *{box-sizing:border-box}
     body{
@@ -20,8 +23,8 @@
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       color:var(--text);
       background:
-        radial-gradient(900px 520px at 12% -12%, rgba(87,180,255,.22), transparent 62%),
-        linear-gradient(180deg,var(--bg),#080d14);
+        radial-gradient(900px 520px at 12% -12%, rgba(var(--accent-rgb), .22), transparent 62%),
+        linear-gradient(180deg,var(--bg),color-mix(in srgb, var(--bg) 84%, #000));
       min-height:100vh;
     }
     .wrap{max-width:1080px;margin:0 auto;padding:18px 14px 26px;}
@@ -51,8 +54,8 @@
     input[type="color"]{height:42px;padding:4px}
     button{cursor:pointer;font-weight:700}
     .btn{width:auto;padding:10px 12px}
-    .btn.primary{border-color:rgba(87,180,255,.55);background:rgba(87,180,255,.16);color:#c7e9ff}
-    .btn.warn{border-color:rgba(255,211,122,.55);background:rgba(255,211,122,.14);color:#ffe8b1}
+    .btn.primary{border-color:rgba(var(--accent-rgb), .55);background:rgba(var(--accent-rgb), .16);color:var(--accent)}
+    .btn.warn{border-color:rgba(var(--warn-rgb), .55);background:rgba(var(--warn-rgb), .14);color:var(--warn)}
     .preset{border:1px solid var(--border);border-radius:10px;padding:8px;cursor:pointer;background:rgba(255,255,255,.02)}
     .preset .name{font-size:11px;font-weight:700;margin-bottom:6px}
     .chips{display:flex;gap:6px}
@@ -69,7 +72,7 @@
       background:var(--header-bg,#101521);color:var(--header-text,#e8e8e8);
     }
     .pvBody{padding:12px;background:linear-gradient(180deg,var(--panel),var(--panel2))}
-    .pvBtn{display:inline-block;padding:8px 10px;border-radius:10px;border:1px solid rgba(87,180,255,.45);background:rgba(87,180,255,.14);color:var(--accent);font-size:12px;font-weight:700}
+    .pvBtn{display:inline-block;padding:8px 10px;border-radius:10px;border:1px solid rgba(var(--accent-rgb), .45);background:rgba(var(--accent-rgb), .14);color:var(--accent);font-size:12px;font-weight:700}
     .status{font-size:12px;color:var(--muted)}
   </style>
 </head>
@@ -77,8 +80,8 @@
   <div class="wrap">
     <div class="hero">
       <div>
-        <h1>Theme Studio</h1>
-        <div class="sub">Global theme module for Hub, Chrono, SPaCial and Camera.</div>
+        <h1 id="themeTitle">Theme Studio</h1>
+        <div class="sub" id="themeSub">Global theme module for Hub, Chrono, SPaCial and Camera.</div>
       </div>
       <div class="row">
         <button class="btn warn" id="resetBtn" type="button">Reset Default</button>
@@ -87,18 +90,18 @@
     </div>
 
     <section class="card">
-      <div style="font-size:12px;font-weight:800;margin-bottom:8px;">Presets</div>
+      <div id="presetTitle" style="font-size:12px;font-weight:800;margin-bottom:8px;">Presets</div>
       <div class="row" id="presetRow"></div>
     </section>
 
     <section class="card">
-      <div style="font-size:12px;font-weight:800;margin-bottom:8px;">Palette</div>
+      <div id="paletteTitle" style="font-size:12px;font-weight:800;margin-bottom:8px;">Palette</div>
       <div class="grid">
-        <div><label for="bgIn">Background</label><input id="bgIn" type="color" value="#0a0f17" /></div>
-        <div><label for="textIn">Text</label><input id="textIn" type="color" value="#e6edf8" /></div>
-        <div><label for="accentIn">Accent</label><input id="accentIn" type="color" value="#57b4ff" /></div>
-        <div><label for="headerBgIn">Header BG</label><input id="headerBgIn" type="color" value="#101521" /></div>
-        <div><label for="headerTextIn">Header Text</label><input id="headerTextIn" type="color" value="#e8e8e8" /></div>
+        <div><label id="lblBgIn" for="bgIn">Background</label><input id="bgIn" type="color" value="#0a0f17" /></div>
+        <div><label id="lblTextIn" for="textIn">Text</label><input id="textIn" type="color" value="#e6edf8" /></div>
+        <div><label id="lblAccentIn" for="accentIn">Accent</label><input id="accentIn" type="color" value="#57b4ff" /></div>
+        <div><label id="lblHeaderBgIn" for="headerBgIn">Header BG</label><input id="headerBgIn" type="color" value="#101521" /></div>
+        <div><label id="lblHeaderTextIn" for="headerTextIn">Header Text</label><input id="headerTextIn" type="color" value="#e8e8e8" /></div>
       </div>
       <div class="row" style="margin-top:10px;">
         <button class="btn" id="applyLiveBtn" type="button">Apply Live</button>
@@ -107,13 +110,13 @@
     </section>
 
     <section class="card">
-      <div style="font-size:12px;font-weight:800;margin-bottom:8px;">Preview</div>
+      <div id="previewTitle" style="font-size:12px;font-weight:800;margin-bottom:8px;">Preview</div>
       <div class="preview" id="preview">
-        <div class="pvHead"><strong>Header</strong><span>Theme Studio</span></div>
+        <div class="pvHead"><strong id="pvHeadTitle">Header</strong><span id="pvHeadSub">Theme Studio</span></div>
         <div class="pvBody">
-          <div style="font-size:14px;font-weight:700;margin-bottom:7px;">Module Surface</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">This preview reflects the global theme variables.</div>
-          <span class="pvBtn">Accent Action</span>
+          <div id="pvBodyTitle" style="font-size:14px;font-weight:700;margin-bottom:7px;">Module Surface</div>
+          <div id="pvBodySub" style="font-size:12px;color:var(--muted);margin-bottom:10px;">This preview reflects the global theme variables.</div>
+          <span id="pvBtnTxt" class="pvBtn">Accent Action</span>
         </div>
       </div>
     </section>
@@ -122,10 +125,12 @@
   <script src="./modules/module-shell.js"></script>
   <script src="./modules/module-io.js"></script>
   <script src="./modules/module-data.js"></script>
+  <script src="./modules/module-lang.js"></script>
   <script src="./modules/module-theme.js"></script>
   <script>
     (function(){
       const $ = (id) => document.getElementById(id);
+      const FIELDS = ["bg", "text", "accent", "headerBg", "headerText"];
       const PRESETS = {
         midnight: { name: "Midnight", bg: "#0a0f17", text: "#e6edf8", accent: "#57b4ff", headerBg: "#101521", headerText: "#e8e8e8" },
         forest: { name: "Forest", bg: "#0a120a", text: "#d8f1db", accent: "#42d18b", headerBg: "#0e1a10", headerText: "#dff3e3" },
@@ -133,6 +138,33 @@
         steel: { name: "Steel", bg: "#10151c", text: "#e8eef8", accent: "#7ab6ff", headerBg: "#1a2430", headerText: "#eaf1ff" },
         light: { name: "Light", bg: "#edf1f7", text: "#1a2028", accent: "#2b7fff", headerBg: "#d8e0ec", headerText: "#1a2028" },
       };
+      let savedTheme = null;
+      let dirty = false;
+
+      function tt(key, fallback = "", vars) {
+        return window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
+      }
+
+      function applyTexts() {
+        $("themeTitle").textContent = tt("theme.title", "Theme Studio");
+        $("themeSub").textContent = tt("theme.subtitle", "Global theme module for Hub, Chrono, SPaCial and Camera.");
+        $("resetBtn").textContent = tt("theme.resetDefault", "Reset Default");
+        $("saveBtn").textContent = tt("theme.save", "Save Global Theme");
+        $("presetTitle").textContent = tt("theme.presets", "Presets");
+        $("paletteTitle").textContent = tt("theme.palette", "Palette");
+        $("lblBgIn").textContent = tt("theme.field.bg", "Background");
+        $("lblTextIn").textContent = tt("theme.field.text", "Text");
+        $("lblAccentIn").textContent = tt("theme.field.accent", "Accent");
+        $("lblHeaderBgIn").textContent = tt("theme.field.headerBg", "Header BG");
+        $("lblHeaderTextIn").textContent = tt("theme.field.headerText", "Header Text");
+        $("applyLiveBtn").textContent = tt("theme.applyLive", "Apply Live");
+        $("previewTitle").textContent = tt("theme.preview", "Preview");
+        $("pvHeadTitle").textContent = tt("theme.preview.header", "Header");
+        $("pvHeadSub").textContent = tt("theme.title", "Theme Studio");
+        $("pvBodyTitle").textContent = tt("theme.preview.surface", "Module Surface");
+        $("pvBodySub").textContent = tt("theme.preview.desc", "This preview reflects the global theme variables.");
+        $("pvBtnTxt").textContent = tt("theme.preview.action", "Accent Action");
+      }
 
       function themeFromInputs() {
         return window.VMillTheme.normalizeTheme({
@@ -153,19 +185,95 @@
         $("headerTextIn").value = theme.headerText;
       }
 
+      function toHex(v, fallback = "#000000") {
+        const s = String(v || "").trim();
+        return /^#[0-9a-fA-F]{6}$/.test(s) ? s.toLowerCase() : fallback;
+      }
+
+      function hexToRgb(hex) {
+        const h = toHex(hex);
+        return {
+          r: parseInt(h.slice(1, 3), 16),
+          g: parseInt(h.slice(3, 5), 16),
+          b: parseInt(h.slice(5, 7), 16),
+        };
+      }
+
+      function rgbaFromHex(hex, alpha = 1) {
+        const c = hexToRgb(hex);
+        const a = Math.max(0, Math.min(1, Number(alpha) || 1));
+        return `rgba(${c.r}, ${c.g}, ${c.b}, ${a})`;
+      }
+
+      function toRgbCsv(hex) {
+        const c = hexToRgb(hex);
+        return `${c.r},${c.g},${c.b}`;
+      }
+
+      function sameTheme(a, b) {
+        if (!a || !b) return false;
+        return FIELDS.every((k) => String(a[k] || "").toLowerCase() === String(b[k] || "").toLowerCase());
+      }
+
+      function syncDirtyUi() {
+        const draft = themeFromInputs();
+        dirty = !sameTheme(draft, savedTheme);
+        const saveBtn = $("saveBtn");
+        if (saveBtn) saveBtn.disabled = !dirty;
+      }
+
       function applyPreview(theme) {
         document.documentElement.style.setProperty("--bg", theme.bg);
         document.documentElement.style.setProperty("--text", theme.text);
         document.documentElement.style.setProperty("--accent", theme.accent);
+        document.documentElement.style.setProperty("--accent-rgb", toRgbCsv(theme.accent));
         document.documentElement.style.setProperty("--panel", theme.bg);
         document.documentElement.style.setProperty("--panel2", theme.bg);
-        document.documentElement.style.setProperty("--border", "rgba(255,255,255,.16)");
-        document.documentElement.style.setProperty("--muted", "rgba(255,255,255,.65)");
+        document.documentElement.style.setProperty("--border", rgbaFromHex(theme.text, .18));
+        document.documentElement.style.setProperty("--muted", rgbaFromHex(theme.text, .65));
         document.documentElement.style.setProperty("--header-bg", theme.headerBg);
         document.documentElement.style.setProperty("--header-text", theme.headerText);
       }
 
       function setStatus(msg) { $("status").textContent = msg; }
+
+      function notifyDirtyState() {
+        window.__vmThemeStudioDirty = dirty;
+        try {
+          window.parent?.postMessage({ type: "vmill:theme-studio-dirty", dirty }, location.origin);
+        } catch {}
+      }
+
+      function saveChanges() {
+        const draft = themeFromInputs();
+        savedTheme = window.VMillTheme.writeTheme(draft, "theme-studio-save");
+        window.VMillTheme.applyTheme(document, "theme", savedTheme);
+        inputsFromTheme(savedTheme);
+        applyPreview(savedTheme);
+        syncDirtyUi();
+        notifyDirtyState();
+        setStatus(tt("theme.status.saved", "Theme saved."));
+        return savedTheme;
+      }
+
+      function discardChanges() {
+        if (!savedTheme) savedTheme = window.VMillTheme.readTheme();
+        inputsFromTheme(savedTheme);
+        applyPreview(savedTheme);
+        if (window.VMillTheme.previewTheme) window.VMillTheme.previewTheme(savedTheme, "theme-studio-discard");
+        window.VMillTheme.applyTheme(document, "theme", savedTheme);
+        syncDirtyUi();
+        notifyDirtyState();
+        setStatus(tt("theme.status.discarded", "Changes discarded."));
+      }
+
+      function confirmLeaveIfDirty() {
+        if (!dirty) return true;
+        const save = window.confirm(tt("theme.confirm.unsaved", "Theme changes are not saved. OK = Save, Cancel = Discard."));
+        if (save) saveChanges();
+        else discardChanges();
+        return true;
+      }
 
       function renderPresets() {
         const box = $("presetRow");
@@ -186,48 +294,90 @@
           `;
           el.addEventListener("click", () => {
             const next = window.VMillTheme.normalizeTheme({ ...p, name: p.name });
+            savedTheme = window.VMillTheme.writeTheme(next, "theme-studio-preset");
+            window.VMillTheme.applyTheme(document, "theme", savedTheme);
             inputsFromTheme(next);
-            applyPreview(next);
-            setStatus(`Preset: ${p.name}`);
+            applyPreview(savedTheme);
+            syncDirtyUi();
+            notifyDirtyState();
+            setStatus(tt("theme.status.presetSaved", "Preset saved: {name}", { name: p.name }));
           });
           box.appendChild(el);
         }
       }
 
       function applyLiveToAll() {
-        const theme = themeFromInputs();
-        window.VMillTheme.writeTheme(theme, "theme-studio");
-        window.VMillTheme.applyTheme(document, "theme");
-        setStatus("Global theme updated.");
+        const draft = themeFromInputs();
+        window.VMillTheme.applyTheme(document, "theme", draft);
+        if (window.VMillTheme.previewTheme) window.VMillTheme.previewTheme(draft, "theme-studio-live");
+        syncDirtyUi();
+        notifyDirtyState();
+        setStatus(dirty
+          ? tt("theme.status.liveUnsaved", "Live preview (not saved).")
+          : tt("theme.status.matches", "Theme matches saved config."));
       }
 
-      $("saveBtn").addEventListener("click", applyLiveToAll);
+      $("saveBtn").addEventListener("click", saveChanges);
       $("applyLiveBtn").addEventListener("click", applyLiveToAll);
       $("resetBtn").addEventListener("click", () => {
         const d = window.VMillTheme.defaultTheme();
         inputsFromTheme(d);
-        window.VMillTheme.writeTheme(d, "theme-studio");
-        window.VMillTheme.applyTheme(document, "theme");
-        setStatus("Reset to default.");
+        applyPreview(d);
+        syncDirtyUi();
+        notifyDirtyState();
+        setStatus(tt("theme.status.defaultLoaded", "Default loaded (not saved)."));
       });
 
       ["bgIn","textIn","accentIn","headerBgIn","headerTextIn"].forEach((id) => {
         $(id).addEventListener("input", () => {
-          applyPreview(themeFromInputs());
+          const draft = themeFromInputs();
+          applyPreview(draft);
+          syncDirtyUi();
+          notifyDirtyState();
+          setStatus(dirty
+            ? tt("theme.status.unsaved", "Unsaved changes.")
+            : tt("theme.status.matches", "Theme matches saved config."));
         });
       });
 
       window.addEventListener("vmill:theme:changed", (e) => {
+        const persisted = e?.detail?.persisted !== false;
         const t = window.VMillTheme.normalizeTheme(e?.detail?.theme || window.VMillTheme.readTheme());
-        inputsFromTheme(t);
-        applyPreview(t);
+        if (persisted) {
+          savedTheme = t;
+          if (!dirty || String(e?.detail?.source || "").startsWith("theme-studio")) {
+            inputsFromTheme(t);
+            applyPreview(t);
+          }
+          syncDirtyUi();
+          notifyDirtyState();
+        }
       });
 
-      const theme = window.VMillTheme.readTheme();
-      inputsFromTheme(theme);
+      savedTheme = window.VMillTheme.readTheme();
+      inputsFromTheme(savedTheme);
+      applyTexts();
+      setStatus(tt("i18n.status.ready", "Ready."));
       renderPresets();
-      applyPreview(theme);
-      window.VMillTheme.applyTheme(document, "theme");
+      applyPreview(savedTheme);
+      syncDirtyUi();
+      notifyDirtyState();
+      window.VMillTheme.applyTheme(document, "theme", savedTheme);
+      window.addEventListener("vmill:lang:changed", applyTexts);
+      window.addEventListener("vmill:lang:catalog:changed", applyTexts);
+
+      window.VMillThemeStudio = {
+        hasUnsavedChanges: () => !!dirty,
+        saveChanges,
+        discardChanges,
+        confirmLeaveIfDirty,
+      };
+
+      window.addEventListener("beforeunload", (e) => {
+        if (!dirty) return;
+        e.preventDefault();
+        e.returnValue = "";
+      });
     })();
   </script>
 </body>

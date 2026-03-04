@@ -16,9 +16,13 @@
       --muted:#99a9c0;
       --border:#26354d;
       --accent:#57b4ff;
+      --accent-rgb:87,180,255;
       --ok:#68d39a;
+      --ok-rgb:104,211,154;
       --warn:#ffd37a;
+      --warn-rgb:255,211,122;
       --danger:#ff7d93;
+      --danger-rgb:255,125,147;
       --shadow:0 20px 40px rgba(0,0,0,.28);
       --radius:14px;
       --dockw:92px;
@@ -30,8 +34,8 @@
       font-family: "Space Grotesk", "Sora", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       min-height: 100vh;
       background:
-        radial-gradient(1200px 600px at 12% -10%, rgba(87,180,255,.18), transparent 60%),
-        radial-gradient(900px 500px at 100% 0%, rgba(104,211,154,.15), transparent 60%),
+        radial-gradient(1200px 600px at 12% -10%, rgba(var(--accent-rgb), .18), transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, rgba(var(--ok-rgb), .15), transparent 60%),
         linear-gradient(180deg, var(--bg), var(--bg2));
     }
     .layout {
@@ -56,7 +60,7 @@
       display: grid;
       place-items: center;
       border: 1px solid var(--border);
-      background: linear-gradient(145deg, rgba(87,180,255,.2), rgba(104,211,154,.12));
+      background: linear-gradient(145deg, rgba(var(--accent-rgb), .2), rgba(var(--ok-rgb), .12));
       font-weight: 900;
       letter-spacing: .06em;
       color: var(--text);
@@ -81,8 +85,8 @@
     }
     .dockBtn:hover {
       color: var(--text);
-      border-color: #3a5b82;
-      background: rgba(87,180,255,.12);
+      border-color: color-mix(in srgb, var(--accent) 54%, var(--border));
+      background: rgba(var(--accent-rgb), .12);
     }
     .main {
       padding: 16px;
@@ -101,7 +105,7 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       background:
-        radial-gradient(360px 140px at 0% -60%, rgba(87,180,255,.14), transparent 60%),
+        radial-gradient(360px 140px at 0% -60%, rgba(var(--accent-rgb), .14), transparent 60%),
         linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
       padding: 6px 8px 10px;
       display: flex;
@@ -381,11 +385,12 @@
       letter-spacing: .07em;
       text-transform: uppercase;
     }
-    .status.ready { color: var(--ok); border-color: rgba(104,211,154,.5); background: rgba(104,211,154,.08); }
-    .status.planned { color: var(--warn); border-color: rgba(255,211,122,.5); background: rgba(255,211,122,.08); }
+    .status.ready { color: var(--ok); border-color: rgba(var(--ok-rgb), .5); background: rgba(var(--ok-rgb), .08); }
+    .status.planned { color: var(--warn); border-color: rgba(var(--warn-rgb), .5); background: rgba(var(--warn-rgb), .08); }
 
     .widget[data-widget="jobs"] .widgetHeader .widgetTitle { display: none; }
     .jobsToolbar { justify-content: flex-end; }
+    .widget[data-widget="structure"] { display: none !important; }
     .jobsManageMenu > summary { cursor: pointer; }
     .jobsManageActions { max-width: 380px; }
     .jobsPrefsBox {
@@ -727,9 +732,9 @@
 
     .kpis {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       gap: 8px;
-      margin-bottom: 10px;
+      margin-bottom: 0;
     }
     .kpi {
       border: 1px solid var(--border);
@@ -807,6 +812,23 @@
       min-width: 150px;
       accent-color: var(--accent);
     }
+    .settingsSelect {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel3);
+      color: var(--text);
+      padding: 8px;
+      font-size: 12px;
+    }
+    body.hubPanelStackVertical .desktop {
+      grid-template-columns: 1fr;
+    }
+    body.hubPanelStackVertical .desktop .widget[data-size="wide"],
+    body.hubPanelStackVertical .desktop .widget[data-size="half"],
+    body.hubPanelStackVertical .desktop .widget[data-size="narrow"] {
+      grid-column: 1 / -1;
+    }
     body.hubCompact .widgetHeader { padding: 8px 10px; }
     body.hubCompact .widgetBody { padding: 10px; }
     body.hubCompact .btn { padding: 6px 8px; font-size: 10px; }
@@ -872,24 +894,24 @@
       <a class="dockBtn" data-dock-id="chrono" data-module-id="chrono" href="./chrono/chrono.html">Chrono</a>
       <a class="dockBtn" data-dock-id="chrono-camera" data-module-id="chrono-camera" href="./chrono/chrono_camera.html">Camera</a>
       <a class="dockBtn" data-dock-id="spacial" data-module-id="spacial" href="./SPaCial.html">SPaCial</a>
+      <a class="dockBtn" data-dock-id="structure" data-module-id="structure" href="./structure_studio.html">Structure</a>
+      <a class="dockBtn" data-dock-id="contas" data-module-id="contas" href="./contas_calc.html">Contas</a>
       <a class="dockBtn" data-dock-id="cnc-sim" data-module-id="cnc-sim" href="../index.html">CNC Sim</a>
     </aside>
 
     <main class="main">
       <section class="topbar collapsed" id="topbarPanel">
         <div class="topbarHead">
-          <button class="topbarToggle" id="topbarToggleBtn" type="button" aria-expanded="false" title="Open settings">&lt;</button>
+          <button class="topbarToggle" id="topbarToggleBtn" type="button" aria-expanded="false" title="Open settings">⚙</button>
         </div>
         <div class="topbarQuick">
           <div class="topbarTools">
-            <button class="btn ghost" id="toggleDesktopBtn" type="button" style="display:none">Overlay</button>
-            <button class="btn ghost" id="closeModuleBtn" type="button" aria-disabled="true" disabled>Close Module</button>
             <button class="btn ghost" id="openThemeSettingsBtn" type="button">Theme</button>
-            <div class="pill" id="moduleStatusPill">CAN BUS ONLINE</div>
-            <label class="pill" for="globalLangSel" id="globalLangLabel">Language</label>
+            <button class="btn ghost" id="openTranslationSettingsBtn" type="button">Translations</button>
             <select id="globalLangSel" style="padding:6px 8px;border-radius:9px;border:1px solid var(--border);background:var(--panel3);color:var(--text);font-size:11px;">
               <option value="en">English</option>
               <option value="fr">Francais</option>
+              <option value="pt">Portugues</option>
             </select>
           </div>
         </div>
@@ -898,6 +920,13 @@
             <div class="settingsTitle" id="settingsDisplayTitle">Personalize</div>
             <div class="controlRow">
               <button class="btn ghost" id="resetLayoutBtn" type="button">Reset Layout</button>
+            </div>
+            <div class="controlRow" style="margin-top:8px;">
+              <label class="minor" id="hubPanelStackLbl" for="hubPanelStackSel">Panel stack</label>
+              <select class="settingsSelect" id="hubPanelStackSel">
+                <option value="horizontal">Horizontal</option>
+                <option value="vertical">Vertical</option>
+              </select>
             </div>
             <div class="controlRow" style="margin-top:8px;">
               <label class="toggle" style="flex:1 1 160px;">
@@ -943,22 +972,8 @@
 
       <section class="desktop" id="desktop">
         <article class="widget" data-widget="overview" data-size="narrow">
-          <header class="widgetHeader" draggable="true">
-            <div class="widgetTitle">Overview</div>
-            <button class="btn ghost" id="refreshOverviewBtn" type="button">Refresh</button>
-          </header>
           <div class="widgetBody">
-            <div class="kpis">
-              <div class="kpi"><div class="v" id="kpiStations">0</div><div class="l" id="kpiStationsLbl">Stations</div></div>
-              <div class="kpi"><div class="v" id="kpiJobs">0</div><div class="l" id="kpiJobsLbl">Jobs</div></div>
-              <div class="kpi"><div class="v" id="kpiCycles">0</div><div class="l" id="kpiCyclesLbl">Cycles</div></div>
-              <div class="kpi"><div class="v" id="kpiSignals">0</div><div class="l" id="kpiSignalsLbl">SPaCial Routes</div></div>
-            </div>
-            <div class="controlRow">
-              <a class="btn" id="overviewChronoLink" data-module-id="chrono" href="./chrono/chrono.html">Chrono</a>
-              <a class="btn alt" id="overviewCameraLink" data-module-id="chrono-camera" href="./chrono/chrono_camera.html">Camera</a>
-              <a class="btn warn" id="overviewSpacialLink" data-module-id="spacial" href="./SPaCial.html">SPaCial</a>
-            </div>
+            <div class="kpis" id="overviewKpis"></div>
           </div>
         </article>
 
@@ -1045,6 +1060,29 @@
               <button class="btn warn" id="catDeleteBtn" type="button">Delete Category</button>
             </div>
             <div class="catsList" id="catLinksList"></div>
+            <details class="fold" style="margin-top:8px;">
+              <summary id="dynamicModelSummary">Dynamic Entity Model</summary>
+              <div class="catsGrid" style="margin-top:8px;">
+                <select id="dynTypeSel" style="border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;"></select>
+                <button class="btn ghost" id="dynTypeAddBtn" type="button">+ Type</button>
+                <button class="btn ghost" id="dynTypeRenameBtn" type="button">Rename Type</button>
+                <button class="btn warn" id="dynTypeDeleteBtn" type="button">Delete Type</button>
+
+                <select id="dynItemSel" style="border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;"></select>
+                <button class="btn ghost" id="dynItemAddBtn" type="button">+ Item</button>
+                <button class="btn ghost" id="dynItemRenameBtn" type="button">Rename Item</button>
+                <button class="btn warn" id="dynItemDeleteBtn" type="button">Delete Item</button>
+
+                <select id="dynLinkFromTypeSel" style="border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;"></select>
+                <select id="dynLinkFromSel" style="border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;"></select>
+                <select id="dynLinkToTypeSel" style="border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;"></select>
+                <select id="dynLinkToSel" style="border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;"></select>
+                <input id="dynLinkRelationIn" type="text" placeholder="Relation" />
+                <button class="btn" id="dynLinkSaveBtn" type="button">Save Link</button>
+                <button class="btn ghost" id="dynLinkDeleteBtn" type="button">Delete Link</button>
+              </div>
+              <div class="list" id="dynModelTree" style="margin-top:8px;max-height:180px;"></div>
+            </details>
             <div class="list" id="structureTree" style="margin-top:8px;"></div>
           </div>
         </article>
@@ -1058,9 +1096,13 @@
             <div class="controlRow" style="margin-top:10px;">
               <button class="btn ghost" id="importAllBtn" type="button">Import JSON</button>
               <button class="btn" id="exportAllBtn" type="button">Export All JSON</button>
+              <label class="minor" id="seedDemoPresetLbl" for="seedDemoPresetSel">Demo preset</label>
+              <select id="seedDemoPresetSel" style="max-width:170px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;">
+                <option value="small">Small</option>
+                <option value="medium" selected>Medium</option>
+                <option value="large">Large</option>
+              </select>
               <button class="btn alt" id="seedDemoBtn" type="button">Seed Demo</button>
-              <button class="btn ghost" id="seedRoutesBtn" type="button">Seed Routes</button>
-              <button class="btn ghost" id="demoMediumBtn" type="button">Load Demo M</button>
               <button class="btn warn" id="removeDemoBtn" type="button">Remove Demo</button>
               <button class="btn warn" id="resetDataBtn" type="button">Reset Data</button>
               <button class="btn ghost" id="clearSettingsBtn" type="button">Clear Local Settings</button>
@@ -1071,8 +1113,6 @@
               <div class="controlRow" style="margin-top:8px;">
                 <button class="btn" id="exportCsvBtn" type="button">Export Cycles CSV</button>
                 <button class="btn" id="exportTxtBtn" type="button">Export Summary TXT</button>
-                <button class="btn ghost" id="demoSmallBtn" type="button">Demo Small</button>
-                <button class="btn ghost" id="demoLargeBtn" type="button">Demo Large</button>
               </div>
             </details>
           </div>
@@ -1108,11 +1148,19 @@
       const JOBS_CARD_PREF_KEY = "vmill:hub-jobs-card-prefs:v1";
       const HUB_TOPBAR_KEY = "vmill:hub-topbar:v1";
       const HUB_UI_PREF_KEY = "vmill:hub-ui-prefs:v1";
+      const HUB_DEMO_PRESET_KEY = "vmill:hub-demo-preset:v1";
+      const SHARED_DATA_KEYS = new Set([
+        ...((window.VMillData?.keys?.ALL_APP_KEYS || []).map((k) => String(k || ""))),
+        String(window.VMillData?.keys?.MODULE_KEY || "vmill:module-data:v1"),
+      ]);
       const FALLBACK_MODULES = [
         { id: "chrono", name: "Chrono Study", desc: "Timing, timeline editing, KPI, and cycle analysis.", href: "./chrono/chrono.html", status: "ready", tags: ["time-study", "timeline", "kpi"] },
         { id: "chrono-camera", name: "Chrono Camera", desc: "Camera-assisted capture with sequence marks and bookmark export.", href: "./chrono/chrono_camera.html", status: "ready", tags: ["capture", "camera", "bookmarks"] },
         { id: "spacial", name: "SPaCial", desc: "SPC analytics with control limits, rule flags, and offline backups.", href: "./SPaCial.html", status: "ready", tags: ["spc", "quality", "control-chart", "offline"] },
+        { id: "structure", name: "Structure Studio", desc: "Global products, stations, jobs, and dependency model controller.", href: "./structure_studio.html", status: "ready", tags: ["structure", "dependencies", "entities", "global"] },
+        { id: "contas", name: "Contas CNC", desc: "Legacy CNC calculators: thread, milling, turning, and trig helpers.", href: "./contas_calc.html", status: "ready", tags: ["cnc", "calculator", "thread", "milling", "turning"] },
         { id: "theme", name: "Theme Studio", desc: "Global palette and visual theme controls for all modules.", href: "./theme_studio.html", status: "ready", tags: ["theme", "ui", "palette"] },
+        { id: "translations", name: "Translations", desc: "Global translation manager for EN/FR/PT strings.", href: "./translation_studio.html", status: "ready", tags: ["i18n", "localization", "strings"] },
         { id: "cnc-sim", name: "CNC Simulator", desc: "Launches the main CNC simulation workspace directly.", href: "../index.html", status: "ready", tags: ["cnc", "simulation"] },
         { id: "can-bus", name: "CAN Bus Core", desc: "Common module communication backbone (CANBus-v1).", href: "./vmill_hub.html#io", status: "ready", tags: ["can", "diagnostics", "iot"] },
       ];
@@ -1120,10 +1168,8 @@
       const mainEl = document.querySelector(".main");
       const workspace = document.getElementById("workspace");
       const workspaceFrame = document.getElementById("workspaceFrame");
-      const moduleStatusPill = document.getElementById("moduleStatusPill");
-      const toggleDesktopBtn = document.getElementById("toggleDesktopBtn");
-      const closeModuleBtn = document.getElementById("closeModuleBtn");
       const openThemeSettingsBtn = document.getElementById("openThemeSettingsBtn");
+      const openTranslationSettingsBtn = document.getElementById("openTranslationSettingsBtn");
       const topbarPanel = document.getElementById("topbarPanel");
       const topbarToggleBtn = document.getElementById("topbarToggleBtn");
       const busLog = document.getElementById("busLog");
@@ -1131,6 +1177,7 @@
       const hubAutoScaleChk = document.getElementById("hubAutoScaleChk");
       const hubScaleRange = document.getElementById("hubScaleRange");
       const hubScaleValue = document.getElementById("hubScaleValue");
+      const hubPanelStackSel = document.getElementById("hubPanelStackSel");
       const hubCompactChk = document.getElementById("hubCompactChk");
       const hubReduceMotionChk = document.getElementById("hubReduceMotionChk");
       const mods = (Array.isArray(window.VMillModules) && window.VMillModules.length)
@@ -1145,6 +1192,7 @@
       const jobsEntitySel = document.getElementById("jobsEntitySel");
       const jobsCompactCardsChk = document.getElementById("jobsCompactCardsChk");
       const jobsOverlayTextChk = document.getElementById("jobsOverlayTextChk");
+      const seedDemoPresetSel = document.getElementById("seedDemoPresetSel");
       const imageUploadFile = document.getElementById("imageUploadFile");
       let jobsViewMode = "cards";
       let jobsEntityMode = "jobs";
@@ -1153,11 +1201,14 @@
       let activeWorkspaceModuleId = "hub";
       let topbarCollapsed = true;
       let topbarAutoHideTimer = 0;
+      const TOPBAR_AUTO_HIDE_MS = 1400;
+      let themeStudioDirty = false;
+      let translationStudioDirty = false;
       let imageUploadTarget = null;
-      let hubUiPrefs = { autoScale: true, scalePct: 100, compact: false, reduceMotion: false };
-      function applyGlobalTheme() {
+      let hubUiPrefs = { autoScale: true, scalePct: 100, compact: false, reduceMotion: false, panelStack: "horizontal" };
+      function applyGlobalTheme(event) {
         if (!window.VMillTheme?.applyTheme) return;
-        window.VMillTheme.applyTheme(document, "hub");
+        window.VMillTheme.applyTheme(document, "hub", event?.detail?.theme || null);
       }
       applyGlobalTheme();
       window.addEventListener("vmill:theme:changed", applyGlobalTheme);
@@ -1177,13 +1228,13 @@
           const el = document.getElementById(id);
           if (el) el.textContent = tt(key, fallback);
         };
-        setTxt("globalLangLabel", "common.language", "Language");
+        const setSelOpt = (selId, value, key, fallback) => {
+          const sel = document.getElementById(selId);
+          const opt = sel?.querySelector(`option[value="${value}"]`);
+          if (opt) opt.textContent = tt(key, fallback);
+        };
         setTxt("workspaceEmptyText", "hub.workspace.empty", "Select a module to run in this workspace.");
         setTxt("workspaceLoadingText", "hub.workspace.loading", "Loading module...");
-        setTxt("kpiStationsLbl", "hub.overview.stations", "Stations");
-        setTxt("kpiJobsLbl", "hub.overview.jobs", "Jobs");
-        setTxt("kpiCyclesLbl", "hub.overview.cycles", "Cycles");
-        setTxt("kpiSignalsLbl", "hub.overview.routes", "SPaCial Routes");
         setTxt("jobsMoreSummary", "hub.jobs.more", "Manage");
         setTxt("advancedToolsSummary", "hub.data.advanced", "Advanced Tools");
 
@@ -1192,6 +1243,8 @@
           ["chrono", "hub.dock.chrono", "Chrono"],
           ["chrono-camera", "hub.dock.camera", "Camera"],
           ["spacial", "hub.dock.spacial", "SPaCial"],
+          ["structure", "hub.dock.structure", "Structure"],
+          ["contas", "hub.dock.contas", "Contas"],
           ["cnc-sim", "hub.dock.cnc", "CNC Sim"],
         ];
         for (const [id, key, fallback] of dockMap) {
@@ -1226,10 +1279,6 @@
         if (jobsProductFilter) jobsProductFilter.title = tt("hub.jobs.product", "Product");
         const jobsFlowSel = document.getElementById("jobsFlowSel");
         if (jobsFlowSel) jobsFlowSel.title = tt("hub.jobs.flowFilter", "Flow filter");
-        setTxt("refreshOverviewBtn", "hub.overview.refresh", "Refresh");
-        setTxt("overviewChronoLink", "hub.dock.chrono", "Chrono");
-        setTxt("overviewCameraLink", "hub.dock.camera", "Camera");
-        setTxt("overviewSpacialLink", "hub.dock.spacial", "SPaCial");
         setTxt("addProductFromJobsBtn", "hub.structure.addProduct", "+ Product");
         setTxt("editProductImageBtn", "hub.jobs.productImage", "Prod Img");
         setTxt("addStationBtn", "hub.jobs.addStation", "+ Station");
@@ -1256,27 +1305,40 @@
         setTxt("catDeleteBtn", "hub.cat.delete", "Delete Category");
         setTxt("importAllBtn", "hub.data.importJson", "Import JSON");
         setTxt("exportAllBtn", "hub.data.exportAll", "Export All JSON");
+        setTxt("seedDemoPresetLbl", "hub.data.demoPreset", "Demo preset");
+        setSelOpt("seedDemoPresetSel", "small", "hub.data.demoPreset.small", "Small");
+        setSelOpt("seedDemoPresetSel", "medium", "hub.data.demoPreset.medium", "Medium");
+        setSelOpt("seedDemoPresetSel", "large", "hub.data.demoPreset.large", "Large");
         setTxt("seedDemoBtn", "hub.data.seedDemo", "Seed Demo");
-        setTxt("seedRoutesBtn", "hub.data.seedRoutes", "Seed Routes");
-        setTxt("demoMediumBtn", "hub.data.loadDemoM", "Load Demo M");
         setTxt("removeDemoBtn", "hub.data.removeDemo", "Remove Demo");
         setTxt("resetDataBtn", "hub.data.resetData", "Reset Data");
         setTxt("clearSettingsBtn", "hub.data.clearSettings", "Clear Local Settings");
         setTxt("exportCsvBtn", "hub.data.exportCsv", "Export Cycles CSV");
         setTxt("exportTxtBtn", "hub.data.exportTxt", "Export Summary TXT");
-        setTxt("demoSmallBtn", "hub.data.demoSmall", "Demo Small");
-        setTxt("demoLargeBtn", "hub.data.demoLarge", "Demo Large");
         setTxt("clearBusBtn", "hub.bus.clear", "Clear");
         setTxt("settingsDisplayTitle", "hub.personalize.title", "Personalize");
         setTxt("settingsModulesTitle", "hub.modules.title", "Modules");
         setTxt("resetLayoutBtn", "hub.personalize.resetLayout", "Reset Layout");
+        setTxt("hubPanelStackLbl", "hub.personalize.panelStack", "Panel stack");
+        setSelOpt("hubPanelStackSel", "horizontal", "hub.personalize.panelStack.horizontal", "Horizontal");
+        setSelOpt("hubPanelStackSel", "vertical", "hub.personalize.panelStack.vertical", "Vertical");
         setTxt("hubAutoScaleLbl", "hub.personalize.autoScale", "Auto scale");
         setTxt("hubScaleLbl", "hub.personalize.scale", "Scale");
         setTxt("hubCompactLbl", "hub.personalize.compact", "Compact UI");
         setTxt("hubReduceMotionLbl", "hub.personalize.reduceMotion", "Reduce motion");
-        setTxt("toggleDesktopBtn", "hub.top.overlay", "Overlay");
-        setTxt("closeModuleBtn", "hub.top.closeModule", "Close Module");
         setTxt("openThemeSettingsBtn", "hub.top.themeSettings", "Theme Settings");
+        setTxt("openTranslationSettingsBtn", "hub.top.translationsSettings", "Translations");
+        setTxt("dynamicModelSummary", "hub.structure.dynamic.summary", "Dynamic Entity Model");
+        setTxt("dynTypeAddBtn", "hub.structure.dynamic.addType", "+ Type");
+        setTxt("dynTypeRenameBtn", "hub.structure.dynamic.renameType", "Rename Type");
+        setTxt("dynTypeDeleteBtn", "hub.structure.dynamic.deleteType", "Delete Type");
+        setTxt("dynItemAddBtn", "hub.structure.dynamic.addItem", "+ Item");
+        setTxt("dynItemRenameBtn", "hub.structure.dynamic.renameItem", "Rename Item");
+        setTxt("dynItemDeleteBtn", "hub.structure.dynamic.deleteItem", "Delete Item");
+        setTxt("dynLinkSaveBtn", "hub.structure.dynamic.linkSave", "Save Link");
+        setTxt("dynLinkDeleteBtn", "hub.structure.dynamic.linkDelete", "Delete Link");
+        const dynLinkRelationIn = document.getElementById("dynLinkRelationIn");
+        if (dynLinkRelationIn) dynLinkRelationIn.placeholder = tt("hub.structure.dynamic.linkRelation", "Relation");
       }
 
       function initGlobalLanguageControl() {
@@ -1288,6 +1350,7 @@
         globalLangSel.value = window.VMillLang?.getLanguage ? window.VMillLang.getLanguage() : "en";
         globalLangSel.addEventListener("change", () => {
           window.VMillLang?.setLanguage?.(globalLangSel.value);
+          setTopbarCollapsed(true);
         });
       }
 
@@ -1393,11 +1456,13 @@
       function normalizeHubUiPrefs(raw) {
         const src = raw && typeof raw === "object" ? raw : {};
         const scalePct = Math.max(85, Math.min(115, Number(src.scalePct) || 100));
+        const panelStack = String(src.panelStack || "horizontal") === "vertical" ? "vertical" : "horizontal";
         return {
           autoScale: src.autoScale !== false,
           scalePct: Math.round(scalePct),
           compact: !!src.compact,
           reduceMotion: !!src.reduceMotion,
+          panelStack,
         };
       }
 
@@ -1414,6 +1479,22 @@
       function writeHubUiPrefs(next) {
         const payload = normalizeHubUiPrefs(next);
         try { localStorage.setItem(HUB_UI_PREF_KEY, JSON.stringify(payload)); } catch {}
+      }
+
+      function readDemoPreset() {
+        try {
+          const raw = String(localStorage.getItem(HUB_DEMO_PRESET_KEY) || "").toLowerCase();
+          return (raw === "small" || raw === "medium" || raw === "large") ? raw : "medium";
+        } catch {
+          return "medium";
+        }
+      }
+
+      function writeDemoPreset(next) {
+        const v = String(next || "").toLowerCase();
+        const safe = (v === "small" || v === "medium" || v === "large") ? v : "medium";
+        try { localStorage.setItem(HUB_DEMO_PRESET_KEY, safe); } catch {}
+        if (seedDemoPresetSel) seedDemoPresetSel.value = safe;
       }
 
       function computeAutoScalePct() {
@@ -1459,10 +1540,12 @@
             ? tt("hub.personalize.autoScaleValue", "Auto ({pct}%)", { pct: effectivePct })
             : tt("hub.personalize.scaleValue", "{pct}%", { pct: effectivePct });
         }
+        if (hubPanelStackSel) hubPanelStackSel.value = hubUiPrefs.panelStack;
         if (hubCompactChk) hubCompactChk.checked = hubUiPrefs.compact;
         if (hubReduceMotionChk) hubReduceMotionChk.checked = hubUiPrefs.reduceMotion;
         document.body.classList.toggle("hubCompact", hubUiPrefs.compact);
         document.body.classList.toggle("hubReducedMotion", hubUiPrefs.reduceMotion);
+        document.body.classList.toggle("hubPanelStackVertical", hubUiPrefs.panelStack === "vertical");
         applyScaleSurface(desktop, scale);
         applyScaleSurface(workspace, scale);
         try {
@@ -1486,6 +1569,12 @@
             applyHubUiPrefs({ ...hubUiPrefs, autoScale: false, scalePct: nextPct }, true);
           });
         }
+        if (hubPanelStackSel) {
+          hubPanelStackSel.addEventListener("change", () => {
+            const panelStack = String(hubPanelStackSel.value || "horizontal") === "vertical" ? "vertical" : "horizontal";
+            applyHubUiPrefs({ ...hubUiPrefs, panelStack }, true);
+          });
+        }
         if (hubCompactChk) {
           hubCompactChk.addEventListener("change", () => {
             applyHubUiPrefs({ ...hubUiPrefs, compact: !!hubCompactChk.checked }, true);
@@ -1494,6 +1583,11 @@
         if (hubReduceMotionChk) {
           hubReduceMotionChk.addEventListener("change", () => {
             applyHubUiPrefs({ ...hubUiPrefs, reduceMotion: !!hubReduceMotionChk.checked }, true);
+          });
+        }
+        if (seedDemoPresetSel) {
+          seedDemoPresetSel.addEventListener("change", () => {
+            writeDemoPreset(String(seedDemoPresetSel.value || "medium"));
           });
         }
         let resizeRaf = 0;
@@ -1512,7 +1606,7 @@
         if (!topbarPanel) return;
         topbarPanel.classList.toggle("collapsed", topbarCollapsed);
         if (topbarToggleBtn) {
-          topbarToggleBtn.textContent = topbarCollapsed ? "<" : ">";
+          topbarToggleBtn.textContent = "⚙";
           topbarToggleBtn.setAttribute("aria-expanded", topbarCollapsed ? "false" : "true");
           topbarToggleBtn.title = topbarCollapsed
             ? tt("hub.top.settingsOpen", "Open settings")
@@ -1535,11 +1629,18 @@
           const inFocus = !!(active && topbarPanel?.contains(active));
           const hovering = !!topbarPanel?.matches(":hover");
           if (!hovering && !inFocus) setTopbarCollapsed(true);
-        }, 4200);
+        }, TOPBAR_AUTO_HIDE_MS);
       }
 
       function bindTopbarPanel() {
         if (!topbarPanel || !topbarToggleBtn) return;
+        document.addEventListener("pointerdown", (e) => {
+          if (topbarCollapsed) return;
+          const target = e.target;
+          if (!(target instanceof Node)) return;
+          if (topbarPanel.contains(target)) return;
+          setTopbarCollapsed(true);
+        });
         topbarToggleBtn.addEventListener("click", () => {
           setTopbarCollapsed(!topbarCollapsed);
           if (!topbarCollapsed) scheduleTopbarAutoHide();
@@ -1576,7 +1677,7 @@
       function isModuleEnabled(moduleId) {
         if (!moduleId) return true;
         const id = String(moduleId || "");
-        if (id === "can-bus" || id === "theme") return true;
+        if (id === "can-bus" || id === "theme" || id === "translations") return true;
         return !readModulePrefs().disabled.includes(id);
       }
 
@@ -1588,6 +1689,7 @@
           if (path.includes("/chrono/chrono.html")) return "chrono";
           if (path.includes("/spacial.html")) return "spacial";
           if (path.includes("/theme_studio.html")) return "theme";
+          if (path.includes("/translation_studio.html")) return "translations";
           if (path.endsWith("/index.html") || path === "/" || path.includes("/cnc_sim.html")) return "cnc-sim";
           if (path.includes("/vmill_hub.html")) return "hub";
         } catch {}
@@ -1604,9 +1706,6 @@
       function setDesktopOverlayVisibility(nextVisible) {
         overlayVisible = !!nextVisible;
         desktop.classList.toggle("desktopHidden", !overlayVisible && activeWorkspaceModuleId !== "hub");
-        toggleDesktopBtn.textContent = overlayVisible
-          ? tt("hub.top.hideOverlay", "Hide Overlay")
-          : tt("hub.top.showOverlay", "Show Overlay");
         writeWorkspacePrefs({
           moduleId: activeWorkspaceModuleId,
           href: workspaceFrame.getAttribute("src") || "",
@@ -1616,22 +1715,11 @@
 
       function refreshWorkspaceChrome() {
         const inWorkspace = activeWorkspaceModuleId !== "hub";
-        toggleDesktopBtn.textContent = overlayVisible
-          ? tt("hub.top.hideOverlay", "Hide Overlay")
-          : tt("hub.top.showOverlay", "Show Overlay");
         mainEl.classList.toggle("moduleMode", inWorkspace);
         workspace.classList.toggle("active", inWorkspace);
         if (!inWorkspace) workspace.setAttribute("data-loading", "false");
         if (!inWorkspace) desktop.classList.remove("desktopHidden");
         if (inWorkspace) desktop.classList.toggle("desktopHidden", !overlayVisible);
-        if (inWorkspace) toggleDesktopBtn.style.display = "";
-        else toggleDesktopBtn.style.display = "none";
-        closeModuleBtn.disabled = !inWorkspace;
-        if (inWorkspace) closeModuleBtn.removeAttribute("aria-disabled");
-        else closeModuleBtn.setAttribute("aria-disabled", "true");
-        moduleStatusPill.textContent = inWorkspace
-          ? tt("hub.top.running", "{module} running in workspace", { module: moduleLabel(activeWorkspaceModuleId) })
-          : tt("hub.top.canOnline", "CAN BUS ONLINE");
       }
 
       function ensureWorkspaceModuleAllowed() {
@@ -1639,11 +1727,73 @@
         if (!isModuleEnabled(activeWorkspaceModuleId)) closeWorkspace();
       }
 
+      function getThemeStudioApi() {
+        try {
+          return workspaceFrame.contentWindow?.VMillThemeStudio || null;
+        } catch {
+          return null;
+        }
+      }
+
+      function getTranslationStudioApi() {
+        try {
+          return workspaceFrame.contentWindow?.VMillTranslationStudio || null;
+        } catch {
+          return null;
+        }
+      }
+
+      function confirmWorkspaceLeave() {
+        if (activeWorkspaceModuleId !== "theme") return true;
+        const api = getThemeStudioApi();
+        if (api?.hasUnsavedChanges?.() || themeStudioDirty) {
+          let ok = true;
+          if (typeof api?.confirmLeaveIfDirty === "function") {
+            ok = !!api.confirmLeaveIfDirty();
+          } else {
+            const save = window.confirm(tt(
+              "hub.theme.unsavedLeave",
+              "Theme changes are not saved. OK = Save, Cancel = Discard."
+            ));
+            if (save) api?.saveChanges?.();
+            else api?.discardChanges?.();
+          }
+          themeStudioDirty = !!api?.hasUnsavedChanges?.();
+          return ok;
+        }
+        themeStudioDirty = false;
+        return true;
+      }
+
+      function confirmTranslationStudioExit() {
+        if (activeWorkspaceModuleId !== "translations") return true;
+        const api = getTranslationStudioApi();
+        if (api?.hasUnsavedChanges?.() || translationStudioDirty) {
+          let ok = true;
+          if (typeof api?.confirmLeaveIfDirty === "function") {
+            ok = !!api.confirmLeaveIfDirty();
+          } else {
+            ok = window.confirm("Translation changes are not saved. Discard and leave?");
+          }
+          translationStudioDirty = !!api?.hasUnsavedChanges?.();
+          return ok;
+        }
+        translationStudioDirty = false;
+        return true;
+      }
+
+      function confirmAnyStudioExit() {
+        if (!confirmWorkspaceLeave()) return false;
+        if (!confirmTranslationStudioExit()) return false;
+        return true;
+      }
+
       function openModuleInWorkspace(rawHref, moduleId) {
         const id = String(moduleId || "");
         if (!id || id === "hub") return closeWorkspace();
         if (id === "can-bus") return closeWorkspace();
         if (!isModuleEnabled(id)) return;
+        if (id !== activeWorkspaceModuleId && !confirmAnyStudioExit()) return;
         try {
           const url = new URL(rawHref, location.href);
           if (overlayVisible) setDesktopOverlayVisibility(false);
@@ -1660,12 +1810,26 @@
       }
 
       function closeWorkspace() {
+        if (!confirmAnyStudioExit()) return;
         activeWorkspaceModuleId = "hub";
         refreshWorkspaceChrome();
         writeWorkspacePrefs({ moduleId: "hub", href: "", overlayVisible });
       }
 
       function bindWorkspaceRouting() {
+        window.addEventListener("message", (event) => {
+          if (event.origin !== location.origin) return;
+          const data = event.data;
+          if (!data) return;
+          if (data.type === "vmill:theme-studio-dirty") {
+            themeStudioDirty = !!data.dirty;
+            return;
+          }
+          if (data.type === "vmill:translation-studio-dirty") {
+            translationStudioDirty = !!data.dirty;
+          }
+        });
+
         document.addEventListener("click", (e) => {
           if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
           const link = e.target instanceof Element ? e.target.closest("a[href]") : null;
@@ -1685,17 +1849,30 @@
 
         workspaceFrame.addEventListener("load", () => {
           workspace.setAttribute("data-loading", "false");
+          let loadedHref = "";
+          try {
+            loadedHref = String(workspaceFrame.contentWindow?.location?.href || "");
+          } catch {}
+          if (!loadedHref) loadedHref = String(workspaceFrame.getAttribute("src") || "");
+          const loadedModuleId = moduleIdFromHref(loadedHref);
+          if (loadedModuleId === "hub") {
+            closeWorkspace();
+            try { workspaceFrame.src = "about:blank"; } catch {}
+            return;
+          }
           applyHubUiPrefs(hubUiPrefs, false);
         });
 
-        toggleDesktopBtn.addEventListener("click", () => {
-          if (activeWorkspaceModuleId === "hub") return;
-          setDesktopOverlayVisibility(!overlayVisible);
-        });
-        closeModuleBtn.addEventListener("click", closeWorkspace);
         if (openThemeSettingsBtn) {
           openThemeSettingsBtn.addEventListener("click", () => {
             openModuleInWorkspace("./theme_studio.html", "theme");
+            setTopbarCollapsed(true);
+          });
+        }
+        if (openTranslationSettingsBtn) {
+          openTranslationSettingsBtn.addEventListener("click", () => {
+            openModuleInWorkspace("./translation_studio.html", "translations");
+            setTopbarCollapsed(true);
           });
         }
       }
@@ -1861,7 +2038,7 @@
           card.className = "modCard";
           const ready = m.status === "ready";
           const enabled = isModuleEnabled(m.id);
-          const canDisable = m.id !== "can-bus";
+          const canDisable = m.id !== "can-bus" && m.id !== "translations" && m.id !== "theme";
           const actionLabel = (ready && enabled)
             ? tt("hub.module.open", "Open")
             : (enabled ? tt("hub.module.planned", "Planned") : tt("hub.module.disabled", "Disabled"));
@@ -1902,7 +2079,7 @@
         box.innerHTML = "";
         for (const m of mods) {
           const id = String(m?.id || "");
-          if (!id || id === "hub" || id === "can-bus" || id === "theme") continue;
+          if (!id || id === "hub" || id === "can-bus" || id === "theme" || id === "translations") continue;
           const enabled = isModuleEnabled(id);
           const row = document.createElement("label");
           row.className = "toggle";
@@ -2416,43 +2593,289 @@
         writeState(st);
       }
 
-      function renderOverview() {
-        const st = getState() || {};
-        const stations = Array.isArray(st.stations) ? st.stations : [];
-        const jobs = Array.isArray(st.jobs) ? st.jobs : [];
-        let cycles = 0;
-        for (const j of jobs) cycles += Array.isArray(j.cycles) ? j.cycles.length : 0;
-        const routes = window.VMillData?.listRecords ? window.VMillData.listRecords("spacial_routes").length : 0;
+      function readDynamicModelSafe() {
+        if (!window.VMillData?.readStructureModel) return { types: [], items: [], links: [] };
+        const model = window.VMillData.readStructureModel({ persist: false });
+        return {
+          types: Array.isArray(model?.types) ? model.types : [],
+          items: Array.isArray(model?.items) ? model.items : [],
+          links: Array.isArray(model?.links) ? model.links : [],
+        };
+      }
 
-        document.getElementById("kpiStations").textContent = String(stations.length);
-        document.getElementById("kpiJobs").textContent = String(jobs.length);
-        document.getElementById("kpiCycles").textContent = String(cycles);
-        document.getElementById("kpiSignals").textContent = String(routes);
+      function dynamicTypeById(model, typeId) {
+        return (model?.types || []).find((t) => String(t?.id || "") === String(typeId || "")) || null;
+      }
 
-        const activeJob = jobs.find((j) => String(j.id || "") === String(st.activeJobId || "")) || jobs[0] || null;
-        const activeStation = stations.find((s) => String(s.id || "") === String(activeJob?.stationId || "")) || null;
-        const chronoHref = makeShortcut("./chrono/chrono.html", { job: activeJob?.id, station: activeJob?.stationId });
-        const camHref = makeShortcut("./chrono/chrono_camera.html", { job: activeJob?.id, station: activeJob?.stationId });
-        const spcHref = makeShortcut("./SPaCial.html", {
-          job: activeJob?.id,
-          station: activeJob?.stationId,
-          handoff: buildSpacialHandoff(activeJob, activeStation),
+      function dynamicTypeName(typeId, fallbackSingular, fallbackPlural) {
+        const model = readDynamicModelSafe();
+        const t = dynamicTypeById(model, typeId);
+        return {
+          singular: String(t?.nameSingular || fallbackSingular),
+          plural: String(t?.namePlural || fallbackPlural),
+        };
+      }
+
+      function dynamicItemLabel(item, type) {
+        if (!item) return "";
+        const code = String(item?.code || "").trim();
+        const name = String(item?.name || type?.nameSingular || item?.id || "").trim();
+        return code ? `${code} - ${name}` : name;
+      }
+
+      function addDynamicTypeFromHub() {
+        if (!window.VMillData?.upsertEntityType) return;
+        const singular = String(prompt(tt("hub.prompt.entityTypeSingular", "Type singular name (e.g. Machine):"), "") || "").trim();
+        if (!singular) return;
+        const plural = String(prompt(tt("hub.prompt.entityTypePlural", "Type plural name (e.g. Machines):"), `${singular}s`) || "").trim() || `${singular}s`;
+        window.VMillData.upsertEntityType({
+          id: singular,
+          nameSingular: singular,
+          namePlural: plural,
         });
-        const links = [
-          { el: document.getElementById("overviewChronoLink"), enabled: isModuleEnabled("chrono"), href: chronoHref },
-          { el: document.getElementById("overviewCameraLink"), enabled: isModuleEnabled("chrono-camera"), href: camHref },
-          { el: document.getElementById("overviewSpacialLink"), enabled: isModuleEnabled("spacial"), href: spcHref },
-        ];
-        for (const x of links) {
-          if (!x.el) continue;
-          if (x.enabled) {
-            x.el.href = x.href;
-            x.el.removeAttribute("aria-disabled");
-          } else {
-            x.el.href = "#";
-            x.el.setAttribute("aria-disabled", "true");
+      }
+
+      function renameDynamicTypeFromHub() {
+        if (!window.VMillData?.upsertEntityType) return;
+        const model = readDynamicModelSafe();
+        const typeId = String(document.getElementById("dynTypeSel")?.value || "");
+        if (!typeId) return alert(tt("hub.alert.dynamic.selectType", "Select one entity type first."));
+        const type = dynamicTypeById(model, typeId);
+        if (!type) return;
+        const singular = String(prompt(tt("hub.prompt.entityTypeSingular", "Type singular name (e.g. Machine):"), String(type.nameSingular || "")) || "").trim();
+        if (!singular) return;
+        const plural = String(prompt(tt("hub.prompt.entityTypePlural", "Type plural name (e.g. Machines):"), String(type.namePlural || `${singular}s`)) || "").trim() || `${singular}s`;
+        window.VMillData.upsertEntityType({
+          id: type.id,
+          nameSingular: singular,
+          namePlural: plural,
+          description: String(type.description || ""),
+        });
+      }
+
+      function deleteDynamicTypeFromHub() {
+        if (!window.VMillData?.deleteEntityType) return;
+        const model = readDynamicModelSafe();
+        const typeId = String(document.getElementById("dynTypeSel")?.value || "");
+        if (!typeId) return alert(tt("hub.alert.dynamic.selectType", "Select one entity type first."));
+        const type = dynamicTypeById(model, typeId);
+        if (!type) return;
+        if (type.locked) {
+          alert(tt("hub.alert.dynamic.lockedType", "This base type is locked. You can rename it but not delete it."));
+          return;
+        }
+        if (!confirm(tt("hub.confirm.deleteType", "Delete type \"{name}\" and its items/links?", { name: type.namePlural || type.nameSingular || type.id }))) return;
+        window.VMillData.deleteEntityType(type.id);
+      }
+
+      function addDynamicItemFromHub() {
+        if (!window.VMillData?.upsertEntityItem) return;
+        const model = readDynamicModelSafe();
+        const typeId = String(document.getElementById("dynTypeSel")?.value || "");
+        if (!typeId) return alert(tt("hub.alert.dynamic.selectType", "Select one entity type first."));
+        const type = dynamicTypeById(model, typeId);
+        if (!type) return;
+        if (type.allowManualItems === false) {
+          alert(tt("hub.alert.dynamic.lockedType", "This base type is locked. You can rename it but not delete it."));
+          return;
+        }
+        const code = String(prompt(tt("hub.prompt.entityItemCode", "Item code (optional):"), "") || "").trim();
+        const name = String(prompt(tt("hub.prompt.entityItemName", "Item name:"), "") || "").trim();
+        if (!name) return;
+        window.VMillData.upsertEntityItem({ typeId, code, name, source: "custom", sourceId: "" });
+      }
+
+      function renameDynamicItemFromHub() {
+        if (!window.VMillData?.upsertEntityItem) return;
+        const model = readDynamicModelSafe();
+        const typeId = String(document.getElementById("dynTypeSel")?.value || "");
+        const itemId = String(document.getElementById("dynItemSel")?.value || "");
+        if (!typeId) return alert(tt("hub.alert.dynamic.selectType", "Select one entity type first."));
+        if (!itemId) return alert(tt("hub.alert.dynamic.selectItem", "Select one entity item first."));
+        const item = (model.items || []).find((x) => String(x?.typeId || "") === typeId && String(x?.id || "") === itemId) || null;
+        if (!item) return;
+        if (String(item.source || "") === "app") {
+          alert(tt("hub.alert.dynamic.lockedItem", "This item is managed by base app data and cannot be deleted here."));
+          return;
+        }
+        const code = String(prompt(tt("hub.prompt.entityItemCode", "Item code (optional):"), String(item.code || "")) || "").trim();
+        const name = String(prompt(tt("hub.prompt.entityItemName", "Item name:"), String(item.name || "")) || "").trim();
+        if (!name) return;
+        window.VMillData.upsertEntityItem({ ...item, typeId, id: item.id, code, name, source: "custom" });
+      }
+
+      function deleteDynamicItemFromHub() {
+        if (!window.VMillData?.deleteEntityItem) return;
+        const model = readDynamicModelSafe();
+        const typeId = String(document.getElementById("dynTypeSel")?.value || "");
+        const itemId = String(document.getElementById("dynItemSel")?.value || "");
+        if (!typeId) return alert(tt("hub.alert.dynamic.selectType", "Select one entity type first."));
+        if (!itemId) return alert(tt("hub.alert.dynamic.selectItem", "Select one entity item first."));
+        const item = (model.items || []).find((x) => String(x?.typeId || "") === typeId && String(x?.id || "") === itemId) || null;
+        if (!item) return;
+        if (String(item.source || "") === "app") {
+          alert(tt("hub.alert.dynamic.lockedItem", "This item is managed by base app data and cannot be deleted here."));
+          return;
+        }
+        if (!confirm(tt("hub.confirm.deleteItem", "Delete item \"{name}\"?", { name: item.name || item.id }))) return;
+        window.VMillData.deleteEntityItem(typeId, itemId);
+      }
+
+      function saveDynamicLinkFromHub() {
+        if (!window.VMillData?.upsertEntityLink) return;
+        const fromTypeId = String(document.getElementById("dynLinkFromTypeSel")?.value || "");
+        const fromId = String(document.getElementById("dynLinkFromSel")?.value || "");
+        const toTypeId = String(document.getElementById("dynLinkToTypeSel")?.value || "");
+        const toId = String(document.getElementById("dynLinkToSel")?.value || "");
+        const relation = String(document.getElementById("dynLinkRelationIn")?.value || "uses").trim() || "uses";
+        if (!fromTypeId || !fromId || !toTypeId || !toId) return;
+        window.VMillData.upsertEntityLink({ fromTypeId, fromId, toTypeId, toId, relation });
+      }
+
+      function deleteDynamicLinkFromHub() {
+        if (!window.VMillData?.deleteEntityLink) return;
+        const fromTypeId = String(document.getElementById("dynLinkFromTypeSel")?.value || "");
+        const fromId = String(document.getElementById("dynLinkFromSel")?.value || "");
+        const toTypeId = String(document.getElementById("dynLinkToTypeSel")?.value || "");
+        const toId = String(document.getElementById("dynLinkToSel")?.value || "");
+        const relation = String(document.getElementById("dynLinkRelationIn")?.value || "").trim();
+        if (!fromTypeId || !fromId || !toTypeId || !toId) return;
+        if (!confirm(tt("hub.confirm.deleteLink", "Delete this dependency link?"))) return;
+        window.VMillData.deleteEntityLink({ fromTypeId, fromId, toTypeId, toId, relation });
+      }
+
+      function renderDynamicModel() {
+        const typeSel = document.getElementById("dynTypeSel");
+        const itemSel = document.getElementById("dynItemSel");
+        const fromTypeSel = document.getElementById("dynLinkFromTypeSel");
+        const fromSel = document.getElementById("dynLinkFromSel");
+        const toTypeSel = document.getElementById("dynLinkToTypeSel");
+        const toSel = document.getElementById("dynLinkToSel");
+        const relationIn = document.getElementById("dynLinkRelationIn");
+        const tree = document.getElementById("dynModelTree");
+        const renameTypeBtn = document.getElementById("dynTypeRenameBtn");
+        const deleteTypeBtn = document.getElementById("dynTypeDeleteBtn");
+        const renameItemBtn = document.getElementById("dynItemRenameBtn");
+        const deleteItemBtn = document.getElementById("dynItemDeleteBtn");
+        if (!typeSel || !itemSel || !fromTypeSel || !fromSel || !toTypeSel || !toSel || !relationIn || !tree) return;
+
+        const model = readDynamicModelSafe();
+        const types = model.types || [];
+        const items = model.items || [];
+        const links = model.links || [];
+
+        const fillTypeOptions = (sel, prev) => {
+          sel.innerHTML = types
+            .map((t) => `<option value="${escHtml(String(t.id || ""))}">${escHtml(String(t.namePlural || t.id || "Type"))}</option>`)
+            .join("");
+          if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
+          else sel.value = sel.options[0]?.value || "";
+        };
+
+        fillTypeOptions(typeSel, String(typeSel.value || "product"));
+        fillTypeOptions(fromTypeSel, String(fromTypeSel.value || typeSel.value || "product"));
+        fillTypeOptions(toTypeSel, String(toTypeSel.value || "station"));
+
+        const selectedTypeId = String(typeSel.value || "");
+        const selectedType = dynamicTypeById(model, selectedTypeId);
+        const typeItems = items.filter((x) => String(x?.typeId || "") === selectedTypeId);
+        const prevItemId = String(itemSel.value || "");
+        itemSel.innerHTML = typeItems
+          .map((it) => `<option value="${escHtml(String(it.id || ""))}">${escHtml(dynamicItemLabel(it, selectedType))}</option>`)
+          .join("");
+        if ([...itemSel.options].some((o) => o.value === prevItemId)) itemSel.value = prevItemId;
+        else itemSel.value = itemSel.options[0]?.value || "";
+
+        const fillTypeItems = (selType, selItem, prevItem) => {
+          const tid = String(selType.value || "");
+          const t = dynamicTypeById(model, tid);
+          const rows = items.filter((x) => String(x?.typeId || "") === tid);
+          selItem.innerHTML = rows
+            .map((it) => `<option value="${escHtml(String(it.id || ""))}">${escHtml(dynamicItemLabel(it, t))}</option>`)
+            .join("");
+          if ([...selItem.options].some((o) => o.value === prevItem)) selItem.value = prevItem;
+          else selItem.value = selItem.options[0]?.value || "";
+        };
+
+        fillTypeItems(fromTypeSel, fromSel, String(fromSel.value || ""));
+        fillTypeItems(toTypeSel, toSel, String(toSel.value || ""));
+        if (!relationIn.value) relationIn.value = "uses";
+
+        if (renameTypeBtn) renameTypeBtn.disabled = !selectedType;
+        if (deleteTypeBtn) deleteTypeBtn.disabled = !selectedType;
+
+        const selectedItem = typeItems.find((it) => String(it?.id || "") === String(itemSel.value || "")) || null;
+        if (renameItemBtn) renameItemBtn.disabled = !selectedItem || String(selectedItem.source || "") === "app";
+        if (deleteItemBtn) deleteItemBtn.disabled = !selectedItem || String(selectedItem.source || "") === "app";
+
+        const typeCounts = types.map((t) => {
+          const count = items.filter((it) => String(it?.typeId || "") === String(t.id || "")).length;
+          return `${t.namePlural || t.id}: ${count}`;
+        });
+        const lines = [];
+        lines.push(typeCounts.length ? typeCounts.join(" | ") : tt("hub.structure.dynamic.none", "No dynamic entities yet."));
+        lines.push("");
+        if (!links.length) {
+          lines.push(tt("hub.structure.dynamic.noneLinks", "No links yet."));
+        } else {
+          for (const l of links) {
+            const ft = dynamicTypeById(model, l.fromTypeId);
+            const ttg = dynamicTypeById(model, l.toTypeId);
+            const fromItem = items.find((x) => String(x?.typeId || "") === String(l.fromTypeId || "") && String(x?.id || "") === String(l.fromId || ""));
+            const toItem = items.find((x) => String(x?.typeId || "") === String(l.toTypeId || "") && String(x?.id || "") === String(l.toId || ""));
+            const a = dynamicItemLabel(fromItem, ft) || l.fromId;
+            const b = dynamicItemLabel(toItem, ttg) || l.toId;
+            lines.push(`${a} --[${l.relation || "uses"}]--> ${b}`);
           }
         }
+        tree.textContent = lines.join("\n");
+      }
+
+      function renderOverview() {
+        const box = document.getElementById("overviewKpis");
+        if (!box) return;
+        const model = window.VMillData?.readStructureModel ? window.VMillData.readStructureModel({ persist: false }) : null;
+        const types = Array.isArray(model?.types) ? model.types.slice() : [];
+        const items = Array.isArray(model?.items) ? model.items : [];
+        const countsByType = new Map();
+        for (const it of items) {
+          const tid = String(it?.typeId || "");
+          if (!tid) continue;
+          countsByType.set(tid, Number(countsByType.get(tid) || 0) + 1);
+        }
+        const typeOrder = ["product", "station", "job"];
+        types.sort((a, b) => {
+          const ai = typeOrder.indexOf(String(a?.id || ""));
+          const bi = typeOrder.indexOf(String(b?.id || ""));
+          const ar = ai >= 0 ? ai : (typeOrder.length + 1);
+          const br = bi >= 0 ? bi : (typeOrder.length + 1);
+          if (ar !== br) return ar - br;
+          return String(a?.namePlural || a?.id || "").localeCompare(String(b?.namePlural || b?.id || ""));
+        });
+        const cards = types.map((t) => ({
+          label: String(t?.namePlural || t?.id || "Type"),
+          value: Number(countsByType.get(String(t?.id || "")) || 0),
+        }));
+        if (!cards.length) {
+          const st = getState() || {};
+          const products = Array.isArray(st.products) ? st.products.length : 0;
+          const stations = Array.isArray(st.stations) ? st.stations.length : 0;
+          const jobs = Array.isArray(st.jobs) ? st.jobs.length : 0;
+          cards.push(
+            { label: tt("hub.jobs.entity.products", "Products"), value: products },
+            { label: tt("hub.jobs.entity.stations", "Stations"), value: stations },
+            { label: tt("hub.jobs.entity.jobs", "Jobs"), value: jobs }
+          );
+        }
+        const routes = window.VMillData?.listRecords ? window.VMillData.listRecords("spacial_routes").length : 0;
+        cards.push({ label: tt("hub.overview.routes", "Routes"), value: Number(routes || 0) });
+
+        box.innerHTML = cards.map((c) => `
+          <div class="kpi">
+            <div class="v">${escHtml(String(c.value))}</div>
+            <div class="l">${escHtml(String(c.label))}</div>
+          </div>
+        `).join("");
       }
 
       function buildSpacialHandoff(job, station) {
@@ -2513,33 +2936,37 @@
         const stationById = new Map(stations.map((s) => [String(s.id || ""), s]));
         const jobs = Array.isArray(st.jobs) ? st.jobs : [];
         const q = normText(searchInput.value || "");
+        const allLabel = tt("hub.common.all", "All");
+        const productTypeName = dynamicTypeName("product", tt("hub.structure.productDefault", "Product"), tt("hub.jobs.entity.products", "Products"));
+        const stationTypeName = dynamicTypeName("station", tt("spacial.stationDefault", "Station"), tt("hub.jobs.entity.stations", "Stations"));
+        const jobTypeName = dynamicTypeName("job", tt("hub.jobs.entity.job", "Job"), tt("hub.jobs.entity.jobs", "Jobs"));
 
         entitySel.innerHTML = [
-          `<option value="jobs">${escHtml(tt("hub.jobs.entity.jobs", "Jobs"))}</option>`,
-          `<option value="stations">${escHtml(tt("hub.jobs.entity.stations", "Stations"))}</option>`,
-          `<option value="products">${escHtml(tt("hub.jobs.entity.products", "Products"))}</option>`,
+          `<option value="jobs">${escHtml(jobTypeName.plural)}</option>`,
+          `<option value="stations">${escHtml(stationTypeName.plural)}</option>`,
+          `<option value="products">${escHtml(productTypeName.plural)}</option>`,
         ].join("");
         if ([...entitySel.options].some((o) => o.value === jobsEntityMode)) entitySel.value = jobsEntityMode;
         else entitySel.value = "jobs";
         jobsEntityMode = String(entitySel.value || "jobs");
 
         const prevProduct = String(productFilter.value || "all");
-        productFilter.innerHTML = `<option value="all">${escHtml(tt("hub.structure.allProducts", "All products"))}</option>`;
+        productFilter.innerHTML = `<option value="all">${escHtml(`${allLabel} ${productTypeName.plural.toLowerCase()}`)}</option>`;
         for (const p of products) {
           const opt = document.createElement("option");
           opt.value = String(p.id || "");
-          opt.textContent = `${p.code || "--"} - ${p.name || tt("hub.structure.productDefault", "Product")}`;
+          opt.textContent = `${p.code || "--"} - ${p.name || productTypeName.singular}`;
           productFilter.appendChild(opt);
         }
         if ([...productFilter.options].some((o) => o.value === prevProduct)) productFilter.value = prevProduct;
         else productFilter.value = "all";
 
         const prevStation = String(stationFilter.value || "all");
-        stationFilter.innerHTML = `<option value="all">${escHtml(tt("hub.jobs.allStations", "All stations"))}</option>`;
+        stationFilter.innerHTML = `<option value="all">${escHtml(`${allLabel} ${stationTypeName.plural.toLowerCase()}`)}</option>`;
         for (const s of stations) {
           const opt = document.createElement("option");
           opt.value = String(s.id || "");
-          opt.textContent = `${s.code || "--"} - ${s.name || tt("spacial.stationDefault", "Station")}`;
+          opt.textContent = `${s.code || "--"} - ${s.name || stationTypeName.singular}`;
           stationFilter.appendChild(opt);
         }
         if ([...stationFilter.options].some((o) => o.value === prevStation)) stationFilter.value = prevStation;
@@ -2547,10 +2974,10 @@
 
         const prevFlow = String(flowSel.value || "all");
         const flowOptions = [
-          { id: "all", label: tt("hub.jobs.flow.all", "All jobs") },
+          { id: "all", label: `${allLabel} ${jobTypeName.plural.toLowerCase()}` },
           { id: "withCycles", label: tt("hub.jobs.flow.withCycles", "With cycles") },
           { id: "noCycles", label: tt("hub.jobs.flow.noCycles", "Without cycles") },
-          { id: "unassignedProduct", label: tt("hub.jobs.flow.unassignedProduct", "No product") },
+          { id: "unassignedProduct", label: tt("hub.jobs.flow.unassignedProduct", `No ${productTypeName.singular.toLowerCase()}`) },
         ];
         flowSel.innerHTML = flowOptions.map((f) => `<option value="${escHtml(f.id)}">${escHtml(f.label)}</option>`).join("");
         if ([...flowSel.options].some((o) => o.value === prevFlow)) flowSel.value = prevFlow;
@@ -2878,6 +3305,7 @@
       }
 
       function renderStructure() {
+        renderDynamicModel();
         const st = getWritableState();
         const products = Array.isArray(st.products) ? st.products : [];
         const stations = Array.isArray(st.stations) ? st.stations : [];
@@ -2895,13 +3323,17 @@
         const showStations = !!document.getElementById("structShowStations")?.checked;
         const showJobs = !!document.getElementById("structShowJobs")?.checked;
         if (!productFilter || !parentSel || !tree || !catTargetTypeSel || !catTargetSel || !catSel || !catParentSel || !catLinksList) return;
+        const allLabel = tt("hub.common.all", "All");
+        const productTypeName = dynamicTypeName("product", tt("hub.structure.productDefault", "Product"), tt("hub.jobs.entity.products", "Products"));
+        const stationTypeName = dynamicTypeName("station", tt("spacial.stationDefault", "Station"), tt("hub.jobs.entity.stations", "Stations"));
+        const jobTypeName = dynamicTypeName("job", tt("hub.jobs.entity.job", "Job"), tt("hub.jobs.entity.jobs", "Jobs"));
 
         const prevFilter = String(productFilter.value || st.activeProductId || "all");
-        productFilter.innerHTML = `<option value="all">${escHtml(tt("hub.structure.allProducts", "All products"))}</option>`;
+        productFilter.innerHTML = `<option value="all">${escHtml(`${allLabel} ${productTypeName.plural.toLowerCase()}`)}</option>`;
         for (const p of products) {
           const opt = document.createElement("option");
           opt.value = String(p.id || "");
-          opt.textContent = `${p.code || "--"} - ${p.name || tt("hub.structure.productDefault", "Product")}`;
+          opt.textContent = `${p.code || "--"} - ${p.name || productTypeName.singular}`;
           productFilter.appendChild(opt);
         }
         if ([...productFilter.options].some((o) => o.value === prevFilter)) productFilter.value = prevFilter;
@@ -2915,7 +3347,7 @@
           if (selectedProduct && pid === String(selectedProduct.id || "")) continue;
           const opt = document.createElement("option");
           opt.value = pid;
-          opt.textContent = `${p.code || "--"} - ${p.name || tt("hub.structure.productDefault", "Product")}`;
+          opt.textContent = `${p.code || "--"} - ${p.name || productTypeName.singular}`;
           parentSel.appendChild(opt);
         }
         if (selectedProduct?.parentProductId && [...parentSel.options].some((o) => o.value === String(selectedProduct.parentProductId || ""))) {
@@ -2933,9 +3365,9 @@
 
         const prevTargetType = String(catTargetTypeSel.value || "job");
         catTargetTypeSel.innerHTML = [
-          `<option value="job">${escHtml(tt("hub.cat.target.jobs", "Jobs"))}</option>`,
-          `<option value="station">${escHtml(tt("hub.cat.target.stations", "Stations"))}</option>`,
-          `<option value="product">${escHtml(tt("hub.cat.target.products", "Products"))}</option>`,
+          `<option value="job">${escHtml(jobTypeName.plural)}</option>`,
+          `<option value="station">${escHtml(stationTypeName.plural)}</option>`,
+          `<option value="product">${escHtml(productTypeName.plural)}</option>`,
         ].join("");
         catTargetTypeSel.value = ["job", "station", "product"].includes(prevTargetType) ? prevTargetType : "job";
         const targetType = String(catTargetTypeSel.value || "job");
@@ -2943,9 +3375,9 @@
         const prevTargetId = String(catTargetSel.value || "");
         catTargetSel.innerHTML = targetRows.map((row) => {
           const label = targetType === "product"
-            ? `${row.code || "--"} - ${row.name || tt("hub.structure.productDefault", "Product")}`
+            ? `${row.code || "--"} - ${row.name || productTypeName.singular}`
             : targetType === "station"
-              ? `${row.code || "--"} - ${row.name || tt("spacial.stationDefault", "Station")}`
+              ? `${row.code || "--"} - ${row.name || stationTypeName.singular}`
               : `${row.name || tt("hub.jobs.unnamed", "Unnamed job")}`;
           return `<option value="${escHtml(String(row.id || ""))}">${escHtml(label)}</option>`;
         }).join("");
@@ -3176,6 +3608,47 @@
       document.getElementById("catTargetTypeSel").addEventListener("change", renderStructure);
       document.getElementById("catTargetSel").addEventListener("change", renderStructure);
       document.getElementById("catSel").addEventListener("change", renderStructure);
+      document.getElementById("dynTypeSel").addEventListener("change", renderDynamicModel);
+      document.getElementById("dynItemSel").addEventListener("change", renderDynamicModel);
+      document.getElementById("dynLinkFromTypeSel").addEventListener("change", renderDynamicModel);
+      document.getElementById("dynLinkFromSel").addEventListener("change", renderDynamicModel);
+      document.getElementById("dynLinkToTypeSel").addEventListener("change", renderDynamicModel);
+      document.getElementById("dynLinkToSel").addEventListener("change", renderDynamicModel);
+      document.getElementById("dynTypeAddBtn").addEventListener("click", () => {
+        addDynamicTypeFromHub();
+        renderStationsJobs();
+        renderStructure();
+      });
+      document.getElementById("dynTypeRenameBtn").addEventListener("click", () => {
+        renameDynamicTypeFromHub();
+        renderStationsJobs();
+        renderStructure();
+      });
+      document.getElementById("dynTypeDeleteBtn").addEventListener("click", () => {
+        deleteDynamicTypeFromHub();
+        renderStationsJobs();
+        renderStructure();
+      });
+      document.getElementById("dynItemAddBtn").addEventListener("click", () => {
+        addDynamicItemFromHub();
+        renderDynamicModel();
+      });
+      document.getElementById("dynItemRenameBtn").addEventListener("click", () => {
+        renameDynamicItemFromHub();
+        renderDynamicModel();
+      });
+      document.getElementById("dynItemDeleteBtn").addEventListener("click", () => {
+        deleteDynamicItemFromHub();
+        renderDynamicModel();
+      });
+      document.getElementById("dynLinkSaveBtn").addEventListener("click", () => {
+        saveDynamicLinkFromHub();
+        renderDynamicModel();
+      });
+      document.getElementById("dynLinkDeleteBtn").addEventListener("click", () => {
+        deleteDynamicLinkFromHub();
+        renderDynamicModel();
+      });
       document.getElementById("productFilter").addEventListener("change", () => {
         const st = getWritableState();
         const productId = String(document.getElementById("productFilter")?.value || "");
@@ -3186,11 +3659,6 @@
       document.getElementById("structShowProducts").addEventListener("change", renderStructure);
       document.getElementById("structShowStations").addEventListener("change", renderStructure);
       document.getElementById("structShowJobs").addEventListener("change", renderStructure);
-      document.getElementById("refreshOverviewBtn").addEventListener("click", () => {
-        renderOverview();
-        renderStationsJobs();
-        renderStructure();
-      });
       document.getElementById("resetLayoutBtn").addEventListener("click", () => {
         layout = { order: defaultOrder.slice(), hidden: [] };
         writeLayout(layout);
@@ -3223,7 +3691,7 @@
           try {
             const payload = JSON.parse(String(fr.result || "{}"));
             const out = window.VMillData?.importJsonPayload
-              ? window.VMillData.importJsonPayload(payload, { seedRoutes: true })
+              ? window.VMillData.importJsonPayload(payload, { seedRoutes: true, seedPrune: true, seedOverwrite: false })
               : (window.VMillData?.importAllSnapshot?.(payload), { mode: "snapshot", importedApp: true, importedModules: true, importedRoutes: 0, seededRoutes: 0 });
             window.CANBus?.emit("hub:backup:imported", out || {}, "hub");
             renderOverview();
@@ -3243,7 +3711,20 @@
         fr.readAsText(f);
         e.target.value = "";
       });
-      document.getElementById("seedDemoBtn").addEventListener("click", () => {
+      document.getElementById("seedDemoBtn").addEventListener("click", async () => {
+        const preset = String(seedDemoPresetSel?.value || readDemoPreset() || "medium");
+        writeDemoPreset(preset);
+        if (window.VMillData?.loadDemoAppState) {
+          try {
+            await window.VMillData.loadDemoAppState(preset);
+            renderOverview();
+            renderStationsJobs();
+            renderStructure();
+            return;
+          } catch (err) {
+            console.warn("Seed demo preset load failed, fallback to local default seed.", err);
+          }
+        }
         if (window.VMillData?.resetAllData) window.VMillData.resetAllData({ withRoutes: true });
         else if (window.VMillData?.createDefaultAppState && window.VMillData?.writeAppState) {
           window.VMillData.writeAppState(window.VMillData.createDefaultAppState());
@@ -3252,47 +3733,6 @@
         renderOverview();
         renderStationsJobs();
         renderStructure();
-      });
-      document.getElementById("seedRoutesBtn").addEventListener("click", () => {
-        if (!window.VMillData?.seedRoutesForCurrentApp) return;
-        const n = Number(window.VMillData.seedRoutesForCurrentApp({ overwrite: false, pruneMissing: false }) || 0);
-        renderOverview();
-        renderStationsJobs();
-        renderStructure();
-        alert(tt("hub.alert.routesSeeded", "Routes seeded: {count}", { count: n }));
-      });
-      document.getElementById("demoSmallBtn").addEventListener("click", async () => {
-        if (!window.VMillData?.loadDemoAppState) return;
-        try {
-          await window.VMillData.loadDemoAppState("small");
-          renderOverview();
-          renderStationsJobs();
-          renderStructure();
-        } catch (err) {
-          alert(tt("hub.alert.demoLoadFailed", "Demo load failed: {err}", { err: err?.message || "unknown error" }));
-        }
-      });
-      document.getElementById("demoMediumBtn").addEventListener("click", async () => {
-        if (!window.VMillData?.loadDemoAppState) return;
-        try {
-          await window.VMillData.loadDemoAppState("medium");
-          renderOverview();
-          renderStationsJobs();
-          renderStructure();
-        } catch (err) {
-          alert(tt("hub.alert.demoLoadFailed", "Demo load failed: {err}", { err: err?.message || "unknown error" }));
-        }
-      });
-      document.getElementById("demoLargeBtn").addEventListener("click", async () => {
-        if (!window.VMillData?.loadDemoAppState) return;
-        try {
-          await window.VMillData.loadDemoAppState("large");
-          renderOverview();
-          renderStationsJobs();
-          renderStructure();
-        } catch (err) {
-          alert(tt("hub.alert.demoLoadFailed", "Demo load failed: {err}", { err: err?.message || "unknown error" }));
-        }
       });
       document.getElementById("removeDemoBtn").addEventListener("click", () => {
         if (!window.VMillData?.clearAllData && !window.VMillData?.clearAppStateToEmpty) return;
@@ -3367,6 +3807,11 @@
         }
       });
       window.addEventListener("storage", (e) => {
+        if (e.key && SHARED_DATA_KEYS.has(String(e.key))) {
+          renderOverview();
+          renderStationsJobs();
+          renderStructure();
+        }
         if (e.key === JOBS_VIEW_KEY) {
           jobsViewMode = readJobsViewMode();
           writeJobsViewMode(jobsViewMode);
@@ -3390,6 +3835,9 @@
         if (e.key === HUB_UI_PREF_KEY) {
           hubUiPrefs = readHubUiPrefs();
           applyHubUiPrefs(hubUiPrefs, false);
+        }
+        if (e.key === HUB_DEMO_PRESET_KEY && seedDemoPresetSel) {
+          seedDemoPresetSel.value = readDemoPreset();
         }
       });
       window.addEventListener("vmill:module-prefs-changed", () => {
@@ -3419,6 +3867,7 @@
       jobsViewMode = readJobsViewMode();
       jobsEntityMode = readJobsEntityMode();
       jobsCardPrefs = readJobsCardPrefs();
+      writeDemoPreset(readDemoPreset());
       writeJobsViewMode(jobsViewMode);
       writeJobsEntityMode(jobsEntityMode);
       writeJobsCardPrefs(jobsCardPrefs);

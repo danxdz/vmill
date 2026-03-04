@@ -31,6 +31,11 @@
     return `rgba(${c.r}, ${c.g}, ${c.b}, ${clamp01(alpha)})`;
   }
 
+  function rgbCsv(hex) {
+    const c = hexToRgb(hex);
+    return `${c.r}, ${c.g}, ${c.b}`;
+  }
+
   function mix(hexA, hexB, t) {
     const a = hexToRgb(hexA);
     const b = hexToRgb(hexB);
@@ -112,15 +117,26 @@
     }
   }
 
+  function dispatchTheme(theme, source = "module-theme", persisted = false) {
+    const normalized = normalizeTheme(theme);
+    try {
+      window.dispatchEvent(new CustomEvent("vmill:theme:changed", {
+        detail: { theme: normalized, source, persisted: !!persisted },
+      }));
+    } catch {}
+    window.CANBus?.emit("theme:changed", { theme: normalized, persisted: !!persisted }, source);
+    return normalized;
+  }
+
   function writeTheme(next, source = "module-theme") {
     const theme = normalizeTheme(next);
     try { localStorage.setItem(THEME_KEY, JSON.stringify(theme)); } catch {}
     writeToModuleData(theme);
-    try {
-      window.dispatchEvent(new CustomEvent("vmill:theme:changed", { detail: { theme, source } }));
-    } catch {}
-    window.CANBus?.emit("theme:changed", { theme }, source);
-    return theme;
+    return dispatchTheme(theme, source, true);
+  }
+
+  function previewTheme(next, source = "module-theme-preview") {
+    return dispatchTheme(next, source, false);
   }
 
   function detectMode() {
@@ -137,12 +153,17 @@
     root.style.setProperty(name, String(value));
   }
 
-  function applyTheme(doc = document, mode = "") {
-    const theme = readTheme();
+  function applyTheme(doc = document, mode = "", overrideTheme = null) {
+    const theme = normalizeTheme(overrideTheme || readTheme());
     const root = doc.documentElement;
     const body = doc.body;
     const m = String(mode || detectMode());
     const light = luminance(theme.bg) > 0.5;
+    const panel = light ? darken(theme.bg, 0.03) : lighten(theme.bg, 0.08);
+    const panel2 = light ? darken(theme.bg, 0.05) : lighten(theme.bg, 0.04);
+    const muted = rgba(theme.text, light ? 0.58 : 0.66);
+    const border = rgba(theme.text, light ? 0.22 : 0.18);
+    const ok = mix(theme.accent, "#68d39a", 0.55);
 
     if (body) body.classList.toggle("vm-theme-light", light);
 
@@ -151,6 +172,21 @@
     setVar(root, "--vm-theme-accent", theme.accent);
     setVar(root, "--vm-theme-header-bg", theme.headerBg);
     setVar(root, "--vm-theme-header-text", theme.headerText);
+    setVar(root, "--vm-theme-bg-rgb", rgbCsv(theme.bg));
+    setVar(root, "--vm-theme-text-rgb", rgbCsv(theme.text));
+    setVar(root, "--vm-theme-accent-rgb", rgbCsv(theme.accent));
+    setVar(root, "--vm-theme-header-bg-rgb", rgbCsv(theme.headerBg));
+    setVar(root, "--vm-theme-header-text-rgb", rgbCsv(theme.headerText));
+    setVar(root, "--vm-theme-panel", panel);
+    setVar(root, "--vm-theme-panel-2", panel2);
+    setVar(root, "--vm-theme-muted", muted);
+    setVar(root, "--vm-theme-border", border);
+    setVar(root, "--vm-theme-ok", ok);
+    setVar(root, "--vm-theme-ok-rgb", rgbCsv(ok));
+    setVar(root, "--vm-theme-warn", "#ffd37a");
+    setVar(root, "--vm-theme-warn-rgb", "255, 211, 122");
+    setVar(root, "--vm-theme-danger", "#ff7d93");
+    setVar(root, "--vm-theme-danger-rgb", "255, 125, 147");
 
     if (m === "hub" || m === "theme") {
       setVar(root, "--bg", theme.bg);
@@ -169,6 +205,14 @@
       setVar(root, "--muted", rgba(theme.text, light ? 0.62 : 0.66));
       setVar(root, "--border", rgba(theme.text, light ? 0.22 : 0.18));
       setVar(root, "--accent", theme.accent);
+      setVar(root, "--accent-rgb", rgbCsv(theme.accent));
+      setVar(root, "--text-rgb", rgbCsv(theme.text));
+      setVar(root, "--ok", ok);
+      setVar(root, "--ok-rgb", rgbCsv(ok));
+      setVar(root, "--warn", "#ffd37a");
+      setVar(root, "--warn-rgb", "255, 211, 122");
+      setVar(root, "--danger", "#ff7d93");
+      setVar(root, "--danger-rgb", "255, 125, 147");
     } else if (m === "chrono") {
       if (body) body.classList.toggle("themeLight", light);
       setVar(root, "--bg", theme.bg);
@@ -225,7 +269,9 @@
     if (e.key !== THEME_KEY) return;
     try {
       const theme = normalizeTheme(JSON.parse(String(e.newValue || "{}")));
-      window.dispatchEvent(new CustomEvent("vmill:theme:changed", { detail: { theme, source: "storage" } }));
+      window.dispatchEvent(new CustomEvent("vmill:theme:changed", {
+        detail: { theme, source: "storage", persisted: true },
+      }));
     } catch {}
   });
 
@@ -237,6 +283,7 @@
     normalizeTheme,
     readTheme,
     writeTheme,
+    previewTheme,
     applyTheme,
   };
 })();

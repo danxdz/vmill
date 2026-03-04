@@ -78,7 +78,7 @@
     }
     .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
     button{
-      border:1px solid #2a2d3a; background:rgba(255,255,255,.04); color:var(--text);
+      border:1px solid var(--border); background:rgba(255,255,255,.04); color:var(--text);
       padding:10px 12px; border-radius:12px; cursor:pointer;
     }
     button:hover{filter:brightness(1.08);}
@@ -122,7 +122,7 @@
     label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px;}
     input,select,textarea{
       width:100%; padding:10px 10px; border-radius:12px;
-      border:1px solid #2a2d3a; background:var(--panel2); color:var(--text);
+      border:1px solid var(--border); background:var(--panel2); color:var(--text);
       outline:none;
     }
     textarea{min-height:42px; resize:vertical;}
@@ -169,6 +169,18 @@
       text-align:right;
       font-size:12px;
     }
+    .videoNum::-webkit-outer-spin-button,
+    .videoNum::-webkit-inner-spin-button,
+    .timelineBarEditor input[type="number"]::-webkit-outer-spin-button,
+    .timelineBarEditor input[type="number"]::-webkit-inner-spin-button{
+      -webkit-appearance:none;
+      margin:0;
+    }
+    .videoNum,
+    .timelineBarEditor input[type="number"]{
+      -moz-appearance:textfield;
+      appearance:textfield;
+    }
     .videoAdjustBtns{
       display:flex;
       justify-content:flex-end;
@@ -209,7 +221,7 @@
     }
     .videoSeg.machineBox{
       background:repeating-linear-gradient(-35deg, rgba(200,208,220,.35) 0 6px, rgba(130,138,150,.30) 6px 12px) !important;
-      border:2px solid #33c6ff;
+      border:2px solid var(--accent);
       box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);
     }
     .videoSeg.withMachineOverlay .videoSegOverlay{
@@ -360,6 +372,28 @@
     }
     .timelineBarEditor .row3{grid-template-columns:1fr 1fr 1fr;}
     .timelineBarEditor input{padding:8px 8px; border-radius:10px;}
+    .timelineNumField{
+      display:grid;
+      grid-template-columns:30px 1fr 30px;
+      gap:6px;
+      align-items:center;
+    }
+    .timelineNumBtn{
+      min-width:30px;
+      width:30px;
+      height:30px;
+      padding:0;
+      border-radius:10px;
+      font-size:16px;
+      line-height:1;
+      text-align:center;
+    }
+    .timelineNumHint{
+      margin-top:4px;
+      font-size:10px;
+      color:var(--muted2);
+      text-align:right;
+    }
     .timelineBarEditor .btnbar{margin-top:8px;}
     .timelineBarEditor.draggable{cursor:move;}
     .timelineBarEditor.draggable input,
@@ -694,18 +728,23 @@
   <!-- LEFT: stations/jobs list always visible -->
   <section class="card panelBlock" id="leftPanelSection">
     <button class="panelHdr" data-panel-hdr="jobsSidebar">
-      <span class="panelHdrTitle">Stations & Jobs</span>
+      <span class="panelHdrTitle">Products / Stations / Jobs</span>
       <span class="panelHdrChevron">›</span>
     </button>
     <div class="panelHdrBody">
-    <div class="sidebarTop">
-      <div class="btnbar" style="gap:6px;">
-        <button class="primary" id="newStationBtn">+ Station</button>
+    <div class="row2" style="margin-bottom:8px;">
+      <div>
+        <label id="sidebarProductLbl">Product</label>
+        <select id="sidebarProductSel"></select>
+      </div>
+      <div>
+        <label id="sidebarStationLbl">Station</label>
+        <select id="sidebarStationSel"></select>
       </div>
     </div>
 
     <div class="searchRow">
-      <input id="searchBox" placeholder="Search station/job..." />
+      <input id="searchBox" placeholder="Search product/station/job..." />
       <button id="clearSearchBtn">Clear</button>
     </div>
 
@@ -909,6 +948,7 @@
         <!-- Row 2: Scope selectors -->
         <div class="toolbarGroup">
           <span class="toolbarLabel">Scope</span>
+          <select id="timelineProductSel" class="miniSelect timelineFilterSelect" title="Filter timeline by product"></select>
           <select id="timelineStationSel" class="miniSelect timelineFilterSelect" title="Switch active station for timeline"></select>
           <select id="timelineJobSel" class="miniSelect timelineFilterSelect" title="Switch active job for timeline"></select>
         </div>
@@ -948,17 +988,30 @@
           <div class="row3" style="margin-top:8px;">
             <div>
               <label>Start s</label>
-              <input id="tlEdStart" type="number" step="0.001" min="0" />
+              <div class="timelineNumField">
+                <button class="timelineNumBtn" type="button" data-num-step="tlEdStart" data-num-dir="-1" title="Decrease start">-</button>
+                <input id="tlEdStart" type="number" step="0.001" min="0" inputmode="decimal" enterkeyhint="done" />
+                <button class="timelineNumBtn" type="button" data-num-step="tlEdStart" data-num-dir="1" title="Increase start">+</button>
+              </div>
             </div>
             <div>
               <label>Dur s</label>
-              <input id="tlEdDur" type="number" step="0.001" min="0" />
+              <div class="timelineNumField">
+                <button class="timelineNumBtn" type="button" data-num-step="tlEdDur" data-num-dir="-1" title="Decrease duration">-</button>
+                <input id="tlEdDur" type="number" step="0.001" min="0" inputmode="decimal" enterkeyhint="done" />
+                <button class="timelineNumBtn" type="button" data-num-step="tlEdDur" data-num-dir="1" title="Increase duration">+</button>
+              </div>
             </div>
             <div>
               <label>End s</label>
-              <input id="tlEdEnd" type="number" step="0.001" min="0" />
+              <div class="timelineNumField">
+                <button class="timelineNumBtn" type="button" data-num-step="tlEdEnd" data-num-dir="-1" title="Decrease end">-</button>
+                <input id="tlEdEnd" type="number" step="0.001" min="0" inputmode="decimal" enterkeyhint="done" />
+                <button class="timelineNumBtn" type="button" data-num-step="tlEdEnd" data-num-dir="1" title="Increase end">+</button>
+              </div>
             </div>
           </div>
+          <div class="timelineNumHint">Shift = x10 step · Alt = x0.1 step</div>
           <div class="btnbar">
             <button id="tlEdApplyBtn" class="primary" type="button">Apply</button>
             <button id="tlEdResetStartBtn" type="button">Reset start</button>
@@ -1013,7 +1066,7 @@
     <div class="drawerHeader">
       <div>
         <div class="drawerTitle">Config</div>
-        <div class="small muted">Job setup - Elements - Backup</div>
+        <div class="small muted">Job scope - Elements - Backup</div>
       </div>
       <button id="closeDrawerBtn" style="font-size:16px; line-height:1; padding:8px 12px;">×</button>
     </div>
@@ -1035,26 +1088,26 @@
             <div class="row2">
               <div>
                 <label>Station</label>
-                <select id="jobStationSelect"></select>
+                <select id="jobStationSelect" disabled></select>
               </div>
               <div>
                 <label>Job name</label>
-                <input id="jobName" placeholder="e.g., Final tighten & inspect" />
+                <input id="jobName" placeholder="e.g., Final tighten & inspect" readonly />
               </div>
             </div>
 
             <div class="row3">
               <div>
                 <label>Allowance %</label>
-                <input id="allowancePct" type="number" step="0.1" min="0" value="12" />
+                <input id="allowancePct" type="number" step="0.1" min="0" value="12" readonly />
               </div>
               <div>
                 <label>Rating %</label>
-                <input id="ratingPct" type="number" step="1" min="50" max="150" value="100" />
+                <input id="ratingPct" type="number" step="1" min="50" max="150" value="100" readonly />
               </div>
               <div>
                 <label>Product</label>
-                <select id="jobProductSelect"></select>
+                <select id="jobProductSelect" disabled></select>
               </div>
             </div>
 
@@ -1065,12 +1118,7 @@
               </div>
               <div></div>
             </div>
-
-            <div class="btnbar">
-              <button class="primary" id="newJobBtn">+ New Job</button>
-              <button id="dupJobBtn">Duplicate</button>
-              <button class="danger" id="delJobBtn">Delete</button>
-            </div>
+            <div class="small muted" id="jobScopeHint">Create/edit products, stations, and jobs in Hub. Chrono uses global scope and records cycle timings.</div>
           </div>
         </div>
       </section>
@@ -1277,7 +1325,9 @@
 <script>
 (() => {
   const STORAGE_KEY = "vmill:app-state:v1";
-  const STORAGE_KEYS = window.VMillData?.keys?.ALL_APP_KEYS || [STORAGE_KEY];
+  const APP_STORAGE_KEYS = window.VMillData?.keys?.ALL_APP_KEYS || [STORAGE_KEY];
+  const MODULE_STORAGE_KEY = String(window.VMillData?.keys?.MODULE_KEY || "vmill:module-data:v1");
+  const SYNC_STORAGE_KEYS = Array.from(new Set([...APP_STORAGE_KEYS, MODULE_STORAGE_KEY]));
   const VIDEO_BOOKMARKS_KEY = "chrono_video_bookmarks_v1";
   const launchParams = new URLSearchParams(window.location.search || "");
   let launchRouteApplied = false;
@@ -1287,9 +1337,9 @@
   const wallIso = () => new Date().toISOString();
   const perfNow = () => performance.now();
   const TAGS = ["Normal","Rework","Training","Disturbance"];
-  const applyGlobalTheme = () => {
+  const applyGlobalTheme = (event) => {
     if (!window.VMillTheme?.applyTheme) return;
-    window.VMillTheme.applyTheme(document, "chrono");
+    window.VMillTheme.applyTheme(document, "chrono", event?.detail?.theme || null);
   };
   applyGlobalTheme();
   window.addEventListener("vmill:theme:changed", applyGlobalTheme);
@@ -1304,11 +1354,18 @@
     "jobs": "Jobs",
     "collapseAll": "Collapse all",
     "expandAll": "Expand all",
-    "stationJob": "Stations & Jobs",
+    "stationJob": "Products / Stations / Jobs",
     "pickJobHint": "Pick a job, then time cycles. Config is in the right drawer.",
-    "searchPh": "Search station/job...",
+    "searchPh": "Search product/station/job...",
     "clear": "Clear",
-    "addStation": "+ Station",
+    "allProducts": "All products",
+    "allStations": "All stations",
+    "allJobs": "All jobs",
+    "sidebarProduct": "Product",
+    "sidebarStation": "Station",
+    "noMatchingJobs": "No matching jobs.",
+    "noStations": "No stations",
+    "noJobs": "No jobs",
     "timer": "Timer",
     "currentElapsed": "Current elapsed",
     "currentElement": "Current element",
@@ -1373,7 +1430,7 @@
     "notesPh": "e.g., paused, missing part, machine jam...",
     "notesHint": "Notes stored locally + JSON.",
     "configTitle": "Config",
-    "jobSetupSub": "Job setup - Elements - Backup",
+    "jobSetupSub": "Job scope - Elements - Backup",
     "job": "Job",
     "station": "Station",
     "jobName": "Job name",
@@ -1383,6 +1440,7 @@
     "allowancePct": "Allowance %",
     "ratingPct": "Rating %",
     "stationCode": "Station code",
+    "jobScopeHint": "Create/edit products, stations, and jobs in Hub. Chrono uses global scope and records cycle timings.",
     "newJob": "+ New Job",
     "duplicate": "Duplicate",
     "delete": "Delete",
@@ -1445,11 +1503,18 @@
     "jobs": "Jobs",
     "collapseAll": "Tout replier",
     "expandAll": "Tout deplier",
-    "stationJob": "Postes & Jobs",
+    "stationJob": "Produits / Postes / Jobs",
     "pickJobHint": "Choisissez un job, puis capturez les cycles. Config dans le tiroir a droite.",
-    "searchPh": "Rechercher poste/job...",
+    "searchPh": "Rechercher produit/poste/job...",
     "clear": "Effacer",
-    "addStation": "+ Poste",
+    "allProducts": "Tous produits",
+    "allStations": "Tous postes",
+    "allJobs": "Tous jobs",
+    "sidebarProduct": "Produit",
+    "sidebarStation": "Poste",
+    "noMatchingJobs": "Aucun job correspondant.",
+    "noStations": "Aucun poste",
+    "noJobs": "Aucun job",
     "timer": "Chrono",
     "currentElapsed": "Temps courant",
     "currentElement": "Element courant",
@@ -1514,7 +1579,7 @@
     "notesPh": "ex: pause, piece manquante, blocage machine...",
     "notesHint": "Notes stockees en local + JSON.",
     "configTitle": "Config",
-    "jobSetupSub": "Setup job - Elements - Sauvegarde",
+    "jobSetupSub": "Perimetre job - Elements - Sauvegarde",
     "job": "Job",
     "station": "Poste",
     "jobName": "Nom du job",
@@ -1524,6 +1589,7 @@
     "allowancePct": "Allowance %",
     "ratingPct": "Rating %",
     "stationCode": "Code poste",
+    "jobScopeHint": "Creez/editez produits, postes et jobs dans le Hub. Chrono utilise ce scope global pour enregistrer les cycles.",
     "newJob": "+ Nouveau Job",
     "duplicate": "Dupliquer",
     "delete": "Supprimer",
@@ -1579,6 +1645,7 @@
   let i18nCatalogs = {
     en: { code: "en", name: "English", translations: EN_STRINGS },
     fr: { code: "fr", name: "Francais", translations: FR_INLINE_STRINGS },
+    pt: { code: "pt", name: "Portugues", translations: {} },
   };
   let activeLanguage = "en";
 
@@ -1626,16 +1693,11 @@
     const leftBtn = $("toggleLeftPanelBtn");
     if (leftBtn) leftBtn.textContent = state?.ui?.leftPanelVisible ? t("hideJobs", "Hide Jobs") : t("showJobs", "Show Jobs");
     const stTitle = document.querySelector("#leftPanelSection [data-panel-hdr='jobsSidebar'] .panelHdrTitle");
-    if (stTitle) stTitle.textContent = t("stationJob", "Stations & Jobs");
-    const stHint = document.querySelector(".sidebarTop .small");
-    if (stHint) stHint.textContent = t("pickJobHint", "Pick a job, then time cycles. Config is in the right drawer.");
-    setText("#newStationBtn", "addStation", "+ Station");
-    const collapseBtn = $("collapseStationsBtn");
-    if (collapseBtn) { collapseBtn.textContent = "-"; collapseBtn.title = t("collapseAll", "Collapse all"); }
-    const expandBtn = $("expandStationsBtn");
-    if (expandBtn) { expandBtn.textContent = "+"; expandBtn.title = t("expandAll", "Expand all"); }
+    if (stTitle) stTitle.textContent = t("stationJob", "Products / Stations / Jobs");
+    setText("#sidebarProductLbl", "sidebarProduct", "Product");
+    setText("#sidebarStationLbl", "sidebarStation", "Station");
     setText("#clearSearchBtn", "clear", "Clear");
-    setPlaceholder("#searchBox", "searchPh", "Search station/job...");
+    setPlaceholder("#searchBox", "searchPh", "Search product/station/job...");
     const tTitle = document.querySelector("#jobHeader")?.parentElement?.querySelector(".title");
     if (tTitle) tTitle.textContent = t("timer", "Timer");
     setText("#panelTimerCard .small.muted", "currentElapsed", "Current elapsed");
@@ -1704,35 +1766,11 @@
     if (tagsPill) tagsPill.textContent = t("tags", "Tags");
     const bSelLast = $("selectLast3Btn"); if (bSelLast) bSelLast.textContent = t("selectLast3", "Select last 3");
     const bClrSel = $("clearSelectionBtn"); if (bClrSel) bClrSel.textContent = t("clearSelection", "Clear selection");
-    const bTlCfg = $("timelineConfigBtn"); if (bTlCfg) bTlCfg.textContent = t("config", "Config");
     setText("#kpiExportCsvBtn", "exportActionsCsv", "Export CSV");
     setText("#kpiPrintBtn", "printReport", "🖨 Print / PDF");
-    const sameBaseLbl = $("uiTimelineSameBaseChk")?.parentElement;
-    if (sameBaseLbl) {
-      const txtNode = sameBaseLbl.childNodes[sameBaseLbl.childNodes.length - 1];
-      if (txtNode && txtNode.nodeType === Node.TEXT_NODE) txtNode.textContent = ` ${t("timelineSameBase", "Timeline same base")}`;
-    }
-    setText("#uiScaleLabel", "uiScale", "UI Scale");
-    setText("#uiScaleValueLabel", "scaleValue", "Scale value");
-    setText("#uiLayoutModeLabel", "uiLayoutMode", "Layout mode");
-    setText("#uiPanelLayoutLabel", "uiPanelLayout", "Panel layout");
-    setText("#uiPanelGridColsLabel", "uiPanelGridCols", "Grid columns");
-    setText("#uiJobsWidthLabelTitle", "jobsPanelWidth", "Jobs panel width");
     setText("#uiTimeUnitLabel", "uiTimeUnit", "Time unit");
     setText("#uiTimeResolutionLabel", "resolutionS", "Resolution (s)");
-    setText("#uiResetBtn", "resetDefaults", "↺ Reset defaults");
-    setText("#uiLayoutHint", "layoutHint", "Layout settings are saved locally and exported in JSON.");
     const lblActiveJob = $("lblActiveJob"); if (lblActiveJob) lblActiveJob.textContent = t("activeJob", "Active job");
-    const modeSel = $("uiLayoutModeSel");
-    if (modeSel && modeSel.options.length >= 2) {
-      modeSel.options[0].textContent = t("uiLayoutHorizontal", "Horizontal (side by side)");
-      modeSel.options[1].textContent = t("uiLayoutVertical", "Vertical (stacked)");
-    }
-    const panelLayoutSel = $("uiPanelLayoutSel");
-    if (panelLayoutSel && panelLayoutSel.options.length >= 2) {
-      panelLayoutSel.options[0].textContent = t("uiPanelLayoutStack", "Stacked cards");
-      panelLayoutSel.options[1].textContent = t("uiPanelLayoutGrid", "Adaptive grid");
-    }
     const unitSel = $("uiTimeUnitSel");
     if (unitSel && unitSel.options.length >= 2) {
       unitSel.options[0].textContent = t("uiTimeUnitSec", "Seconds");
@@ -1745,7 +1783,7 @@
     });
 
     setText("#drawer .drawerTitle", "configTitle", "Config");
-    setText("#drawer .drawerHeader .small.muted", "jobSetupSub", "Job setup - Elements - Backup");
+    setText("#drawer .drawerHeader .small.muted", "jobSetupSub", "Job scope - Elements - Backup");
     setText("#drawerSecTitleJob", "job", "Job");
     setText("#drawerSecTitleElements", "elements", "Elements");
     setText("#drawerSecTitleActionTypes", "actionTypes", "Action Types");
@@ -1765,13 +1803,11 @@
     if (ppl) ppl.textContent = t("product", "Product");
     const scl = $("stationCodeView")?.closest("div")?.querySelector("label");
     if (scl) scl.textContent = t("stationCode", "Station code");
+    setText("#jobScopeHint", "jobScopeHint", "Create/edit products, stations, and jobs in Hub. Chrono uses global scope and records cycle timings.");
     const enl = $("elName")?.closest("div")?.querySelector("label");
     if (enl) enl.textContent = t("elementName", "Element name");
     const etl = $("elType")?.closest("div")?.querySelector("label");
     if (etl) etl.textContent = t("type", "Type");
-    setText("#newJobBtn", "newJob", "+ New Job");
-    setText("#dupJobBtn", "duplicate", "Duplicate");
-    setText("#delJobBtn", "delete", "Delete");
     setText("#addElBtn", "add", "Add");
     setText("#moveUpBtn", "up", "Up");
     setText("#moveDownBtn", "down", "Down");
@@ -1838,6 +1874,49 @@
   function quantizeSec(sec) {
     return quantizeMs(Number(sec || 0) * 1000) / 1000;
   }
+  function parseLooseNumber(value) {
+    const s = String(value ?? "").trim().replace(",", ".");
+    if (!s) return NaN;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  }
+  function stepFromInput(input, fallback = 1) {
+    const raw = parseLooseNumber(input?.step);
+    if (Number.isFinite(raw) && raw > 0) return raw;
+    return Number(fallback || 1);
+  }
+  function clampByInputRange(input, value) {
+    let out = Number(value || 0);
+    const min = parseLooseNumber(input?.min);
+    const max = parseLooseNumber(input?.max);
+    if (Number.isFinite(min)) out = Math.max(min, out);
+    if (Number.isFinite(max)) out = Math.min(max, out);
+    return out;
+  }
+  function formatByStep(value, step = 0.1) {
+    const s = Number(step || 0.1);
+    const dec = Math.max(0, Math.min(6, String(s).includes(".") ? String(s).split(".")[1].length : 0));
+    return Number(value || 0).toFixed(dec);
+  }
+  function nudgeNumberInput(input, dir = 1, e = null, options = {}) {
+    if (!input) return;
+    const base = parseLooseNumber(input.value);
+    const start = Number.isFinite(base) ? base : Number(options.fallback || 0);
+    const step = stepFromInput(input, options.stepFallback || 1);
+    const factor = e?.shiftKey ? 10 : (e?.altKey ? 0.1 : 1);
+    const nextRaw = start + (Number(dir || 1) >= 0 ? 1 : -1) * step * factor;
+    const next = options.quantize === false
+      ? clampByInputRange(input, nextRaw)
+      : clampByInputRange(input, quantizeSec(nextRaw));
+    input.value = formatByStep(next, step);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.focus();
+    try { input.select(); } catch {}
+  }
+  function nudgeNumberInputById(inputId, dir = 1, e = null, options = {}) {
+    nudgeNumberInput($(inputId), dir, e, options);
+  }
   function timeDecimals(unit = timeUnit()) {
     const q = timeResolutionSec();
     if (unit === "min") {
@@ -1898,12 +1977,6 @@
       { id: "HUMAN+MACHINE", name: "Human+Tech", color: "#ffd24a", lane: "1", laneOrder: 1, heightPx: 30, z: 25, opacity: 1.0, underlayTypeId: "MACHINE", stackFlow: true, resourceMode: "BOTH" },
       { id: "IDLE", name: "Idle", color: "#4c73ff", lane: "idle", laneOrder: 2, heightPx: 6, z: 12, opacity: 0.8, underlayTypeId: "", stackFlow: true, resourceMode: "LANE" },
     ];
-  }
-  function inferDefaultStackFlow(v) {
-    const txt = `${String(v?.id || "").toUpperCase()} ${String(v?.name || "").toUpperCase()} ${String(v?.lane || "").toUpperCase()}`;
-    const machine = /\b(MACHINE|TECH|TECCH|ROBOT|CNC|AUTO)\b/.test(txt);
-    const human = /\b(HUMAN|OPERATOR|MANUAL|PERSON)\b/.test(txt);
-    return !(machine && !human);
   }
   function normalizeActionType(v) {
     const resourceModeRaw = String(v?.resourceMode || "AUTO").trim().toUpperCase();
@@ -2053,22 +2126,35 @@
 
   function ensureProductsState(st) {
     if (!st || typeof st !== "object") return;
+    if (!Array.isArray(st.categories)) st.categories = [];
+    st.categories = st.categories.map((c, idx) => ({
+      id: String(c?.id || uuid()),
+      code: String(c?.code || `CAT${String(idx + 1).padStart(3, "0")}`),
+      name: String(c?.name || `Category ${idx + 1}`),
+      parentCategoryId: String(c?.parentCategoryId || ""),
+    }));
+    const categoryIds = new Set(st.categories.map((c) => String(c?.id || "")).filter(Boolean));
     if (!Array.isArray(st.products)) st.products = [];
     st.products = st.products.map((p, idx) => ({
       id: String(p?.id || uuid()),
       code: String(p?.code || `P${String(idx + 1).padStart(3, "0")}`),
       name: String(p?.name || `${t("productDefault", "Product")} ${idx + 1}`),
       parentProductId: String(p?.parentProductId || ""),
+      categoryIds: Array.isArray(p?.categoryIds)
+        ? p.categoryIds.map((x) => String(x || "")).filter((x) => categoryIds.has(x))
+        : [],
       imageUrl: String(p?.imageUrl || ""),
     }));
     if (!st.products.length && Array.isArray(st.jobs) && st.jobs.length) {
-      st.products = [{ id: uuid(), code: "P001", name: t("productDefault", "Product"), parentProductId: "", imageUrl: "" }];
+      st.products = [{ id: uuid(), code: "P001", name: t("productDefault", "Product"), parentProductId: "", categoryIds: [], imageUrl: "" }];
     }
     const productIds = new Set(st.products.map((p) => String(p?.id || "")).filter(Boolean));
     if (!productIds.has(String(st.activeProductId || ""))) st.activeProductId = st.products[0]?.id || null;
     for (const j of (st.jobs || [])) {
       const pid = String(j?.productId || "");
       if (!pid || !productIds.has(pid)) j.productId = st.products[0]?.id || "";
+      if (!Array.isArray(j?.categoryIds)) j.categoryIds = [];
+      j.categoryIds = j.categoryIds.map((x) => String(x || "")).filter((x) => categoryIds.has(x));
     }
   }
 
@@ -2089,6 +2175,15 @@
       for (const j of parsed.jobs) {
         if (!Array.isArray(j.cycles)) j.cycles = [];
         for (const c of j.cycles) {
+          if (!Array.isArray(c.laps)) c.laps = [];
+          c.laps = c.laps.map((lap) => ({
+            elementId: String(lap?.elementId || ""),
+            name: String(lap?.name || ""),
+            type: String(lap?.type || ""),
+            ms: quantizeMs(Math.max(0, Number(lap?.ms || 0))),
+          }));
+          const sumMs = c.laps.reduce((a, l) => a + quantizeMs(Math.max(0, Number(l.ms || 0))), 0);
+          c.totalMs = quantizeMs(Math.max(0, Number(c.totalMs || sumMs)));
           if (!c.tag) c.tag = "Normal";
           if (c.note == null) c.note = "";
         }
@@ -2144,6 +2239,7 @@
 
   function getStationById(id){ return state.stations.find(s=>s.id===id) || null; }
   function getProductById(id){ return (state.products || []).find((p) => p.id === id) || null; }
+  function getCategoryById(id){ return (state.categories || []).find((c) => c.id === id) || null; }
   function getActiveJob(){ return state.jobs.find(j=>j.id===state.activeJobId) || null; }
   function applyLaunchRouteToState(force = false) {
     if (launchRouteApplied && !force) return;
@@ -2166,6 +2262,10 @@
   let openInlineCycleIds = new Set();
   let selectedCycleIdsForLine = new Set();
   let searchText = "";
+  let sidebarProductFilterId = "";
+  let sidebarStationFilterId = "";
+  let timelineProductFilterId = "";
+  let timelineStationFilterId = "";
   let editingActionTypeId = null; // null when creating new, else original id when editing
   const addTypeBtn = $("addActionTypeBtn");
   function updateAddTypeButton() {
@@ -2247,20 +2347,6 @@
   }
   function syncViewLayoutInputs() {
     ensureUiState(state);
-    const modeSel = $("uiLayoutModeSel");
-    if (modeSel) modeSel.value = state.ui.layoutMode;
-    const panelLayoutSel = $("uiPanelLayoutSel");
-    if (panelLayoutSel) panelLayoutSel.value = state.ui.panelLayout === "grid" ? "grid" : "stack";
-    const colsWrap = $("uiPanelGridColsWrap");
-    if (colsWrap) colsWrap.style.display = state.ui.panelLayout === "grid" ? "" : "none";
-    const colsRange = $("uiPanelGridColsRange");
-    if (colsRange) colsRange.value = String(Math.max(1, Math.min(4, Number(state.ui.panelGridCols) || 2)));
-    const colsValue = $("uiPanelGridColsValue");
-    if (colsValue) colsValue.textContent = `${Math.max(1, Math.min(4, Number(state.ui.panelGridCols) || 2))} ${t("uiPanelGridColsValue", "cols")}`;
-    const widthRange = $("uiJobsWidthRange");
-    if (widthRange) widthRange.value = String(Math.round(state.ui.jobsPanelWidth));
-    const widthLabel = $("uiJobsWidthLabel");
-    if (widthLabel) widthLabel.textContent = `${Math.round(state.ui.jobsPanelWidth)} px`;
     const unitSel = $("uiTimeUnitSel");
     if (unitSel) unitSel.value = timeUnit();
     const resSel = $("uiTimeResolutionSel");
@@ -2271,10 +2357,6 @@
     const v = Math.max(0.2, Math.min(2, Number(scale || 1) || 1));
     state.ui.uiScale = v;
     document.documentElement.style.setProperty("--ui-scale", String(v));
-    const inp = $("uiScaleInput");
-    const rng = $("uiScaleRange");
-    if (inp) inp.value = v.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
-    if (rng) rng.value = String(Math.round(v * 100));
   }
 
   function setPanelVisible(name, visible, save = true) {
@@ -2807,8 +2889,8 @@
         <tr>
           <td class="mono">${i + 1}</td>
           <td>${esc(name)}</td>
-          <td><input class="videoNum mono" type="number" step="${qStep}" min="0" ${maxAttr} value="${s.toFixed(secDec)}" data-vs="${esc(m.id)}" /></td>
-          <td><input class="videoNum mono" type="number" step="${qStep}" min="0" ${maxAttr} value="${e == null ? "" : e.toFixed(secDec)}" data-ve="${esc(m.id)}" placeholder="end" /></td>
+          <td><input class="videoNum mono" type="number" step="${qStep}" min="0" ${maxAttr} value="${s.toFixed(secDec)}" data-vs="${esc(m.id)}" inputmode="decimal" enterkeyhint="done" /></td>
+          <td><input class="videoNum mono" type="number" step="${qStep}" min="0" ${maxAttr} value="${e == null ? "" : e.toFixed(secDec)}" data-ve="${esc(m.id)}" inputmode="decimal" enterkeyhint="done" placeholder="end" /></td>
           <td class="mono">${durTxt}</td>
           <td class="mono">${waitTxt}</td>
           <td>
@@ -3175,13 +3257,15 @@
 
   function computeActionStats(job, cycles, avgCycleMs) {
     if (!job || !Array.isArray(job.elements) || !job.elements.length) return [];
-    const cycleCount = Math.max(1, (cycles || []).length);
+    const cycleRows = Array.isArray(cycles) ? cycles.filter(Boolean) : [];
+    const cycleCount = Math.max(1, cycleRows.length);
     const rows = [];
     for (const el of job.elements) {
       const vals = [];
-      for (const c of (cycles || [])) {
+      for (const c of cycleRows) {
         let ms = 0;
-        for (const lap of (c.laps || [])) {
+        const lapRows = Array.isArray(c?.laps) ? c.laps : [];
+        for (const lap of lapRows) {
           if (lap.elementId === el.id) ms += quantizeMs(Number(lap.ms || 0));
         }
         vals.push(quantizeMs(ms));
@@ -3216,10 +3300,13 @@
 
   function perElementValues(job, cycles) {
     const map = new Map();
+    if (!job || !Array.isArray(job.elements)) return map;
+    const cycleRows = Array.isArray(cycles) ? cycles.filter(Boolean) : [];
     for (const el of job.elements) map.set(el.id, []);
-    for (const c of cycles) {
+    for (const c of cycleRows) {
       const sums = new Map();
-      for (const lap of c.laps) sums.set(lap.elementId, (sums.get(lap.elementId)||0) + quantizeMs(lap.ms));
+      const lapRows = Array.isArray(c?.laps) ? c.laps : [];
+      for (const lap of lapRows) sums.set(lap.elementId, (sums.get(lap.elementId)||0) + quantizeMs(Number(lap?.ms || 0)));
       for (const el of job.elements) {
         const v = sums.get(el.id);
         if (v != null) map.get(el.id).push(v);
@@ -3278,36 +3365,7 @@
     return { score, level };
   }
 
-  // ----- CRUD stations/jobs/elements -----
-  function createStation() {
-    const id = uuid();
-    const code = prompt("Station ID / code (example: S03):", "S" + String(state.stations.length + 1).padStart(2,"0"));
-    if (code === null) return;
-    const name = prompt("Station name:", "New Station");
-    if (name === null) return;
-    state.stations.push({ id, code: code.trim() || "S??", name: name.trim() || "New Station" });
-    saveState(); renderAll();
-  }
-  function renameStation(stationId) {
-    const st = getStationById(stationId); if (!st) return;
-    const code = prompt("Station code:", st.code); if (code === null) return;
-    const name = prompt("Station name:", st.name); if (name === null) return;
-    st.code = code.trim() || st.code;
-    st.name = name.trim() || st.name;
-    saveState(); renderAll();
-  }
-  function deleteStation(stationId) {
-    const st = getStationById(stationId); if (!st) return;
-    const jobsAtStation = state.jobs.filter(j => j.stationId === stationId).length;
-    if (!confirm(`Delete station "${st.code} - ${st.name}"?\nDeletes ${jobsAtStation} job(s).`)) return;
-    const active = getActiveJob();
-    if (active && active.stationId === stationId && timer.mode === TimerMode.Running) stopCycle();
-    state.jobs = state.jobs.filter(j => j.stationId !== stationId);
-    state.stations = state.stations.filter(s => s.id !== stationId);
-    if (!state.jobs.some(j => j.id === state.activeJobId)) state.activeJobId = state.jobs[0]?.id || null;
-    saveState(); renderAll();
-  }
-
+  // ----- CRUD elements / cycles -----
   function selectJob(jobId) {
     if (timer.mode === TimerMode.Running) {
       if (!confirm("Timer running. Switch job and stop current cycle?")) return;
@@ -3321,46 +3379,6 @@
     selectedCycleIdsForLine = new Set();
     saveState();
     renderAll();
-  }
-
-  function createJob() {
-    const stId = state.stations[0]?.id;
-    if (!stId) return alert("Create a station first.");
-    const id = uuid();
-    ensureProductsState(state);
-    const productId = String(state.activeProductId || state.products?.[0]?.id || "");
-    state.jobs.unshift({ id, productId, stationId: stId, name:"New job", allowancePct:12, ratingPct:100, elements:[], cycles:[] });
-    state.activeJobId = id;
-    selectedElementId = null; selectedCycleId = null; selectedCycleIdsForLine = new Set();
-    saveState(); renderAll();
-    openDrawer();
-    $("jobName").focus(); $("jobName").select();
-  }
-  function duplicateActiveJob() {
-    const job = getActiveJob(); if (!job) return;
-    const id = uuid();
-    const copy = {
-      id, productId: String(job.productId || state.activeProductId || state.products?.[0]?.id || ""), stationId: job.stationId,
-      name: job.name + " (copy)",
-      allowancePct: job.allowancePct,
-      ratingPct: job.ratingPct,
-      elements: job.elements.map(e => ({ id: uuid(), name: e.name, type: e.type })),
-      cycles: []
-    };
-    state.jobs.unshift(copy);
-    state.activeJobId = id;
-    selectedElementId = null; selectedCycleId = null; selectedCycleIdsForLine = new Set();
-    saveState(); renderAll();
-    openDrawer();
-  }
-  function deleteActiveJob() {
-    const job = getActiveJob(); if (!job) return;
-    if (!confirm(`Delete job "${job.name}"? Removes cycles too.`)) return;
-    if (timer.mode === TimerMode.Running) stopCycle();
-    state.jobs = state.jobs.filter(j => j.id !== job.id);
-    state.activeJobId = state.jobs[0]?.id || null;
-    selectedElementId = null; selectedCycleId = null; selectedCycleIdsForLine = new Set();
-    saveState(); renderAll();
   }
 
   function addElement() {
@@ -3434,7 +3452,7 @@
     const cycle = (job.cycles || []).find((c) => c.id === cycleId);
     if (!cycle) return;
 
-    const rawSec = Number(inputEl.value);
+    const rawSec = parseLooseNumber(inputEl.value);
     if (!Number.isFinite(rawSec) || rawSec < 0) {
       renderAll();
       return;
@@ -3489,14 +3507,6 @@
     const filtered = job.cycles.filter(c => tagSet.has(c.tag || "Normal"));
     const anyOpen = filtered.some(c => openInlineCycleIds.has(c.id));
     if (anyOpen) collapseAllInline(); else expandAllVisibleInline();
-  }
-  function selectAllVisibleCycles() {
-    const job = getActiveJob(); if (!job) return;
-    const tagSet = selectedTagsSet();
-    const filtered = job.cycles.filter(c => tagSet.has(c.tag || "Normal"));
-    for (const c of filtered) selectedCycleIdsForLine.add(c.id);
-    boundLineSelection(job, 6);
-    renderAll();
   }
   function selectAllVisibleCyclesNoCap() {
     const job = getActiveJob(); if (!job) return;
@@ -3572,6 +3582,15 @@
     for (const j of state.jobs) {
       if (!Array.isArray(j.cycles)) j.cycles = [];
       for (const c of j.cycles) {
+        if (!Array.isArray(c.laps)) c.laps = [];
+        c.laps = c.laps.map((lap) => ({
+          elementId: String(lap?.elementId || ""),
+          name: String(lap?.name || ""),
+          type: String(lap?.type || ""),
+          ms: quantizeMs(Math.max(0, Number(lap?.ms || 0))),
+        }));
+        const sumMs = c.laps.reduce((a, l) => a + quantizeMs(Math.max(0, Number(l.ms || 0))), 0);
+        c.totalMs = quantizeMs(Math.max(0, Number(c.totalMs || sumMs)));
         if (!c.tag) c.tag = "Normal";
         if (c.note == null) c.note = "";
       }
@@ -3600,7 +3619,7 @@
     ]));
 
     for (const c of job.cycles) {
-      c.laps.forEach((lap, i) => {
+      (c?.laps || []).forEach((lap, i) => {
         rows.push(toCsvRow([
           st?.code || "", st?.name || "", job.name, job.allowancePct, job.ratingPct,
           c.id, c.atIso, c.tag || "Normal", c.totalMs,
@@ -3782,25 +3801,6 @@
     const pattern = ctx.createPattern(pc, "repeat");
     machinePatternByCtx.set(ctx, pattern);
     return pattern;
-  }
-
-  function drawMachineBoxRect(ctx, x, y, w, h, opacity = 1, bordered = true) {
-    if (w <= 0 || h <= 0) return;
-    ctx.save();
-    ctx.globalAlpha = Math.max(0.05, Math.min(1, Number(opacity || 1)));
-    ctx.fillStyle = "rgba(100,112,128,0.28)";
-    ctx.fillRect(x, y, w, h);
-    const hatch = getMachinePattern(ctx);
-    if (hatch) {
-      ctx.fillStyle = hatch;
-      ctx.fillRect(x, y, w, h);
-    }
-    if (bordered) {
-      ctx.strokeStyle = "rgba(51,198,255,0.95)";
-      ctx.lineWidth = 1.6;
-      ctx.strokeRect(x + 0.5, y + 0.5, Math.max(0, w - 1), Math.max(0, h - 1));
-    }
-    ctx.restore();
   }
 
   function resolveHeightPx(typeId, rawH, rowH) {
@@ -4195,16 +4195,73 @@
   }
 
   // ----- Rendering -----
+  function renderSidebarScopeSelectors() {
+    const productSel = $("sidebarProductSel");
+    if (productSel) {
+      const prev = String(sidebarProductFilterId || "");
+      productSel.innerHTML = "";
+      const allOpt = document.createElement("option");
+      allOpt.value = "";
+      allOpt.textContent = t("allProducts", "All products");
+      productSel.appendChild(allOpt);
+      for (const p of (state.products || [])) {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = `${p.code || "--"} - ${p.name || t("productDefault", "Product")}`;
+        productSel.appendChild(opt);
+      }
+      const valid = prev && (state.products || []).some((p) => String(p.id || "") === prev);
+      sidebarProductFilterId = valid ? prev : "";
+      productSel.value = sidebarProductFilterId;
+    }
+    const stationSel = $("sidebarStationSel");
+    if (stationSel) {
+      const prev = String(sidebarStationFilterId || "");
+      stationSel.innerHTML = "";
+      const allOpt = document.createElement("option");
+      allOpt.value = "";
+      allOpt.textContent = t("allStations", "All stations");
+      stationSel.appendChild(allOpt);
+      for (const st of (state.stations || [])) {
+        const opt = document.createElement("option");
+        opt.value = st.id;
+        opt.textContent = `${st.code || "--"} - ${st.name || t("station", "Station")}`;
+        stationSel.appendChild(opt);
+      }
+      const valid = prev && (state.stations || []).some((s) => String(s.id || "") === prev);
+      sidebarStationFilterId = valid ? prev : "";
+      stationSel.value = sidebarStationFilterId;
+    }
+  }
+
   function renderStationJobSidebar() {
+    renderSidebarScopeSelectors();
     const container = $("stationsList");
     container.innerHTML = "";
     const q = searchText.trim().toLowerCase();
+    const stationIds = new Set((state.stations || []).map((s) => String(s.id || "")));
+    const stationsToRender = (state.stations || []).filter((st) => {
+      if (!stationIds.has(String(st.id || ""))) return false;
+      if (sidebarStationFilterId && String(st.id || "") !== String(sidebarStationFilterId)) return false;
+      return true;
+    });
+    let renderedBlocks = 0;
 
-    for (const st of state.stations) {
-      const jobs = state.jobs.filter(j => j.stationId === st.id);
-      const stationMatch = (st.code + " " + st.name).toLowerCase().includes(q);
-      const filteredJobs = q ? jobs.filter(j => (j.name).toLowerCase().includes(q) || stationMatch) : jobs;
-      if (q && !stationMatch && filteredJobs.length === 0) continue;
+    for (const st of stationsToRender) {
+      const jobs = state.jobs.filter((j) => {
+        if (String(j.stationId || "") !== String(st.id || "")) return false;
+        if (sidebarProductFilterId && String(j.productId || "") !== String(sidebarProductFilterId)) return false;
+        return true;
+      });
+      const stationText = `${st.code || ""} ${st.name || ""}`.toLowerCase();
+      const stationMatch = !q || stationText.includes(q);
+      const filteredJobs = q ? jobs.filter((j) => {
+        const product = getProductById(j.productId);
+        const categories = (j.categoryIds || []).map((cid) => getCategoryById(cid)?.name || "").join(" ");
+        const txt = `${j.name || ""} ${product?.code || ""} ${product?.name || ""} ${categories}`.toLowerCase();
+        return txt.includes(q) || stationMatch;
+      }) : jobs;
+      if (filteredJobs.length === 0) continue;
 
       const block = document.createElement("div");
       block.className = "stationBlock";
@@ -4217,28 +4274,9 @@
           <div class="stationName">${esc(st.code)} - ${esc(st.name)}</div>
           <div class="stationMeta">${filteredJobs.length} ${t("jobsCount", "job(s)")}</div>
         </div>
-        <div class="btnbar" style="gap:6px;">
-          <button class="iconBtn iconOnly" data-act="newJob" title="${esc(t("newJob", "New Job"))}">+</button>
-          <button class="iconBtn iconOnly" data-act="edit" title="${esc(t("edit", "Edit"))}">✎</button>
-          <button class="iconBtn iconOnly" data-act="del" title="${esc(t("delete", "Delete"))}">🗑</button>
-        </div>
+        <div class="small muted mono">${stationCollapsed ? "▸" : "▾"}</div>
       `;
       head.addEventListener("click", (e) => {
-        const act = e.target?.dataset?.act;
-        if (act === "newJob") {
-          e.stopPropagation();
-          ensureProductsState(state);
-          const id = uuid();
-          const productId = String(state.activeProductId || state.products?.[0]?.id || "");
-          state.jobs.unshift({ id, productId, stationId: st.id, name:"New job", allowancePct:12, ratingPct:100, elements:[], cycles:[] });
-          state.activeJobId = id;
-          selectedElementId=null; selectedCycleId=null; selectedCycleIdsForLine=new Set();
-          saveState(); renderAll(); openDrawer();
-          $("jobName").focus(); $("jobName").select();
-          return;
-        }
-        if (act === "edit") { e.stopPropagation(); renameStation(st.id); return; }
-        if (act === "del") { e.stopPropagation(); deleteStation(st.id); return; }
         ensureUiState(state);
         state.ui.collapsedStations[st.id] = !state.ui.collapsedStations[st.id];
         saveState();
@@ -4254,6 +4292,9 @@
         const active = (job.id === state.activeJobId);
         const { score, level } = jobProgress(job);
         const product = getProductById(job.productId);
+        const catCodes = (job.categoryIds || [])
+          .map((cid) => getCategoryById(cid)?.code || "")
+          .filter(Boolean);
         const item = document.createElement("div");
         item.className = "jobItem" + (active ? " active" : "");
         item.innerHTML = `
@@ -4261,6 +4302,8 @@
             <div class="jobName">${esc(job.name)}</div>
             <div class="jobMeta">
               <span class="mono">P:${esc(product?.code || "--")}</span>
+              <span class="mono">S:${esc(st.code || "--")}</span>
+              <span class="mono">C:${esc(catCodes.join("|") || "--")}</span>
               <span class="mono">${t("els", "els")}: ${job.elements.length}</span>
               <span class="mono">${t("cyclesLabel", "cycles")}: ${job.cycles.length}</span>
               <span class="mono">A:${Number(job.allowancePct).toFixed(0)}%</span>
@@ -4284,65 +4327,103 @@
       }
       block.appendChild(list);
       container.appendChild(block);
+      renderedBlocks += 1;
+    }
+    if (!renderedBlocks) {
+      const empty = document.createElement("div");
+      empty.className = "small muted";
+      empty.style.padding = "10px 2px";
+      empty.textContent = t("noMatchingJobs", "No matching jobs.");
+      container.appendChild(empty);
     }
   }
 
   function renderTimelineScopeSelectors() {
+    const productSel = $("timelineProductSel");
     const stationSel = $("timelineStationSel");
     const jobSel = $("timelineJobSel");
-    if (!stationSel || !jobSel) return;
+    if (!productSel || !stationSel || !jobSel) return;
 
     const activeJob = getActiveJob();
-    const activeStationId = activeJob?.stationId || state.stations[0]?.id || "";
+    const products = state.products || [];
+    const stations = state.stations || [];
+    if (!timelineProductFilterId && activeJob?.productId) timelineProductFilterId = String(activeJob.productId || "");
+    if (!timelineStationFilterId && activeJob?.stationId) timelineStationFilterId = String(activeJob.stationId || "");
+
+    const hasProductFilter = !!timelineProductFilterId && products.some((p) => String(p.id || "") === String(timelineProductFilterId));
+    if (!hasProductFilter) timelineProductFilterId = "";
+    productSel.innerHTML = "";
+    {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = `— ${t("allProducts", "All products")} —`;
+      productSel.appendChild(opt);
+    }
+    for (const p of products) {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = `${p.code || "--"} - ${p.name || t("productDefault", "Product")}`;
+      productSel.appendChild(opt);
+    }
+    productSel.value = timelineProductFilterId;
 
     stationSel.innerHTML = "";
-    for (const st of state.stations) {
+    const stationsInScope = stations.filter((st) =>
+      state.jobs.some((j) =>
+        String(j.stationId || "") === String(st.id || "") &&
+        (!timelineProductFilterId || String(j.productId || "") === String(timelineProductFilterId))
+      )
+    );
+    {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = `— ${t("allStations", "All stations")} —`;
+      stationSel.appendChild(opt);
+    }
+    for (const st of stationsInScope) {
       const opt = document.createElement("option");
       opt.value = st.id;
       opt.textContent = `${st.code} - ${st.name}`;
       stationSel.appendChild(opt);
     }
-    if (!state.stations.length) {
+    const hasStationFilter = !!timelineStationFilterId && stationsInScope.some((s) => String(s.id || "") === String(timelineStationFilterId));
+    if (!hasStationFilter) timelineStationFilterId = "";
+    stationSel.value = timelineStationFilterId;
+    if (!stationsInScope.length) {
       const opt = document.createElement("option");
       opt.value = "";
-      opt.textContent = "— No stations —";
+      opt.textContent = `— ${t("noStations", "No stations")} —`;
       stationSel.appendChild(opt);
       stationSel.disabled = true;
     } else {
       stationSel.disabled = false;
-      stationSel.value = activeStationId;
     }
 
-    const stationId = stationSel.value || activeStationId;
-    const jobsAtStation = state.jobs.filter((j) => j.stationId === stationId);
+    const jobsAtScope = state.jobs.filter((j) => {
+      if (timelineProductFilterId && String(j.productId || "") !== String(timelineProductFilterId)) return false;
+      if (timelineStationFilterId && String(j.stationId || "") !== String(timelineStationFilterId)) return false;
+      return true;
+    });
     jobSel.innerHTML = "";
-    for (const job of jobsAtStation) {
+    for (const job of jobsAtScope) {
+      const st = getStationById(job.stationId);
       const opt = document.createElement("option");
       opt.value = job.id;
-      opt.textContent = job.name;
+      opt.textContent = st ? `${job.name} · ${st.code}` : job.name;
       jobSel.appendChild(opt);
     }
-    if (!jobsAtStation.length) {
+    if (!jobsAtScope.length) {
       const opt = document.createElement("option");
       opt.value = "";
-      opt.textContent = "— No jobs —";
+      opt.textContent = `— ${t("noJobs", "No jobs")} —`;
       jobSel.appendChild(opt);
       jobSel.disabled = true;
     } else {
       jobSel.disabled = false;
-      const fallbackJobId = jobsAtStation[0].id;
-      const activeInStation = activeJob && jobsAtStation.some((j) => j.id === activeJob.id);
-      jobSel.value = activeInStation ? activeJob.id : fallbackJobId;
+      const fallbackJobId = jobsAtScope[0].id;
+      const activeInScope = activeJob && jobsAtScope.some((j) => j.id === activeJob.id);
+      jobSel.value = activeInScope ? activeJob.id : fallbackJobId;
     }
-  }
-
-  function setAllStationsCollapsed(collapsed) {
-    ensureUiState(state);
-    for (const st of state.stations) {
-      state.ui.collapsedStations[st.id] = !!collapsed;
-    }
-    saveState();
-    renderAll();
   }
 
   function renderJobConfigDrawer() {
@@ -4357,13 +4438,15 @@
       const prev = jss.value;
       jss.innerHTML = "";
       if (!state.jobs.length) {
-        const o = document.createElement("option"); o.value = ""; o.textContent = "— No jobs —"; jss.appendChild(o);
+        const o = document.createElement("option"); o.value = ""; o.textContent = `— ${t("noJobs", "No jobs")} —`; jss.appendChild(o);
       } else {
         for (const j of state.jobs) {
           const st2 = getStationById(j.stationId);
+          const p2 = getProductById(j.productId);
           const o = document.createElement("option");
           o.value = j.id;
-          o.textContent = (st2 ? st2.code + " · " : "") + j.name + ` (${(j.elements||[]).length} el., ${(j.cycles||[]).length} cyc.)`;
+          const scopeTxt = [p2?.code, st2?.code].filter(Boolean).join(" / ");
+          o.textContent = (scopeTxt ? scopeTxt + " · " : "") + j.name + ` (${(j.elements||[]).length} el., ${(j.cycles||[]).length} cyc.)`;
           jss.appendChild(o);
         }
         jss.value = state.activeJobId || "";
@@ -4441,13 +4524,13 @@
     }
     setUiScale(state.ui.uiScale);
     syncViewLayoutInputs();
-    const sameBaseChk = $("uiTimelineSameBaseChk");
-    if (sameBaseChk) sameBaseChk.checked = !!state.ui.timelineSameBase;
 
     const disabled = !job;
-    for (const id of ["jobStationSelect","jobProductSelect","jobName","allowancePct","ratingPct","dupJobBtn","delJobBtn"]) $(id).disabled = disabled;
+    for (const id of ["jobStationSelect","jobProductSelect","jobName","allowancePct","ratingPct"]) {
+      const el = $(id);
+      if (el) el.disabled = true;
+    }
     if ($("jobSwitchSel")) $("jobSwitchSel").disabled = state.jobs.length === 0;
-    $("newJobBtn").disabled = state.stations.length === 0;
 
     if (!job) {
       $("jobName").value = "";
@@ -4865,6 +4948,8 @@
                   type="number"
                   min="0"
                   step="${qStep}"
+                  inputmode="decimal"
+                  enterkeyhint="done"
                   value="${startSec.toFixed(qDec)}"
                 />
               </td>
@@ -4877,6 +4962,8 @@
                   type="number"
                   min="0"
                   step="${qStep}"
+                  inputmode="decimal"
+                  enterkeyhint="done"
                   value="${endSec.toFixed(qDec)}"
                 />
               </td>
@@ -4889,6 +4976,8 @@
                   type="number"
                   min="0"
                   step="${qStep}"
+                  inputmode="decimal"
+                  enterkeyhint="done"
                   value="${durSec.toFixed(qDec)}"
                 />
               </td>
@@ -5178,16 +5267,26 @@
     const job = getActiveJob();
     const ed = timelineEditState.editor;
     if (!job || !ed?.open) return;
-    const s = Math.max(0, Number($("tlEdStart")?.value || 0));
-    const dRaw = Math.max(0, Number($("tlEdDur")?.value || 0));
-    const e = Math.max(0, Number($("tlEdEnd")?.value || 0));
-    const fallbackDur = Math.max(0, e - s);
+    const geom = timelineEditState.geom;
+    const hit = (geom?.hits || []).find((h) => h.cycleId === ed.cycleId && h.elementId === ed.elementId);
+    const fallbackStart = Math.max(0, Number(hit?.startSec || 0));
+    const fallbackDur = Math.max(0, Number(hit?.sec || 0));
+    const fallbackEnd = Math.max(0, Number(hit?.endSec || (fallbackStart + fallbackDur)));
+
+    const sIn = parseLooseNumber($("tlEdStart")?.value);
+    const dIn = parseLooseNumber($("tlEdDur")?.value);
+    const eIn = parseLooseNumber($("tlEdEnd")?.value);
+
+    const s = quantizeSec(Math.max(0, Number.isFinite(sIn) ? sIn : fallbackStart));
+    const dRaw = quantizeSec(Math.max(0, Number.isFinite(dIn) ? dIn : fallbackDur));
+    const e = quantizeSec(Math.max(0, Number.isFinite(eIn) ? eIn : fallbackEnd));
+    const fallbackDurFromEnd = Math.max(0, e - s);
     const field = String(sourceField || ed.lastField || "");
     let d = dRaw;
-    if (field === "end") d = fallbackDur;
+    if (field === "end") d = fallbackDurFromEnd;
     else if (field === "dur") d = dRaw;
-    else if (field === "start") d = dRaw > 0 ? dRaw : fallbackDur;
-    else d = dRaw > 0 ? dRaw : fallbackDur;
+    else if (field === "start") d = dRaw > 0 ? dRaw : fallbackDurFromEnd;
+    else d = dRaw > 0 ? dRaw : fallbackDurFromEnd;
     setCycleElementOffsetMs(job, ed.cycleId, ed.elementId, s * 1000);
     setCycleElementDurationMs(job, ed.cycleId, ed.elementId, d * 1000);
     selectedCycleId = ed.cycleId;
@@ -5258,14 +5357,22 @@
   }
 
   // ----- Backup / UI wiring -----
-  $("newStationBtn").addEventListener("click", createStation);
-  const collapseStationsBtn = $("collapseStationsBtn");
-  if (collapseStationsBtn) collapseStationsBtn.addEventListener("click", () => setAllStationsCollapsed(true));
-  const expandStationsBtn = $("expandStationsBtn");
-  if (expandStationsBtn) expandStationsBtn.addEventListener("click", () => setAllStationsCollapsed(false));
-
   $("searchBox").addEventListener("input", () => { searchText = $("searchBox").value || ""; renderStationJobSidebar(); });
   $("clearSearchBtn").addEventListener("click", () => { $("searchBox").value=""; searchText=""; renderStationJobSidebar(); });
+  const sidebarProductSel = $("sidebarProductSel");
+  if (sidebarProductSel) {
+    sidebarProductSel.addEventListener("change", () => {
+      sidebarProductFilterId = String(sidebarProductSel.value || "");
+      renderStationJobSidebar();
+    });
+  }
+  const sidebarStationSel = $("sidebarStationSel");
+  if (sidebarStationSel) {
+    sidebarStationSel.addEventListener("change", () => {
+      sidebarStationFilterId = String(sidebarStationSel.value || "");
+      renderStationJobSidebar();
+    });
+  }
 
   $("openDrawerBtn").addEventListener("click", openDrawer);
   $("closeDrawerBtn").addEventListener("click", closeDrawer);
@@ -5288,54 +5395,6 @@
       saveState();
     });
   }
-  const uiScaleRange = $("uiScaleRange");
-  if (uiScaleRange) {
-    uiScaleRange.addEventListener("input", () => {
-      const v = Number(uiScaleRange.value || 100) / 100;
-      setUiScale(v);
-      saveState();
-    });
-  }
-  const uiScaleInput = $("uiScaleInput");
-  if (uiScaleInput) {
-    uiScaleInput.addEventListener("change", () => {
-      const v = Number(uiScaleInput.value || 1);
-      setUiScale(v);
-      saveState();
-    });
-  }
-  const uiLayoutModeSel = $("uiLayoutModeSel");
-  if (uiLayoutModeSel) {
-    uiLayoutModeSel.addEventListener("change", () => {
-      state.ui.layoutMode = (uiLayoutModeSel.value === "vertical") ? "vertical" : "horizontal";
-      applyUiLayout();
-      saveState();
-    });
-  }
-  const uiPanelLayoutSel = $("uiPanelLayoutSel");
-  if (uiPanelLayoutSel) {
-    uiPanelLayoutSel.addEventListener("change", () => {
-      state.ui.panelLayout = (uiPanelLayoutSel.value === "grid") ? "grid" : "stack";
-      applyUiLayout();
-      saveState();
-    });
-  }
-  const uiPanelGridColsRange = $("uiPanelGridColsRange");
-  if (uiPanelGridColsRange) {
-    uiPanelGridColsRange.addEventListener("input", () => {
-      state.ui.panelGridCols = Math.max(1, Math.min(4, Number(uiPanelGridColsRange.value) || 2));
-      applyUiLayout();
-      saveState();
-    });
-  }
-  const uiJobsWidthRange = $("uiJobsWidthRange");
-  if (uiJobsWidthRange) {
-    uiJobsWidthRange.addEventListener("input", () => {
-      state.ui.jobsPanelWidth = Math.max(240, Math.min(640, Number(uiJobsWidthRange.value || 360) || 360));
-      applyUiLayout();
-      saveState();
-    });
-  }
   const uiTimeUnitSel = $("uiTimeUnitSel");
   if (uiTimeUnitSel) {
     uiTimeUnitSel.addEventListener("change", () => {
@@ -5349,25 +5408,6 @@
     uiTimeResolutionSel.addEventListener("change", () => {
       state.ui.timeResolutionSec = 0.1;
       uiTimeResolutionSel.value = "0.1";
-      saveState();
-      renderAll();
-    });
-  }
-  const uiResetBtn = $("uiResetBtn");
-  if (uiResetBtn) {
-    uiResetBtn.addEventListener("click", () => {
-      const keep = !!state.ui?.leftPanelVisible;
-      state.ui = defaultUiState();
-      state.ui.leftPanelVisible = keep;
-      applyUiLayout();
-      saveState();
-      renderAll();
-    });
-  }
-  const uiTimelineSameBaseChk = $("uiTimelineSameBaseChk");
-  if (uiTimelineSameBaseChk) {
-    uiTimelineSameBaseChk.addEventListener("change", () => {
-      state.ui.timelineSameBase = !!uiTimelineSameBaseChk.checked;
       saveState();
       renderAll();
     });
@@ -5469,10 +5509,6 @@
     });
   });
 
-  $("newJobBtn").addEventListener("click", createJob);
-  $("dupJobBtn").addEventListener("click", duplicateActiveJob);
-  $("delJobBtn").addEventListener("click", deleteActiveJob);
-
   // Job quick-switch
   const jobSwitchSel = $("jobSwitchSel");
   if (jobSwitchSel) {
@@ -5481,17 +5517,15 @@
       if (id && state.jobs.some(j => j.id === id)) selectJob(id);
     });
   }
-  const timelineStationSel = $("timelineStationSel");
-  if (timelineStationSel) {
-    timelineStationSel.addEventListener("change", () => {
-      const stationId = String(timelineStationSel.value || "");
-      const nextJob = state.jobs.find((j) => j.stationId === stationId);
-      if (nextJob) {
-        selectJob(nextJob.id);
-        return;
-      }
+  function selectFirstTimelineJobInScope(preferredJobId = "") {
+    const jobs = state.jobs.filter((j) => {
+      if (timelineProductFilterId && String(j.productId || "") !== String(timelineProductFilterId)) return false;
+      if (timelineStationFilterId && String(j.stationId || "") !== String(timelineStationFilterId)) return false;
+      return true;
+    });
+    if (!jobs.length) {
       if (timer.mode === TimerMode.Running) {
-        if (!confirm("Timer running. Switch station and stop current cycle?")) return;
+        if (!confirm("Timer running. Leave current scope and stop current cycle?")) return;
         stopCycle();
       }
       state.activeJobId = null;
@@ -5500,48 +5534,41 @@
       selectedCycleIdsForLine = new Set();
       saveState();
       renderAll();
+      return;
+    }
+    const preferred = String(preferredJobId || "");
+    const chosen = (preferred && jobs.some((j) => j.id === preferred))
+      ? preferred
+      : (jobs.some((j) => j.id === state.activeJobId) ? state.activeJobId : jobs[0].id);
+    if (chosen && chosen !== state.activeJobId) {
+      selectJob(chosen);
+      return;
+    }
+    renderAll();
+  }
+  const timelineProductSel = $("timelineProductSel");
+  if (timelineProductSel) {
+    timelineProductSel.addEventListener("change", () => {
+      timelineProductFilterId = String(timelineProductSel.value || "");
+      timelineStationFilterId = "";
+      selectFirstTimelineJobInScope();
+    });
+  }
+  const timelineStationSel = $("timelineStationSel");
+  if (timelineStationSel) {
+    timelineStationSel.addEventListener("change", () => {
+      timelineStationFilterId = String(timelineStationSel.value || "");
+      selectFirstTimelineJobInScope();
     });
   }
   const timelineJobSel = $("timelineJobSel");
   if (timelineJobSel) {
     timelineJobSel.addEventListener("change", () => {
       const id = String(timelineJobSel.value || "");
-      if (id && state.jobs.some((j) => j.id === id)) selectJob(id);
+      if (id && state.jobs.some((j) => j.id === id)) selectFirstTimelineJobInScope(id);
     });
   }
 
-  $("jobStationSelect").addEventListener("change", () => {
-    const job = getActiveJob(); if (!job) return;
-    job.stationId = $("jobStationSelect").value;
-    saveState(); renderAll();
-  });
-  $("jobProductSelect").addEventListener("change", () => {
-    const job = getActiveJob(); if (!job) return;
-    ensureProductsState(state);
-    const pid = String($("jobProductSelect").value || "");
-    if (pid && state.products.some((p) => String(p.id || "") === pid)) {
-      job.productId = pid;
-      state.activeProductId = pid;
-    } else {
-      job.productId = "";
-    }
-    saveState(); renderAll();
-  });
-  $("jobName").addEventListener("input", () => {
-    const job = getActiveJob(); if (!job) return;
-    job.name = $("jobName").value;
-    saveState(); renderAll();
-  });
-  $("allowancePct").addEventListener("input", () => {
-    const job = getActiveJob(); if (!job) return;
-    job.allowancePct = Number($("allowancePct").value || 0);
-    saveState(); renderAll();
-  });
-  $("ratingPct").addEventListener("input", () => {
-    const job = getActiveJob(); if (!job) return;
-    job.ratingPct = Number($("ratingPct").value || 100);
-    saveState(); renderAll();
-  });
   $("elType").addEventListener("change", () => {
     const job = getActiveJob();
     if (!job || !selectedElementId) return;
@@ -5675,21 +5702,52 @@
     }
     renderVideoMarkersList();
   });
-  $("videoMarkersList").addEventListener("input", (e) => {
-    const t = e.target;
+  function commitVideoMarkerInput(target) {
+    const t = target;
     const id = t?.dataset?.vs || t?.dataset?.ve;
     if (!id) return;
     const marker = videoCapture.markers.find((m) => m.id === id);
     if (!marker) return;
-    const val = quantizeSec(Math.max(0, Number(t.value || 0)));
-    if (t.dataset.vs) marker.startSec = val;
-    if (t.dataset.ve) marker.endSec = t.value === "" ? null : val;
+    const isEmptyEnd = !!t.dataset.ve && String(t.value || "").trim() === "";
+    const parsed = parseLooseNumber(t.value);
+    if (!isEmptyEnd && (!Number.isFinite(parsed) || parsed < 0)) {
+      renderVideoMarkersList();
+      return;
+    }
+    const val = isEmptyEnd ? null : quantizeSec(Math.max(0, Number(parsed || 0)));
+    if (t.dataset.vs) marker.startSec = Number(val || 0);
+    if (t.dataset.ve) marker.endSec = val;
     if (marker.endSec != null && Number(marker.endSec) < Number(marker.startSec)) {
       const tmp = marker.startSec;
       marker.startSec = marker.endSec;
       marker.endSec = tmp;
     }
     renderVideoMarkersList();
+  }
+  $("videoMarkersList").addEventListener("input", (e) => {
+    const t = e.target;
+    if (!(t?.dataset?.vs || t?.dataset?.ve)) return;
+    if (String(t.value || "").includes(",")) {
+      t.value = String(t.value || "").replace(",", ".");
+    }
+  });
+  $("videoMarkersList").addEventListener("change", (e) => {
+    commitVideoMarkerInput(e.target);
+  });
+  $("videoMarkersList").addEventListener("keydown", (e) => {
+    const t = e.target;
+    if (!(t?.dataset?.vs || t?.dataset?.ve)) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      t.dispatchEvent(new Event("change", { bubbles: true }));
+      t.blur();
+      return;
+    }
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      e.preventDefault();
+      const dir = e.key === "ArrowUp" ? 1 : -1;
+      nudgeNumberInput(t, dir, e, { stepFallback: timeResolutionSec() });
+    }
   });
   bindVideoBarInteractions();
   window.addEventListener("pointermove", onVideoPointerMove);
@@ -5715,19 +5773,55 @@
     renderAll();
   });
   $("tlEdStart").addEventListener("input", () => {
+    if (String($("tlEdStart")?.value || "").includes(",")) $("tlEdStart").value = String($("tlEdStart").value || "").replace(",", ".");
     if (timelineEditState.editor?.open) timelineEditState.editor.lastField = "start";
   });
   $("tlEdDur").addEventListener("input", () => {
+    if (String($("tlEdDur")?.value || "").includes(",")) $("tlEdDur").value = String($("tlEdDur").value || "").replace(",", ".");
     if (timelineEditState.editor?.open) timelineEditState.editor.lastField = "dur";
   });
   $("tlEdEnd").addEventListener("input", () => {
+    if (String($("tlEdEnd")?.value || "").includes(",")) $("tlEdEnd").value = String($("tlEdEnd").value || "").replace(",", ".");
     if (timelineEditState.editor?.open) timelineEditState.editor.lastField = "end";
   });
   $("tlEdStart").addEventListener("change", () => applyTimelineEditorInputs("start"));
   $("tlEdDur").addEventListener("change", () => applyTimelineEditorInputs("dur"));
   $("tlEdEnd").addEventListener("change", () => applyTimelineEditorInputs("end"));
+  const bindTimelineNumberHotkeys = (id, field) => {
+    const input = $(id);
+    if (!input) return;
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        applyTimelineEditorInputs(field);
+        return;
+      }
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        const dir = e.key === "ArrowUp" ? 1 : -1;
+        nudgeNumberInputById(id, dir, e, { stepFallback: timeResolutionSec() });
+      }
+    });
+    input.addEventListener("wheel", (e) => {
+      if (document.activeElement !== input) return;
+      e.preventDefault();
+      const dir = e.deltaY < 0 ? 1 : -1;
+      nudgeNumberInputById(id, dir, e, { stepFallback: timeResolutionSec() });
+    }, { passive: false });
+  };
+  bindTimelineNumberHotkeys("tlEdStart", "start");
+  bindTimelineNumberHotkeys("tlEdDur", "dur");
+  bindTimelineNumberHotkeys("tlEdEnd", "end");
   const timelineEditor = $("timelineBarEditor");
   if (timelineEditor) {
+    timelineEditor.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-num-step]");
+      if (!btn) return;
+      const target = String(btn.dataset.numStep || "");
+      const dir = Number(btn.dataset.numDir || "1");
+      if (!target) return;
+      nudgeNumberInputById(target, dir, e, { stepFallback: timeResolutionSec() });
+    });
     timelineEditor.addEventListener("pointerdown", beginTimelineEditorDrag);
     timelineEditor.addEventListener("pointermove", onTimelineEditorDragMove);
     timelineEditor.addEventListener("pointerup", endTimelineEditorDrag);
@@ -5820,9 +5914,29 @@
       const cycleId = e.target.dataset.cycleId;
       setCycleNoteById(cycleId, e.target.value);
     }
-    // Handle editable cycle element details (start/end/dur)
+    if (e.target.classList.contains("videoNum") && e.target.dataset.cycleEdit) {
+      if (String(e.target.value || "").includes(",")) {
+        e.target.value = String(e.target.value || "").replace(",", ".");
+      }
+    }
+  });
+  $("cyclesBody").addEventListener("change", (e) => {
     if (e.target.classList.contains("videoNum") && e.target.dataset.cycleEdit) {
       applyInlineCycleDetailEdit(e.target);
+    }
+  });
+  $("cyclesBody").addEventListener("keydown", (e) => {
+    if (!(e.target.classList.contains("videoNum") && e.target.dataset.cycleEdit)) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.target.dispatchEvent(new Event("change", { bubbles: true }));
+      e.target.blur();
+      return;
+    }
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      e.preventDefault();
+      const dir = e.key === "ArrowUp" ? 1 : -1;
+      nudgeNumberInput(e.target, dir, e, { stepFallback: timeResolutionSec() });
     }
   });
 
@@ -5877,10 +5991,10 @@
     syncVideoTimeline();
   }
 
-  function syncStateFromStorageIfChanged() {
+  function syncStateFromStorageIfChanged(forceRender = false) {
     const next = loadState();
     const raw = JSON.stringify(next || {});
-    if (raw === lastStateSignature) return;
+    if (!forceRender && raw === lastStateSignature) return;
     state = next;
     lastStateSignature = raw;
     renderAll();
@@ -5889,7 +6003,7 @@
 
   // init
   window.addEventListener("storage", (e) => {
-    if (STORAGE_KEYS.includes(String(e.key || ""))) syncStateFromStorageIfChanged();
+    if (SYNC_STORAGE_KEYS.includes(String(e.key || ""))) syncStateFromStorageIfChanged(String(e.key || "") === MODULE_STORAGE_KEY);
     if (e.key === VIDEO_BOOKMARKS_KEY) populateVideoLibrarySelector();
   });
   document.addEventListener("visibilitychange", () => {
@@ -5905,11 +6019,8 @@
   });
   window.CANBus?.onMessage((msg) => {
     if (!msg?.type) return;
-    if (msg.type === "data:app:updated" || msg.type === "data:snapshot:imported") {
-      state = loadState();
-      renderAll();
-      flashSavePill("↻ Synced");
-    }
+    if (!String(msg.type).startsWith("data:")) return;
+    syncStateFromStorageIfChanged(msg.type === "data:module:updated");
   });
 
 })();

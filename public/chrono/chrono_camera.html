@@ -402,16 +402,22 @@
 <script src="../modules/module-theme.js"></script>
 <script>
 (() => {
-  function applyGlobalTheme() {
+  function applyGlobalTheme(event) {
     if (!window.VMillTheme?.applyTheme) return;
-    window.VMillTheme.applyTheme(document, "camera");
+    window.VMillTheme.applyTheme(document, "camera", event?.detail?.theme || null);
   }
   applyGlobalTheme();
   window.addEventListener("vmill:theme:changed", applyGlobalTheme);
 
-  const KEY = "vmill:app-state:v1";
-  const LEGACY_KEYS = ["chrono_drawer_timeline_v5", "chrono_drawer_timeline_v4", "chrono_drawer_timeline_v3"];
-  const WATCH_KEYS = [KEY, ...LEGACY_KEYS];
+  const KEY = window.VMillData?.keys?.APP_KEY || "vmill:app-state:v1";
+  const LEGACY_KEYS = Array.isArray(window.VMillData?.keys?.LEGACY_APP_KEYS)
+    ? window.VMillData.keys.LEGACY_APP_KEYS.slice()
+    : ["chrono_drawer_timeline_v5", "chrono_drawer_timeline_v4", "chrono_drawer_timeline_v3"];
+  const MODULE_KEY = String(window.VMillData?.keys?.MODULE_KEY || "vmill:module-data:v1");
+  const WATCH_KEYS = Array.from(new Set([
+    ...(Array.isArray(window.VMillData?.keys?.ALL_APP_KEYS) ? window.VMillData.keys.ALL_APP_KEYS : [KEY, ...LEGACY_KEYS]),
+    MODULE_KEY,
+  ]));
   const VIDEO_BOOKMARKS_KEY = "chrono_video_bookmarks_v1";
   const VIDEO_BOOKMARKS_NS = "camera_video_bookmarks";
   const launchParams = new URLSearchParams(window.location.search || "");
@@ -1103,7 +1109,7 @@
   });
   window.CANBus?.onMessage((msg) => {
     if (!msg?.type) return;
-    if (msg.type === "data:app:updated" || msg.type === "data:snapshot:imported") sync();
+    if (String(msg.type).startsWith("data:")) sync();
   });
   setInterval(sync,3000);
   sync(); updateBtns(); renderLaps();

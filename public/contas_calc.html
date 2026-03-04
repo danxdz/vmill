@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contas CNC</title>
+  <style>
+    :root {
+      --bg:#0a0f17;
+      --panel:#111a2a;
+      --panel2:#0f1623;
+      --text:#e6edf8;
+      --muted:rgba(230,237,248,.66);
+      --border:rgba(230,237,248,.2);
+      --accent:#57b4ff;
+      --accent-rgb:87,180,255;
+      --warn:#ffd37a;
+      --warn-rgb:255,211,122;
+      --bad:#ff8a8a;
+      --bad-rgb:255,138,138;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(980px 540px at 10% -12%, rgba(var(--accent-rgb), .18), transparent 62%),
+        linear-gradient(180deg,var(--bg),color-mix(in srgb, var(--bg) 84%, #000));
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px 14px 24px;
+    }
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 30px;
+      letter-spacing: .02em;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 6px;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .tabBtn {
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .tabBtn.active {
+      border-color: rgba(var(--accent-rgb), .55);
+      background: rgba(var(--accent-rgb), .14);
+      color: var(--accent);
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    @media (max-width: 1040px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 620px) {
+      .hero { flex-direction: column; align-items: flex-start; }
+      .grid { grid-template-columns: 1fr; }
+    }
+    label {
+      display: block;
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-weight: 700;
+    }
+    input, select, button {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      padding: 10px;
+      font-size: 13px;
+    }
+    input[readonly] {
+      background: rgba(255,255,255,.02);
+      color: color-mix(in srgb, var(--text) 85%, #fff);
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 8px;
+    }
+    .btn {
+      width: auto;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .btn.primary {
+      border-color: rgba(var(--accent-rgb), .56);
+      background: rgba(var(--accent-rgb), .16);
+      color: var(--accent);
+    }
+    .btn.warn {
+      border-color: rgba(var(--warn-rgb), .56);
+      background: rgba(var(--warn-rgb), .14);
+      color: var(--warn);
+    }
+    .btn.bad {
+      border-color: rgba(var(--bad-rgb), .56);
+      background: rgba(var(--bad-rgb), .14);
+      color: var(--bad);
+    }
+    .minor {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+    .status {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      min-height: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1>Contas CNC</h1>
+        <div class="sub">Legacy CNC calculator module (threading, milling, turning, trig) from your old project.</div>
+      </div>
+      <div class="minor mono">Source: contas-ff078 / Module1.vb</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tabBtn active" data-tab="thread" type="button">Thread</button>
+      <button class="tabBtn" data-tab="milling" type="button">Milling</button>
+      <button class="tabBtn" data-tab="turning" type="button">Turning</button>
+      <button class="tabBtn" data-tab="trig" type="button">Trig</button>
+    </div>
+
+    <section class="card panel active" data-panel="thread">
+      <div class="grid">
+        <div>
+          <label for="thDm">Major diameter dm (mm)</label>
+          <input id="thDm" type="text" inputmode="decimal" placeholder="e.g. 10" />
+        </div>
+        <div>
+          <label for="thPitch">Pitch passo (mm)</label>
+          <input id="thPitch" type="text" inputmode="decimal" placeholder="e.g. 1.5" />
+        </div>
+        <div>
+          <label for="thRe">External root (re)</label>
+          <input id="thRe" type="text" readonly />
+        </div>
+        <div>
+          <label for="thRi">Internal crest (ri)</label>
+          <input id="thRi" type="text" readonly />
+        </div>
+        <div>
+          <label for="thDma">Effective diameter (dma)</label>
+          <input id="thDma" type="text" readonly />
+        </div>
+        <div>
+          <label for="thAfEx">External advance code (legacy)</label>
+          <input id="thAfEx" type="text" readonly />
+        </div>
+        <div>
+          <label for="thAfIn">Internal advance code (legacy)</label>
+          <input id="thAfIn" type="text" readonly />
+        </div>
+        <div>
+          <label for="thAfNum">External advance value</label>
+          <input id="thAfNum" type="text" readonly />
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn" id="threadAutoPitchBtn" type="button">Auto pitch by dm</button>
+        <button class="btn primary" id="threadCalcBtn" type="button">Calculate thread</button>
+        <button class="btn warn" id="threadClearBtn" type="button">Clear</button>
+      </div>
+      <div class="status" id="threadStatus"></div>
+    </section>
+
+    <section class="card panel" data-panel="milling">
+      <div class="grid">
+        <div>
+          <label for="milDiam">Tool diameter (mm)</label>
+          <input id="milDiam" type="text" inputmode="decimal" placeholder="e.g. 12" />
+        </div>
+        <div>
+          <label for="milMat">Tool material</label>
+          <select id="milMat">
+            <option value="hss">HSS</option>
+            <option value="past">Carbide insert (past)</option>
+            <option value="mduro">Hard metal (mduro)</option>
+          </select>
+        </div>
+        <div>
+          <label for="milEng">Engagement preset</label>
+          <select id="milEng">
+            <option value="inc1">INC-1 (ae = d, ap = d * 0.05)</option>
+            <option value="inc2">INC-2 (ae = d * 0.05, ap = d * 2)</option>
+          </select>
+        </div>
+        <div>
+          <label for="milTeeth">Recommended teeth</label>
+          <input id="milTeeth" type="text" readonly />
+        </div>
+        <div>
+          <label for="milAe">ae (mm)</label>
+          <input id="milAe" type="text" readonly />
+        </div>
+        <div>
+          <label for="milAp">ap (mm)</label>
+          <input id="milAp" type="text" readonly />
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="millingCalcBtn" type="button">Calculate milling</button>
+        <button class="btn warn" id="millingClearBtn" type="button">Clear</button>
+      </div>
+      <div class="status" id="millingStatus"></div>
+    </section>
+
+    <section class="card panel" data-panel="turning">
+      <div class="grid">
+        <div>
+          <label for="torDiam">Diameter (mm)</label>
+          <input id="torDiam" type="text" inputmode="decimal" placeholder="e.g. 38" />
+        </div>
+        <div>
+          <label for="torVc">Cutting speed vc (m/min)</label>
+          <input id="torVc" type="text" inputmode="decimal" placeholder="e.g. 180" />
+        </div>
+        <div>
+          <label for="torRa">Ra roughness</label>
+          <input id="torRa" type="text" inputmode="decimal" placeholder="e.g. 0.8" />
+        </div>
+        <div>
+          <label for="torRp">Nose radius rp (mm)</label>
+          <input id="torRp" type="text" inputmode="decimal" placeholder="e.g. 0.4" />
+        </div>
+        <div>
+          <label for="torN">Spindle speed n (rpm)</label>
+          <input id="torN" type="text" readonly />
+        </div>
+        <div>
+          <label for="torF">Feed f (mm/rev)</label>
+          <input id="torF" type="text" readonly />
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn" id="turningNBtn" type="button">Calculate n</button>
+        <button class="btn" id="turningFBtn" type="button">Calculate f</button>
+        <button class="btn primary" id="turningAllBtn" type="button">Calculate all</button>
+        <button class="btn warn" id="turningClearBtn" type="button">Clear</button>
+      </div>
+      <div class="status" id="turningStatus"></div>
+    </section>
+
+    <section class="card panel" data-panel="trig">
+      <div class="minor" style="margin-bottom:8px;">Fill only two values among angle/co/ca/h and solve.</div>
+      <div class="grid">
+        <div>
+          <label for="triAngle">Angle (deg)</label>
+          <input id="triAngle" type="text" inputmode="decimal" placeholder="e.g. 30" />
+        </div>
+        <div>
+          <label for="triAngle2">Complementary angle (deg)</label>
+          <input id="triAngle2" type="text" readonly />
+        </div>
+        <div>
+          <label for="triCo">Opposite (co)</label>
+          <input id="triCo" type="text" inputmode="decimal" />
+        </div>
+        <div>
+          <label for="triCa">Adjacent (ca)</label>
+          <input id="triCa" type="text" inputmode="decimal" />
+        </div>
+        <div>
+          <label for="triH">Hypotenuse (h)</label>
+          <input id="triH" type="text" inputmode="decimal" />
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="trigSolveBtn" type="button">Solve triangle</button>
+        <button class="btn warn" id="trigClearBtn" type="button">Clear</button>
+      </div>
+      <div class="status" id="trigStatus"></div>
+    </section>
+  </div>
+
+  <script src="./modules/module-shell.js"></script>
+  <script src="./modules/module-io.js"></script>
+  <script src="./modules/module-data.js"></script>
+  <script src="./modules/module-lang.js"></script>
+  <script src="./modules/module-theme.js"></script>
+  <script>
+    (function () {
+      const $ = (id) => document.getElementById(id);
+
+      function applyGlobalTheme(event) {
+        if (!window.VMillTheme?.applyTheme) return;
+        window.VMillTheme.applyTheme(document, "contas", event?.detail?.theme || null);
+      }
+      applyGlobalTheme();
+      window.addEventListener("vmill:theme:changed", applyGlobalTheme);
+
+      function toNumber(raw) {
+        const s = String(raw ?? "").trim().replace(/,/g, ".");
+        if (!s) return NaN;
+        const n = Number(s);
+        return Number.isFinite(n) ? n : NaN;
+      }
+
+      function fmt(n, digits = 3) {
+        if (!Number.isFinite(n)) return "";
+        return n.toFixed(digits);
+      }
+
+      function setStatus(id, msg, isBad) {
+        const el = $(id);
+        if (!el) return;
+        el.textContent = msg || "";
+        el.style.color = isBad ? "var(--bad)" : "var(--muted)";
+      }
+
+      function clearValues(ids) {
+        for (const id of ids) {
+          const el = $(id);
+          if (el) el.value = "";
+        }
+      }
+
+      function legacyCodeFromDecimal(n) {
+        if (!Number.isFinite(n)) return "";
+        const v = fmt(n, 3).replace(/^0/, "");
+        return v.replace(/[.,]/g, "");
+      }
+
+      function autoPitch(dm) {
+        if (!Number.isFinite(dm)) return NaN;
+        if (dm <= 1.4) return 0.25;
+        if (dm >= 1.4 && dm < 1.6) return 0.3;
+        if (dm >= 1.6 && dm < 2) return 0.35;
+        if (dm >= 2 && dm < 2.2) return 0.4;
+        if (dm >= 2.2 && dm < 3) return 0.45;
+        if (dm >= 3 && dm < 3.5) return 0.5;
+        if (dm >= 3.5 && dm < 4) return 0.6;
+        if (dm >= 4 && dm < 4.5) return 0.7;
+        if (dm >= 4.5 && dm < 5) return 0.75;
+        if (dm >= 5 && dm < 6) return 0.8;
+        if (dm >= 6 && dm < 8) return 1.0;
+        if (dm >= 8 && dm < 10) return 1.25;
+        if (dm >= 10 && dm < 12) return 1.5;
+        if (dm >= 12 && dm < 18) return 2.0;
+        if (dm >= 18 && dm < 24) return 2.5;
+        if (dm >= 24 && dm < 30) return 3.0;
+        if (dm >= 30 && dm < 36) return 3.5;
+        if (dm >= 36 && dm < 42) return 4.0;
+        if (dm >= 42) return 4.5;
+        return NaN;
+      }
+
+      function calcThread() {
+        const dm = toNumber($("thDm").value);
+        const pitch = toNumber($("thPitch").value);
+        if (!(dm > 0) || !(pitch > 0)) {
+          setStatus("threadStatus", "Enter dm and pitch > 0.", true);
+          return;
+        }
+        const re = dm - (1.2268 * pitch);
+        const ri = dm + (2 * (0.045 * pitch));
+        const afEx = 0.61343 * pitch;
+        const dma = dm - (1.0825 * pitch);
+        const afIn = (ri - dma) / 2;
+
+        $("thRe").value = fmt(re, 3);
+        $("thRi").value = fmt(ri, 3);
+        $("thDma").value = fmt(dma, 3);
+        $("thAfNum").value = fmt(afEx, 3);
+        $("thAfEx").value = legacyCodeFromDecimal(afEx);
+        $("thAfIn").value = legacyCodeFromDecimal(afIn);
+        setStatus("threadStatus", "Thread calculation updated.", false);
+      }
+
+      function calcMilling() {
+        const diam = toNumber($("milDiam").value);
+        if (!(diam > 0)) {
+          setStatus("millingStatus", "Enter a valid tool diameter.", true);
+          return;
+        }
+
+        let ae = 0;
+        let ap = 0;
+        const eng = String($("milEng").value || "inc1");
+        if (eng === "inc2") {
+          ae = diam * 0.05;
+          ap = diam * 2;
+        } else {
+          ae = diam;
+          ap = diam * 0.05;
+        }
+
+        const mat = String($("milMat").value || "hss");
+        let teeth = 2;
+        if (mat === "hss") {
+          teeth = diam < 4 ? 2 : 4;
+        } else {
+          if (diam < 20) teeth = 2;
+          else if (diam < 60) teeth = 4;
+          else teeth = 6;
+        }
+
+        $("milAe").value = fmt(ae, 3);
+        $("milAp").value = fmt(ap, 3);
+        $("milTeeth").value = String(teeth);
+        setStatus("millingStatus", "Milling values updated.", false);
+      }
+
+      function calcTurningN() {
+        const diam = toNumber($("torDiam").value);
+        const vc = toNumber($("torVc").value);
+        if (!(diam > 0) || !(vc > 0)) {
+          setStatus("turningStatus", "Enter diameter and vc > 0.", true);
+          return;
+        }
+        const n = (vc * 1000) / (Math.PI * diam);
+        $("torN").value = fmt(n, 0);
+        setStatus("turningStatus", "Spindle speed updated.", false);
+      }
+
+      function calcTurningF() {
+        const ra = toNumber($("torRa").value);
+        const rp = toNumber($("torRp").value);
+        if (!(ra > 0) || !(rp > 0)) {
+          setStatus("turningStatus", "Enter Ra and rp > 0.", true);
+          return;
+        }
+        const raScaled = ra * 5;
+        const f = Math.sqrt(8 * raScaled * rp / 1000);
+        $("torF").value = fmt(f, 3);
+        setStatus("turningStatus", "Feed value updated.", false);
+      }
+
+      function calcTrig() {
+        const a = toNumber($("triAngle").value);
+        const co = toNumber($("triCo").value);
+        const ca = toNumber($("triCa").value);
+        const h = toNumber($("triH").value);
+
+        const hasAngle = Number.isFinite(a);
+        const hasCo = Number.isFinite(co);
+        const hasCa = Number.isFinite(ca);
+        const hasH = Number.isFinite(h);
+
+        const count = [hasAngle, hasCo, hasCa, hasH].filter(Boolean).length;
+        if (count < 2) {
+          setStatus("trigStatus", "Fill at least 2 values.", true);
+          return;
+        }
+        if (count > 2) {
+          setStatus("trigStatus", "Use only 2 values for stable solve.", true);
+          return;
+        }
+
+        let na = hasAngle ? a : NaN;
+        let nco = hasCo ? co : NaN;
+        let nca = hasCa ? ca : NaN;
+        let nh = hasH ? h : NaN;
+
+        if (Number.isFinite(na)) {
+          if (!(na > 0 && na < 180)) {
+            setStatus("trigStatus", "Angle must be between 0 and 180.", true);
+            return;
+          }
+          const rad = (na * Math.PI) / 180;
+          if (Number.isFinite(nco)) {
+            nca = nco / Math.tan(rad);
+            nh = nco / Math.sin(rad);
+          } else if (Number.isFinite(nca)) {
+            nco = Math.tan(rad) * nca;
+            nh = nca / Math.cos(rad);
+          } else if (Number.isFinite(nh)) {
+            nco = Math.sin(rad) * nh;
+            nca = nh * Math.cos(rad);
+          }
+        } else {
+          if (Number.isFinite(nh) && Number.isFinite(nca)) {
+            nco = Math.sqrt((nh * nh) - (nca * nca));
+            na = (Math.asin(nca / nh) * 180) / Math.PI;
+          } else if (Number.isFinite(nh) && Number.isFinite(nco)) {
+            nca = Math.sqrt((nh * nh) - (nco * nco));
+            na = (Math.asin(nco / nh) * 180) / Math.PI;
+          } else if (Number.isFinite(nco) && Number.isFinite(nca)) {
+            nh = Math.sqrt((nco * nco) + (nca * nca));
+            na = (Math.atan(nco / nca) * 180) / Math.PI;
+          }
+        }
+
+        if (![na, nco, nca, nh].every((v) => Number.isFinite(v))) {
+          setStatus("trigStatus", "Could not solve triangle with current values.", true);
+          return;
+        }
+
+        const a2 = 90 - na;
+        $("triAngle").value = fmt(na, 3);
+        $("triAngle2").value = fmt(a2, 3);
+        $("triCo").value = fmt(nco, 3);
+        $("triCa").value = fmt(nca, 3);
+        $("triH").value = fmt(nh, 3);
+        setStatus("trigStatus", "Triangle solved.", false);
+      }
+
+      document.querySelectorAll(".tabBtn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const tab = String(btn.dataset.tab || "");
+          document.querySelectorAll(".tabBtn").forEach((b) => b.classList.toggle("active", b === btn));
+          document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", String(p.dataset.panel || "") === tab));
+        });
+      });
+
+      $("threadAutoPitchBtn").addEventListener("click", () => {
+        const dm = toNumber($("thDm").value);
+        if (!(dm > 0)) {
+          setStatus("threadStatus", "Enter dm first.", true);
+          return;
+        }
+        const pitch = autoPitch(dm);
+        if (!Number.isFinite(pitch)) {
+          setStatus("threadStatus", "No pitch range matched.", true);
+          return;
+        }
+        $("thPitch").value = String(pitch);
+        calcThread();
+      });
+      $("threadCalcBtn").addEventListener("click", calcThread);
+      $("threadClearBtn").addEventListener("click", () => {
+        clearValues(["thDm", "thPitch", "thRe", "thRi", "thDma", "thAfEx", "thAfIn", "thAfNum"]);
+        setStatus("threadStatus", "", false);
+      });
+
+      $("millingCalcBtn").addEventListener("click", calcMilling);
+      $("millingClearBtn").addEventListener("click", () => {
+        clearValues(["milDiam", "milAe", "milAp", "milTeeth"]);
+        setStatus("millingStatus", "", false);
+      });
+
+      $("turningNBtn").addEventListener("click", calcTurningN);
+      $("turningFBtn").addEventListener("click", calcTurningF);
+      $("turningAllBtn").addEventListener("click", () => {
+        calcTurningN();
+        calcTurningF();
+      });
+      $("turningClearBtn").addEventListener("click", () => {
+        clearValues(["torDiam", "torVc", "torRa", "torRp", "torN", "torF"]);
+        setStatus("turningStatus", "", false);
+      });
+
+      $("trigSolveBtn").addEventListener("click", calcTrig);
+      $("trigClearBtn").addEventListener("click", () => {
+        clearValues(["triAngle", "triAngle2", "triCo", "triCa", "triH"]);
+        setStatus("trigStatus", "", false);
+      });
+    })();
+  </script>
+</body>
+</html>

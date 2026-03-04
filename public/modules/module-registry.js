@@ -18,10 +18,26 @@ window.VMillModules = [
   {
     id: "spacial",
     name: "SPaCial",
-    desc: "SPC analytics with control limits, rule flags, and offline backups.",
+    desc: "Dimensional routing and blueprint bubble planning.",
     href: "./SPaCial.html",
     status: "ready",
-    tags: ["spc", "quality", "control-chart", "offline"],
+    tags: ["spc", "routing", "blueprint", "offline"],
+  },
+  {
+    id: "contas",
+    name: "Contas CNC",
+    desc: "Legacy CNC calculators: thread, milling, turning, and trig helpers.",
+    href: "./contas_calc.html",
+    status: "ready",
+    tags: ["cnc", "calculator", "thread", "milling", "turning"],
+  },
+  {
+    id: "structure",
+    name: "Structure Studio",
+    desc: "Global products, stations, jobs, and dependency model controller.",
+    href: "./structure_studio.html",
+    status: "ready",
+    tags: ["structure", "dependencies", "entities", "global"],
   },
   {
     id: "theme",
@@ -30,6 +46,14 @@ window.VMillModules = [
     href: "./theme_studio.html",
     status: "ready",
     tags: ["theme", "ui", "palette"],
+  },
+  {
+    id: "translations",
+    name: "Translations",
+    desc: "Global translation manager for EN/FR/PT strings.",
+    href: "./translation_studio.html",
+    status: "ready",
+    tags: ["i18n", "localization", "strings"],
   },
   {
     id: "cnc-sim",

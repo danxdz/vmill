@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Structure Studio</title>
+  <style>
+    :root {
+      --bg:var(--vm-theme-bg, #0a0f17);
+      --panel:var(--vm-theme-panel, #111a2a);
+      --panel2:var(--vm-theme-panel-2, #0f1623);
+      --text:var(--vm-theme-text, #e6edf8);
+      --muted:var(--vm-theme-muted, rgba(230,237,248,.66));
+      --border:var(--vm-theme-border, rgba(230,237,248,.2));
+      --accent:var(--vm-theme-accent, #57b4ff);
+      --accent-rgb:var(--vm-theme-accent-rgb, 87,180,255);
+      --bad:var(--vm-theme-danger, #ff8a8a);
+      --bad-rgb:var(--vm-theme-danger-rgb, 255,138,138);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(900px 520px at 10% -12%, rgba(var(--accent-rgb), .18), transparent 62%),
+        linear-gradient(180deg,var(--bg),color-mix(in srgb, var(--bg) 84%, #000));
+    }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 14px; display: grid; gap: 10px; }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: linear-gradient(180deg,var(--panel),var(--panel2));
+      padding: 12px;
+      min-width: 0;
+    }
+    .hero { display:flex; justify-content:space-between; align-items:flex-end; gap:10px; flex-wrap:wrap; }
+    h1 { margin: 0; font-size: 28px; letter-spacing: .02em; }
+    .sub { margin-top: 4px; font-size: 13px; color: var(--muted); }
+    .title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+    .row > * { flex:1 1 170px; min-width:0; }
+    label { display:block; margin:0 0 6px; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+    input, select, button {
+      width:100%;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.03);
+      color:var(--text);
+      padding:9px 10px;
+      font-size:13px;
+    }
+    input[readonly] { opacity: .9; }
+    button { cursor:pointer; font-weight:700; }
+    .btn { width:auto; padding:9px 12px; white-space:nowrap; flex:0 0 auto; }
+    .btn.primary { border-color:rgba(var(--accent-rgb),.55); background:rgba(var(--accent-rgb),.16); color:var(--accent); }
+    .btn.bad { border-color:rgba(var(--bad-rgb),.55); background:rgba(var(--bad-rgb),.14); color:var(--bad); }
+    .split { display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap:10px; }
+    @media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
+    .pane {
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:rgba(255,255,255,.02);
+      padding:8px;
+      min-height:210px;
+    }
+    .list {
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:rgba(255,255,255,.02);
+      max-height:420px;
+      overflow:auto;
+    }
+    .line {
+      padding:8px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.4;
+    }
+    .line:last-child { border-bottom:0; }
+    .tag {
+      display:inline-block;
+      padding:2px 7px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      font-size:11px;
+      margin-left:6px;
+    }
+    .status {
+      border:1px dashed var(--border);
+      border-radius:10px;
+      min-height:34px;
+      display:flex;
+      align-items:center;
+      padding:8px 10px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card hero">
+      <div>
+        <h1 id="pageTitle">Structure Studio</h1>
+        <div class="sub" id="pageSub">One form only. Internal codes are auto `CAT###`; users only manage names and parent/child tree.</div>
+      </div>
+      <div class="row" style="margin:0;">
+        <button class="btn" id="refreshBtn" type="button">Refresh</button>
+        <button class="btn" id="openHubBtn" type="button">Open Hub</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="title" id="formTitle">Category Form</div>
+
+      <div class="row">
+        <div>
+          <label id="lblTypeSel" for="typeSel">Category</label>
+          <select id="typeSel"></select>
+        </div>
+        <div>
+          <label id="lblTypeCodeIn" for="typeCodeIn">Internal Code</label>
+          <input id="typeCodeIn" type="text" readonly placeholder="CAT###" />
+        </div>
+        <div>
+          <label id="lblTypeKeyIn" for="typeKeyIn">Internal Key</label>
+          <input id="typeKeyIn" type="text" readonly placeholder="cat###" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label id="lblTypeSingularIn" for="typeSingularIn">Singular Name</label>
+          <input id="typeSingularIn" type="text" placeholder="Atelier" />
+        </div>
+        <div>
+          <label id="lblTypePluralIn" for="typePluralIn">Plural Name</label>
+          <input id="typePluralIn" type="text" placeholder="Ateliers" />
+        </div>
+        <div>
+          <label id="lblTypeDescIn" for="typeDescIn">Description</label>
+          <input id="typeDescIn" type="text" placeholder="Optional" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label id="lblTypeParentSel" for="typeParentSel">Parent Category</label>
+          <select id="typeParentSel"></select>
+        </div>
+        <div>
+          <label id="lblTypeRelIn" for="typeRelIn">Parent Relation</label>
+          <input id="typeRelIn" type="text" placeholder="contains" />
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn" id="newBtn" type="button">New</button>
+        <button class="btn primary" id="addBtn" type="button">+ Add</button>
+        <button class="btn" id="saveBtn" type="button">Save</button>
+        <button class="btn bad" id="deleteBtn" type="button">Delete</button>
+      </div>
+
+      <div class="split" style="margin-top:10px;">
+        <div class="pane">
+          <div class="title" id="childrenTitle" style="margin-bottom:6px;">Selected Category Children</div>
+          <div id="childrenList" class="line">No category selected.</div>
+        </div>
+        <div class="list" id="treeList"></div>
+      </div>
+    </section>
+
+    <div class="status" id="status">Ready.</div>
+  </div>
+
+  <script src="./modules/module-shell.js"></script>
+  <script src="./modules/module-io.js"></script>
+  <script src="./modules/module-data.js"></script>
+  <script src="./modules/module-lang.js"></script>
+  <script src="./modules/module-theme.js"></script>
+  <script>
+    (function () {
+      const APP_KEYS = Array.isArray(window.VMillData?.keys?.ALL_APP_KEYS)
+        ? window.VMillData.keys.ALL_APP_KEYS.slice()
+        : ["vmill:app-state:v1"];
+      const MODULE_KEY = String(window.VMillData?.keys?.MODULE_KEY || "vmill:module-data:v1");
+      const WATCH_KEYS = new Set([...APP_KEYS, MODULE_KEY]);
+      const $ = (id) => document.getElementById(id);
+      const ui = { typeId: "" };
+      let lastSig = "";
+
+      function tt(key, fallback = "", vars) {
+        return window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
+      }
+
+      function applyTexts() {
+        $("pageTitle").textContent = tt("structure.title", "Structure Studio");
+        $("pageSub").textContent = tt("structure.subtitle", "One form only. Internal codes are auto CAT###; users manage names and parent/child tree.");
+        $("refreshBtn").textContent = tt("common.refresh", "Refresh");
+        $("openHubBtn").textContent = tt("structure.openHub", "Open Hub");
+        $("formTitle").textContent = tt("structure.form.title", "Category Form");
+        $("lblTypeSel").textContent = tt("structure.form.category", "Category");
+        $("lblTypeCodeIn").textContent = tt("structure.form.code", "Internal Code");
+        $("lblTypeKeyIn").textContent = tt("structure.form.key", "Internal Key");
+        $("lblTypeSingularIn").textContent = tt("structure.form.singular", "Singular Name");
+        $("lblTypePluralIn").textContent = tt("structure.form.plural", "Plural Name");
+        $("lblTypeDescIn").textContent = tt("structure.form.description", "Description");
+        $("lblTypeParentSel").textContent = tt("structure.form.parent", "Parent Category");
+        $("lblTypeRelIn").textContent = tt("structure.form.relation", "Parent Relation");
+        $("newBtn").textContent = tt("common.new", "New");
+        $("addBtn").textContent = tt("common.add", "+ Add");
+        $("saveBtn").textContent = tt("common.save", "Save");
+        $("deleteBtn").textContent = tt("common.delete", "Delete");
+        $("childrenTitle").textContent = tt("structure.children.title", "Selected Category Children");
+        $("typeCodeIn").placeholder = tt("structure.placeholder.code", "CAT###");
+        $("typeKeyIn").placeholder = tt("structure.placeholder.key", "cat###");
+        $("typeSingularIn").placeholder = tt("structure.placeholder.singular", "Atelier");
+        $("typePluralIn").placeholder = tt("structure.placeholder.plural", "Ateliers");
+        $("typeDescIn").placeholder = tt("common.optional", "Optional");
+        $("typeRelIn").placeholder = tt("structure.placeholder.relation", "contains");
+      }
+
+      function applyGlobalTheme(event) {
+        if (!window.VMillTheme?.applyTheme) return;
+        window.VMillTheme.applyTheme(document, "structure", event?.detail?.theme || null);
+      }
+      applyGlobalTheme();
+      window.addEventListener("vmill:theme:changed", applyGlobalTheme);
+
+      function esc(v) {
+        return String(v == null ? "" : v)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function setStatus(msg, bad = false) {
+        const el = $("status");
+        if (!el) return;
+        el.textContent = msg || "";
+        el.style.color = bad ? "var(--bad)" : "var(--muted)";
+      }
+
+      function normalizeCode(raw) {
+        const s = String(raw || "").trim().toUpperCase();
+        const m = s.match(/^CAT(\d+)$/);
+        if (!m) return "";
+        return `CAT${String(Number(m[1] || "0")).padStart(3, "0")}`;
+      }
+
+      function nextTypeCode(types) {
+        let max = 0;
+        for (const t of (types || [])) {
+          const m = normalizeCode(t?.code).match(/^CAT(\d+)$/);
+          if (!m) continue;
+          max = Math.max(max, Number(m[1] || "0"));
+        }
+        return `CAT${String(max + 1).padStart(3, "0")}`;
+      }
+
+      function idFromCode(code, existingIds) {
+        const m = normalizeCode(code).match(/^CAT(\d+)$/);
+        const base = m ? `cat${String(Number(m[1] || "0")).padStart(3, "0")}` : "cat";
+        let out = base;
+        let i = 2;
+        while (existingIds.has(out)) {
+          out = `${base}-${i}`;
+          i += 1;
+        }
+        return out;
+      }
+
+      function readModel() {
+        return window.VMillData?.readStructureModel
+          ? window.VMillData.readStructureModel({ persist: false })
+          : { types: [], rules: [] };
+      }
+
+      function typeRows(model) {
+        const rows = Array.isArray(model?.types) ? model.types.slice() : [];
+        rows.sort((a, b) => String(a?.code || "").localeCompare(String(b?.code || "")) || String(a?.namePlural || a?.id || "").localeCompare(String(b?.namePlural || b?.id || "")));
+        return rows;
+      }
+
+      function ruleRows(model) {
+        const rows = (window.VMillData?.listStructureRules ? window.VMillData.listStructureRules() : (Array.isArray(model?.rules) ? model.rules : [])).slice();
+        rows.sort((a, b) => {
+          const ak = `${String(a?.childTypeId || "")}|${String(a?.parentTypeId || "")}|${String(a?.relation || "")}`;
+          const bk = `${String(b?.childTypeId || "")}|${String(b?.parentTypeId || "")}|${String(b?.relation || "")}`;
+          return ak.localeCompare(bk);
+        });
+        return rows;
+      }
+
+      function typeLabel(t) {
+        const code = String(t?.code || "").trim();
+        const name = String(t?.namePlural || t?.id || "");
+        return code ? `${code} - ${name}` : name;
+      }
+
+      function setOptions(sel, rows, labelFn, selected = "", includeEmpty = false, emptyLabel = "-") {
+        if (!sel) return "";
+        sel.innerHTML = "";
+        if (includeEmpty) {
+          const o = document.createElement("option");
+          o.value = "";
+          o.textContent = emptyLabel;
+          sel.appendChild(o);
+        }
+        for (const r of rows || []) {
+          const o = document.createElement("option");
+          o.value = String(r?.id || "");
+          o.textContent = labelFn(r);
+          sel.appendChild(o);
+        }
+        const want = String(selected || "");
+        if (want && [...sel.options].some((o) => o.value === want)) sel.value = want;
+        else if (includeEmpty) sel.value = "";
+        else if (sel.options.length) sel.value = sel.options[0].value;
+        else sel.value = "";
+        return String(sel.value || "");
+      }
+
+      function incomingRuleFor(childTypeId, rules) {
+        const id = String(childTypeId || "");
+        if (!id) return null;
+        return (rules || []).find((r) => String(r?.childTypeId || "") === id) || null;
+      }
+
+      function childRulesFor(parentTypeId, rules) {
+        const id = String(parentTypeId || "");
+        if (!id) return [];
+        return (rules || []).filter((r) => String(r?.parentTypeId || "") === id);
+      }
+
+      function syncParentRuleForType(typeId, parentTypeId, relation) {
+        const childId = String(typeId || "");
+        const parentId = String(parentTypeId || "");
+        const rel = String(relation || tt("structure.relation.default", "contains")).trim() || tt("structure.relation.default", "contains");
+        const rows = window.VMillData?.listStructureRules ? window.VMillData.listStructureRules({ childTypeId: childId }) : [];
+
+        if (!parentId || parentId === childId) {
+          for (const row of rows) window.VMillData?.deleteStructureRule?.(row.id);
+          return;
+        }
+
+        let keep = false;
+        for (const row of rows) {
+          const same = String(row?.parentTypeId || "") === parentId && String(row?.relation || "") === rel;
+          if (same) {
+            keep = true;
+            continue;
+          }
+          window.VMillData?.deleteStructureRule?.(row.id);
+        }
+
+        if (!keep) {
+          window.VMillData?.upsertStructureRule?.({
+            parentTypeId: parentId,
+            childTypeId: childId,
+            relation: rel,
+            label: `${parentId} ${rel} ${childId}`,
+          });
+        }
+      }
+
+      function render() {
+        const model = readModel();
+        const types = typeRows(model);
+        const rules = ruleRows(model);
+
+        ui.typeId = setOptions($("typeSel"), types, (t) => typeLabel(t), ui.typeId, true, tt("structure.option.new", "(new category)"));
+        const selected = types.find((t) => String(t?.id || "") === String(ui.typeId || "")) || null;
+
+        const parentRows = selected ? types.filter((t) => String(t?.id || "") !== String(selected.id || "")) : types;
+        const parentRule = selected ? incomingRuleFor(selected.id, rules) : null;
+        setOptions($("typeParentSel"), parentRows, (t) => typeLabel(t), parentRule?.parentTypeId || "", true, tt("structure.option.noParent", "(no parent)"));
+
+        if (selected) {
+          $("typeCodeIn").value = String(selected.code || "");
+          $("typeKeyIn").value = String(selected.id || "");
+          $("typeSingularIn").value = String(selected.nameSingular || "");
+          $("typePluralIn").value = String(selected.namePlural || "");
+          $("typeDescIn").value = String(selected.description || "");
+          $("typeRelIn").value = String(parentRule?.relation || tt("structure.relation.default", "contains"));
+        } else {
+          $("typeCodeIn").value = "";
+          $("typeKeyIn").value = "";
+          $("typeSingularIn").value = "";
+          $("typePluralIn").value = "";
+          $("typeDescIn").value = "";
+          if (!$("typeRelIn").value.trim()) $("typeRelIn").value = tt("structure.relation.default", "contains");
+        }
+
+        const children = selected ? childRulesFor(selected.id, rules) : [];
+        if (!selected) {
+          $("childrenList").innerHTML = tt("structure.children.noneSelected", "No category selected.");
+        } else if (!children.length) {
+          $("childrenList").innerHTML = tt("structure.children.none", "No child category.");
+        } else {
+          $("childrenList").innerHTML = children.map((rule) => {
+            const child = types.find((t) => String(t.id || "") === String(rule.childTypeId || ""));
+            const childLabel = child ? `${child.code || child.id} - ${child.namePlural || child.nameSingular || child.id}` : String(rule.childTypeId || "");
+            return `<div class="line"><span class="mono">${esc(childLabel)}</span> <span class="tag">${esc(rule.relation || tt("structure.relation.default", "contains"))}</span></div>`;
+          }).join("");
+        }
+
+        $("saveBtn").disabled = !selected;
+        $("deleteBtn").disabled = !selected || !!selected.locked;
+
+        $("treeList").innerHTML = types.map((t) => {
+          const parent = incomingRuleFor(t.id, rules);
+          const parentType = parent ? types.find((x) => String(x.id || "") === String(parent.parentTypeId || "")) : null;
+          const parentTxt = parentType ? `${parentType.code || parentType.id} (${parent.relation || tt("structure.relation.default", "contains")})` : tt("structure.parent.root", "root");
+          const codeTxt = String(t.code || "---");
+          const nameTxt = `${String(t.nameSingular || t.id)} / ${String(t.namePlural || `${t.nameSingular || t.id}s`)}`;
+          return `<div class="line"><span class="mono">${esc(codeTxt)}</span> ${esc(nameTxt)} <span class="tag">${esc(tt("common.id", "id"))}: ${esc(t.id || "")}</span> <span class="tag">${esc(tt("structure.parent.tag", "parent"))}: ${esc(parentTxt)}</span> <span class="tag">${t.locked ? esc(tt("common.base", "base")) : esc(tt("common.custom", "custom"))}</span></div>`;
+        }).join("") || `<div class="line">${esc(tt("structure.none", "No categories"))}</div>`;
+
+        const updated = String(window.VMillData?.readModuleState?.()?.meta?.updatedAt || "");
+        lastSig = JSON.stringify({ m: updated, t: types.length, r: rules.length });
+      }
+
+      function addCategory() {
+        const singular = String($("typeSingularIn").value || "").trim();
+        const plural = String($("typePluralIn").value || "").trim();
+        const desc = String($("typeDescIn").value || "").trim();
+        const parentId = String($("typeParentSel").value || "");
+        const rel = String($("typeRelIn").value || "").trim() || tt("structure.relation.default", "contains");
+        if (!singular) return setStatus(tt("structure.error.singularRequired", "Singular name is required."), true);
+
+        const model = readModel();
+        const types = typeRows(model);
+        const code = nextTypeCode(types);
+        const existingIds = new Set(types.map((t) => String(t?.id || "")).filter(Boolean));
+        const id = idFromCode(code, existingIds);
+
+        const out = window.VMillData?.upsertEntityType
+          ? window.VMillData.upsertEntityType({ id, code, nameSingular: singular, namePlural: plural || `${singular}s`, description: desc })
+          : null;
+        if (!out) return setStatus(tt("structure.error.addFailed", "Failed to add category."), true);
+
+        ui.typeId = String(out.id || id);
+        syncParentRuleForType(ui.typeId, parentId, rel);
+        render();
+        setStatus(tt("structure.status.added", "Category added ({code}).", { code: out.code || code }));
+      }
+
+      function saveCategory() {
+        if (!ui.typeId) return;
+        const singular = String($("typeSingularIn").value || "").trim();
+        const plural = String($("typePluralIn").value || "").trim();
+        const desc = String($("typeDescIn").value || "").trim();
+        const parentId = String($("typeParentSel").value || "");
+        const rel = String($("typeRelIn").value || "").trim() || tt("structure.relation.default", "contains");
+        if (!singular) return setStatus(tt("structure.error.singularRequired", "Singular name is required."), true);
+
+        const out = window.VMillData?.upsertEntityType
+          ? window.VMillData.upsertEntityType({ id: ui.typeId, nameSingular: singular, namePlural: plural || `${singular}s`, description: desc })
+          : null;
+        if (!out) return setStatus(tt("structure.error.saveFailed", "Failed to save category."), true);
+
+        syncParentRuleForType(ui.typeId, parentId, rel);
+        render();
+        setStatus(tt("structure.status.saved", "Category saved."));
+      }
+
+      function deleteCategory() {
+        if (!ui.typeId) return;
+        if (!confirm(tt("structure.confirm.delete", "Delete selected category?"))) return;
+        const ok = window.VMillData?.deleteEntityType ? window.VMillData.deleteEntityType(ui.typeId) : false;
+        if (!ok) return setStatus(tt("structure.error.deleteFailed", "Delete failed (base or linked category)."), true);
+        ui.typeId = "";
+        render();
+        setStatus(tt("structure.status.deleted", "Category deleted."));
+      }
+
+      function newCategory() {
+        ui.typeId = "";
+        $("typeSel").value = "";
+        $("typeCodeIn").value = "";
+        $("typeKeyIn").value = "";
+        $("typeSingularIn").value = "";
+        $("typePluralIn").value = "";
+        $("typeDescIn").value = "";
+        $("typeParentSel").value = "";
+        $("typeRelIn").value = tt("structure.relation.default", "contains");
+        render();
+      }
+
+      function wire() {
+        $("refreshBtn").addEventListener("click", () => { render(); setStatus(tt("common.status.refreshed", "Refreshed.")); });
+        $("openHubBtn").addEventListener("click", () => { window.location.href = "./vmill_hub.html#structure"; });
+        $("typeSel").addEventListener("change", () => { ui.typeId = String($("typeSel").value || ""); render(); });
+        $("newBtn").addEventListener("click", newCategory);
+        $("addBtn").addEventListener("click", addCategory);
+        $("saveBtn").addEventListener("click", saveCategory);
+        $("deleteBtn").addEventListener("click", deleteCategory);
+      }
+
+      function watch() {
+        window.CANBus?.onMessage((msg) => {
+          if (!msg?.type) return;
+          if (String(msg.type).startsWith("data:")) render();
+        });
+        window.addEventListener("storage", (e) => {
+          const key = String(e?.key || "");
+          if (WATCH_KEYS.has(key)) render();
+        });
+        setInterval(() => {
+          const model = readModel();
+          const sig = JSON.stringify({
+            x: String(window.VMillData?.readModuleState?.()?.meta?.updatedAt || ""),
+            t: typeRows(model).length,
+            r: ruleRows(model).length,
+          });
+          if (sig !== lastSig) render();
+        }, 1500);
+      }
+
+      wire();
+      applyTexts();
+      watch();
+      render();
+      window.addEventListener("vmill:lang:changed", () => { applyTexts(); render(); });
+      window.addEventListener("vmill:lang:catalog:changed", () => { applyTexts(); render(); });
+      window.CANBus?.emit("structure:ready", { module: "Structure Studio" }, "structure");
+      setStatus(tt("structure.status.ready", "Structure Studio ready."));
+    })();
+  </script>
+</body>
+</html>
