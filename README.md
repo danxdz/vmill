@@ -110,10 +110,16 @@ If this folder is the project root:
 - Service type: Web Service
 - Build command: `pip install --upgrade pip && pip install -r requirements.txt`
 - Start command: `python vmill_server.py`
+- Python version: `3.11.10` (pinned via `.python-version`/`runtime.txt`, and also set in `render.yaml`)
 - Python version: `3.11.10` (via `PYTHON_VERSION` in `render.yaml`)
 - Port: provided by `PORT` env (already supported)
 - Persistent disk configured in `render.yaml`
 - DB path is controlled by `VMILL_DB_PATH` (default `/var/data/vmill.db` on Render)
+
+If Render logs show a different Python version (for example `3.14.x`), your service is likely not using Blueprint sync.
+In that case, either:
+- re-create/sync service from `render.yaml`, or
+- set `PYTHON_VERSION=3.11.10` manually in the Render dashboard environment settings.
 
 ### Render (OCR backend, optional)
 
