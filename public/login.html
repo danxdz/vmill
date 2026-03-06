@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VMill Login</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap");
+    :root {
+      --bg:var(--vm-theme-bg, #0a0f17);
+      --bg2:color-mix(in srgb, var(--vm-theme-bg, #0a0f17) 80%, #000);
+      --panel:var(--vm-theme-panel, #111a2a);
+      --text:var(--vm-theme-text, #e6edf8);
+      --muted:var(--vm-theme-muted, rgba(230,237,248,.66));
+      --border:var(--vm-theme-border, rgba(230,237,248,.2));
+      --accent:var(--vm-theme-accent, #57b4ff);
+      --accent-rgb:var(--vm-theme-accent-rgb, 87,180,255);
+      --ok:var(--vm-theme-ok, #67d39a);
+      --ok-rgb:var(--vm-theme-ok-rgb, 103,211,154);
+      --danger:var(--vm-theme-danger, #ff7d93);
+      --danger-rgb:var(--vm-theme-danger-rgb, 255,125,147);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      font-family: "Space Grotesk", ui-sans-serif, system-ui;
+      background:
+        radial-gradient(1200px 600px at 10% -20%, rgba(var(--accent-rgb),.18), transparent 60%),
+        radial-gradient(900px 500px at 100% -10%, rgba(var(--ok-rgb),.14), transparent 60%),
+        linear-gradient(180deg, var(--bg), var(--bg2));
+    }
+    .card {
+      width: min(460px, calc(100vw - 24px));
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+      box-shadow: 0 22px 44px rgba(0,0,0,.28);
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+    }
+    h1 { margin: 0; font-size: 24px; }
+    p { margin: 0; color: var(--muted); }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.02);
+      font-size: 13px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--danger);
+      box-shadow: 0 0 0 5px rgba(var(--danger-rgb),.14);
+    }
+    .dot.ok {
+      background: var(--ok);
+      box-shadow: 0 0 0 5px rgba(var(--ok-rgb),.14);
+    }
+    label { font-size: 12px; color: var(--muted); }
+    input {
+      width: 100%;
+      margin-top: 6px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0c1320;
+      color: var(--text);
+      font: inherit;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    button {
+      border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--accent) 10%, transparent));
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.alt {
+      border-color: var(--border);
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+    }
+    button[disabled] { opacity: .45; cursor: not-allowed; }
+    .msg {
+      min-height: 18px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .msg.err { color: var(--danger); }
+    .msg.ok { color: var(--ok); }
+  </style>
+</head>
+<body>
+  <section class="card">
+    <h1 id="loginTitle">VMill Login</h1>
+    <p id="loginSubtitle">Sign in to sync multiuser data. Offline mode keeps localStorage active.</p>
+    <div class="status" id="serverStatusBox">
+      <span class="dot" id="serverStatusDot"></span>
+      <span id="serverStatusText">Checking server...</span>
+    </div>
+    <label>
+      <span id="serverUrlLabel">Server URL</span>
+      <input id="serverUrlInput" type="text" placeholder="http://localhost:8080" />
+    </label>
+    <label>
+      <span id="usernameLabel">Username</span>
+      <input id="usernameInput" type="text" autocomplete="username" value="admin" />
+    </label>
+    <label>
+      <span id="passwordLabel">Password</span>
+      <input id="passwordInput" type="password" autocomplete="current-password" value="vmill2024" />
+    </label>
+    <div class="row">
+      <button id="loginBtn" type="button">Login</button>
+      <button id="offlineBtn" class="alt" type="button">Continue offline</button>
+    </div>
+    <div class="msg" id="msg"></div>
+  </section>
+
+  <script src="./modules/module-io.js"></script>
+  <script src="./modules/module-auth.js"></script>
+  <script src="./modules/module-data.js"></script>
+  <script src="./modules/module-lang.js"></script>
+  <script src="./modules/module-theme.js"></script>
+  <script>
+    (function () {
+      const serverUrlInput = document.getElementById("serverUrlInput");
+      const usernameInput = document.getElementById("usernameInput");
+      const passwordInput = document.getElementById("passwordInput");
+      const loginBtn = document.getElementById("loginBtn");
+      const offlineBtn = document.getElementById("offlineBtn");
+      const dot = document.getElementById("serverStatusDot");
+      const statusText = document.getElementById("serverStatusText");
+      const msg = document.getElementById("msg");
+
+      let online = false;
+      let pingTimer = 0;
+
+      function tt(key, fallback = "", vars) {
+        return window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
+      }
+
+      function applyTexts() {
+        document.title = tt("login.title", "VMill Login");
+        const setTxt = (id, key, fallback) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = tt(key, fallback);
+        };
+        setTxt("loginTitle", "login.title", "VMill Login");
+        setTxt("loginSubtitle", "login.subtitle", "Sign in to sync multiuser data. Offline mode keeps localStorage active.");
+        setTxt("serverUrlLabel", "login.serverUrl", "Server URL");
+        setTxt("usernameLabel", "login.username", "Username");
+        setTxt("passwordLabel", "login.password", "Password");
+        setTxt("loginBtn", "login.action.login", "Login");
+        setTxt("offlineBtn", "login.action.offline", "Continue offline");
+        setTxt("serverStatusText", "login.status.checking", "Checking server...");
+      }
+
+      function applyGlobalTheme(event) {
+        if (!window.VMillTheme?.applyTheme) return;
+        window.VMillTheme.applyTheme(document, "generic", event?.detail?.theme || null);
+      }
+
+      function setMsg(text, tone = "") {
+        msg.textContent = String(text || "");
+        msg.className = `msg ${tone}`.trim();
+      }
+
+      function setServerState(nextOnline, text) {
+        online = !!nextOnline;
+        dot.classList.toggle("ok", online);
+        statusText.textContent = String(
+          text || (online
+            ? tt("login.status.reachable", "Server reachable")
+            : tt("login.status.unreachable", "Server unreachable"))
+        );
+        offlineBtn.disabled = false;
+        offlineBtn.textContent = tt("login.action.offline", "Continue offline");
+      }
+
+      async function checkServer() {
+        const url = serverUrlInput.value.trim() || "http://localhost:8080";
+        const ping = await window.VMillAuth.ping(url);
+        if (ping.ok) {
+          if (serverUrlInput.value.trim() !== ping.serverUrl) serverUrlInput.value = ping.serverUrl;
+          setServerState(true, tt("login.status.onlineAt", "Online: {url}", { url: ping.serverUrl }));
+        } else {
+          setServerState(false, tt("login.status.offlineAt", "Offline: {url}", { url: ping.serverUrl || url }));
+        }
+      }
+
+      function continueOffline() {
+        if (online) {
+          const ok = confirm(tt("login.confirm.offlineWhileOnline", "You are online - offline changes won't sync until you log in."));
+          if (!ok) return;
+        }
+        try {
+          localStorage.setItem("vmill:offline:mode", "1");
+        } catch {}
+        if (!window.VMillAuth?.isLoggedIn?.()) {
+          setMsg(tt("login.msg.offlineGuest", "Continuing offline as guest. Sync disabled until login."), "ok");
+        } else {
+          setMsg(tt("login.msg.offlineStart", "Starting offline mode"), "ok");
+        }
+        setTimeout(() => {
+          location.href = "./vmill_hub.html";
+        }, 120);
+      }
+
+      function clearOfflineModeFlag() {
+        try {
+          localStorage.removeItem("vmill:offline:mode");
+        } catch {}
+      }
+
+      async function handleLogin() {
+        setMsg("");
+        loginBtn.disabled = true;
+        const out = await window.VMillAuth.login(
+          usernameInput.value,
+          passwordInput.value,
+          serverUrlInput.value
+        );
+        loginBtn.disabled = false;
+        if (!out.ok) {
+          setMsg(tt("login.msg.failed", "Login failed: {error}", { error: out.error || "unknown" }), "err");
+          await checkServer();
+          return;
+        }
+        clearOfflineModeFlag();
+        setMsg(tt("login.msg.connectedAs", "Connected as {user}", { user: out.user?.username || "user" }), "ok");
+        try {
+          await window.VMillData?.init?.(out.serverUrl);
+        } catch {}
+        location.href = "./vmill_hub.html";
+      }
+
+      serverUrlInput.value = window.VMillAuth.getServerUrl() || "http://localhost:8080";
+      loginBtn.addEventListener("click", handleLogin);
+      offlineBtn.addEventListener("click", continueOffline);
+      serverUrlInput.addEventListener("change", checkServer);
+      serverUrlInput.addEventListener("blur", checkServer);
+      usernameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") passwordInput.focus();
+      });
+      passwordInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") handleLogin();
+      });
+
+      applyTexts();
+      applyGlobalTheme();
+      window.addEventListener("vmill:theme:changed", applyGlobalTheme);
+      window.addEventListener("vmill:lang:changed", () => {
+        applyTexts();
+        checkServer();
+      });
+      checkServer();
+      pingTimer = window.setInterval(checkServer, 2500);
+      window.addEventListener("beforeunload", () => {
+        if (pingTimer) clearInterval(pingTimer);
+      });
+    })();
+  </script>
+</body>
+</html>

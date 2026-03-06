@@ -22,3 +22,23 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python virtual environments
+.venv/
+.venv_*/
+venv/
+env/
+ENV/
+
+# Python/runtime artifacts
+__pycache__/
+*.pyc
+*.pyo
+
+# Local SQLite runtime data
+vmill.db
+vmill.db-shm
+vmill.db-wal
+
+# Local OCR correction exports
+ocr_corrections_*.json

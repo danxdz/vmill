@@ -1,0 +1,1472 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shop Organizer</title>
+  <style>
+    :root {
+      --bg: var(--vm-theme-bg, #0c1019);
+      --panel: var(--vm-theme-panel, #121c2d);
+      --panel2: var(--vm-theme-panel-2, #0f1727);
+      --text: var(--vm-theme-text, #e8eef8);
+      --muted: var(--vm-theme-muted, rgba(232,238,248,.68));
+      --border: var(--vm-theme-border, rgba(232,238,248,.2));
+      --acc: var(--vm-theme-accent, #59b7ff);
+      --ok: var(--vm-theme-ok, #84e8ae);
+      --danger: var(--vm-theme-danger, #ff92a6);
+      --input-bg: color-mix(in srgb, var(--panel2) 86%, #000);
+      --dot-base: color-mix(in srgb, var(--acc) 78%, #fff 22%);
+      --dot-custom: color-mix(in srgb, var(--text) 62%, var(--panel2) 38%);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
+      background: linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg) 88%, #000));
+      min-height: 100dvh;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+    .layout {
+      min-height: 100dvh;
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 310px 1fr;
+    }
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      overflow: hidden;
+      min-height: calc(100dvh - 16px);
+      display: flex;
+      flex-direction: column;
+    }
+    .head {
+      border-bottom: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+      padding: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      background: color-mix(in srgb, var(--panel2) 88%, transparent);
+    }
+    .title { font-weight: 800; letter-spacing: .03em; }
+    .body {
+      padding: 8px;
+      overflow: auto;
+      flex: 1 1 auto;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+    .btn {
+      border: 1px solid color-mix(in srgb, var(--acc) 62%, transparent);
+      background: color-mix(in srgb, var(--acc) 14%, transparent);
+      color: var(--text);
+      border-radius: 10px;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 8px;
+      cursor: pointer;
+    }
+    .btn.ghost {
+      border-color: var(--border);
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+    }
+    .btn.warn {
+      border-color: color-mix(in srgb, var(--danger) 70%, transparent);
+      background: color-mix(in srgb, var(--danger) 14%, transparent);
+    }
+    .search {
+      margin-left: auto;
+      min-width: 150px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--input-bg);
+      color: var(--text);
+      font: inherit;
+      font-size: 11px;
+      padding: 7px 8px;
+    }
+    .tiny { font-size: 11px; color: var(--muted); }
+    .empty {
+      border: 1px dashed color-mix(in srgb, var(--acc) 38%, transparent);
+      border-radius: 12px;
+      padding: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      background: rgba(255,255,255,.02);
+    }
+    .tree, .tree ul { list-style: none; margin: 0; padding-left: 12px; }
+    .treeNode {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin: 4px 0;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      background: rgba(255,255,255,.02);
+      cursor: pointer;
+    }
+    .treeNode.selected {
+      border-color: color-mix(in srgb, var(--acc) 72%, transparent);
+      background: color-mix(in srgb, var(--acc) 14%, transparent);
+    }
+    .treeNodeMain {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .twisty {
+      width: 20px;
+      height: 20px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      background: rgba(255,255,255,.03);
+      cursor: pointer;
+      font-size: 10px;
+      user-select: none;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--acc);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc) 50%, transparent);
+      flex: 0 0 auto;
+    }
+    .dot.base { background: var(--dot-base); }
+    .dot.custom { background: var(--dot-custom); }
+    .nodeText { min-width: 0; display: grid; gap: 2px; }
+    .nodeName {
+      font-size: 13px;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tag {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 10px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .nodeActions {
+      display: flex;
+      gap: 6px;
+      opacity: .1;
+      transition: opacity .16s ease;
+    }
+    .treeNode:hover .nodeActions { opacity: 1; }
+    .iconBtn {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      font-size: 11px;
+      padding: 4px 7px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .section {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px;
+      background: rgba(255,255,255,.02);
+      display: grid;
+      gap: 6px;
+    }
+    .sectionHead {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .sectionTitle { font-weight: 800; }
+    .grid2 {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1fr 1fr;
+    }
+    .field { display: grid; gap: 5px; }
+    .field label { font-size: 11px; color: var(--muted); }
+    input, select {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--input-bg);
+      color: var(--text);
+      font: inherit;
+      width: 100%;
+      padding: 7px;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .tableWrap {
+      width: 100%;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(255,255,255,.01);
+    }
+    .recordsTable {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .recordsTable th,
+    .recordsTable td {
+      border-bottom: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+      padding: 6px;
+      vertical-align: middle;
+      text-align: left;
+    }
+    .recordsTable thead th {
+      font-size: 10px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: color-mix(in srgb, var(--panel2) 94%, transparent);
+    }
+    .recordsTable tr:last-child td { border-bottom: 0; }
+    .recordsTable input,
+    .recordsTable select {
+      min-width: 120px;
+      padding: 6px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+    .recordDeleteBtn {
+      border: 1px solid color-mix(in srgb, var(--danger) 65%, transparent);
+      background: color-mix(in srgb, var(--danger) 14%, transparent);
+      color: var(--text);
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 8px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .flash {
+      font-size: 11px;
+      color: var(--ok);
+      opacity: 0;
+      transition: opacity .15s ease;
+      font-weight: 700;
+    }
+    .flash.show { opacity: 1; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .panel { min-height: auto; }
+      .grid2 { grid-template-columns: 1fr; }
+      .search { margin-left: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <section class="panel">
+      <div class="head">
+        <div class="title" id="treeTitle">Shop Organizer</div>
+        <button class="btn ghost" id="openHubBtn" type="button">Hub</button>
+        <button class="btn" id="addRootBtn" type="button">+ Category</button>
+        <button class="btn ghost" id="refreshBtn" type="button">Refresh</button>
+        <input class="search" id="searchIn" type="text" placeholder="Search categories..." />
+      </div>
+      <div class="body" id="treeWrap"></div>
+    </section>
+
+    <section class="panel">
+      <div class="head">
+        <div class="title" id="detailTitle">Category Detail</div>
+        <span class="flash" id="saveFlash">Saved ✓</span>
+      </div>
+      <div class="body" id="detailWrap"></div>
+    </section>
+  </div>
+
+  <script src="./modules/module-shell.js"></script>
+  <script src="./modules/module-registry.js"></script>
+  <script src="./modules/module-io.js"></script>
+  <script src="./modules/module-auth.js"></script>
+  <script src="./modules/module-data.js"></script>
+  <script src="./modules/module-lang.js"></script>
+  <script src="./modules/module-theme.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", async () => {
+      if (typeof window.VMillAuth === "undefined" || !window.VMillAuth.isLoggedIn()) {
+        location.replace("./login.html");
+        return;
+      }
+
+      const state = {
+        types: [],
+        items: [],
+        links: [],
+        app: { products: [], stations: [], jobs: [] },
+        selectedItemByType: {},
+        rules: [],
+        selectedTypeId: "",
+        expanded: new Set(),
+        search: "",
+        loading: false,
+        error: "",
+        flashTimer: 0,
+        loadTimer: 0,
+        loadSilent: true,
+      };
+
+      const treeWrap = document.getElementById("treeWrap");
+      const detailWrap = document.getElementById("detailWrap");
+      const searchIn = document.getElementById("searchIn");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const addRootBtn = document.getElementById("addRootBtn");
+      const openHubBtn = document.getElementById("openHubBtn");
+      const saveFlash = document.getElementById("saveFlash");
+
+      const tt = (key, fallback = "", vars) =>
+        window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
+
+      function applyTexts() {
+        document.title = tt("shop.title", "Shop Organizer");
+        const treeTitle = document.getElementById("treeTitle");
+        if (treeTitle) treeTitle.textContent = tt("shop.title", "Shop Organizer");
+        const detailTitle = document.getElementById("detailTitle");
+        if (detailTitle) detailTitle.textContent = tt("shop.form.detailTitle", "Category Detail");
+        if (openHubBtn) openHubBtn.textContent = tt("common.hub", "Hub");
+        if (addRootBtn) addRootBtn.textContent = tt("shop.action.addCategory", "+ Category");
+        if (refreshBtn) refreshBtn.textContent = tt("common.refresh", "Refresh");
+        if (searchIn) searchIn.placeholder = tt("shop.search.placeholder", "Search categories...");
+        if (saveFlash) saveFlash.textContent = tt("shop.status.saved", "Saved ✓");
+      }
+
+      function applyTheme(event) {
+        if (!window.VMillTheme?.applyTheme) return;
+        window.VMillTheme.applyTheme(document, "generic", event?.detail?.theme || null);
+      }
+
+      function esc(v) {
+        return String(v ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;");
+      }
+
+      function autoPluralName(name) {
+        const s = String(name || "").trim();
+        if (!s) return "";
+        if (s.toLowerCase().endsWith("s")) return s;
+        return `${s}s`;
+      }
+
+      function relationOptions() {
+        return [
+          "contains",
+          "uses",
+          "belongs_to",
+          "located_in",
+          "supports",
+          "produces",
+          "feeds",
+          "depends_on",
+        ];
+      }
+
+      function normalizeRelation(raw) {
+        const rel = String(raw || "").trim().toLowerCase();
+        if (!rel) return "contains";
+        return relationOptions().includes(rel) ? rel : "contains";
+      }
+
+      function makeId(prefix = "id") {
+        const rng = Math.random().toString(36).slice(2, 8);
+        return `${prefix}_${Date.now().toString(36)}_${rng}`;
+      }
+
+      function nextCode(prefix, rows) {
+        const p = String(prefix || "").toUpperCase();
+        let max = 0;
+        for (const row of (Array.isArray(rows) ? rows : [])) {
+          const raw = String(row?.code || "").trim().toUpperCase();
+          const m = raw.match(new RegExp(`^${p}(\\d+)$`));
+          if (!m) continue;
+          const n = Number(m[1] || "0");
+          if (Number.isFinite(n) && n > max) max = n;
+        }
+        return `${p}${String(max + 1).padStart(3, "0")}`;
+      }
+
+      function typeLabel(t) {
+        const code = String(t?.code || "").trim();
+        const singular = String(t?.nameSingular || t?.id || tt("shop.category", "Category")).trim();
+        return code ? `${code} - ${singular}` : singular;
+      }
+      function roleLabel(role) {
+        const r = String(role || "custom").toLowerCase();
+        if (r === "product") return tt("shop.role.product", "product");
+        if (r === "station") return tt("shop.role.station", "station");
+        if (r === "job") return tt("shop.role.job", "job");
+        return tt("shop.role.custom", "custom");
+      }
+
+      function incomingRule(typeId) {
+        const tid = String(typeId || "");
+        if (!tid) return null;
+        return (state.rules || []).find((r) => String(r?.childTypeId || "") === tid) || null;
+      }
+
+      function childMap() {
+        const out = new Map();
+        const parentOf = new Map();
+        for (const t of (state.types || [])) {
+          out.set(String(t.id || ""), []);
+        }
+        for (const r of (state.rules || [])) {
+          const childId = String(r?.childTypeId || "");
+          const parentId = String(r?.parentTypeId || "");
+          if (!childId || !parentId || childId === parentId) continue;
+          if (!out.has(parentId)) out.set(parentId, []);
+          if (!parentOf.has(childId)) {
+            out.get(parentId).push(childId);
+            parentOf.set(childId, parentId);
+          }
+        }
+        return { out, parentOf };
+      }
+
+      function descendantsOf(typeId) {
+        const root = String(typeId || "");
+        const { out } = childMap();
+        const seen = new Set();
+        const queue = [root];
+        while (queue.length) {
+          const cur = queue.shift();
+          const children = out.get(cur) || [];
+          for (const c of children) {
+            if (!c || seen.has(c)) continue;
+            seen.add(c);
+            queue.push(c);
+          }
+        }
+        return seen;
+      }
+
+      function searchVisibleSet() {
+        const q = String(state.search || "").trim().toLowerCase();
+        if (!q) return null;
+        const mapById = new Map((state.types || []).map((x) => [String(x.id || ""), x]));
+        const { parentOf } = childMap();
+        const keep = new Set();
+        for (const t of (state.types || [])) {
+          const txt = `${t.nameSingular || ""} ${t.code || ""} ${t.id || ""}`.toLowerCase();
+          if (!txt.includes(q)) continue;
+          let cur = String(t.id || "");
+          while (cur && !keep.has(cur) && mapById.has(cur)) {
+            keep.add(cur);
+            cur = String(parentOf.get(cur) || "");
+          }
+        }
+        return keep;
+      }
+
+      function selectedType() {
+        return (state.types || []).find((x) => String(x?.id || "") === String(state.selectedTypeId || "")) || null;
+      }
+
+      function typeById(typeId) {
+        const id = String(typeId || "");
+        if (!id) return null;
+        return (state.types || []).find((x) => String(x?.id || "") === id) || null;
+      }
+
+      function toUiItem(row) {
+        const src = row && typeof row === "object" ? row : {};
+        return {
+          id: String(src.id || ""),
+          code: String(src.code || ""),
+          name: String(src.name || ""),
+          source: String(src.source || "custom"),
+        };
+      }
+
+      function listTypeItems(typeId) {
+        const type = typeById(typeId);
+        if (!type) return [];
+        const role = String(type.moduleRole || "custom").toLowerCase();
+        if (role === "product") return (state.app.products || []).map(toUiItem);
+        if (role === "station") return (state.app.stations || []).map(toUiItem);
+        if (role === "job") return (state.app.jobs || []).map(toUiItem);
+        return (state.items || [])
+          .filter((x) => String(x?.typeId || "") === String(typeId || ""))
+          .map(toUiItem);
+      }
+
+      function itemLabel(item) {
+        const code = String(item?.code || "").trim();
+        const name = String(item?.name || "").trim();
+        if (code && name) return `${code} - ${name}`;
+        return name || code || String(item?.id || "");
+      }
+
+      function upsertAppRow(role, payload) {
+        const app = window.VMillData?.readAppState
+          ? (window.VMillData.readAppState({ seedIfMissing: true }) || { products: [], stations: [], jobs: [] })
+          : { products: [], stations: [], jobs: [] };
+        if (!Array.isArray(app.products)) app.products = [];
+        if (!Array.isArray(app.stations)) app.stations = [];
+        if (!Array.isArray(app.jobs)) app.jobs = [];
+        const id = String(payload?.id || makeId(role));
+        const roleKey = String(role || "").toLowerCase();
+        if (roleKey === "product") {
+          const idx = app.products.findIndex((x) => String(x?.id || "") === id);
+          const prev = idx >= 0 ? app.products[idx] : {};
+          const next = {
+            ...prev,
+            id,
+            code: String(payload?.code || prev.code || nextCode("P", app.products)),
+            name: String(payload?.name || "Product"),
+            parentProductId: String(payload?.parentProductId || ""),
+            imageUrl: String(payload?.imageUrl || ""),
+            meta: payload?.meta && typeof payload.meta === "object" ? payload.meta : (prev.meta || {}),
+          };
+          if (idx >= 0) app.products[idx] = next;
+          else app.products.push(next);
+          if (!app.activeProductId) app.activeProductId = id;
+        } else if (roleKey === "station") {
+          const idx = app.stations.findIndex((x) => String(x?.id || "") === id);
+          const prev = idx >= 0 ? app.stations[idx] : {};
+          const next = {
+            ...prev,
+            id,
+            code: String(payload?.code || prev.code || nextCode("S", app.stations)),
+            name: String(payload?.name || "Station"),
+            imageUrl: String(payload?.imageUrl || ""),
+            meta: payload?.meta && typeof payload.meta === "object" ? payload.meta : (prev.meta || {}),
+          };
+          if (idx >= 0) app.stations[idx] = next;
+          else app.stations.push(next);
+          if (!app.activeStationId) app.activeStationId = id;
+        } else if (roleKey === "job") {
+          const idx = app.jobs.findIndex((x) => String(x?.id || "") === id);
+          const prev = idx >= 0 ? app.jobs[idx] : {};
+          const defaultStationId = String(app.stations?.[0]?.id || "");
+          const defaultProductId = String(app.products?.[0]?.id || "");
+          const next = {
+            ...prev,
+            id,
+            name: String(payload?.name || `Job ${app.jobs.length + 1}`),
+            stationId: String(payload?.stationId || payload?.nodeId || defaultStationId),
+            nodeId: String(payload?.nodeId || payload?.stationId || defaultStationId),
+            productId: String(payload?.productId || defaultProductId),
+            status: String(payload?.status || "active"),
+            cycles: Array.isArray(prev?.cycles) ? prev.cycles : [],
+            elements: Array.isArray(prev?.elements) ? prev.elements : [],
+            imageUrl: String(payload?.imageUrl || ""),
+            meta: payload?.meta && typeof payload.meta === "object" ? payload.meta : (prev.meta || {}),
+          };
+          if (idx >= 0) app.jobs[idx] = next;
+          else app.jobs.push(next);
+          if (!app.activeJobId) app.activeJobId = id;
+        }
+        window.VMillData?.writeAppState?.(app);
+        return id;
+      }
+
+      function deleteAppRow(role, id) {
+        const rid = String(id || "");
+        if (!rid) return false;
+        const app = window.VMillData?.readAppState
+          ? (window.VMillData.readAppState({ seedIfMissing: true }) || { products: [], stations: [], jobs: [] })
+          : { products: [], stations: [], jobs: [] };
+        if (!Array.isArray(app.products)) app.products = [];
+        if (!Array.isArray(app.stations)) app.stations = [];
+        if (!Array.isArray(app.jobs)) app.jobs = [];
+        const roleKey = String(role || "").toLowerCase();
+        if (roleKey === "product") {
+          const before = app.products.length;
+          app.products = app.products.filter((x) => String(x?.id || "") !== rid);
+          for (const j of app.jobs) if (String(j?.productId || "") === rid) j.productId = "";
+          if (String(app.activeProductId || "") === rid) app.activeProductId = app.products[0]?.id || null;
+          if (before === app.products.length) return false;
+        } else if (roleKey === "station") {
+          const before = app.stations.length;
+          app.stations = app.stations.filter((x) => String(x?.id || "") !== rid);
+          for (const j of app.jobs) {
+            if (String(j?.stationId || "") === rid) j.stationId = "";
+            if (String(j?.nodeId || "") === rid) j.nodeId = "";
+          }
+          if (String(app.activeStationId || "") === rid) app.activeStationId = app.stations[0]?.id || null;
+          if (before === app.stations.length) return false;
+        } else if (roleKey === "job") {
+          const before = app.jobs.length;
+          app.jobs = app.jobs.filter((x) => String(x?.id || "") !== rid);
+          if (String(app.activeJobId || "") === rid) app.activeJobId = app.jobs[0]?.id || null;
+          if (before === app.jobs.length) return false;
+        } else {
+          return false;
+        }
+        window.VMillData?.writeAppState?.(app);
+        return true;
+      }
+
+      function flashSaved(msg = tt("shop.status.saved", "Saved ✓")) {
+        if (!saveFlash) return;
+        saveFlash.textContent = msg;
+        saveFlash.classList.add("show");
+        if (state.flashTimer) clearTimeout(state.flashTimer);
+        state.flashTimer = window.setTimeout(() => {
+          saveFlash.classList.remove("show");
+        }, 1400);
+      }
+
+      function emitTreeChanged(reason = "") {
+        window.CANBus?.emit("shop:tree:changed", { reason, typeId: state.selectedTypeId || "" }, "shop-tree");
+      }
+
+      function renderTree() {
+        if (state.loading) {
+          treeWrap.innerHTML = `<div class="empty">${esc(tt("shop.status.loading", "Loading..."))}</div>`;
+          return;
+        }
+        if (state.error) {
+          treeWrap.innerHTML = `<div class="empty">${esc(state.error)}</div>`;
+          return;
+        }
+        if (!state.types.length) {
+          treeWrap.innerHTML = `<div class="empty">${esc(tt("shop.empty.clickCreate", "No categories yet - click + Category to create your schema."))}</div>`;
+          return;
+        }
+
+        const typesById = new Map(state.types.map((x) => [String(x.id || ""), x]));
+        const { out, parentOf } = childMap();
+        const visible = searchVisibleSet();
+
+        const roots = state.types
+          .filter((t) => !parentOf.has(String(t.id || "")))
+          .sort((a, b) => String(a?.code || "").localeCompare(String(b?.code || "")) || String(a?.nameSingular || "").localeCompare(String(b?.nameSingular || "")));
+
+        const renderBranch = (typeId) => {
+          const rows = (out.get(String(typeId || "")) || [])
+            .map((id) => typesById.get(id))
+            .filter(Boolean)
+            .filter((t) => !visible || visible.has(String(t.id || "")))
+            .sort((a, b) => String(a?.code || "").localeCompare(String(b?.code || "")) || String(a?.nameSingular || "").localeCompare(String(b?.nameSingular || "")));
+          if (!rows.length) return "";
+          return `<ul>${rows.map((t) => {
+            const id = String(t.id || "");
+            const hasChild = (out.get(id) || []).some((cid) => !visible || visible.has(String(cid || "")));
+            const open = state.expanded.has(id);
+            const selected = id === String(state.selectedTypeId || "") ? " selected" : "";
+            const childHtml = hasChild && open ? renderBranch(id) : "";
+            const role = roleLabel(String(t.moduleRole || "custom"));
+            const dotClass = t.base ? "base" : "custom";
+            return `
+              <li>
+                <div class="treeNode${selected}" data-select-type="${esc(id)}">
+                  <div class="treeNodeMain">
+                    <button class="twisty" type="button" data-toggle-type="${esc(id)}">${hasChild ? (open ? "-" : "+") : "·"}</button>
+                    <span class="dot ${dotClass}"></span>
+                    <div class="nodeText">
+                      <div class="nodeName">${esc(typeLabel(t))}</div>
+                      <div class="tiny mono">${esc(id)} · ${esc(role)}</div>
+                    </div>
+                  </div>
+                  <div class="nodeActions">
+                    <button class="iconBtn" type="button" data-add-child="${esc(id)}">${esc(tt("shop.action.addChild", "+ Child"))}</button>
+                    <button class="iconBtn" type="button" data-rename-type="${esc(id)}">${esc(tt("shop.action.rename", "Rename"))}</button>
+                    <button class="iconBtn" type="button" data-delete-type="${esc(id)}">${esc(tt("shop.action.delete", "Delete"))}</button>
+                  </div>
+                </div>
+                ${childHtml}
+              </li>
+            `;
+          }).join("")}</ul>`;
+        };
+
+        const rows = roots.filter((t) => !visible || visible.has(String(t.id || "")));
+        if (!rows.length) {
+          treeWrap.innerHTML = `<div class="empty">${esc(tt("shop.empty.searchNone", "No results for current search."))}</div>`;
+          return;
+        }
+
+        treeWrap.innerHTML = `<div class="tree"><ul>${rows.map((t) => {
+          const id = String(t.id || "");
+          const hasChild = (out.get(id) || []).some((cid) => !visible || visible.has(String(cid || "")));
+          const open = state.expanded.has(id);
+          const selected = id === String(state.selectedTypeId || "") ? " selected" : "";
+          const role = roleLabel(String(t.moduleRole || "custom"));
+          const childHtml = hasChild && open ? renderBranch(id) : "";
+          const dotClass = t.base ? "base" : "custom";
+          return `
+            <li>
+              <div class="treeNode${selected}" data-select-type="${esc(id)}">
+                <div class="treeNodeMain">
+                  <button class="twisty" type="button" data-toggle-type="${esc(id)}">${hasChild ? (open ? "-" : "+") : "·"}</button>
+                  <span class="dot ${dotClass}"></span>
+                  <div class="nodeText">
+                    <div class="nodeName">${esc(typeLabel(t))}</div>
+                    <div class="tiny mono">${esc(id)} · ${esc(role)}</div>
+                  </div>
+                </div>
+                <div class="nodeActions">
+                  <button class="iconBtn" type="button" data-add-child="${esc(id)}">${esc(tt("shop.action.addChild", "+ Child"))}</button>
+                  <button class="iconBtn" type="button" data-rename-type="${esc(id)}">${esc(tt("shop.action.rename", "Rename"))}</button>
+                  <button class="iconBtn" type="button" data-delete-type="${esc(id)}">${esc(tt("shop.action.delete", "Delete"))}</button>
+                </div>
+              </div>
+              ${childHtml}
+            </li>
+          `;
+        }).join("")}</ul></div>`;
+      }
+
+      function renderDetail() {
+        const type = selectedType();
+        const typeOptions = (state.types || [])
+          .map((t) => `<option value="${esc(String(t.id || ""))}" ${String(t.id || "") === String(type?.id || "") ? "selected" : ""}>${esc(typeLabel(t))}</option>`)
+          .join("");
+
+        if (!type) {
+          detailWrap.innerHTML = `
+            <section class="section">
+              <div class="sectionHead">
+                <div class="sectionTitle">${esc(tt("shop.form.systemCategories", "System Categories"))}</div>
+                <div class="tiny">${esc(tt("shop.form.editCoreHint", "Edit Jobs, Stations, Products and custom categories here"))}</div>
+              </div>
+              <div class="row">
+                <button class="btn" id="newTypeBtn" type="button">${esc(tt("shop.action.addCategory", "+ Category"))}</button>
+              </div>
+              <div class="empty">${esc(tt("shop.empty.selectInTree", "Select one category in the tree."))}</div>
+            </section>
+          `;
+          return;
+        }
+
+        const currentRule = incomingRule(type.id);
+        const descendants = descendantsOf(type.id);
+        const parentOptions = [
+          `<option value="">${esc(tt("shop.option.root", "(root)"))}</option>`,
+          ...(state.types || [])
+            .filter((t) => String(t.id || "") !== String(type.id || "") && !descendants.has(String(t.id || "")))
+            .map((t) => `<option value="${esc(String(t.id || ""))}" ${String(currentRule?.parentTypeId || "") === String(t.id || "") ? "selected" : ""}>${esc(typeLabel(t))}</option>`),
+        ].join("");
+
+        const currentRole = String(type.moduleRole || "custom").toLowerCase();
+        const roleOptions = ["product", "station", "job", "custom"].map((role) => {
+          const selected = currentRole === role ? "selected" : "";
+          return `<option value="${role}" ${selected}>${esc(roleLabel(role))}</option>`;
+        }).join("");
+        const currentRelation = normalizeRelation(String(currentRule?.relation || "contains"));
+        const relationSel = relationOptions()
+          .map((rel) => `<option value="${esc(rel)}" ${rel === currentRelation ? "selected" : ""}>${esc(rel)}</option>`)
+          .join("");
+
+        const typeId = String(type.id || "");
+        const typeItems = listTypeItems(typeId);
+        const role = String(type.moduleRole || "custom").toLowerCase();
+        const isCore = role === "product" || role === "station" || role === "job";
+        const parentTypeId = String(currentRule?.parentTypeId || "");
+        const parentType = parentTypeId ? typeById(parentTypeId) : null;
+        const parentItems = parentTypeId ? listTypeItems(parentTypeId) : [];
+        const linksByRecordId = new Map();
+        if (parentTypeId) {
+          for (const link of (state.links || [])) {
+            if (String(link?.toTypeId || "") !== typeId) continue;
+            if (String(link?.fromTypeId || "") !== parentTypeId) continue;
+            const rid = String(link?.toId || "");
+            if (!rid || linksByRecordId.has(rid)) continue;
+            linksByRecordId.set(rid, String(link?.fromId || ""));
+          }
+        }
+        function parentAssignOptionsFor(selectedId = "") {
+          const sid = String(selectedId || "");
+          return [
+            `<option value="">${esc(tt("shop.option.none", "(none)"))}</option>`,
+            ...parentItems.map((row) => {
+              const id = String(row?.id || "");
+              const selected = sid && id === sid ? "selected" : "";
+              return `<option value="${esc(id)}" ${selected}>${esc(itemLabel(row))}</option>`;
+            }),
+          ].join("");
+        }
+        const parentAssignColumnTitle = parentTypeId
+          ? typeLabel(parentType || { nameSingular: tt("shop.form.parentCategory", "Parent category") })
+          : tt("shop.form.parentCategory", "Parent category");
+
+        function tableRecordRows(rows) {
+          if (!Array.isArray(rows) || !rows.length) {
+            return `<tr><td colspan="8"><div class="tiny">${esc(tt("shop.empty.noRecords", "No records"))}</div></td></tr>`;
+          }
+          return rows.map((raw) => {
+            const row = toUiItem(raw);
+            const rid = String(row.id || "");
+            const parentAssigned = String(linksByRecordId.get(rid) || "");
+            const parentSelect = parentTypeId
+              ? `<select data-record-field="parentAssign">${parentAssignOptionsFor(parentAssigned)}</select>`
+              : `<span class="tiny">${esc(tt("shop.empty.noParentRuleShort", "-"))}</span>`;
+
+            if (role === "job") {
+              const stationOpts = [`<option value="">${esc(tt("shop.option.none", "(none)"))}</option>`, ...(state.app.stations || []).map((x) => {
+                const id = String(x?.id || "");
+                const selected = id === String(raw?.stationId || raw?.nodeId || "") ? "selected" : "";
+                return `<option value="${esc(id)}" ${selected}>${esc(itemLabel(x))}</option>`;
+              })].join("");
+              const productOpts = [`<option value="">${esc(tt("shop.option.none", "(none)"))}</option>`, ...(state.app.products || []).map((x) => {
+                const id = String(x?.id || "");
+                const selected = id === String(raw?.productId || "") ? "selected" : "";
+                return `<option value="${esc(id)}" ${selected}>${esc(itemLabel(x))}</option>`;
+              })].join("");
+              const statusVal = String(raw?.status || "active");
+              return `
+                <tr data-record-id="${esc(rid)}">
+                  <td class="mono">${esc(rid)}</td>
+                  <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
+                  <td><select data-record-field="stationId">${stationOpts}</select></td>
+                  <td><select data-record-field="productId">${productOpts}</select></td>
+                  <td><select data-record-field="status">
+                    <option value="active" ${statusVal === "active" ? "selected" : ""}>active</option>
+                    <option value="paused" ${statusVal === "paused" ? "selected" : ""}>paused</option>
+                    <option value="archived" ${statusVal === "archived" ? "selected" : ""}>archived</option>
+                  </select></td>
+                  <td>${parentSelect}</td>
+                  <td><button class="recordDeleteBtn" type="button" data-record-delete-id="${esc(rid)}">${esc(tt("common.delete", "Delete"))}</button></td>
+                </tr>
+              `;
+            }
+
+            if (role === "product") {
+              const parentProductOpts = [`<option value="">${esc(tt("shop.option.none", "(none)"))}</option>`, ...(state.app.products || [])
+                .filter((x) => String(x?.id || "") !== rid)
+                .map((x) => {
+                  const id = String(x?.id || "");
+                  const selected = id === String(raw?.parentProductId || "") ? "selected" : "";
+                  return `<option value="${esc(id)}" ${selected}>${esc(itemLabel(x))}</option>`;
+                })].join("");
+              return `
+                <tr data-record-id="${esc(rid)}">
+                  <td class="mono">${esc(rid)}</td>
+                  <td><input data-record-field="code" type="text" value="${esc(String(raw?.code || ""))}" /></td>
+                  <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
+                  <td><select data-record-field="parentProductId">${parentProductOpts}</select></td>
+                  <td>${parentSelect}</td>
+                  <td><button class="recordDeleteBtn" type="button" data-record-delete-id="${esc(rid)}">${esc(tt("common.delete", "Delete"))}</button></td>
+                </tr>
+              `;
+            }
+
+            if (role === "station") {
+              return `
+                <tr data-record-id="${esc(rid)}">
+                  <td class="mono">${esc(rid)}</td>
+                  <td><input data-record-field="code" type="text" value="${esc(String(raw?.code || ""))}" /></td>
+                  <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
+                  <td>${parentSelect}</td>
+                  <td><button class="recordDeleteBtn" type="button" data-record-delete-id="${esc(rid)}">${esc(tt("common.delete", "Delete"))}</button></td>
+                </tr>
+              `;
+            }
+
+            return `
+              <tr data-record-id="${esc(rid)}">
+                <td class="mono">${esc(rid)}</td>
+                <td><input data-record-field="code" type="text" value="${esc(String(raw?.code || ""))}" /></td>
+                <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
+                <td>${parentSelect}</td>
+                <td><button class="recordDeleteBtn" type="button" data-record-delete-id="${esc(rid)}">${esc(tt("common.delete", "Delete"))}</button></td>
+              </tr>
+            `;
+          }).join("");
+        }
+
+        let recordSection = "";
+        if (isCore) {
+          const key = role === "product" ? "products" : (role === "station" ? "stations" : "jobs");
+          const rows = Array.isArray(state.app?.[key]) ? state.app[key] : [];
+
+          recordSection = `
+            <section class="section">
+              <div class="sectionHead">
+                <div class="sectionTitle">${esc(tt("shop.form.records", "Records"))}</div>
+                <div class="tiny">${esc(tt("shop.form.recordsInlineHint", "Inline edit: changes are saved automatically."))}</div>
+              </div>
+              <div class="row">
+                <button class="btn ghost" type="button" id="newItemBtn">${esc(tt("shop.action.addRecord", "+ Record"))}</button>
+              </div>
+              ${parentTypeId ? "" : `<div class="tiny">${esc(tt("shop.empty.noParentRule", "No parent category rule for this type. Set parent category above first."))}</div>`}
+              <div class="tableWrap">
+                <table class="recordsTable">
+                  <thead>
+                    ${role === "job" ? `
+                      <tr>
+                        <th>${esc(tt("common.id", "id"))}</th>
+                        <th>${esc(tt("shop.form.name", "Name"))}</th>
+                        <th>${esc(tt("shop.form.station", "Station"))}</th>
+                        <th>${esc(tt("shop.form.product", "Product"))}</th>
+                        <th>${esc(tt("shop.form.status", "Status"))}</th>
+                        <th>${esc(parentAssignColumnTitle)}</th>
+                        <th>${esc(tt("common.actions", "Actions"))}</th>
+                      </tr>
+                    ` : role === "product" ? `
+                      <tr>
+                        <th>${esc(tt("common.id", "id"))}</th>
+                        <th>${esc(tt("shop.form.code", "Code"))}</th>
+                        <th>${esc(tt("shop.form.name", "Name"))}</th>
+                        <th>${esc(tt("shop.form.parentProduct", "Parent product"))}</th>
+                        <th>${esc(parentAssignColumnTitle)}</th>
+                        <th>${esc(tt("common.actions", "Actions"))}</th>
+                      </tr>
+                    ` : `
+                      <tr>
+                        <th>${esc(tt("common.id", "id"))}</th>
+                        <th>${esc(tt("shop.form.code", "Code"))}</th>
+                        <th>${esc(tt("shop.form.name", "Name"))}</th>
+                        <th>${esc(parentAssignColumnTitle)}</th>
+                        <th>${esc(tt("common.actions", "Actions"))}</th>
+                      </tr>
+                    `}
+                  </thead>
+                  <tbody>
+                    ${tableRecordRows(rows)}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          `;
+        } else {
+          recordSection = `
+            <section class="section">
+              <div class="sectionHead">
+                <div class="sectionTitle">${esc(tt("shop.form.records", "Records"))}</div>
+                <div class="tiny">${esc(tt("shop.form.recordsInlineHint", "Inline edit: changes are saved automatically."))}</div>
+              </div>
+              <div class="row">
+                <button class="btn ghost" type="button" id="newItemBtn">${esc(tt("shop.action.addRecord", "+ Record"))}</button>
+              </div>
+              ${parentTypeId ? "" : `<div class="tiny">${esc(tt("shop.empty.noParentRule", "No parent category rule for this type. Set parent category above first."))}</div>`}
+              <div class="tableWrap">
+                <table class="recordsTable">
+                  <thead>
+                    <tr>
+                      <th>${esc(tt("common.id", "id"))}</th>
+                      <th>${esc(tt("shop.form.code", "Code"))}</th>
+                      <th>${esc(tt("shop.form.name", "Name"))}</th>
+                      <th>${esc(parentAssignColumnTitle)}</th>
+                      <th>${esc(tt("common.actions", "Actions"))}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${tableRecordRows(typeItems)}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          `;
+        }
+
+        detailWrap.innerHTML = `
+          <section class="section">
+            <div class="sectionHead">
+              <div class="sectionTitle">${esc(tt("shop.form.systemCategory", "System Category"))}</div>
+              <div class="tag">${type.base ? esc(tt("shop.tag.base", "base")) : esc(tt("shop.role.custom", "custom"))}</div>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label>${esc(tt("shop.category", "Category"))}</label>
+                <select id="typeSel">${typeOptions}</select>
+              </div>
+              <div class="field">
+                <label>${esc(tt("shop.form.name", "Name"))}</label>
+                <input id="typeNameIn" type="text" value="${esc(String(type.nameSingular || ""))}" />
+              </div>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label>${esc(tt("shop.form.parentCategory", "Parent category"))}</label>
+                <select id="typeParentSel">${parentOptions}</select>
+              </div>
+              <div class="field">
+                <label>${esc(tt("shop.form.parentRelation", "Parent relation"))}</label>
+                <select id="typeRelIn">${relationSel}</select>
+              </div>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label>${esc(tt("shop.form.role", "Role"))}</label>
+                <select id="typeRoleSel">${roleOptions}</select>
+              </div>
+              <div class="field">
+                <label>${esc(tt("common.id", "id"))}</label>
+                <input class="mono" type="text" value="${esc(String(type.id || ""))}" readonly />
+              </div>
+            </div>
+            <div class="row">
+              <button class="btn ghost" id="newTypeBtn" type="button">${esc(tt("shop.action.addCategory", "+ Category"))}</button>
+              <button class="btn ghost" id="newChildTypeBtn" type="button">${esc(tt("shop.action.addChild", "+ Child"))}</button>
+              <button class="btn" id="saveTypeBtn" type="button">${esc(tt("common.save", "Save"))}</button>
+              <button class="btn warn" id="deleteTypeBtn" type="button">${esc(tt("common.delete", "Delete"))}</button>
+            </div>
+            <div class="tiny">${esc(tt("shop.form.relationHelp", "This changes the global base model. Roles product/station/job are used by all modules."))}</div>
+          </section>
+          ${recordSection}
+        `;
+      }
+
+      function syncParentRule(typeId, parentTypeId, relation) {
+        if (!window.VMillData?.listStructureRules || !window.VMillData?.deleteStructureRule || !window.VMillData?.upsertStructureRule) return;
+        const childId = String(typeId || "");
+        const parentId = String(parentTypeId || "");
+        const rel = normalizeRelation(relation);
+        if (!childId) return;
+        const existing = window.VMillData.listStructureRules({ childTypeId: childId }) || [];
+        if (!parentId || parentId === childId) {
+          for (const row of existing) window.VMillData.deleteStructureRule(row.id);
+          return;
+        }
+        let keep = false;
+        for (const row of existing) {
+          const same = String(row?.parentTypeId || "") === parentId && String(row?.relation || "") === rel;
+          if (same) {
+            keep = true;
+            continue;
+          }
+          window.VMillData.deleteStructureRule(row.id);
+        }
+        if (!keep) {
+          window.VMillData.upsertStructureRule({
+            parentTypeId: parentId,
+            childTypeId: childId,
+            relation: rel,
+            label: `${parentId} ${rel} ${childId}`,
+          });
+        }
+      }
+
+      function findType(typeId) {
+        return (state.types || []).find((x) => String(x?.id || "") === String(typeId || "")) || null;
+      }
+
+      function remapCoreRole(selectedTypeId, wantedRole) {
+        const role = String(wantedRole || "custom").trim().toLowerCase();
+        const sid = String(selectedTypeId || "");
+        if (!sid) return;
+        const core = new Set(["product", "station", "job"]);
+        if (!core.has(role)) return;
+        for (const t of (state.types || [])) {
+          const tid = String(t?.id || "");
+          if (!tid || tid === sid) continue;
+          const trole = String(t?.moduleRole || "custom").trim().toLowerCase();
+          if (trole !== role) continue;
+          window.VMillData.upsertEntityType({
+            ...t,
+            id: tid,
+            moduleRole: "custom",
+            nameSingular: String(t?.nameSingular || tid),
+            namePlural: String(t?.namePlural || autoPluralName(String(t?.nameSingular || tid))),
+          });
+        }
+      }
+
+      async function createType(parentTypeId = "") {
+        const upsertType = window.VMillData?.upsertEntityType;
+        if (typeof upsertType !== "function") return;
+        const nameInput = prompt(tt("shop.prompt.name", "Category name:"), tt("shop.prompt.defaultName", "New Category"));
+        if (nameInput == null) return;
+        const name = String(nameInput || "").trim();
+        if (!name) return;
+        const out = upsertType({
+          nameSingular: name,
+          namePlural: autoPluralName(name),
+          moduleRole: "custom",
+        });
+        const typeId = String(out?.id || "");
+        if (!typeId) return;
+        syncParentRule(typeId, parentTypeId, "contains");
+        state.selectedTypeId = typeId;
+        state.expanded.add(String(parentTypeId || ""));
+        emitTreeChanged("type-create");
+        await loadAll({ silent: true });
+        flashSaved();
+      }
+
+      async function renameType(typeId) {
+        const row = findType(typeId);
+        if (!row) return;
+        const nextName = prompt(tt("shop.prompt.name", "Category name:"), String(row.nameSingular || ""));
+        if (nextName == null) return;
+        const name = String(nextName || "").trim();
+        if (!name) return;
+        const out = window.VMillData.upsertEntityType({
+          ...row,
+          id: row.id,
+          nameSingular: name,
+          namePlural: autoPluralName(name),
+          moduleRole: String(row.moduleRole || "custom"),
+        });
+        if (!out?.id) return;
+        state.selectedTypeId = String(out.id || row.id);
+        emitTreeChanged("type-rename");
+        await loadAll({ silent: true });
+        flashSaved();
+      }
+
+      async function saveTypeFromForm() {
+        const typeId = String(document.getElementById("typeSel")?.value || state.selectedTypeId || "");
+        const row = findType(typeId);
+        if (!row) return;
+        const name = String(document.getElementById("typeNameIn")?.value || row.nameSingular || "").trim();
+        if (!name) return;
+        const parentTypeId = String(document.getElementById("typeParentSel")?.value || "");
+        const relation = normalizeRelation(document.getElementById("typeRelIn")?.value || "contains");
+        const rowRole = String(row.moduleRole || "custom").trim().toLowerCase() || "custom";
+        const role = String(document.getElementById("typeRoleSel")?.value || rowRole).trim().toLowerCase() || "custom";
+        remapCoreRole(row.id, role);
+        const out = window.VMillData.upsertEntityType({
+          ...row,
+          id: row.id,
+          nameSingular: name,
+          namePlural: autoPluralName(name),
+          moduleRole: role,
+        });
+        if (!out?.id) return;
+        syncParentRule(String(out.id || row.id), parentTypeId, relation);
+        state.selectedTypeId = String(out.id || row.id);
+        emitTreeChanged("type-save");
+        await loadAll({ silent: true });
+        flashSaved();
+      }
+
+      async function deleteType(typeId) {
+        const id = String(typeId || state.selectedTypeId || "");
+        if (!id) return;
+        const row = findType(id);
+        if (!row) return;
+        if (!confirm(tt("shop.confirm.delete", "Delete category \"{name}\"?", { name: row.nameSingular || id }))) return;
+        const ok = !!window.VMillData.deleteEntityType?.(id);
+        if (!ok) {
+          alert(tt("shop.error.deleteBlockedDetails", "Delete blocked: category still required by data or by protected base role."));
+          return;
+        }
+        if (String(state.selectedTypeId || "") === id) state.selectedTypeId = "";
+        emitTreeChanged("type-delete");
+        await loadAll({ silent: true });
+        flashSaved(tt("shop.status.deleted", "Deleted ✓"));
+      }
+
+      async function createItemForType() {
+        const type = selectedType();
+        if (!type) return;
+        const role = String(type.moduleRole || "custom").toLowerCase();
+        if (role === "product" || role === "station" || role === "job") {
+          const id = upsertAppRow(role, {});
+          if (id) state.selectedItemByType[String(type.id || "")] = id;
+          emitTreeChanged("record-create");
+          await loadAll({ silent: true });
+          flashSaved();
+          return;
+        }
+        const out = window.VMillData?.upsertEntityItem?.({
+          typeId: String(type.id || ""),
+          code: "",
+          name: tt("shop.item.defaultName", "New Record"),
+        });
+        if (!out?.id) return;
+        state.selectedItemByType[String(type.id || "")] = String(out.id || "");
+        emitTreeChanged("record-create");
+        await loadAll({ silent: true });
+        flashSaved();
+      }
+
+      async function saveRecordInline(recordId, rowEl) {
+        const type = selectedType();
+        if (!type || !(rowEl instanceof HTMLElement)) return;
+        const typeId = String(type.id || "");
+        const role = String(type.moduleRole || "custom").toLowerCase();
+        const itemId = String(recordId || "");
+        if (!itemId) return;
+        const getVal = (field) => String(rowEl.querySelector(`[data-record-field="${field}"]`)?.value || "").trim();
+        const parentAssignedId = getVal("parentAssign");
+
+        if (role === "product" || role === "station" || role === "job") {
+          const payload = { id: itemId };
+          payload.name = getVal("name");
+          if (role !== "job") payload.code = getVal("code");
+          if (role === "product") payload.parentProductId = getVal("parentProductId");
+          if (role === "job") {
+            payload.stationId = getVal("stationId");
+            payload.nodeId = payload.stationId;
+            payload.productId = getVal("productId");
+            payload.status = getVal("status") || "active";
+          }
+          const savedId = upsertAppRow(role, payload);
+          if (!savedId) return;
+          applyParentAssignmentFor(typeId, String(savedId || ""), parentAssignedId);
+          emitTreeChanged("record-save-inline");
+          await loadAll({ silent: true });
+          flashSaved();
+          return;
+        }
+
+        const code = getVal("code");
+        const name = getVal("name");
+        const out = window.VMillData?.upsertEntityItem?.({
+          typeId,
+          id: itemId,
+          code,
+          name: name || code || tt("shop.item.defaultName", "New Record"),
+        });
+        if (!out?.id) return;
+        applyParentAssignmentFor(typeId, String(out.id || ""), parentAssignedId);
+        emitTreeChanged("record-save-inline");
+        await loadAll({ silent: true });
+        flashSaved();
+      }
+
+      async function deleteRecordById(recordId) {
+        const type = selectedType();
+        if (!type) return;
+        const typeId = String(type.id || "");
+        const role = String(type.moduleRole || "custom").toLowerCase();
+        const itemId = String(recordId || "");
+        if (!itemId) return;
+        if (!confirm(tt("shop.confirm.deleteRecord", "Delete selected record?"))) return;
+        let ok = false;
+        if (role === "product" || role === "station" || role === "job") {
+          ok = deleteAppRow(role, itemId);
+        } else {
+          ok = !!window.VMillData?.deleteEntityItem?.(typeId, itemId);
+        }
+        if (!ok) {
+          alert(tt("shop.error.deleteRecordBlocked", "Delete blocked for this record."));
+          return;
+        }
+        state.selectedItemByType[typeId] = "";
+        emitTreeChanged("record-delete");
+        await loadAll({ silent: true });
+        flashSaved(tt("shop.status.deleted", "Deleted ✓"));
+      }
+
+      function applyParentAssignmentFor(typeId, itemId, selectedParentId = "") {
+        const tid = String(typeId || "");
+        const iid = String(itemId || "");
+        if (!tid || !iid) return false;
+        const rule = incomingRule(tid);
+        const parentTypeId = String(rule?.parentTypeId || "");
+        if (!parentTypeId) return false;
+        const relation = normalizeRelation(String(rule?.relation || "contains"));
+        const parentId = String(selectedParentId || "");
+        const links = window.VMillData?.listEntityLinks?.({ toTypeId: tid, toId: iid }) || [];
+        for (const link of links) {
+          if (String(link?.fromTypeId || "") === parentTypeId) {
+            window.VMillData?.deleteEntityLink?.(String(link?.id || ""));
+          }
+        }
+        if (parentId) {
+          window.VMillData?.upsertEntityLink?.({
+            fromTypeId: parentTypeId,
+            fromId: parentId,
+            toTypeId: tid,
+            toId: iid,
+            relation,
+          });
+        }
+        return true;
+      }
+
+      function queueLoad(silent = true) {
+        state.loadSilent = state.loadSilent && !!silent;
+        if (state.loadTimer) return;
+        state.loadTimer = window.setTimeout(() => {
+          const runSilent = state.loadSilent;
+          state.loadTimer = 0;
+          state.loadSilent = true;
+          void loadAll({ silent: runSilent });
+        }, 90);
+      }
+
+      async function loadAll(opts = {}) {
+        const silent = opts && opts.silent === true;
+        if (!silent) {
+          state.loading = true;
+          state.error = "";
+          renderTree();
+        }
+        try {
+          const model = window.VMillData?.readStructureModel
+            ? window.VMillData.readStructureModel({ persist: false })
+            : { types: [], items: [], links: [], rules: [] };
+          const app = window.VMillData?.readAppState
+            ? (window.VMillData.readAppState({ seedIfMissing: true }) || { products: [], stations: [], jobs: [] })
+            : { products: [], stations: [], jobs: [] };
+          state.types = Array.isArray(model?.types) ? model.types.slice() : [];
+          state.items = Array.isArray(model?.items) ? model.items.slice() : [];
+          state.links = Array.isArray(model?.links) ? model.links.slice() : [];
+          state.rules = Array.isArray(model?.rules) ? model.rules.slice() : [];
+          state.app = {
+            products: Array.isArray(app?.products) ? app.products.slice() : [],
+            stations: Array.isArray(app?.stations) ? app.stations.slice() : [],
+            jobs: Array.isArray(app?.jobs) ? app.jobs.slice() : [],
+          };
+          if (!state.selectedTypeId || !state.types.some((x) => String(x?.id || "") === String(state.selectedTypeId || ""))) {
+            const defaultId = String(window.VMillData?.resolveEntityTypeIdByRole?.("product") || state.types[0]?.id || "");
+            state.selectedTypeId = defaultId;
+          }
+          for (const t of state.types) {
+            const id = String(t?.id || "");
+            if (id) state.expanded.add(id);
+          }
+          state.error = "";
+        } catch (err) {
+          state.error = String(err?.message || tt("shop.error.load", "Failed to load structure model."));
+        } finally {
+          state.loading = false;
+          renderTree();
+          renderDetail();
+        }
+      }
+
+      treeWrap.addEventListener("click", async (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+
+        const toggleId = target.closest("[data-toggle-type]")?.getAttribute("data-toggle-type") || "";
+        if (toggleId) {
+          if (state.expanded.has(toggleId)) state.expanded.delete(toggleId);
+          else state.expanded.add(toggleId);
+          renderTree();
+          return;
+        }
+
+        const addChildId = target.closest("[data-add-child]")?.getAttribute("data-add-child") || "";
+        if (addChildId) {
+          await createType(addChildId);
+          return;
+        }
+
+        const renameId = target.closest("[data-rename-type]")?.getAttribute("data-rename-type") || "";
+        if (renameId) {
+          await renameType(renameId);
+          return;
+        }
+
+        const deleteId = target.closest("[data-delete-type]")?.getAttribute("data-delete-type") || "";
+        if (deleteId) {
+          await deleteType(deleteId);
+          return;
+        }
+
+        const selectId = target.closest("[data-select-type]")?.getAttribute("data-select-type") || "";
+        if (selectId) {
+          state.selectedTypeId = selectId;
+          renderTree();
+          renderDetail();
+        }
+      });
+
+      detailWrap.addEventListener("click", async (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+
+        if (target.id === "newTypeBtn") { await createType(""); return; }
+        if (target.id === "newChildTypeBtn") { await createType(state.selectedTypeId); return; }
+        if (target.id === "saveTypeBtn") { await saveTypeFromForm(); return; }
+        if (target.id === "deleteTypeBtn") { await deleteType(state.selectedTypeId); return; }
+        if (target.id === "newItemBtn") { await createItemForType(); return; }
+        const deleteRecordId = String(target.closest("[data-record-delete-id]")?.getAttribute("data-record-delete-id") || "");
+        if (deleteRecordId) {
+          await deleteRecordById(deleteRecordId);
+          return;
+        }
+      });
+
+      detailWrap.addEventListener("change", async (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (target.id === "typeSel") {
+          state.selectedTypeId = String(document.getElementById("typeSel")?.value || "");
+          renderTree();
+          renderDetail();
+          return;
+        }
+        if (target.hasAttribute("data-record-field")) {
+          const rowEl = target.closest("tr[data-record-id]");
+          const rowId = String(rowEl?.getAttribute("data-record-id") || "");
+          if (!rowId || !(rowEl instanceof HTMLElement)) return;
+          await saveRecordInline(rowId, rowEl);
+        }
+      });
+
+      detailWrap.addEventListener("keydown", (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (!target.hasAttribute("data-record-field")) return;
+        if (e.key !== "Enter") return;
+        if (target instanceof HTMLTextAreaElement) return;
+        e.preventDefault();
+        target.blur();
+      });
+
+      addRootBtn?.addEventListener("click", async () => { await createType(""); });
+      refreshBtn?.addEventListener("click", async () => { await loadAll(); });
+      openHubBtn?.addEventListener("click", () => { location.href = "./vmill_hub.html"; });
+      searchIn?.addEventListener("input", () => {
+        state.search = String(searchIn.value || "");
+        renderTree();
+      });
+
+      window.CANBus?.onMessage((msg) => {
+        const type = String(msg?.type || "");
+        if (type === "data:sync:status") return;
+        if (type === "data:module:updated" || type === "data:app:updated" || type === "shop:tree:changed") {
+          queueLoad(true);
+        }
+      });
+
+      window.addEventListener("storage", (e) => {
+        const k = String(e.key || "");
+        if (k === "vmill:auth:token" && !window.VMillAuth?.isLoggedIn?.()) {
+          location.replace("./login.html");
+          return;
+        }
+        if (k === "vmill:module-data:v1" || k === "vmill:app-state:v1") {
+          queueLoad(true);
+        }
+      });
+
+      applyTexts();
+      applyTheme();
+      window.addEventListener("vmill:theme:changed", applyTheme);
+      window.addEventListener("vmill:lang:changed", () => {
+        applyTexts();
+        renderTree();
+        renderDetail();
+      });
+
+      await loadAll();
+    });
+  </script>
+</body>
+</html>

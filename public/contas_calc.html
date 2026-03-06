@@ -20,6 +20,7 @@
       --bad-rgb:255,138,138;
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
       margin: 0;
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
@@ -27,12 +28,16 @@
       background:
         radial-gradient(980px 540px at 10% -12%, rgba(var(--accent-rgb), .18), transparent 62%),
         linear-gradient(180deg,var(--bg),color-mix(in srgb, var(--bg) 84%, #000));
-      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
     .wrap {
-      max-width: 1200px;
-      margin: 0 auto;
+      width: 100%;
+      max-width: none;
+      margin: 0;
       padding: 16px 14px 24px;
+      min-height: 100dvh;
     }
     .hero {
       display: flex;

@@ -19,7 +19,12 @@
       color:var(--text); background:var(--bg);
     }
     *{box-sizing:border-box;}
-    body{margin:0; zoom:var(--ui-scale);}
+    body{
+      margin:0;
+      zoom:var(--ui-scale);
+      overflow-x:hidden;
+      overflow-y:auto;
+    }
     header{
       padding:14px 16px; border-bottom:1px solid var(--border);
       position:sticky; top:0; background:var(--header-bg); color:var(--header-text); backdrop-filter: blur(10px);
@@ -96,8 +101,9 @@
     #leftPanelSection{
       display:flex;
       flex-direction:column;
-      max-height:calc(100dvh - 96px);
-      overflow:hidden;
+      min-height:calc(100dvh - 96px);
+      max-height:none;
+      overflow:visible;
       align-self:start;
     }
     #stationsList{
@@ -107,6 +113,12 @@
       padding-right:2px;
     }
     body.sidebarHidden #leftPanelSection{display:none;}
+    body.hubScopeOnly #leftPanelSection{display:none !important;}
+    body.hubScopeOnly main.layout{grid-template-columns:1fr !important;}
+    body.hubScopeOnly #timelineScopeRow{display:none !important;}
+    body.hubScopeOnly #jobQuickSwitchWrap{display:none !important;}
+    body.hubScopeOnly [data-panel-toggle="jobs"],
+    body.hubScopeOnly #toggleLeftPanelBtn{display:none !important;}
     @media(min-width:1040px){ body.sidebarHidden .layout{grid-template-columns:1fr;} }
 
     .card{
@@ -822,7 +834,7 @@
             <button id="videoLibRefreshBtn" type="button">Refresh list</button>
           </div>
           <div style="margin-top:8px;">
-            <video id="videoEl" controls style="width:100%; border:1px solid var(--border); border-radius:12px; background:#000;"></video>
+            <video id="videoEl" controls style="width:100%; border:1px solid var(--border); border-radius:12px; background:var(--bg);"></video>
           </div>
           <div style="margin-top:8px;">
             <label>Video timeline</label>
@@ -946,7 +958,7 @@
         </div>
 
         <!-- Row 2: Scope selectors -->
-        <div class="toolbarGroup">
+        <div class="toolbarGroup" id="timelineScopeRow">
           <span class="toolbarLabel">Scope</span>
           <select id="timelineProductSel" class="miniSelect timelineFilterSelect" title="Filter timeline by product"></select>
           <select id="timelineStationSel" class="miniSelect timelineFilterSelect" title="Switch active station for timeline"></select>
@@ -1080,7 +1092,7 @@
         <div class="drawerSecBody">
           <div class="row">
             <!-- Job quick-switch -->
-            <div>
+            <div id="jobQuickSwitchWrap">
               <label id="lblActiveJob">Active job</label>
               <select id="jobSwitchSel" title="Switch to a different job instantly"></select>
             </div>
@@ -1331,6 +1343,13 @@
   const VIDEO_BOOKMARKS_KEY = "chrono_video_bookmarks_v1";
   const launchParams = new URLSearchParams(window.location.search || "");
   let launchRouteApplied = false;
+  const IN_HUB_WORKSPACE = (() => {
+    try {
+      return window.self !== window.top && /vmill_hub\.html/i.test(String(window.top?.location?.pathname || ""));
+    } catch {
+      return window.self !== window.top;
+    }
+  })();
   const LANG_STORAGE_KEY = "chrono_ui_lang_v1";
   const I18N_INDEX_URL = "./i18n/index.json";
   const $ = (id) => document.getElementById(id);
@@ -1343,6 +1362,9 @@
   };
   applyGlobalTheme();
   window.addEventListener("vmill:theme:changed", applyGlobalTheme);
+  if (IN_HUB_WORKSPACE) {
+    document.body.classList.add("hubScopeOnly");
+  }
 
   const EN_STRINGS = {
     "title": "Chrono Study",
@@ -1376,6 +1398,17 @@
     "videoMode": "Video capture",
     "singleAction": "Single action",
     "videoFile": "Video file",
+    "videoLibraryLabel": "Recorded videos + bookmarks",
+    "videoLoadBookmarks": "Load bookmarks",
+    "videoDeleteEntry": "Delete entry",
+    "videoRefreshList": "Refresh list",
+    "videoNoneOption": "(none)",
+    "videoRecordedTitle": "Recorded video",
+    "videoMarksSuffix": "marks",
+    "videoEntryNotFound": "Video bookmarks entry not found.",
+    "selectJobWithElements": "Select a job with elements first.",
+    "videoNoCompatibleBookmarks": "No compatible bookmarks for current job.",
+    "videoBookmarksLoaded": "Loaded {count} bookmark(s). Load the matching video file if needed.",
     "videoAction": "Video action",
     "selectedAction": "Selected action",
     "videoTimeline": "Video timeline",
@@ -1417,6 +1450,11 @@
     "kpi": "KPI",
     "timeline": "Timeline graph (stacked bars)",
     "timelineEditHint": "Graph edit: drag a segment to move, drag right edge to resize. Same lane = same base level.",
+    "startS": "Start s",
+    "durS": "Dur s",
+    "endS": "End s",
+    "timelineNumHint": "Shift = x10 step · Alt = x0.1 step",
+    "resetStart": "Reset start",
     "timelineSameBase": "Timeline same base",
     "cycles": "Cycles",
     "selected": "Selected",
@@ -1446,6 +1484,7 @@
     "delete": "Delete",
     "elements": "Elements",
     "elementName": "Element name",
+    "action": "Action",
     "type": "Type",
     "add": "Add",
     "up": "Up",
@@ -1492,6 +1531,34 @@
     "noCyclesRecorded": "No cycles recorded.",
     "allCyclesFiltered": "All cycles",
     "filtered": "filtered",
+    "timerRunningSwitchJob": "Timer running. Switch job and stop current cycle?",
+    "timerRunningLeaveScope": "Timer running. Leave current scope and stop current cycle?",
+    "elementNameRequired": "Element name required.",
+    "unknownActionType": "Unknown action type: {type}",
+    "selectElementRowFirst": "Select an element row first.",
+    "deleteSelectedElementConfirm": "Delete selected element?",
+    "clearAllCyclesConfirm": "Clear all cycles for \"{name}\"?",
+    "deleteCycleConfirm": "Delete this cycle?",
+    "importFailedPrefix": "Import failed:",
+    "invalidBackupFormat": "Invalid backup format.",
+    "noActionData": "No action data.",
+    "popupBlocked": "Popup blocked.",
+    "typeIdRequired": "Type ID required.",
+    "deleteActionTypeConfirm": "Delete action type \"{id}\"?",
+    "needOneActionType": "Need at least one action type.",
+    "selectRecordedEntryFirst": "Select a recorded entry first.",
+    "deleteRecordedBookmarksEntryConfirm": "Delete this recorded bookmarks entry?",
+    "yes": "Yes",
+    "no": "No",
+    "legendMore": "... +{count} more",
+    "legendAvgBoundaries": "Avg boundaries",
+    "legendOutlierOutline": "Outlier outline",
+    "reportTitle": "Chrono KPI Report",
+    "reportGenerated": "Generated",
+    "reportCyclesFiltered": "Cycles (filtered)",
+    "reportTime": "Time",
+    "reportNoKpiData": "No KPI data.",
+    "reportActionAverages": "Action averages",
   };
   const FR_INLINE_STRINGS = {
     "title": "Etude Chrono",
@@ -1525,6 +1592,17 @@
     "videoMode": "Capture video",
     "singleAction": "Action unique",
     "videoFile": "Fichier video",
+    "videoLibraryLabel": "Videos enregistrees + marqueurs",
+    "videoLoadBookmarks": "Charger marqueurs",
+    "videoDeleteEntry": "Supprimer entree",
+    "videoRefreshList": "Rafraichir liste",
+    "videoNoneOption": "(aucun)",
+    "videoRecordedTitle": "Video enregistree",
+    "videoMarksSuffix": "marques",
+    "videoEntryNotFound": "Entree de marqueurs video introuvable.",
+    "selectJobWithElements": "Selectionnez d'abord un job avec des elements.",
+    "videoNoCompatibleBookmarks": "Aucun marqueur compatible pour ce job.",
+    "videoBookmarksLoaded": "{count} marqueur(s) charges. Chargez la video correspondante si besoin.",
     "videoAction": "Action video",
     "selectedAction": "Action selectionnee",
     "videoTimeline": "Timeline video",
@@ -1566,6 +1644,11 @@
     "kpi": "KPI",
     "timeline": "Timeline (barres empilees)",
     "timelineEditHint": "Edition graphe: glisser pour deplacer, bord droit pour redimensionner. Meme lane = meme niveau de base.",
+    "startS": "Debut s",
+    "durS": "Duree s",
+    "endS": "Fin s",
+    "timelineNumHint": "Shift = pas x10 · Alt = pas x0.1",
+    "resetStart": "Reset debut",
     "timelineSameBase": "Timeline meme base",
     "cycles": "Cycles",
     "selected": "Selection",
@@ -1595,6 +1678,7 @@
     "delete": "Supprimer",
     "elements": "Elements",
     "elementName": "Nom element",
+    "action": "Action",
     "type": "Type",
     "add": "Ajouter",
     "up": "Monter",
@@ -1641,6 +1725,34 @@
     "noCyclesRecorded": "Aucun cycle enregistre.",
     "allCyclesFiltered": "Tous cycles",
     "filtered": "filtres",
+    "timerRunningSwitchJob": "Chrono actif. Changer de job et stopper le cycle courant ?",
+    "timerRunningLeaveScope": "Chrono actif. Quitter le scope courant et stopper le cycle ?",
+    "elementNameRequired": "Nom d'element requis.",
+    "unknownActionType": "Type d'action inconnu : {type}",
+    "selectElementRowFirst": "Selectionnez d'abord une ligne element.",
+    "deleteSelectedElementConfirm": "Supprimer l'element selectionne ?",
+    "clearAllCyclesConfirm": "Effacer tous les cycles pour \"{name}\" ?",
+    "deleteCycleConfirm": "Supprimer ce cycle ?",
+    "importFailedPrefix": "Import echoue :",
+    "invalidBackupFormat": "Format de sauvegarde invalide.",
+    "noActionData": "Aucune donnee d'action.",
+    "popupBlocked": "Popup bloquee.",
+    "typeIdRequired": "ID type requis.",
+    "deleteActionTypeConfirm": "Supprimer le type d'action \"{id}\" ?",
+    "needOneActionType": "Il faut au moins un type d'action.",
+    "selectRecordedEntryFirst": "Selectionnez d'abord une entree enregistree.",
+    "deleteRecordedBookmarksEntryConfirm": "Supprimer cette entree de bookmarks enregistree ?",
+    "yes": "Oui",
+    "no": "Non",
+    "legendMore": "... +{count} de plus",
+    "legendAvgBoundaries": "Bornes moyennes",
+    "legendOutlierOutline": "Contour valeurs anormales",
+    "reportTitle": "Rapport KPI Chrono",
+    "reportGenerated": "Genere",
+    "reportCyclesFiltered": "Cycles (filtres)",
+    "reportTime": "Temps",
+    "reportNoKpiData": "Aucune donnee KPI.",
+    "reportActionAverages": "Moyennes actions",
   };
   let i18nCatalogs = {
     en: { code: "en", name: "English", translations: EN_STRINGS },
@@ -1673,6 +1785,28 @@
       }
     } catch {}
   }
+  function roleLabels(role, fallbackSingular = "", fallbackPlural = "") {
+    if (typeof window.VMillData?.getRoleLabels === "function") {
+      const out = window.VMillData.getRoleLabels(role, fallbackSingular, fallbackPlural);
+      return {
+        singular: String(out?.singular || fallbackSingular || role || ""),
+        plural: String(out?.plural || fallbackPlural || `${fallbackSingular || role || ""}s`),
+      };
+    }
+    const row = typeof window.VMillData?.resolveEntityTypeByRole === "function"
+      ? window.VMillData.resolveEntityTypeByRole(role)
+      : null;
+    const singular = String(row?.nameSingular || fallbackSingular || role || "");
+    const plural = String(row?.namePlural || fallbackPlural || (singular ? `${singular}s` : ""));
+    return { singular, plural };
+  }
+  function appEntityNames() {
+    return {
+      product: roleLabels("product", t("productDefault", "Product"), "Products"),
+      station: roleLabels("station", t("station", "Station"), "Stations"),
+      job: roleLabels("job", t("job", "Job"), "Jobs"),
+    };
+  }
   function applyI18nStatic() {
     const setText = (selector, key, fallback) => {
       const el = document.querySelector(selector);
@@ -1684,6 +1818,7 @@
     };
     const h1 = document.querySelector("header h1");
     if (h1) h1.textContent = t("title", "Chrono Study");
+    const names = appEntityNames();
     const hdrSub = document.querySelector("header .sub");
     if (hdrSub) hdrSub.textContent = "";
     const savePill = $("savePill");
@@ -1693,9 +1828,11 @@
     const leftBtn = $("toggleLeftPanelBtn");
     if (leftBtn) leftBtn.textContent = state?.ui?.leftPanelVisible ? t("hideJobs", "Hide Jobs") : t("showJobs", "Show Jobs");
     const stTitle = document.querySelector("#leftPanelSection [data-panel-hdr='jobsSidebar'] .panelHdrTitle");
-    if (stTitle) stTitle.textContent = t("stationJob", "Products / Stations / Jobs");
-    setText("#sidebarProductLbl", "sidebarProduct", "Product");
-    setText("#sidebarStationLbl", "sidebarStation", "Station");
+    if (stTitle) stTitle.textContent = `${names.product.plural} / ${names.station.plural} / ${names.job.plural}`;
+    const sidebarProdLbl = $("sidebarProductLbl");
+    if (sidebarProdLbl) sidebarProdLbl.textContent = names.product.singular;
+    const sidebarStationLbl = $("sidebarStationLbl");
+    if (sidebarStationLbl) sidebarStationLbl.textContent = names.station.singular;
     setText("#clearSearchBtn", "clear", "Clear");
     setPlaceholder("#searchBox", "searchPh", "Search product/station/job...");
     const tTitle = document.querySelector("#jobHeader")?.parentElement?.querySelector(".title");
@@ -1717,6 +1854,11 @@
     if (singleLbl) singleLbl.textContent = t("singleAction", "Single action");
     const videoFileLbl = $("videoFile")?.closest("div")?.querySelector("label");
     if (videoFileLbl) videoFileLbl.textContent = t("videoFile", "Video file");
+    const videoLibLbl = $("videoLibSel")?.closest("div")?.querySelector("label");
+    if (videoLibLbl) videoLibLbl.textContent = t("videoLibraryLabel", "Recorded videos + bookmarks");
+    setText("#videoLibLoadBtn", "videoLoadBookmarks", "Load bookmarks");
+    setText("#videoLibDeleteBtn", "videoDeleteEntry", "Delete entry");
+    setText("#videoLibRefreshBtn", "videoRefreshList", "Refresh list");
     const videoTimelineLbl = $("videoTimeline")?.parentElement?.querySelector("label");
     if (videoTimelineLbl) videoTimelineLbl.textContent = t("videoTimeline", "Video timeline");
     const actionText = $("videoActionText");
@@ -1727,6 +1869,15 @@
     setText("#videoApplyBtn", "createCycleFromMarkers", "Create cycle from markers");
     setText("#videoClearBtn", "clearMarkers", "Clear markers");
     setText("#videoAutoStackBtn", "applyStack", "Apply stack");
+    const tlStartLbl = $("tlEdStart")?.closest("div")?.querySelector("label");
+    if (tlStartLbl) tlStartLbl.textContent = t("startS", "Start s");
+    const tlDurLbl = $("tlEdDur")?.closest("div")?.querySelector("label");
+    if (tlDurLbl) tlDurLbl.textContent = t("durS", "Dur s");
+    const tlEndLbl = $("tlEdEnd")?.closest("div")?.querySelector("label");
+    if (tlEndLbl) tlEndLbl.textContent = t("endS", "End s");
+    const tlHint = document.querySelector(".timelineNumHint");
+    if (tlHint) tlHint.textContent = t("timelineNumHint", "Shift = x10 step · Alt = x0.1 step");
+    setText("#tlEdResetStartBtn", "resetStart", "Reset start");
     const stackLbl = $("videoStackRulesChk")?.parentElement;
     if (stackLbl) {
       const txtNode = stackLbl.childNodes[stackLbl.childNodes.length - 1];
@@ -1792,7 +1943,7 @@
     // Job section labels — use id-based selectors to be robust
     setText("#lblActiveJob", "activeJob", "Active job");
     const jsl = $("jobStationSelect")?.closest("div")?.querySelector("label");
-    if (jsl) jsl.textContent = t("station", "Station");
+    if (jsl) jsl.textContent = names.station.singular;
     const jnl = $("jobName")?.closest("div")?.querySelector("label");
     if (jnl) jnl.textContent = t("jobName", "Job name");
     const apl = $("allowancePct")?.closest("div")?.querySelector("label");
@@ -1800,10 +1951,11 @@
     const rpl = $("ratingPct")?.closest("div")?.querySelector("label");
     if (rpl) rpl.textContent = t("ratingPct", "Rating %");
     const ppl = $("jobProductSelect")?.closest("div")?.querySelector("label");
-    if (ppl) ppl.textContent = t("product", "Product");
+    if (ppl) ppl.textContent = names.product.singular;
     const scl = $("stationCodeView")?.closest("div")?.querySelector("label");
     if (scl) scl.textContent = t("stationCode", "Station code");
-    setText("#jobScopeHint", "jobScopeHint", "Create/edit products, stations, and jobs in Hub. Chrono uses global scope and records cycle timings.");
+    const jobScopeHint = $("jobScopeHint");
+    if (jobScopeHint) jobScopeHint.textContent = t("jobScopeHint", "Create/edit products, stations, and jobs in Hub. Chrono uses global scope and records cycle timings.");
     const enl = $("elName")?.closest("div")?.querySelector("label");
     if (enl) enl.textContent = t("elementName", "Element name");
     const etl = $("elType")?.closest("div")?.querySelector("label");
@@ -2693,15 +2845,15 @@
       const tb = Date.parse(b.createdAt || "") || 0;
       return tb - ta;
     });
-    sel.innerHTML = `<option value="">(none)</option>`;
+    sel.innerHTML = `<option value="">${esc(t("videoNoneOption", "(none)"))}</option>`;
     for (const e of entries) {
       const id = String(e.id || "");
-      const title = String(e.title || e.jobName || "Recorded video");
-      const t = e.createdAt ? new Date(e.createdAt).toLocaleString() : "";
+      const title = String(e.title || e.jobName || t("videoRecordedTitle", "Recorded video"));
+      const createdAtText = e.createdAt ? new Date(e.createdAt).toLocaleString() : "";
       const cnt = Array.isArray(e.bookmarks) ? e.bookmarks.length : 0;
       const opt = document.createElement("option");
       opt.value = id;
-      opt.textContent = `${title} · ${cnt} marks${t ? " · " + t : ""}`;
+      opt.textContent = `${title} · ${cnt} ${t("videoMarksSuffix", "marks")}${createdAtText ? " · " + createdAtText : ""}`;
       sel.appendChild(opt);
     }
     if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
@@ -2724,9 +2876,9 @@
     if (!id) return;
     const entries = loadVideoBookmarksLibrary();
     const entry = entries.find((e) => String(e.id || "") === id);
-    if (!entry) return alert("Video bookmarks entry not found.");
+    if (!entry) return alert(t("videoEntryNotFound", "Video bookmarks entry not found."));
     const job = getActiveJob();
-    if (!job || !job.elements?.length) return alert("Select a job with elements first.");
+    if (!job || !job.elements?.length) return alert(t("selectJobWithElements", "Select a job with elements first."));
     const marks = Array.isArray(entry.bookmarks) ? entry.bookmarks : [];
     const loaded = [];
     for (let i = 0; i < marks.length; i++) {
@@ -2742,13 +2894,13 @@
         endSec: quantizeSec(endMs / 1000),
       });
     }
-    if (!loaded.length) return alert("No compatible bookmarks for current job.");
+    if (!loaded.length) return alert(t("videoNoCompatibleBookmarks", "No compatible bookmarks for current job."));
     videoCapture.markers = loaded;
     videoCapture.openByElementId = {};
     videoCapture.editMarkerId = "";
     renderVideoMarkersList();
     syncVideoTimeline();
-    alert(`Loaded ${loaded.length} bookmark(s). Load the matching video file if needed.`);
+    alert(t("videoBookmarksLoaded", "Loaded {count} bookmark(s). Load the matching video file if needed.").replace("{count}", String(loaded.length)));
   }
 
   function loadVideoFile(file) {
@@ -2890,14 +3042,14 @@
           <td class="mono">${i + 1}</td>
           <td>${esc(name)}</td>
           <td><input class="videoNum mono" type="number" step="${qStep}" min="0" ${maxAttr} value="${s.toFixed(secDec)}" data-vs="${esc(m.id)}" inputmode="decimal" enterkeyhint="done" /></td>
-          <td><input class="videoNum mono" type="number" step="${qStep}" min="0" ${maxAttr} value="${e == null ? "" : e.toFixed(secDec)}" data-ve="${esc(m.id)}" inputmode="decimal" enterkeyhint="done" placeholder="end" /></td>
+          <td><input class="videoNum mono" type="number" step="${qStep}" min="0" ${maxAttr} value="${e == null ? "" : e.toFixed(secDec)}" data-ve="${esc(m.id)}" inputmode="decimal" enterkeyhint="done" placeholder="${esc(t("endS", "End s"))}" /></td>
           <td class="mono">${durTxt}</td>
           <td class="mono">${waitTxt}</td>
           <td>
             <div class="videoAdjustBtns">
-              <button class="videoMiniBtn mono" type="button" data-vns="${esc(m.id)}">S<-Now</button>
-              <button class="videoMiniBtn mono" type="button" data-vne="${esc(m.id)}">E<-Now</button>
-              <button class="videoMiniBtn danger mono" type="button" data-vdel="${esc(m.id)}">Del</button>
+              <button class="videoMiniBtn mono" type="button" data-vns="${esc(m.id)}">${esc(t("startS", "Start s"))}<-Now</button>
+              <button class="videoMiniBtn mono" type="button" data-vne="${esc(m.id)}">${esc(t("endS", "End s"))}<-Now</button>
+              <button class="videoMiniBtn danger mono" type="button" data-vdel="${esc(m.id)}">${esc(t("delete", "Delete"))}</button>
             </div>
           </td>
         </tr>
@@ -2909,12 +3061,12 @@
           <thead>
             <tr>
               <th style="width:40px;">#</th>
-              <th>Action</th>
-              <th style="width:98px;">Start s</th>
-              <th style="width:98px;">End s</th>
-              <th style="width:92px;">Dur</th>
-              <th style="width:92px;">Wait</th>
-              <th style="width:210px;">Adjust</th>
+              <th>${esc(t("action", "Action"))}</th>
+              <th style="width:98px;">${esc(t("startS", "Start s"))}</th>
+              <th style="width:98px;">${esc(t("endS", "End s"))}</th>
+              <th style="width:92px;">${esc(t("durS", "Dur s"))}</th>
+              <th style="width:92px;">${esc(t("wait", "Wait"))}</th>
+              <th style="width:210px;">${esc(t("edit", "Edit"))}</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -3368,7 +3520,7 @@
   // ----- CRUD elements / cycles -----
   function selectJob(jobId) {
     if (timer.mode === TimerMode.Running) {
-      if (!confirm("Timer running. Switch job and stop current cycle?")) return;
+      if (!confirm(t("timerRunningSwitchJob", "Timer running. Switch job and stop current cycle?"))) return;
       stopCycle();
     }
     const nextJob = state.jobs.find((j) => j.id === jobId) || null;
@@ -3382,11 +3534,11 @@
   }
 
   function addElement() {
-    const job = getActiveJob(); if (!job) return alert("Select a job first.");
+    const job = getActiveJob(); if (!job) return alert(t("selectJob", "Select a job first."));
     const name = $("elName").value.trim();
     const type = String($("elType").value || "").toUpperCase();
-    if (!name) return alert("Element name required.");
-    if (!actionTypeMap().has(type)) return alert(`Unknown action type: ${type}`);
+    if (!name) return alert(t("elementNameRequired", "Element name required."));
+    if (!actionTypeMap().has(type)) return alert(t("unknownActionType", "Unknown action type: {type}").replace("{type}", String(type)));
     const el = { id: uuid(), name, type };
     job.elements.push(el);
     selectedElementId = el.id;
@@ -3395,17 +3547,17 @@
   }
   function deleteSelectedElement() {
     const job = getActiveJob(); if (!job) return;
-    if (!selectedElementId) return alert("Select an element row first.");
+    if (!selectedElementId) return alert(t("selectElementRowFirst", "Select an element row first."));
     const idx = job.elements.findIndex(e => e.id === selectedElementId);
     if (idx < 0) return;
-    if (!confirm("Delete selected element?")) return;
+    if (!confirm(t("deleteSelectedElementConfirm", "Delete selected element?"))) return;
     job.elements.splice(idx, 1);
     selectedElementId = null;
     saveState(); renderAll();
   }
   function moveSelectedElement(dir) {
     const job = getActiveJob(); if (!job) return;
-    if (!selectedElementId) return alert("Select an element row first.");
+    if (!selectedElementId) return alert(t("selectElementRowFirst", "Select an element row first."));
     const idx = job.elements.findIndex(e => e.id === selectedElementId);
     if (idx < 0) return;
     const j = idx + dir;
@@ -3417,7 +3569,7 @@
   // ----- cycles -----
   function clearJobCycles() {
     const job = getActiveJob(); if (!job) return;
-    if (!confirm(`Clear all cycles for "${job.name}"?`)) return;
+    if (!confirm(t("clearAllCyclesConfirm", `Clear all cycles for "{name}"?`).replace("{name}", String(job.name || "")))) return;
     job.cycles = [];
     selectedCycleId = null;
     selectedCycleIdsForLine = new Set();
@@ -3428,7 +3580,7 @@
     const job = getActiveJob(); if (!job) return;
     const idx = job.cycles.findIndex(c => c.id === cycleId);
     if (idx < 0) return;
-    if (!confirm("Delete this cycle?")) return;
+    if (!confirm(t("deleteCycleConfirm", "Delete this cycle?"))) return;
     job.cycles.splice(idx, 1);
     selectedCycleIdsForLine.delete(cycleId);
     if (selectedCycleId === cycleId) selectedCycleId = null;
@@ -3565,14 +3717,14 @@
       try {
         const parsed = JSON.parse(String(reader.result || ""));
         applyImportedState(parsed, "Import file");
-      } catch(e) { alert("Import failed: " + e.message); }
+      } catch(e) { alert(`${t("importFailedPrefix", "Import failed:")} ${e.message}`); }
     };
     reader.readAsText(file);
   }
 
   function applyImportedState(parsed, sourceLabel = "Import") {
     if (!parsed || !Array.isArray(parsed.stations) || !Array.isArray(parsed.jobs)) {
-      alert("Invalid backup format.");
+      alert(t("invalidBackupFormat", "Invalid backup format."));
       return false;
     }
     state = parsed;
@@ -3608,7 +3760,7 @@
 
   function exportCsv() {
     const job = getActiveJob();
-    if (!job) return alert("Select a job first.");
+    if (!job) return alert(t("selectJob", "Select a job first."));
     const st = getStationById(job.stationId);
 
     const rows = [];
@@ -3638,13 +3790,13 @@
 
   function exportKpiActionsCsv() {
     const job = getActiveJob();
-    if (!job) return alert("Select a job first.");
+    if (!job) return alert(t("selectJob", "Select a job first."));
     const st = getStationById(job.stationId);
     const filtered = getFilteredCyclesForJob(job);
     const stats = computeCycleStats(job, filtered);
-    if (!stats) return alert("No action data.");
+    if (!stats) return alert(t("noActionData", "No action data."));
     const rowsStats = computeActionStats(job, filtered, stats.avgMs);
-    if (!rowsStats.length) return alert("No action data.");
+    if (!rowsStats.length) return alert(t("noActionData", "No action data."));
     const unit = timeUnit();
     const res = timeResolutionSec();
     const rows = [];
@@ -3671,12 +3823,12 @@
     const rowsStats = stats ? computeActionStats(job, filtered, stats.avgMs) : [];
     const now = new Date().toLocaleString();
     const head = `
-      <h2 style="margin:0 0 8px 0;">Chrono KPI Report</h2>
-      <div style="color:#444;margin-bottom:12px;">Generated: ${esc(now)}</div>
-      <div style="margin-bottom:10px;"><strong>Station:</strong> ${esc(st?.code || "")} - ${esc(st?.name || "")}</div>
-      <div style="margin-bottom:10px;"><strong>Job:</strong> ${esc(job.name || "")}</div>
-      <div style="margin-bottom:10px;"><strong>Cycles (filtered):</strong> ${filtered.length}</div>
-      <div style="margin-bottom:16px;"><strong>Time:</strong> unit=${esc(timeUnit())}, resolution=${esc(String(timeResolutionSec()))}s</div>
+      <h2 style="margin:0 0 8px 0;">${esc(t("reportTitle", "Chrono KPI Report"))}</h2>
+      <div style="color:#444;margin-bottom:12px;">${esc(t("reportGenerated", "Generated"))}: ${esc(now)}</div>
+      <div style="margin-bottom:10px;"><strong>${esc(t("station", "Station"))}:</strong> ${esc(st?.code || "")} - ${esc(st?.name || "")}</div>
+      <div style="margin-bottom:10px;"><strong>${esc(t("job", "Job"))}:</strong> ${esc(job.name || "")}</div>
+      <div style="margin-bottom:10px;"><strong>${esc(t("reportCyclesFiltered", "Cycles (filtered)"))}:</strong> ${filtered.length}</div>
+      <div style="margin-bottom:16px;"><strong>${esc(t("reportTime", "Time"))}:</strong> unit=${esc(timeUnit())}, resolution=${esc(String(timeResolutionSec()))}s</div>
     `;
     const kpi = stats ? `
       <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
@@ -3686,7 +3838,7 @@
         <tr><th style="text-align:left;border-bottom:1px solid #ddd;padding:6px;">P90</th><td style="border-bottom:1px solid #ddd;padding:6px;">${esc(fmtQtyMs(stats.p90Ms))}</td></tr>
         <tr><th style="text-align:left;border-bottom:1px solid #ddd;padding:6px;">Best/Worst</th><td style="border-bottom:1px solid #ddd;padding:6px;">${esc(fmtQtyMs(stats.bestMs))} / ${esc(fmtQtyMs(stats.worstMs))}</td></tr>
       </table>
-    ` : `<div style="margin-bottom:12px;">No KPI data.</div>`;
+    ` : `<div style="margin-bottom:12px;">${esc(t("reportNoKpiData", "No KPI data."))}</div>`;
     const bodyRows = rowsStats.map((r) => `
       <tr>
         <td style="border-bottom:1px solid #eee;padding:6px;">${esc(r.name)}</td>
@@ -3698,11 +3850,11 @@
       </tr>
     `).join("");
     const table = `
-      <h3 style="margin:12px 0 6px 0;">Action averages</h3>
+      <h3 style="margin:12px 0 6px 0;">${esc(t("reportActionAverages", "Action averages"))}</h3>
       <table style="width:100%;border-collapse:collapse;">
         <thead>
           <tr>
-            <th style="text-align:left;border-bottom:2px solid #ddd;padding:6px;">Action</th>
+            <th style="text-align:left;border-bottom:2px solid #ddd;padding:6px;">${esc(t("action", "Action"))}</th>
             <th style="text-align:left;border-bottom:2px solid #ddd;padding:6px;">Type</th>
             <th style="text-align:right;border-bottom:2px solid #ddd;padding:6px;">Avg</th>
             <th style="text-align:right;border-bottom:2px solid #ddd;padding:6px;">Min</th>
@@ -3710,11 +3862,11 @@
             <th style="text-align:right;border-bottom:2px solid #ddd;padding:6px;">Share</th>
           </tr>
         </thead>
-        <tbody>${bodyRows || `<tr><td colspan="6" style="padding:8px;color:#666;">No action data.</td></tr>`}</tbody>
+        <tbody>${bodyRows || `<tr><td colspan="6" style="padding:8px;color:#666;">${esc(t("noActionData", "No action data."))}</td></tr>`}</tbody>
       </table>
     `;
     return `
-      <!doctype html><html><head><meta charset="utf-8"/><title>Chrono KPI Report</title></head>
+      <!doctype html><html><head><meta charset="utf-8"/><title>${esc(t("reportTitle", "Chrono KPI Report"))}</title></head>
       <body style="font-family:Arial,Helvetica,sans-serif; color:#111; padding:20px;">
         ${head}
         ${kpi}
@@ -3725,10 +3877,10 @@
 
   function openPrintReport() {
     const job = getActiveJob();
-    if (!job) return alert("Select a job first.");
+    if (!job) return alert(t("selectJob", "Select a job first."));
     const html = buildKpiReportHtml(job);
     const w = window.open("", "_blank");
-    if (!w) return alert("Popup blocked.");
+    if (!w) return alert(t("popupBlocked", "Popup blocked."));
     w.document.open();
     w.document.write(html);
     w.document.close();
@@ -4176,38 +4328,39 @@
     if (usedTypeIds.length > 12) {
       const more = document.createElement("div");
       more.className="legendItem";
-      more.textContent = `... +${usedTypeIds.length - 12} more`;
+      more.textContent = t("legendMore", "... +{count} more").replace("{count}", String(usedTypeIds.length - 12));
       el.appendChild(more);
     }
 
     if ($("showAvgLineChk").checked) {
       const item = document.createElement("div");
       item.className="legendItem";
-      item.innerHTML = `<span class="swatch" style="background:rgba(255,255,255,0.65);"></span> Avg boundaries`;
+      item.innerHTML = `<span class="swatch" style="background:rgba(255,255,255,0.65);"></span> ${esc(t("legendAvgBoundaries", "Avg boundaries"))}`;
       el.appendChild(item);
     }
     if ($("showOutliersChk").checked) {
       const item = document.createElement("div");
       item.className="legendItem";
-      item.innerHTML = `<span class="swatch" style="background:rgba(255,76,106,0.95);"></span> Outlier outline`;
+      item.innerHTML = `<span class="swatch" style="background:rgba(255,76,106,0.95);"></span> ${esc(t("legendOutlierOutline", "Outlier outline"))}`;
       el.appendChild(item);
     }
   }
 
   // ----- Rendering -----
   function renderSidebarScopeSelectors() {
+    const names = appEntityNames();
     const productSel = $("sidebarProductSel");
     if (productSel) {
       const prev = String(sidebarProductFilterId || "");
       productSel.innerHTML = "";
       const allOpt = document.createElement("option");
       allOpt.value = "";
-      allOpt.textContent = t("allProducts", "All products");
+      allOpt.textContent = `${t("all", "All")} ${names.product.plural.toLowerCase()}`;
       productSel.appendChild(allOpt);
       for (const p of (state.products || [])) {
         const opt = document.createElement("option");
         opt.value = p.id;
-        opt.textContent = `${p.code || "--"} - ${p.name || t("productDefault", "Product")}`;
+        opt.textContent = `${p.code || "--"} - ${p.name || names.product.singular}`;
         productSel.appendChild(opt);
       }
       const valid = prev && (state.products || []).some((p) => String(p.id || "") === prev);
@@ -4220,12 +4373,12 @@
       stationSel.innerHTML = "";
       const allOpt = document.createElement("option");
       allOpt.value = "";
-      allOpt.textContent = t("allStations", "All stations");
+      allOpt.textContent = `${t("all", "All")} ${names.station.plural.toLowerCase()}`;
       stationSel.appendChild(allOpt);
       for (const st of (state.stations || [])) {
         const opt = document.createElement("option");
         opt.value = st.id;
-        opt.textContent = `${st.code || "--"} - ${st.name || t("station", "Station")}`;
+        opt.textContent = `${st.code || "--"} - ${st.name || names.station.singular}`;
         stationSel.appendChild(opt);
       }
       const valid = prev && (state.stations || []).some((s) => String(s.id || "") === prev);
@@ -4339,6 +4492,7 @@
   }
 
   function renderTimelineScopeSelectors() {
+    const names = appEntityNames();
     const productSel = $("timelineProductSel");
     const stationSel = $("timelineStationSel");
     const jobSel = $("timelineJobSel");
@@ -4356,13 +4510,13 @@
     {
       const opt = document.createElement("option");
       opt.value = "";
-      opt.textContent = `— ${t("allProducts", "All products")} —`;
+      opt.textContent = `— ${t("all", "All")} ${names.product.plural.toLowerCase()} —`;
       productSel.appendChild(opt);
     }
     for (const p of products) {
       const opt = document.createElement("option");
       opt.value = p.id;
-      opt.textContent = `${p.code || "--"} - ${p.name || t("productDefault", "Product")}`;
+      opt.textContent = `${p.code || "--"} - ${p.name || names.product.singular}`;
       productSel.appendChild(opt);
     }
     productSel.value = timelineProductFilterId;
@@ -4377,7 +4531,7 @@
     {
       const opt = document.createElement("option");
       opt.value = "";
-      opt.textContent = `— ${t("allStations", "All stations")} —`;
+      opt.textContent = `— ${t("all", "All")} ${names.station.plural.toLowerCase()} —`;
       stationSel.appendChild(opt);
     }
     for (const st of stationsInScope) {
@@ -4392,7 +4546,7 @@
     if (!stationsInScope.length) {
       const opt = document.createElement("option");
       opt.value = "";
-      opt.textContent = `— ${t("noStations", "No stations")} —`;
+      opt.textContent = `— No ${names.station.plural.toLowerCase()} —`;
       stationSel.appendChild(opt);
       stationSel.disabled = true;
     } else {
@@ -4415,7 +4569,7 @@
     if (!jobsAtScope.length) {
       const opt = document.createElement("option");
       opt.value = "";
-      opt.textContent = `— ${t("noJobs", "No jobs")} —`;
+      opt.textContent = `— No ${names.job.plural.toLowerCase()} —`;
       jobSel.appendChild(opt);
       jobSel.disabled = true;
     } else {
@@ -4427,6 +4581,7 @@
   }
 
   function renderJobConfigDrawer() {
+    const names = appEntityNames();
     const job = getActiveJob();
     ensureActionTypes(state);
     ensureUiState(state);
@@ -4438,7 +4593,7 @@
       const prev = jss.value;
       jss.innerHTML = "";
       if (!state.jobs.length) {
-        const o = document.createElement("option"); o.value = ""; o.textContent = `— ${t("noJobs", "No jobs")} —`; jss.appendChild(o);
+        const o = document.createElement("option"); o.value = ""; o.textContent = `— No ${names.job.plural.toLowerCase()} —`; jss.appendChild(o);
       } else {
         for (const j of state.jobs) {
           const st2 = getStationById(j.stationId);
@@ -4468,13 +4623,13 @@
       for (const p of (state.products || [])) {
         const opt = document.createElement("option");
         opt.value = p.id;
-        opt.textContent = `${p.code || "--"} - ${p.name || t("productDefault", "Product")}`;
+        opt.textContent = `${p.code || "--"} - ${p.name || names.product.singular}`;
         productSel.appendChild(opt);
       }
       if (!productSel.options.length) {
         const opt = document.createElement("option");
         opt.value = "";
-        opt.textContent = `— ${t("noProducts", "No products")} —`;
+        opt.textContent = `— No ${names.product.plural.toLowerCase()} —`;
         productSel.appendChild(opt);
       }
     }
@@ -4603,10 +4758,10 @@
         <td class="mono">${esc(at.lane)}</td>
         <td class="mono">${Number(at.heightPx).toFixed(0)}</td>
         <td class="mono">${Number(at.z).toFixed(0)}</td>
-        <td class="mono">${at.stackFlow === false ? "No" : "Yes"}</td>
+        <td class="mono">${at.stackFlow === false ? t("no", "No") : t("yes", "Yes")}</td>
         <td class="mono">${esc(String(at.resourceMode || "AUTO"))}</td>
         <td><span style="display:inline-block;width:24px;height:14px;border-radius:4px;border:1px solid rgba(255,255,255,.18);background:${esc(at.color)};"></span></td>
-        <td class="right"><button class="danger" data-del-at="${esc(at.id)}" style="padding:6px 10px; border-radius:10px;">Delete</button></td>
+        <td class="right"><button class="danger" data-del-at="${esc(at.id)}" style="padding:6px 10px; border-radius:10px;">${esc(t("delete", "Delete"))}</button></td>
       `;
       tr.addEventListener("click", (e) => {
         const delId = e.target?.dataset?.delAt;
@@ -4636,7 +4791,7 @@
 
   function upsertActionTypeFromInputs() {
     const id = String($("atId").value || "").trim().toUpperCase();
-    if (!id) return alert("Type ID required.");
+    if (!id) return alert(t("typeIdRequired", "Type ID required."));
     const next = normalizeActionType({
       id,
       name: String($("atName").value || id).trim() || id,
@@ -4684,8 +4839,8 @@
   function deleteActionType(typeId) {
     const id = String(typeId || "").toUpperCase();
     if (!id) return;
-    if (!confirm(`Delete action type "${id}"?`)) return;
-    if ((state.actionTypes || []).length <= 1) return alert("Need at least one action type.");
+    if (!confirm(t("deleteActionTypeConfirm", `Delete action type "{id}"?`).replace("{id}", String(id)))) return;
+    if ((state.actionTypes || []).length <= 1) return alert(t("needOneActionType", "Need at least one action type."));
     state.actionTypes = state.actionTypes.filter((x) => x.id !== id);
     const fallback = state.actionTypes[0]?.id || "IDLE";
     for (const job of state.jobs) {
@@ -4989,31 +5144,31 @@
           <td colspan="6">
             <div class="cycleInlineDetail">
               <div class="cycleInlineHead" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <span class="small muted">Cycle @ ${new Date(c.atIso).toLocaleString()} - ${c.tag || "Normal"}</span>
+                <span class="small muted">${esc(t("cycle", "Cycle"))} @ ${new Date(c.atIso).toLocaleString()} - ${c.tag || "Normal"}</span>
                 <span class="pill mono">${fmtQtyMs(c.totalMs)}</span>
               </div>
               
-              <label style="margin-top:10px; display:block;">Notes (optional)</label>
+              <label style="margin-top:10px; display:block;">${esc(t("notesOptional", "Notes (optional)"))}</label>
               <textarea 
                 id="cycleNoteBox_${esc(c.id)}"
                 class="cycleNoteInput"
                 data-cycle-id="${esc(c.id)}"
-                placeholder="e.g., paused, missing part, machine jam..."
+                placeholder="${esc(t("notesPh", "e.g., paused, missing part, machine jam..."))}"
                 style="width:100%; min-height:60px; margin-bottom:10px;"
               >${esc(c.note || "")}</textarea>
               
-              <div class="small muted" style="margin-bottom:10px;">Notes stored locally + JSON.</div>
+              <div class="small muted" style="margin-bottom:10px;">${esc(t("notesHint", "Notes stored locally + JSON."))}</div>
               
               <div class="scrollBox noScroll">
                 <table>
                   <thead>
                     <tr>
                       <th style="width:38px;">#</th>
-                      <th>Element</th>
-                      <th style="width:140px;">Type</th>
-                      <th class="right" style="width:110px;">Start s</th>
-                      <th class="right" style="width:110px;">End s</th>
-                      <th class="right" style="width:120px;">Dur s</th>
+                      <th>${esc(t("elements", "Elements"))}</th>
+                      <th style="width:140px;">${esc(t("type", "Type"))}</th>
+                      <th class="right" style="width:110px;">${esc(t("startS", "Start s"))}</th>
+                      <th class="right" style="width:110px;">${esc(t("endS", "End s"))}</th>
+                      <th class="right" style="width:120px;">${esc(t("durS", "Dur s"))}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -5525,7 +5680,7 @@
     });
     if (!jobs.length) {
       if (timer.mode === TimerMode.Running) {
-        if (!confirm("Timer running. Leave current scope and stop current cycle?")) return;
+        if (!confirm(t("timerRunningLeaveScope", "Timer running. Leave current scope and stop current cycle?"))) return;
         stopCycle();
       }
       state.activeJobId = null;
@@ -5639,7 +5794,7 @@
   if (videoLibLoadBtn) {
     videoLibLoadBtn.addEventListener("click", () => {
       const id = $("videoLibSel")?.value || "";
-      if (!id) return alert("Select a recorded entry first.");
+      if (!id) return alert(t("selectRecordedEntryFirst", "Select a recorded entry first."));
       loadVideoLibraryEntryIntoMarkers(id);
     });
   }
@@ -5649,7 +5804,7 @@
       const sel = $("videoLibSel");
       const id = String(sel?.value || "");
       if (!id) return;
-      if (!confirm("Delete this recorded bookmarks entry?")) return;
+      if (!confirm(t("deleteRecordedBookmarksEntryConfirm", "Delete this recorded bookmarks entry?"))) return;
       const next = loadVideoBookmarksLibrary().filter((e) => String(e.id || "") !== id);
       saveVideoBookmarksLibrary(next);
       populateVideoLibrarySelector();

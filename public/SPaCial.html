@@ -6,26 +6,42 @@
   <title>SPaCial</title>
   <style>
     :root{
-      --bg:#0a1018;
-      --panel:#111b2b;
-      --panel2:#0e1726;
-      --text:#e8edf7;
-      --muted:#9eabbe;
-      --border:#27354d;
-      --accent:#59b8ff;
-      --warn:#ffd37a;
-      --bad:#ff6a7f;
-      --ok:#68d398;
+      --bg:var(--vm-theme-bg, #0a1018);
+      --panel:var(--vm-theme-panel, #111b2b);
+      --panel2:var(--vm-theme-panel-2, #0e1726);
+      --text:var(--vm-theme-text, #e8edf7);
+      --muted:var(--vm-theme-muted, rgba(232,237,247,.66));
+      --border:var(--vm-theme-border, rgba(232,237,247,.2));
+      --accent:var(--vm-theme-accent, #59b8ff);
+      --accent-rgb:var(--vm-theme-accent-rgb, 89,184,255);
+      --warn:var(--vm-theme-warn, #ffd37a);
+      --bad:var(--vm-theme-danger, #ff6a7f);
+      --ok:var(--vm-theme-ok, #68d398);
     }
     *{box-sizing:border-box;}
+    html,body{
+      height:auto;
+      min-height:100%;
+    }
     body{
       margin:0;
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background:radial-gradient(800px 380px at 0 -10%, rgba(89,184,255,.16), transparent 60%), var(--bg);
+      background:radial-gradient(800px 380px at 0 -10%, rgba(var(--accent-rgb),.16), transparent 60%), var(--bg);
       color:var(--text);
-      min-height:100vh;
+      min-height:100dvh;
+      overflow-x:hidden;
+      overflow-y:auto;
+      display:block;
     }
-    .wrap{width:100%;max-width:none;margin:0;padding:12px 14px;min-height:100vh;}
+    .wrap{
+      width:100%;
+      max-width:none;
+      margin:0;
+      padding:12px 14px;
+      min-height:0;
+      display:block;
+      gap:0;
+    }
     .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;}
     .sub{color:var(--muted);font-size:13px;margin-top:6px;}
     .card{
@@ -33,8 +49,13 @@
       border-radius:14px;
       background:linear-gradient(180deg,var(--panel),var(--panel2));
       padding:12px;
+      flex:0 0 auto;
+      min-height:0;
+      display:block;
     }
     .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;}
+    #scopeTypeSel,#scopeItemSel{display:none !important;}
+    body.hubScopeOnly .controls .moduleLocalScope{display:none !important;}
     @media(max-width:980px){.controls{grid-template-columns:1fr;}}
     select,input,textarea,button{
       width:100%;
@@ -63,6 +84,9 @@
     .chartBox{
       margin-top:10px;border:1px solid var(--border);border-radius:10px;padding:10px;
       background:color-mix(in srgb,var(--panel2) 86%, var(--bg));
+      flex:0 0 auto;
+      min-height:0;
+      display:block;
     }
     .chartTitle{font-size:12px;color:var(--muted);margin-bottom:8px;}
     .section{
@@ -71,6 +95,8 @@
       border-radius:10px;
       background:color-mix(in srgb,var(--panel2) 86%, transparent);
       overflow:hidden;
+      display:flex;
+      flex-direction:column;
     }
     .section > summary{
       list-style:none;
@@ -84,6 +110,7 @@
     }
     .section > summary::-webkit-details-marker{display:none;}
     .sectionBody{padding:10px;}
+    .chartBox > .section:last-of-type{flex:0 0 auto;}
     canvas{width:100%;height:auto;display:block;}
     .mini{font-size:11px;color:var(--muted);}
     .bad{color:var(--bad);}
@@ -100,7 +127,9 @@
       border:1px solid var(--border);
       border-radius:10px;
       overflow:auto;
-      max-height:260px;
+      max-height:52dvh;
+      min-height:180px;
+      flex:0 0 auto;
       background:color-mix(in srgb,var(--panel2) 90%, transparent);
     }
     .tbl{
@@ -136,6 +165,9 @@
       border-radius:10px;
       overflow:auto;
       background:color-mix(in srgb,var(--panel2) 92%, transparent);
+      flex:0 0 auto;
+      min-height:320px;
+      max-height:72dvh;
     }
     #bubbleCanvas{
       display:block;
@@ -150,7 +182,7 @@
       margin:0;
     }
     .tbl tr.sel td{
-      background:rgba(89,184,255,.12);
+      background:color-mix(in srgb,var(--accent) 16%, transparent);
     }
     .specCell{
       white-space:nowrap;
@@ -164,16 +196,16 @@
     <div class="head">
       <div>
         <h1 id="spacialTitle" style="margin:0;">SPaCial</h1>
-        <div class="sub" id="spacialSubtitle">Dimensional control and blueprint bubble planning.</div>
+        <div class="sub" id="spacialSubtitle">Dimensional control and blueprint annotation planning.</div>
       </div>
     </div>
     <section class="card">
       <div class="controls">
         <select id="scopeTypeSel"></select>
         <select id="scopeItemSel"></select>
-        <select id="productFilterSel"></select>
-        <select id="stationFilterSel"></select>
-        <select id="jobSel"></select>
+        <select id="productFilterSel" class="moduleLocalScope"></select>
+        <select id="stationFilterSel" class="moduleLocalScope"></select>
+        <select id="jobSel" class="moduleLocalScope"></select>
         <select id="routeSel"></select>
         <button class="primary" id="routeNewBtn" type="button">+ Route</button>
         <button id="routeDupBtn" type="button">Duplicate Route</button>
@@ -182,7 +214,7 @@
       <div class="mini" id="stateInfo" style="margin-top:8px;"></div>
       <div class="chartBox" style="margin-top:10px;">
         <div id="routingTitle" style="font-weight:700;">Routing and Dimensional Control</div>
-        <div class="mini" id="routingHint">Per selected job: route, operations, dimensional bubbles and blueprint bubbles.</div>
+        <div class="mini" id="routingHint">Per selected job: route, operations, dimensional annotations, and blueprint annotations.</div>
         <div class="mini" id="routeInfo" style="margin-top:8px;"></div>
 
         <details class="section" open>
@@ -237,31 +269,31 @@
         </details>
 
         <details class="section">
-          <summary id="sectionBubblesSummary">Bubbles</summary>
+          <summary id="sectionBubblesSummary">Annotations</summary>
           <div class="sectionBody">
-            <div class="mini" id="bubbleSectionHint" style="margin-top:2px;">Dimension bubbles for selected operation</div>
+            <div class="mini" id="bubbleSectionHint" style="margin-top:2px;">Dimensional annotations for selected operation</div>
             <div class="routeGrid3" style="margin-top:8px;">
-              <input id="bubbleIdIn" type="text" placeholder="Bubble ID (e.g. B01)" />
-              <input id="bubbleNameIn" type="text" placeholder="Dimension / feature name" />
+              <input id="bubbleIdIn" type="text" placeholder="Annotation ID (e.g. A01)" />
+              <input id="bubbleNameIn" type="text" placeholder="Annotation name" />
               <input id="bubbleNomIn" type="number" step="0.001" placeholder="Nominal" />
-              <input id="bubbleLslIn" type="number" step="0.001" placeholder="LSL" />
-              <input id="bubbleUslIn" type="number" step="0.001" placeholder="USL" />
+              <input id="bubbleLslIn" type="number" step="0.001" placeholder="Lower limit" />
+              <input id="bubbleUslIn" type="number" step="0.001" placeholder="Upper limit" />
               <input id="bubbleUnitIn" type="text" placeholder="Unit (mm)" />
               <input id="bubbleMethodIn" type="text" placeholder="Method" />
               <input id="bubbleInstrumentIn" type="text" placeholder="Instrument" />
               <input id="bubbleReactionIn" type="text" placeholder="Reaction plan" />
             </div>
             <div class="routeTools">
-              <button id="bubbleSaveBtn" class="primary" type="button">Save Bubble</button>
-              <button id="bubbleClearBtn" type="button">Clear Bubble Form</button>
-              <button id="bubbleImportBtn" type="button">Import Bubbles CSV</button>
+              <button id="bubbleSaveBtn" class="primary" type="button">Save Annotation</button>
+              <button id="bubbleClearBtn" type="button">Clear Annotation Form</button>
+              <button id="bubbleImportBtn" type="button">Import Annotations CSV</button>
               <input id="bubbleImportFile" type="file" accept=".csv,text/csv" style="display:none;" />
             </div>
             <div class="tableWrap">
               <table class="tbl">
                 <thead>
                   <tr>
-                    <th id="bubbleHeadId">Bubble</th>
+                    <th id="bubbleHeadId">Annotation</th>
                     <th id="bubbleHeadName">Name</th>
                     <th id="bubbleHeadSpec">Spec</th>
                     <th id="bubbleHeadActions">Actions</th>
@@ -276,7 +308,7 @@
         <details class="section">
           <summary id="sectionBlueprintSummary">Blueprint</summary>
           <div class="sectionBody">
-            <div class="chartTitle" id="bubbleCanvasTitle" style="margin-top:2px;">Bubble Drawing (OCR Canvas style)</div>
+            <div class="chartTitle" id="bubbleCanvasTitle" style="margin-top:2px;">Annotation Canvas</div>
             <div class="routeTools">
               <select id="opFileSel"></select>
               <button id="opFileUploadBtn" class="primary" type="button">+ File(s)</button>
@@ -288,15 +320,29 @@
             </div>
             <div class="mini" id="opFileHint">Each operation file has independent annotations.</div>
             <div class="routeTools">
-              <input id="bubbleDrawingFile" type="file" accept="image/*" />
               <button id="bubbleDrawingClearBtn" type="button">Clear Image</button>
-              <button id="bubbleDeleteSelBtn" type="button" class="danger">Delete Selected Bubble</button>
+              <button id="bubbleOcrDetectBtn" type="button" class="warn">Auto OCR Annotations</button>
+              <select id="bubbleOcrModeSel">
+                <option value="auto">auto</option>
+                <option value="fast">fast</option>
+                <option value="accurate">accurate</option>
+                <option value="hardcore">hardcore</option>
+              </select>
+              <button id="bubbleOcrTestBtn" type="button">Test OCR</button>
+              <details id="bubbleOcrSettings" style="flex:1 1 260px;">
+                <summary id="bubbleOcrSettingsSummary">OCR Settings</summary>
+                <div style="padding-top:8px;">
+                  <input id="bubbleOcrUrlIn" type="text" placeholder="OCR URL (http://localhost:8081)" style="width:100%;" />
+                </div>
+              </details>
+              <button id="bubbleDeleteSelBtn" type="button" class="danger">Delete Selected Annotation</button>
               <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;">
                 <input id="bubbleShowBoxesChk" class="inlineCheck" type="checkbox" checked />
                 <span id="bubbleShowBoxesLbl">Show boxes</span>
               </label>
             </div>
-            <div class="mini" id="bubbleCanvasInfo">Upload drawing then drag to create/select bubble boxes. Drag circle to move bubble label.</div>
+            <div class="mini" id="bubbleOcrStatus"></div>
+            <div class="mini" id="bubbleCanvasInfo">Upload drawing, then drag to create/select annotation boxes. Drag the marker to move annotation label.</div>
             <div class="canvasWrap">
               <canvas id="bubbleCanvas" width="1000" height="560"></canvas>
             </div>
@@ -325,6 +371,15 @@
         ? window.VMillData.keys.LEGACY_APP_KEYS.slice()
         : ["chrono_drawer_timeline_v5", "chrono_drawer_timeline_v4", "chrono_drawer_timeline_v3"];
       const MODULE_KEY = String(window.VMillData?.keys?.MODULE_KEY || "vmill:module-data:v1");
+      const HUB_SCOPE_KEY = "vmill:hub-scope:v1";
+      const IN_HUB_WORKSPACE = (() => {
+        try {
+          return window.self !== window.top && /vmill_hub\.html/i.test(String(window.top?.location?.pathname || ""));
+        } catch {
+          return window.self !== window.top;
+        }
+      })();
+      const OCR_URL_KEY = "vmill:ocr:url";
       const WATCH_KEYS = Array.from(new Set([
         ...(Array.isArray(window.VMillData?.keys?.ALL_APP_KEYS)
           ? window.VMillData.keys.ALL_APP_KEYS.slice()
@@ -354,7 +409,19 @@
       let bubbleCanvasStart = null;
       let bubbleCanvasRect = null;
       let bubbleCanvasLast = null;
+      let bubbleOcrBusy = false;
+      let refreshRaf = 0;
+      function requestRefresh() {
+        if (refreshRaf) return;
+        refreshRaf = window.requestAnimationFrame(() => {
+          refreshRaf = 0;
+          refresh();
+        });
+      }
       const $ = (id) => document.getElementById(id);
+      if (IN_HUB_WORKSPACE) {
+        document.body.classList.add("hubScopeOnly");
+      }
       function tt(key, fallback = "", vars) {
         return window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
       }
@@ -368,15 +435,15 @@
           if (el) el.placeholder = tt(key, fallback);
         };
         setTxt("spacialTitle", "spacial.title", "SPaCial");
-        setTxt("spacialSubtitle", "spacial.subtitle", "Dimensional control and blueprint bubble planning.");
+        setTxt("spacialSubtitle", "spacial.subtitle.annotations", "Dimensional control and blueprint annotation planning.");
         setTxt("routeNewBtn", "spacial.route.new", "+ Route");
         setTxt("routeDupBtn", "spacial.route.duplicate", "Duplicate Route");
         setTxt("routeDeleteBtn", "spacial.route.delete", "Delete Route");
         setTxt("routingTitle", "spacial.routing.title", "Routing and Dimensional Control");
-        setTxt("routingHint", "spacial.routing.hint", "Per selected job: route, operations, dimensional bubbles and blueprint bubbles.");
+        setTxt("routingHint", "spacial.routing.hint.annotations", "Per selected job: route, operations, dimensional annotations, and blueprint annotations.");
         setTxt("sectionRouteSummary", "spacial.section.route", "Route");
         setTxt("sectionOpsSummary", "spacial.section.operations", "Operations");
-        setTxt("sectionBubblesSummary", "spacial.section.bubbles", "Bubbles");
+        setTxt("sectionBubblesSummary", "spacial.section.annotations", "Annotations");
         setTxt("sectionBlueprintSummary", "spacial.section.blueprint", "Blueprint");
         setTxt("routeSaveBtn", "spacial.saveRoute", "Save Route");
         setTxt("routeResetBtn", "spacial.reload", "Reload");
@@ -389,15 +456,15 @@
         setTxt("opDownBtn", "spacial.moveDown", "Move Down");
         setTxt("opCriticalLbl", "spacial.op.critical", "Critical operation");
         setTxt("opSaveBtn", "spacial.op.save", "Save Operation");
-        setTxt("bubbleSectionHint", "spacial.bubbles.title", "Dimension bubbles for selected operation");
-        setTxt("bubbleSaveBtn", "spacial.bubble.save", "Save Bubble");
-        setTxt("bubbleClearBtn", "spacial.bubble.clear", "Clear Bubble Form");
-        setTxt("bubbleImportBtn", "spacial.bubble.importCsv", "Import Bubbles CSV");
-        setTxt("bubbleHeadId", "spacial.table.bubble", "Bubble");
+        setTxt("bubbleSectionHint", "spacial.annotations.title", "Dimensional annotations for selected operation");
+        setTxt("bubbleSaveBtn", "spacial.annotation.save", "Save Annotation");
+        setTxt("bubbleClearBtn", "spacial.annotation.clear", "Clear Annotation Form");
+        setTxt("bubbleImportBtn", "spacial.annotation.importCsv", "Import Annotations CSV");
+        setTxt("bubbleHeadId", "spacial.table.annotation", "Annotation");
         setTxt("bubbleHeadName", "spacial.table.name", "Name");
         setTxt("bubbleHeadSpec", "spacial.table.spec", "Spec");
         setTxt("bubbleHeadActions", "spacial.table.actions", "Actions");
-        setTxt("bubbleCanvasTitle", "spacial.canvas.title", "Bubble Drawing (OCR Canvas style)");
+        setTxt("bubbleCanvasTitle", "spacial.canvas.title.annotation", "Annotation Canvas");
         setTxt("opFileUploadBtn", "spacial.file.add", "+ File(s)");
         setTxt("opFileRenameBtn", "spacial.file.rename", "Rename File");
         setTxt("opFileDeleteBtn", "spacial.file.delete", "Delete File");
@@ -405,9 +472,24 @@
         setTxt("opExportPdfBtn", "spacial.file.exportOpPdf", "Operation PDF");
         setTxt("opFileHint", "spacial.file.hint", "Each operation file has independent annotations.");
         setTxt("bubbleDrawingClearBtn", "spacial.canvas.clearImage", "Clear Image");
-        setTxt("bubbleDeleteSelBtn", "spacial.canvas.deleteSelected", "Delete Selected Bubble");
+        setTxt("bubbleOcrDetectBtn", "spacial.ocr.detect.annotations", "Auto OCR Annotations");
+        setTxt("bubbleOcrTestBtn", "spacial.ocr.test", "Test OCR");
+        setTxt("bubbleOcrSettingsSummary", "spacial.ocr.settings", "OCR Settings");
+        setTxt("bubbleDeleteSelBtn", "spacial.canvas.deleteSelectedAnnotation", "Delete Selected Annotation");
         setTxt("bubbleShowBoxesLbl", "spacial.canvas.showBoxes", "Show boxes");
-        setTxt("bubbleCanvasInfo", "spacial.canvas.help", "Upload drawing then drag to create/select bubble boxes. Drag circle to move bubble label.");
+        setTxt("bubbleCanvasInfo", "spacial.canvas.help.annotations", "Upload drawing, then drag to create/select annotation boxes. Drag the marker to move annotation label.");
+        const modeSel = $("bubbleOcrModeSel");
+        if (modeSel) {
+          const prev = strOrEmpty(modeSel.value || "auto") || "auto";
+          modeSel.innerHTML = [
+            `<option value="auto">${tt("spacial.ocr.mode.auto", "Auto")}</option>`,
+            `<option value="fast">${tt("spacial.ocr.mode.fast", "Fast")}</option>`,
+            `<option value="accurate">${tt("spacial.ocr.mode.accurate", "Accurate")}</option>`,
+            `<option value="hardcore">${tt("spacial.ocr.mode.hardcore", "Hardcore")}</option>`,
+          ].join("");
+          if ([...modeSel.options].some((o) => o.value === prev)) modeSel.value = prev;
+          else modeSel.value = "auto";
+        }
         setPh("routeNameIn", "spacial.routeName", "Route name");
         setPh("routeRevisionIn", "spacial.routeRev", "Revision (A, B...)");
         setPh("routeProductRefIn", "spacial.routeProductRef", "Product / Drawing ref");
@@ -420,15 +502,16 @@
         setPh("opFrequencyIn", "spacial.op.frequency", "Frequency (e.g. 1/30min)");
         setPh("opControlMethodIn", "spacial.op.method", "Control method");
         setPh("opNotesIn", "spacial.op.notes", "Operation notes");
-        setPh("bubbleIdIn", "spacial.bubble.id", "Bubble ID (e.g. B01)");
-        setPh("bubbleNameIn", "spacial.bubble.name", "Dimension / feature name");
-        setPh("bubbleNomIn", "spacial.bubble.nominal", "Nominal");
-        setPh("bubbleLslIn", "spacial.bubble.lsl", "LSL");
-        setPh("bubbleUslIn", "spacial.bubble.usl", "USL");
-        setPh("bubbleUnitIn", "spacial.bubble.unit", "Unit (mm)");
-        setPh("bubbleMethodIn", "spacial.bubble.method", "Method");
-        setPh("bubbleInstrumentIn", "spacial.bubble.instrument", "Instrument");
-        setPh("bubbleReactionIn", "spacial.bubble.reaction", "Reaction plan");
+        setPh("bubbleIdIn", "spacial.annotation.id", "Annotation ID (e.g. A01)");
+        setPh("bubbleNameIn", "spacial.annotation.name", "Annotation name");
+        setPh("bubbleNomIn", "spacial.annotation.nominal", "Nominal");
+        setPh("bubbleLslIn", "spacial.annotation.lsl", "Lower limit");
+        setPh("bubbleUslIn", "spacial.annotation.usl", "Upper limit");
+        setPh("bubbleUnitIn", "spacial.annotation.unit", "Unit");
+        setPh("bubbleMethodIn", "spacial.annotation.method", "Method");
+        setPh("bubbleInstrumentIn", "spacial.annotation.instrument", "Instrument");
+        setPh("bubbleReactionIn", "spacial.annotation.reaction", "Reaction plan");
+        setPh("bubbleOcrUrlIn", "spacial.ocr.url", "OCR URL (http://localhost:8081)");
       }
 
       function numOrNull(v) {
@@ -440,6 +523,493 @@
           return JSON.parse(JSON.stringify(v));
         } catch {
           return fallback;
+        }
+      }
+      function normalizeHttpBaseUrl(raw) {
+        const src = strOrEmpty(raw);
+        if (!src) return "";
+        const cleaned = src
+          .replace(/\/+$/, "")
+          .replace(/\/ocr\/process(?:\?.*)?$/i, "")
+          .replace(/\/ocr\/process-with-lines(?:\?.*)?$/i, "");
+        const withProto = /^[a-z]+:\/\//i.test(cleaned) ? cleaned : `http://${cleaned}`;
+        try {
+          const u = new URL(withProto);
+          return `${u.protocol}//${u.host}`;
+        } catch {
+          return "";
+        }
+      }
+      function ocrCandidateBaseUrls(preferred) {
+        const set = new Set();
+        const add = (value) => {
+          const normalized = normalizeHttpBaseUrl(value);
+          if (normalized) set.add(normalized);
+        };
+        add(preferred);
+        add(localStorage.getItem(OCR_URL_KEY) || "");
+        const loc = window.location;
+        if (loc && /^https?:$/i.test(loc.protocol || "")) {
+          add(`${loc.protocol}//${loc.hostname}:8081`);
+        }
+        add("http://127.0.0.1:8081");
+        add("http://localhost:8081");
+        return Array.from(set);
+      }
+      async function callOcrProcessWithRetry(uploadFile, mode, preferredBaseUrl) {
+        const candidates = ocrCandidateBaseUrls(preferredBaseUrl);
+        let lastError = null;
+        for (const baseUrl of candidates) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 25000);
+          try {
+            const formData = new FormData();
+            formData.append("file", uploadFile, uploadFile.name);
+            const res = await fetch(`${baseUrl}/ocr/process?mode=${encodeURIComponent(mode)}&rotation=0`, {
+              method: "POST",
+              body: formData,
+              signal: controller.signal,
+            });
+            let out = {};
+            try {
+              out = await res.json();
+            } catch {
+              out = {};
+            }
+            if (!res.ok) {
+              const detail = out?.detail;
+              const detailMsg = typeof detail === "string" ? detail : (detail?.message || detail?.error || "");
+              throw new Error(detailMsg || out?.error || `${res.status} ${res.statusText}`);
+            }
+            const urlInput = $("bubbleOcrUrlIn");
+            if (urlInput && urlInput.value !== baseUrl) urlInput.value = baseUrl;
+            localStorage.setItem(OCR_URL_KEY, baseUrl);
+            return out;
+          } catch (err) {
+            lastError = err;
+          } finally {
+            clearTimeout(timeoutId);
+          }
+        }
+        throw lastError || new Error("OCR server not reachable");
+      }
+      function defaultOcrUrl() {
+        const stored = normalizeHttpBaseUrl(localStorage.getItem(OCR_URL_KEY) || "");
+        if (stored) return stored;
+        const base = normalizeHttpBaseUrl(window.VMillData?.getServerUrl ? window.VMillData.getServerUrl() : "");
+        if (base) {
+          try {
+            const u = new URL(base);
+            return `${u.protocol || "http:"}//${u.hostname}:8081`;
+          } catch {}
+        }
+        return "http://localhost:8081";
+      }
+      function ensureOcrUrlInput() {
+        const el = $("bubbleOcrUrlIn");
+        if (!el) return defaultOcrUrl();
+        if (!strOrEmpty(el.value)) el.value = defaultOcrUrl();
+        const normalized = normalizeHttpBaseUrl(el.value);
+        if (normalized && normalized !== el.value) el.value = normalized;
+        return normalizeHttpBaseUrl(el.value) || defaultOcrUrl();
+      }
+      async function dataUrlToUploadFile(dataUrl, fileName = "drawing.png") {
+        const src = strOrEmpty(dataUrl);
+        if (!src) throw new Error("Missing image data.");
+        const res = await fetch(src);
+        const blob = await res.blob();
+        return new File([blob], strOrEmpty(fileName) || "drawing.png", { type: blob.type || "image/png" });
+      }
+      function loadImageNaturalSize(dataUrl) {
+        return new Promise((resolve) => {
+          const src = strOrEmpty(dataUrl);
+          if (!src) {
+            resolve(null);
+            return;
+          }
+          const img = new Image();
+          img.onload = () => resolve({
+            width: Number(img.naturalWidth || img.width || 0),
+            height: Number(img.naturalHeight || img.height || 0),
+          });
+          img.onerror = () => resolve(null);
+          img.src = src;
+        });
+      }
+      function extractOcrZones(payload) {
+        const src = payload && typeof payload === "object" ? payload : {};
+        if (Array.isArray(src?.zones)) return src.zones;
+        if (Array.isArray(src?.data?.zones)) return src.data.zones;
+        if (Array.isArray(src?.result?.zones)) return src.result.zones;
+        if (Array.isArray(src?.response?.zones)) return src.response.zones;
+        if (Array.isArray(src?.items)) return src.items;
+        return [];
+      }
+      function isLikelyAnnotationZone(zone) {
+        if (!zone || typeof zone !== "object") return false;
+        if (zone.is_dimension) return true;
+        if (zone.tolerance_info && typeof zone.tolerance_info === "object") return true;
+        const category = strOrEmpty(zone.category).toLowerCase();
+        if (["measure", "dimension", "tolerance", "diameter", "radius", "thread", "gdt"].includes(category)) return true;
+        const text = strOrEmpty(zone.text);
+        if (/\d/.test(text)) return true;
+        const conf = Number(zone.confidence || 0);
+        if (conf >= 0.7 && text.length >= 2) return true;
+        return false;
+      }
+      function scoreOcrZoneSet(zones) {
+        const rows = Array.isArray(zones) ? zones : [];
+        let score = 0;
+        for (const z of rows) {
+          const text = strOrEmpty(z?.text);
+          const conf = Math.max(0, Math.min(1, Number(z?.confidence || 0)));
+          if (text) score += 0.4;
+          if (/\d/.test(text)) score += 2.2;
+          if (z?.is_dimension) score += 4.2;
+          if (z?.tolerance_info && typeof z.tolerance_info === "object") score += 3.6;
+          score += conf;
+        }
+        return score;
+      }
+      async function normalizeOcrBoxesToImage(zones, imageDataUrl, metadata = null) {
+        const srcZones = Array.isArray(zones) ? zones : [];
+        const boxes = srcZones
+          .map((z) => ({ zone: z, bbox: bboxFromOcrZone(z) }))
+          .filter((row) => !!row.bbox);
+        if (!boxes.length) return boxes;
+        const imageSize = await loadImageNaturalSize(imageDataUrl);
+        if (!imageSize?.width || !imageSize?.height) return boxes;
+        const ocrWidth = Number(metadata?.ocr_width || metadata?.processed_width || metadata?.image_width || metadata?.width || 0);
+        const ocrHeight = Number(metadata?.ocr_height || metadata?.processed_height || metadata?.image_height || metadata?.height || 0);
+        let sx = 1;
+        let sy = 1;
+        let shouldScale = false;
+        if (Number.isFinite(ocrWidth) && Number.isFinite(ocrHeight) && ocrWidth > 0 && ocrHeight > 0) {
+          sx = imageSize.width / ocrWidth;
+          sy = imageSize.height / ocrHeight;
+          shouldScale = Math.abs(1 - sx) > 0.03 || Math.abs(1 - sy) > 0.03;
+        } else {
+          const maxX = boxes.reduce((acc, row) => Math.max(acc, Number(row.bbox?.x2 || 0)), 0);
+          const maxY = boxes.reduce((acc, row) => Math.max(acc, Number(row.bbox?.y2 || 0)), 0);
+          if (maxX <= 0 || maxY <= 0) return boxes;
+          const oversized = maxX > imageSize.width * 1.15 || maxY > imageSize.height * 1.15;
+          const undersized = maxX < imageSize.width * 0.72 || maxY < imageSize.height * 0.72;
+          sx = imageSize.width / maxX;
+          sy = imageSize.height / maxY;
+          shouldScale = oversized || (undersized && sx > 1.2 && sy > 1.2);
+        }
+        if (!shouldScale) return boxes;
+        for (const row of boxes) {
+          const b = row.bbox;
+          row.bbox = normalizeBbox({
+            x1: Number(b.x1) * sx,
+            y1: Number(b.y1) * sy,
+            x2: Number(b.x2) * sx,
+            y2: Number(b.y2) * sy,
+          });
+        }
+        return boxes;
+      }
+      function bboxFromOcrZone(zone) {
+        const z = zone && typeof zone === "object" ? zone : {};
+        const b = z?.bbox;
+        if (b && typeof b === "object" && !Array.isArray(b)) {
+          if (
+            Number.isFinite(Number(b.x1)) &&
+            Number.isFinite(Number(b.y1)) &&
+            Number.isFinite(Number(b.x2)) &&
+            Number.isFinite(Number(b.y2))
+          ) {
+            return normalizeBbox({ x1: Number(b.x1), y1: Number(b.y1), x2: Number(b.x2), y2: Number(b.y2) });
+          }
+          if (
+            Number.isFinite(Number(b.x)) &&
+            Number.isFinite(Number(b.y)) &&
+            Number.isFinite(Number(b.width)) &&
+            Number.isFinite(Number(b.height))
+          ) {
+            const x1 = Number(b.x);
+            const y1 = Number(b.y);
+            return normalizeBbox({
+              x1,
+              y1,
+              x2: x1 + Number(b.width),
+              y2: y1 + Number(b.height),
+            });
+          }
+        }
+        if (Array.isArray(b) && b.length >= 4) {
+          if (
+            Number.isFinite(Number(b[0])) &&
+            Number.isFinite(Number(b[1])) &&
+            Number.isFinite(Number(b[2])) &&
+            Number.isFinite(Number(b[3]))
+          ) {
+            return normalizeBbox({ x1: Number(b[0]), y1: Number(b[1]), x2: Number(b[2]), y2: Number(b[3]) });
+          }
+        }
+        if (
+          Number.isFinite(Number(z?.x)) &&
+          Number.isFinite(Number(z?.y)) &&
+          Number.isFinite(Number(z?.width)) &&
+          Number.isFinite(Number(z?.height))
+        ) {
+          const x1 = Number(z.x);
+          const y1 = Number(z.y);
+          return normalizeBbox({ x1, y1, x2: x1 + Number(z.width), y2: y1 + Number(z.height) });
+        }
+        if (
+          Number.isFinite(Number(z?.x1)) &&
+          Number.isFinite(Number(z?.y1)) &&
+          Number.isFinite(Number(z?.x2)) &&
+          Number.isFinite(Number(z?.y2))
+        ) {
+          return normalizeBbox({ x1: Number(z.x1), y1: Number(z.y1), x2: Number(z.x2), y2: Number(z.y2) });
+        }
+        const polygon = Array.isArray(z?.polygon) ? z.polygon : [];
+        if (polygon.length >= 2) {
+          const points = polygon
+            .map((p) => (Array.isArray(p) && p.length >= 2 ? [Number(p[0]), Number(p[1])] : null))
+            .filter((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+          if (points.length >= 2) {
+            const xs = points.map((p) => p[0]);
+            const ys = points.map((p) => p[1]);
+            return normalizeBbox({
+              x1: Math.min(...xs),
+              y1: Math.min(...ys),
+              x2: Math.max(...xs),
+              y2: Math.max(...ys),
+            });
+          }
+        }
+        return null;
+      }
+      function nextBubbleId(existingSet) {
+        const used = existingSet || new Set();
+        let i = Math.max(1, used.size + 1);
+        while (i < 100000) {
+          const id = `B${String(i).padStart(3, "0")}`;
+          if (!used.has(id)) return id;
+          i += 1;
+        }
+        return `B${Date.now().toString(36).slice(-6).toUpperCase()}`;
+      }
+      function applyOcrBusyState(on) {
+        bubbleOcrBusy = !!on;
+        const btn = $("bubbleOcrDetectBtn");
+        const testBtn = $("bubbleOcrTestBtn");
+        if (btn) {
+          btn.disabled = !!on;
+          btn.textContent = on
+            ? tt("spacial.ocr.detectRunning", "Detecting...")
+            : tt("spacial.ocr.detect.annotations", "Auto OCR Annotations");
+        }
+        if (testBtn) testBtn.disabled = !!on;
+      }
+      function setOcrStatus(kind, message) {
+        const el = $("bubbleOcrStatus");
+        if (!el) return;
+        const text = strOrEmpty(message);
+        if (!text) {
+          el.textContent = "";
+          el.style.color = "";
+          return;
+        }
+        const tone = strOrEmpty(kind || "info");
+        const cssMap = {
+          ok: "--ok",
+          info: "--accent",
+          warn: "--warn",
+          danger: "--danger",
+          muted: "--muted",
+        };
+        const cssVar = cssMap[tone] || "--accent";
+        const color = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
+        el.style.color = color || "";
+        el.textContent = text;
+      }
+      function ensureOperationForOcr() {
+        if (!routePlan) return null;
+        if (!Array.isArray(routePlan.operations)) routePlan.operations = [];
+        let changed = false;
+        if (!routePlan.operations.length) {
+          const op = normalizeOperation({
+            id: uid("op"),
+            seq: 10,
+            name: tt("spacial.ocr.defaultOperation", "Operation 1"),
+            files: [{ name: `${tt("spacial.file.default", "File")} 1`, bubbles: [] }],
+          }, 0);
+          routePlan.operations.push(op);
+          selectedOpId = op.id;
+          selectedOpFileId = op.activeFileId || op.files?.[0]?.id || "";
+          changed = true;
+        }
+        if (!selectedOpId || !routePlan.operations.some((op) => String(op?.id || "") === String(selectedOpId))) {
+          selectedOpId = String(routePlan.operations[0]?.id || "");
+          selectedOpFileId = "";
+          changed = true;
+        }
+        const op = getSelectedOperation();
+        if (!op) return null;
+        const files = ensureOperationFiles(op);
+        if (!files.length) {
+          op.files = [normalizeOperationFile({ name: `${tt("spacial.file.default", "File")} 1`, bubbles: [] }, 0)];
+          op.activeFileId = String(op.files[0]?.id || "");
+          selectedOpFileId = op.activeFileId;
+          changed = true;
+        }
+        const opFile = selectedOperationFile(op);
+        if (!opFile) return null;
+        if (changed) {
+          writeRoutePlan(routePlan);
+          renderRoutingPanel();
+        }
+        return { op, opFile };
+      }
+      async function testOcrConnection() {
+        if (bubbleOcrBusy) return;
+        const base = ensureOcrUrlInput();
+        if (!base) {
+          setOcrStatus("danger", tt("spacial.ocr.alert.urlInvalid", "Invalid OCR URL."));
+          return;
+        }
+        applyOcrBusyState(true);
+        setOcrStatus("info", tt("spacial.ocr.testing", "Testing OCR server..."));
+        let timeoutId = null;
+        try {
+          const controller = new AbortController();
+          timeoutId = setTimeout(() => controller.abort(), 8000);
+          const paths = ["/health", "/"];
+          let ok = false;
+          for (const path of paths) {
+            try {
+              const res = await fetch(`${base}${path}`, { method: "GET", signal: controller.signal });
+              if (res.ok || res.status < 500) {
+                ok = true;
+                break;
+              }
+            } catch {}
+          }
+          if (!ok) throw new Error(tt("spacial.ocr.notReachable", "Server not reachable"));
+          localStorage.setItem(OCR_URL_KEY, base);
+          setOcrStatus("ok", tt("spacial.ocr.connected", "OCR server connected."));
+        } catch (err) {
+          setOcrStatus("danger", tt("spacial.ocr.alert.failed", "OCR detection failed: {err}", {
+            err: err?.message || String(err || "unknown"),
+          }));
+        } finally {
+          if (timeoutId != null) clearTimeout(timeoutId);
+          applyOcrBusyState(false);
+        }
+      }
+      async function runOcrDetectionForSelectedFile() {
+        if (bubbleOcrBusy) return;
+        if (!routePlan) {
+          setOcrStatus("warn", tt("spacial.none.routeSelected", "Select or create a route."));
+          return;
+        }
+        const ensured = ensureOperationForOcr();
+        const op = ensured?.op || null;
+        const opFile = ensured?.opFile || null;
+        if (!op || !opFile || !isImageDataUrl(opFile.dataUrl)) {
+          setOcrStatus("warn", tt("spacial.alert.imageFileRequired", "Current file is not an image. Upload/select an image file first."));
+          return;
+        }
+        const ocrBaseUrl = ensureOcrUrlInput();
+        if (!ocrBaseUrl) {
+          setOcrStatus("danger", tt("spacial.ocr.alert.urlInvalid", "Invalid OCR URL."));
+          return;
+        }
+        const selectedMode = strOrEmpty($("bubbleOcrModeSel")?.value || "auto") || "auto";
+        const modeList = selectedMode === "auto"
+          ? ["accurate", "hardcore", "fast"]
+          : [selectedMode];
+        applyOcrBusyState(true);
+        setOcrStatus("info", tt("spacial.ocr.detectRunning", "Detecting..."));
+        try {
+          const uploadFile = await dataUrlToUploadFile(opFile.dataUrl, opFile.name || "drawing.png");
+          let bestResult = null;
+          let lastError = null;
+          for (const mode of modeList) {
+            try {
+              setOcrStatus("info", tt("spacial.ocr.tryMode", "Trying OCR mode: {mode}", { mode }));
+              const out = await callOcrProcessWithRetry(uploadFile, mode, ocrBaseUrl);
+              const zones = extractOcrZones(out);
+              const candidateZones = zones.filter((z) => isLikelyAnnotationZone(z));
+              const score = scoreOcrZoneSet(candidateZones);
+              if (candidateZones.length && (!bestResult || score > bestResult.score)) {
+                bestResult = {
+                  mode,
+                  score,
+                  zones: candidateZones,
+                  metadata: out?.metadata && typeof out.metadata === "object" ? out.metadata : {},
+                };
+              }
+            } catch (err) {
+              lastError = err;
+            }
+          }
+          if (!bestResult || !Array.isArray(bestResult.zones) || !bestResult.zones.length) {
+            if (lastError) throw lastError;
+            setOcrStatus("warn", tt("spacial.ocr.alert.noZones.annotations", "OCR found no valid annotation zones."));
+            return;
+          }
+          const zoneRows = await normalizeOcrBoxesToImage(bestResult.zones, opFile.dataUrl, bestResult.metadata);
+          if (!zoneRows.length) {
+            setOcrStatus("warn", tt("spacial.ocr.alert.noValidBoxes", "OCR zones were found but no valid boxes could be imported."));
+            return;
+          }
+          const bubbles = selectedFileBubbles(op);
+          const idSet = new Set(bubbles.map((b) => String(b?.id || "")).filter(Boolean));
+          let added = 0;
+          let firstAddedId = "";
+          for (const row of zoneRows) {
+            const z = row.zone;
+            const bbox = row.bbox;
+            let id = strOrEmpty(z?.id);
+            if (!id || idSet.has(id)) id = nextBubbleId(idSet);
+            idSet.add(id);
+            const tol = z?.tolerance_info && typeof z.tolerance_info === "object" ? z.tolerance_info : {};
+            const nominal = numOrNull(tol?.value);
+            const tolPlus = numOrNull(tol?.tolerance_plus);
+            const tolMinus = numOrNull(tol?.tolerance_minus);
+            const lsl = nominal != null && tolMinus != null ? Number((nominal - Math.abs(tolMinus)).toFixed(6)) : null;
+            const usl = nominal != null && tolPlus != null ? Number((nominal + Math.abs(tolPlus)).toFixed(6)) : null;
+            const bubble = normalizeBubble({
+              id,
+              name: strOrEmpty(z?.text) || `Annotation ${bubbles.length + added + 1}`,
+              nominal,
+              lsl,
+              usl,
+              unit: "mm",
+              method: "OCR",
+              instrument: "",
+              reactionPlan: "",
+              bbox,
+              bubbleOffset: { x: -14, y: -14 },
+            }, bubbles.length + added);
+            bubble.bbox = bbox;
+            bubbles.push(bubble);
+            if (!firstAddedId) firstAddedId = String(bubble.id || "");
+            added += 1;
+          }
+          if (!added) {
+            setOcrStatus("warn", tt("spacial.ocr.alert.noValidBoxes", "OCR zones were found but no valid boxes could be imported."));
+            return;
+          }
+          if (firstAddedId) selectedCanvasBubbleId = firstAddedId;
+          const showBoxesChk = $("bubbleShowBoxesChk");
+          if (showBoxesChk) showBoxesChk.checked = true;
+          writeRoutePlan(routePlan);
+          renderRoutingPanel();
+          const statusMsg = bestResult.mode
+            ? tt("spacial.ocr.alert.importedMode.annotations", "Imported {count} OCR annotation(s) using {mode}.", { count: added, mode: bestResult.mode })
+            : tt("spacial.ocr.alert.imported.annotations", "Imported {count} OCR annotation(s).", { count: added });
+          setOcrStatus("ok", statusMsg);
+        } catch (err) {
+          setOcrStatus("danger", tt("spacial.ocr.alert.failed", "OCR detection failed: {err}", { err: err?.message || String(err || "unknown") }));
+        } finally {
+          applyOcrBusyState(false);
         }
       }
       function persistState(state) {
@@ -751,10 +1321,83 @@
         if (!typeName && !itemName) return "";
         return `${typeName}: ${itemName || selectedScopeItemId}`;
       }
+      function readHubScopeState() {
+        try {
+          const raw = JSON.parse(localStorage.getItem(HUB_SCOPE_KEY) || "{}");
+          if (!raw || typeof raw !== "object") return { selected: {} };
+          const selected = raw.selected && typeof raw.selected === "object" ? raw.selected : {};
+          return { selected };
+        } catch {
+          return { selected: {} };
+        }
+      }
+      function roleTypeId(role, fallbackId) {
+        const fallback = String(fallbackId || role || "");
+        if (!window.VMillData?.resolveEntityTypeIdByRole) return fallback;
+        return String(window.VMillData.resolveEntityTypeIdByRole(role) || fallback);
+      }
+      function roleLabels(role, fallbackSingular = "", fallbackPlural = "") {
+        if (typeof window.VMillData?.getRoleLabels === "function") {
+          const out = window.VMillData.getRoleLabels(role, fallbackSingular, fallbackPlural);
+          return {
+            singular: String(out?.singular || fallbackSingular || role || ""),
+            plural: String(out?.plural || fallbackPlural || `${fallbackSingular || role || ""}s`),
+          };
+        }
+        const row = window.VMillData?.resolveEntityTypeByRole
+          ? window.VMillData.resolveEntityTypeByRole(role)
+          : null;
+        const singular = String(row?.nameSingular || fallbackSingular || role || "");
+        const plural = String(row?.namePlural || fallbackPlural || (singular ? `${singular}s` : ""));
+        return { singular, plural };
+      }
+      function applyGlobalScopeToFilters(state) {
+        const scope = readHubScopeState();
+        const selected = scope?.selected && typeof scope.selected === "object" ? scope.selected : {};
+        const types = window.VMillData?.listEntityTypes ? window.VMillData.listEntityTypes() : [];
+        const validTypeIds = new Set(types.map((t) => String(t?.id || "")).filter(Boolean));
+        let nextScopeTypeId = "";
+        let nextScopeItemId = "";
+        for (const [tidRaw, iidRaw] of Object.entries(selected)) {
+          const tid = String(tidRaw || "").trim();
+          const iid = String(iidRaw || "").trim();
+          if (!tid || !iid || iid === "all") continue;
+          if (!validTypeIds.has(tid)) continue;
+          nextScopeTypeId = tid;
+          nextScopeItemId = iid;
+          break;
+        }
+
+        const productTypeId = roleTypeId("product", "product");
+        const stationTypeId = roleTypeId("station", "station");
+        const jobTypeId = roleTypeId("job", "job");
+        const nextProductId = String(selected[productTypeId] || "") === "all" ? "" : String(selected[productTypeId] || "");
+        const nextStationId = String(selected[stationTypeId] || "") === "all" ? "" : String(selected[stationTypeId] || "");
+        const nextJobId = String(selected[jobTypeId] || "") === "all" ? "" : String(selected[jobTypeId] || "");
+
+        let changed = false;
+        if (selectedScopeTypeId !== nextScopeTypeId) { selectedScopeTypeId = nextScopeTypeId; changed = true; }
+        if (selectedScopeItemId !== nextScopeItemId) { selectedScopeItemId = nextScopeItemId; changed = true; }
+        if (selectedProductFilterId !== nextProductId) { selectedProductFilterId = nextProductId; changed = true; }
+        if (selectedStationFilterId !== nextStationId) { selectedStationFilterId = nextStationId; changed = true; }
+        if (selectedJobFilterId !== nextJobId) { selectedJobFilterId = nextJobId; changed = true; }
+        if (changed) {
+          scopeJobsCacheSig = "";
+          scopeJobsCacheSet = null;
+        }
+      }
+      function appEntityNames() {
+        return {
+          product: roleLabels("product", tt("hub.structure.productDefault", "Product"), "Products"),
+          station: roleLabels("station", tt("spacial.stationDefault", "Station"), "Stations"),
+          job: roleLabels("job", tt("spacial.jobDefault", "Job"), "Jobs"),
+        };
+      }
       function scopedJobSet(state) {
         if (!selectedScopeTypeId || !selectedScopeItemId) return null;
         const jobs = Array.isArray(state?.jobs) ? state.jobs : [];
         const validJobIds = new Set(jobs.map((j) => String(j?.id || "")).filter(Boolean));
+        const jobTypeId = roleTypeId("job", "job");
         const moduleMetaUpdated = String(window.VMillData?.readModuleState?.()?.meta?.updatedAt || "");
         const sig = [
           String(selectedScopeTypeId || ""),
@@ -765,14 +1408,14 @@
         ].join("|");
         if (sig === scopeJobsCacheSig) return scopeJobsCacheSet;
         const out = new Set();
-        if (String(selectedScopeTypeId || "") === "job") {
+        if (String(selectedScopeTypeId || "") === String(jobTypeId || "")) {
           if (validJobIds.has(String(selectedScopeItemId || ""))) out.add(String(selectedScopeItemId || ""));
           scopeJobsCacheSig = sig;
           scopeJobsCacheSet = out;
           return out;
         }
         const linked = window.VMillData?.resolveLinkedItems
-          ? window.VMillData.resolveLinkedItems(selectedScopeTypeId, selectedScopeItemId, "job", {
+          ? window.VMillData.resolveLinkedItems(selectedScopeTypeId, selectedScopeItemId, jobTypeId, {
               includeStart: true,
               bidirectional: true,
               maxDepth: 10,
@@ -942,7 +1585,7 @@
           const files = ensureOperationFiles(op);
           return acc + files.reduce((n, f) => n + ((f.bubbles || []).length), 0);
         }, 0);
-        info.textContent = tt("spacial.routeInfo", "Route \"{name}\" rev {rev} | Ops: {ops} | Bubbles: {bubbles}", {
+        info.textContent = tt("spacial.routeInfo.annotations", "Route \"{name}\" rev {rev} | Ops: {ops} | Annotations: {bubbles}", {
           name: routePlan.routeName || "-",
           rev: routePlan.revision || "-",
           ops: routePlan.operations.length,
@@ -958,8 +1601,8 @@
           "opNotesIn","opCriticalChk","opSaveBtn","bubbleIdIn","bubbleNameIn","bubbleNomIn","bubbleLslIn",
           "bubbleUslIn","bubbleUnitIn","bubbleMethodIn","bubbleInstrumentIn","bubbleReactionIn",
           "opFileSel","opFileUploadBtn","opFileRenameBtn","opFileDeleteBtn","opFileInput","opExportFileJpgBtn","opExportPdfBtn",
-          "bubbleSaveBtn","bubbleClearBtn","bubbleImportBtn","bubbleDrawingFile","bubbleDrawingClearBtn",
-          "bubbleDeleteSelBtn","bubbleShowBoxesChk",
+          "bubbleSaveBtn","bubbleClearBtn","bubbleImportBtn","bubbleDrawingClearBtn",
+          "bubbleOcrDetectBtn","bubbleOcrModeSel","bubbleOcrTestBtn","bubbleOcrUrlIn","bubbleDeleteSelBtn","bubbleShowBoxesChk",
         ];
         for (const id of ids) {
           const el = $(id);
@@ -1057,7 +1700,7 @@
         }
         const bubbles = selectedFileBubbles(op);
         if (!bubbles.length) {
-          body.innerHTML = `<tr><td colspan="4" class="mini">${tt("spacial.none.bubbles", "No bubbles yet for this operation.")}</td></tr>`;
+          body.innerHTML = `<tr><td colspan="4" class="mini">${tt("spacial.none.annotations", "No annotations yet for this operation.")}</td></tr>`;
           return;
         }
         body.innerHTML = bubbles.map((b, idx) => `
@@ -1118,7 +1761,7 @@
           el.addEventListener("click", () => {
             const i = Number(el.getAttribute("data-bubble-del"));
             if (!Number.isFinite(i)) return;
-            if (!confirm(tt("spacial.confirm.deleteBubble", "Delete this bubble?"))) return;
+            if (!confirm(tt("spacial.confirm.deleteAnnotation", "Delete this annotation?"))) return;
             const file = selectedOperationFile(op);
             if (!file) return;
             file.bubbles = bubbles.filter((_, idx) => idx !== i);
@@ -1232,7 +1875,7 @@
           ctx.fillRect(0, 0, cv.width, cv.height);
           ctx.fillStyle = hexToRgba(textHex, .8);
           ctx.font = "14px sans-serif";
-          ctx.fillText(tt("spacial.canvas.uploadHint", "Upload drawing image to place bubbles"), 14, 26);
+          ctx.fillText(tt("spacial.canvas.uploadHint.annotations", "Upload drawing image to place annotations"), 14, 26);
         }
         const op = getSelectedOperation();
         const opFile = selectedOperationFile(op);
@@ -1242,7 +1885,7 @@
           const opName = op?.name || tt("spacial.canvas.noOp", "No operation");
           const fileName = opFile?.name ? ` | ${tt("spacial.file.label", "File")}: ${opFile.name}` : "";
           const sel = selectedCanvasBubbleId ? ` | ${tt("spacial.canvas.selected", "Selected: {id}", { id: selectedCanvasBubbleId })}` : "";
-          info.textContent = `${tt("spacial.canvas.instructions", "Operation: {op}{selected}. Drag empty area to create box; drag box to move; drag circle to move bubble label.", { op: opName, selected: sel })}${fileName}`;
+          info.textContent = `${tt("spacial.canvas.instructions.annotations", "Operation: {op}{selected}. Drag empty area to create box; drag box to move; drag marker to move annotation label.", { op: opName, selected: sel })}${fileName}`;
         }
         if (op && Array.isArray(bubbles)) {
           bubbles.forEach((b, idx) => {
@@ -1326,7 +1969,7 @@
         if (!bubble) {
           bubble = normalizeBubble({
             id,
-            name: $("bubbleNameIn").value || `Dimension ${bubbles.length + 1}`,
+            name: $("bubbleNameIn").value || `Annotation ${bubbles.length + 1}`,
             nominal: $("bubbleNomIn").value,
             lsl: $("bubbleLslIn").value,
             usl: $("bubbleUslIn").value,
@@ -1338,7 +1981,7 @@
           bubbles.push(bubble);
         }
         bubble.id = id;
-        if (!$("bubbleNameIn").value && !bubble.name) bubble.name = `Dimension ${bubbles.length}`;
+        if (!$("bubbleNameIn").value && !bubble.name) bubble.name = `Annotation ${bubbles.length}`;
         if ($("bubbleNameIn").value) bubble.name = $("bubbleNameIn").value;
         bubble.nominal = numOrNull($("bubbleNomIn").value);
         bubble.lsl = numOrNull($("bubbleLslIn").value);
@@ -1615,6 +2258,7 @@
         return (state?.products || []).find((p) => String(p.id) === String(id)) || null;
       }
       function populateSelectors(state) {
+        const names = appEntityNames();
         const products = Array.isArray(state?.products) ? state.products : [];
         const stations = Array.isArray(state?.stations) ? state.stations : [];
         const jobs = Array.isArray(state?.jobs) ? state.jobs : [];
@@ -1689,12 +2333,12 @@
           productSel.innerHTML = "";
           const allOpt = document.createElement("option");
           allOpt.value = "";
-          allOpt.textContent = tt("spacial.filter.allProducts", "All products");
+          allOpt.textContent = `All ${names.product.plural.toLowerCase()}`;
           productSel.appendChild(allOpt);
           for (const p of products) {
             const o = document.createElement("option");
             o.value = String(p.id || "");
-            o.textContent = `${p.code || "--"} · ${p.name || tt("hub.structure.productDefault", "Product")}`;
+            o.textContent = `${p.code || "--"} · ${p.name || names.product.singular}`;
             productSel.appendChild(o);
           }
           if (!products.some((p) => String(p.id || "") === String(selectedProductFilterId))) selectedProductFilterId = "";
@@ -1706,7 +2350,7 @@
           stationSel.innerHTML = "";
           const allOpt = document.createElement("option");
           allOpt.value = "";
-          allOpt.textContent = tt("spacial.filter.allStations", "All stations");
+          allOpt.textContent = `All ${names.station.plural.toLowerCase()}`;
           stationSel.appendChild(allOpt);
           const allowedStationIds = new Set(
             jobs
@@ -1718,7 +2362,7 @@
             if (allowedStationIds.size && !allowedStationIds.has(String(st.id || ""))) continue;
             const o = document.createElement("option");
             o.value = String(st.id || "");
-            o.textContent = `${st.code || "--"} · ${st.name || tt("spacial.stationDefault", "Station")}`;
+            o.textContent = `${st.code || "--"} · ${st.name || names.station.singular}`;
             stationSel.appendChild(o);
           }
           if (![...stationSel.options].some((o) => o.value === String(selectedStationFilterId || ""))) selectedStationFilterId = "";
@@ -1731,14 +2375,14 @@
           jobSel.innerHTML = "";
           const allOpt = document.createElement("option");
           allOpt.value = "";
-          allOpt.textContent = tt("spacial.filter.allJobs", "All jobs");
+          allOpt.textContent = `All ${names.job.plural.toLowerCase()}`;
           jobSel.appendChild(allOpt);
           for (const j of jobsInScope) {
             const st = getStation(state, j.stationId);
             const p = getProduct(state, j.productId);
             const o = document.createElement("option");
             o.value = String(j.id || "");
-            o.textContent = `${p?.code || "--"} · ${st?.code || "--"} · ${j.name || tt("spacial.jobDefault", "Job")} (${(j.cycles || []).length})`;
+            o.textContent = `${p?.code || "--"} · ${st?.code || "--"} · ${j.name || names.job.singular} (${(j.cycles || []).length})`;
             jobSel.appendChild(o);
           }
           if (![...jobSel.options].some((o) => o.value === String(selectedJobFilterId || ""))) selectedJobFilterId = "";
@@ -1881,7 +2525,7 @@
       }
       function deleteSelectedOperation() {
         if (!routePlan || !selectedOpId) return;
-        if (!confirm(tt("spacial.confirm.deleteOperation", "Delete selected operation and all its bubbles?"))) return;
+        if (!confirm(tt("spacial.confirm.deleteOperation", "Delete selected operation and all its annotations?"))) return;
         routePlan.operations = routePlan.operations.filter((x) => String(x.id || "") !== String(selectedOpId || ""));
         selectedOpId = routePlan.operations[0]?.id || "";
         clearBubbleForm();
@@ -1909,7 +2553,7 @@
         const b = readBubbleForm();
         if (!strOrEmpty(b.id)) b.id = `B${String(bubbles.length + 1).padStart(3, "0")}`;
         if (!strOrEmpty(b.name)) {
-          alert(tt("spacial.alert.bubbleNameRequired", "Bubble name is required."));
+          alert(tt("spacial.alert.annotationNameRequired", "Annotation name is required."));
           return;
         }
         const editIdx = bubbles.findIndex((x) => String(x.id || "") === String(editingBubbleId || ""));
@@ -2033,7 +2677,7 @@
                 bubbleOffset: (labelX != null && labelY != null) ? { x: labelX, y: labelY } : null,
               }, bubbles.length + imported.length));
             }
-            if (!imported.length) throw new Error(tt("spacial.import.noValid", "No valid bubbles found."));
+            if (!imported.length) throw new Error(tt("spacial.import.noValid.annotations", "No valid annotations found."));
             for (const b of imported) {
               const idx = bubbles.findIndex((x) => String(x.id || "") === String(b.id || ""));
               if (idx >= 0) bubbles[idx] = b;
@@ -2041,7 +2685,7 @@
             }
             writeRoutePlan(routePlan);
             renderRoutingPanel();
-            alert(tt("spacial.import.done", "Imported {count} bubble(s).", { count: imported.length }));
+            alert(tt("spacial.import.done.annotations", "Imported {count} annotation(s).", { count: imported.length }));
           } catch (err) {
             alert(tt("spacial.import.failed", "CSV import failed: {err}", { err: err?.message || "invalid file" }));
           }
@@ -2160,6 +2804,10 @@
           alert(tt("spacial.popupBlocked", "Popup blocked. Allow popups to export PDF."));
           return;
         }
+        const cs = getComputedStyle(document.documentElement);
+        const popupText = escHtml((cs.getPropertyValue("--text") || "").trim() || "#222");
+        const popupBorder = escHtml((cs.getPropertyValue("--border") || "").trim() || "#bbb");
+        const popupHead = escHtml((cs.getPropertyValue("--panel") || "").trim() || "#eee");
         const tableRows = rows.map((r) => `
           <tr>
             <td>${escHtml(r.opSeq)}</td>
@@ -2189,12 +2837,12 @@
             <meta charset="utf-8" />
             <title>${escHtml(tt("spacial.section.route", "Route"))}</title>
             <style>
-              body{font-family:Arial,sans-serif;padding:14px;color:#222;}
+              body{font-family:Arial,sans-serif;padding:14px;color:${popupText};}
               h1,h2{margin:0 0 8px 0;}
               .m{margin-bottom:12px;font-size:12px;}
               table{width:100%;border-collapse:collapse;font-size:11px;}
-              th,td{border:1px solid #bbb;padding:4px 6px;text-align:left;}
-              th{background:#eee;}
+              th,td{border:1px solid ${popupBorder};padding:4px 6px;text-align:left;}
+              th{background:${popupHead};}
             </style>
           </head>
           <body>
@@ -2204,7 +2852,7 @@
               <thead>
                 <tr>
                   <th>${escHtml(tt("spacial.op.seq", "Seq"))}</th><th>${escHtml(tt("spacial.section.operations", "Operations"))}</th><th>${escHtml(tt("spacial.file.label", "File"))}</th><th>${escHtml(tt("spacial.stationDefault", "Station"))}</th><th>${escHtml(tt("spacial.op.workstation", "Workstation"))}</th><th>${escHtml(tt("spacial.op.method", "Control method"))}</th>
-                  <th>${escHtml(tt("spacial.table.bubble", "Bubble"))}</th><th>${escHtml(tt("spacial.table.name", "Name"))}</th><th>${escHtml(tt("spacial.bubble.nominal", "Nominal"))}</th><th>LSL</th><th>USL</th><th>${escHtml(tt("spacial.bubble.unit", "Unit (mm)"))}</th><th>${escHtml(tt("spacial.bubble.method", "Method"))}</th><th>${escHtml(tt("spacial.bubble.instrument", "Instrument"))}</th><th>X1</th><th>Y1</th><th>X2</th><th>Y2</th>
+                  <th>${escHtml(tt("spacial.table.annotation", "Annotation"))}</th><th>${escHtml(tt("spacial.table.name", "Name"))}</th><th>${escHtml(tt("spacial.annotation.nominal", "Nominal"))}</th><th>${escHtml(tt("spacial.annotation.lsl", "Lower limit"))}</th><th>${escHtml(tt("spacial.annotation.usl", "Upper limit"))}</th><th>${escHtml(tt("spacial.annotation.unit", "Unit"))}</th><th>${escHtml(tt("spacial.annotation.method", "Method"))}</th><th>${escHtml(tt("spacial.annotation.instrument", "Instrument"))}</th><th>${escHtml(tt("spacial.annotation.x1", "X1"))}</th><th>${escHtml(tt("spacial.annotation.y1", "Y1"))}</th><th>${escHtml(tt("spacial.annotation.x2", "X2"))}</th><th>${escHtml(tt("spacial.annotation.y2", "Y2"))}</th>
                 </tr>
               </thead>
               <tbody>${tableRows}</tbody>
@@ -2220,6 +2868,7 @@
       function refresh() {
         const env = readStateEnvelope();
         const state = env.state || { products: [], stations: [], jobs: [], meta: {} };
+        applyGlobalScopeToFilters(state);
         populateSelectors(state);
         const products = state.products || [];
         const stations = state.stations || [];
@@ -2262,7 +2911,7 @@
             updated,
           });
         } else {
-          $("stateInfo").textContent += tt("spacial.state.selectOne", " Select one job to manage routing and bubbles.");
+        $("stateInfo").textContent += tt("spacial.state.selectOne.annotations", " Select one job to manage routing and annotations.");
         }
         const scopeLabel = currentScopeLabel();
         if (scopeLabel) {
@@ -2319,9 +2968,25 @@
         if (!filesToAdd.length) return;
         const opFiles = ensureOperationFiles(op);
         let lastId = "";
-        for (const file of filesToAdd) {
+        for (let index = 0; index < filesToAdd.length; index++) {
+          const file = filesToAdd[index];
           try {
             const dataUrl = await readFileAsDataUrl(file);
+            const first = opFiles[0];
+            const canReuseFirst =
+              index === 0 &&
+              opFiles.length === 1 &&
+              first &&
+              !strOrEmpty(first.dataUrl) &&
+              Array.isArray(first.bubbles) &&
+              first.bubbles.length === 0;
+            if (canReuseFirst) {
+              first.name = file.name || `${tt("spacial.file.default", "File")} 1`;
+              first.mime = file.type || "";
+              first.dataUrl = dataUrl;
+              lastId = first.id;
+              continue;
+            }
             const next = normalizeOperationFile({
               name: file.name || `${tt("spacial.file.default", "File")} ${opFiles.length + 1}`,
               mime: file.type || "",
@@ -2454,7 +3119,7 @@
       function operationFileRowsForPdf(op, file) {
         const bubbles = Array.isArray(file?.bubbles) ? file.bubbles : [];
         if (!bubbles.length) {
-          return `<tr><td colspan="11" style="padding:6px;">${escHtml(tt("spacial.none.bubbles", "No bubbles yet for this operation."))}</td></tr>`;
+          return `<tr><td colspan="11" style="padding:6px;">${escHtml(tt("spacial.none.annotations", "No annotations yet for this operation."))}</td></tr>`;
         }
         return bubbles.map((b) => {
           const bb = normalizeBbox(b?.bbox);
@@ -2485,26 +3150,30 @@
           alert(tt("spacial.popupBlocked", "Popup blocked. Allow popups to export PDF."));
           return;
         }
+        const cs = getComputedStyle(document.documentElement);
+        const popupText = escHtml((cs.getPropertyValue("--text") || "").trim() || "#222");
+        const popupBorder = escHtml((cs.getPropertyValue("--border") || "").trim() || "#bbb");
+        const popupMuted = escHtml((cs.getPropertyValue("--muted") || "").trim() || "#666");
         const opTitle = `${op.seq || ""} - ${op.name || tt("spacial.section.operations", "Operations")}`;
         const blocks = files.map((file, idx) => `
           <section style="margin:0 0 18px;">
             <h3 style="margin:0 0 6px;">${escHtml(tt("spacial.file.label", "File"))} ${idx + 1}: ${escHtml(file.name || "")}</h3>
-            <div style="margin:0 0 8px;font-size:11px;color:#555;">${escHtml(file.mime || "")}</div>
-            ${isImageDataUrl(file.dataUrl) ? `<img src="${file.dataUrl}" style="max-width:100%;max-height:420px;display:block;border:1px solid #bbb;border-radius:6px;margin-bottom:8px;" />` : `<div style="margin:0 0 8px;font-size:12px;color:#666;">${escHtml(tt("spacial.file.previewNA", "Preview not available for this file type."))}</div>`}
+            <div style="margin:0 0 8px;font-size:11px;color:${popupMuted};">${escHtml(file.mime || "")}</div>
+            ${isImageDataUrl(file.dataUrl) ? `<img src="${file.dataUrl}" style="max-width:100%;max-height:420px;display:block;border:1px solid ${popupBorder};border-radius:6px;margin-bottom:8px;" />` : `<div style="margin:0 0 8px;font-size:12px;color:${popupMuted};">${escHtml(tt("spacial.file.previewNA", "Preview not available for this file type."))}</div>`}
             <table style="width:100%;border-collapse:collapse;font-size:11px;">
               <thead>
                 <tr>
-                  <th style="border:1px solid #bbb;padding:4px 6px;text-align:left;">${escHtml(tt("spacial.table.bubble", "Bubble"))}</th>
-                  <th style="border:1px solid #bbb;padding:4px 6px;text-align:left;">${escHtml(tt("spacial.table.name", "Name"))}</th>
-                  <th style="border:1px solid #bbb;padding:4px 6px;text-align:left;">${escHtml(tt("spacial.bubble.nominal", "Nominal"))}</th>
-                  <th style="border:1px solid #bbb;padding:4px 6px;text-align:left;">LSL</th>
-                  <th style="border:1px solid #bbb;padding:4px 6px;text-align:left;">USL</th>
-                  <th style="border:1px solid #bbb;padding:4px 6px;text-align:left;">${escHtml(tt("spacial.bubble.unit", "Unit (mm)"))}</th>
-                  <th style="border:1px solid #bbb;padding:4px 6px;text-align:left;">${escHtml(tt("spacial.bubble.method", "Method"))}</th>
-                  <th style="border:1px solid #bbb;padding:4px 6px;text-align:left;">${escHtml(tt("spacial.bubble.instrument", "Instrument"))}</th>
-                  <th style="border:1px solid #bbb;padding:4px 6px;text-align:left;">X1</th>
-                  <th style="border:1px solid #bbb;padding:4px 6px;text-align:left;">Y1</th>
-                  <th style="border:1px solid #bbb;padding:4px 6px;text-align:left;">X2</th>
+                  <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.table.annotation", "Annotation"))}</th>
+                  <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.table.name", "Name"))}</th>
+                  <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.annotation.nominal", "Nominal"))}</th>
+                  <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.annotation.lsl", "Lower limit"))}</th>
+                  <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.annotation.usl", "Upper limit"))}</th>
+                  <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.annotation.unit", "Unit"))}</th>
+                  <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.annotation.method", "Method"))}</th>
+                  <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.annotation.instrument", "Instrument"))}</th>
+                  <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.annotation.x1", "X1"))}</th>
+                  <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.annotation.y1", "Y1"))}</th>
+                  <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.annotation.x2", "X2"))}</th>
                 </tr>
               </thead>
               <tbody>${operationFileRowsForPdf(op, file)}</tbody>
@@ -2517,7 +3186,7 @@
             <head>
               <meta charset="utf-8" />
               <title>${escHtml(opTitle)}</title>
-              <style>body{font-family:Arial,sans-serif;padding:14px;color:#222;} h1,h2,h3{margin:0 0 8px;}</style>
+              <style>body{font-family:Arial,sans-serif;padding:14px;color:${popupText};} h1,h2,h3{margin:0 0 8px;}</style>
             </head>
             <body>
               <h1>${escHtml(tt("spacial.routing.title", "Routing and Dimensional Control"))}</h1>
@@ -2620,22 +3289,6 @@
         if (f) importBubblesCsv(f);
         e.target.value = "";
       });
-      $("bubbleDrawingFile").addEventListener("change", (e) => {
-        const f = e.target.files?.[0];
-        if (!f) return;
-        const fr = new FileReader();
-        fr.onload = () => {
-          const op = getSelectedOperation();
-          const opFile = selectedOperationFile(op);
-          if (!op || !opFile) return;
-          opFile.dataUrl = String(fr.result || "");
-          opFile.mime = f.type || (isImageDataUrl(opFile.dataUrl) ? "image/*" : opFile.mime);
-          writeRoutePlan(routePlan);
-          renderRoutingPanel();
-        };
-        fr.readAsDataURL(f);
-        e.target.value = "";
-      });
       $("bubbleDrawingClearBtn").addEventListener("click", () => {
         const op = getSelectedOperation();
         const opFile = selectedOperationFile(op);
@@ -2649,11 +3302,19 @@
         const op = getSelectedOperation();
         const opFile = selectedOperationFile(op);
         if (!op || !opFile || !selectedCanvasBubbleId) return;
-        if (!confirm(tt("spacial.confirm.deleteSelectedBubble", "Delete selected bubble?"))) return;
+        if (!confirm(tt("spacial.confirm.deleteSelectedAnnotation", "Delete selected annotation?"))) return;
         opFile.bubbles = (opFile.bubbles || []).filter((x) => String(x.id || "") !== String(selectedCanvasBubbleId || ""));
         selectedCanvasBubbleId = opFile.bubbles[0]?.id || "";
         writeRoutePlan(routePlan);
         renderRoutingPanel();
+      });
+      $("bubbleOcrDetectBtn").addEventListener("click", runOcrDetectionForSelectedFile);
+      $("bubbleOcrTestBtn").addEventListener("click", testOcrConnection);
+      $("bubbleOcrUrlIn").addEventListener("change", () => {
+        const normalized = normalizeHttpBaseUrl($("bubbleOcrUrlIn").value);
+        if (!normalized) return;
+        $("bubbleOcrUrlIn").value = normalized;
+        localStorage.setItem(OCR_URL_KEY, normalized);
       });
       $("bubbleShowBoxesChk").addEventListener("change", drawBubbleCanvas);
       $("routeExportJsonBtn").addEventListener("click", () => {
@@ -2665,20 +3326,27 @@
 
       window.CANBus?.onMessage((msg) => {
         if (!msg || !msg.type) return;
-        if (msg.type.startsWith("data:")) {
-          refresh();
+        if (msg.type === "data:sync:status") return;
+        if (msg.type.startsWith("data:") || msg.type === "vmill:hub-scope:changed") {
+          requestRefresh();
         }
       });
+      window.addEventListener("vmill:hub-scope:changed", requestRefresh);
       window.addEventListener("storage", (e) => {
         if (!e.key) return;
+        if (e.key === HUB_SCOPE_KEY) {
+          requestRefresh();
+          return;
+        }
         if (WATCH_KEYS.includes(e.key)) {
-          refresh();
+          requestRefresh();
           return;
         }
       });
       window.addEventListener("vmill:lang:changed", () => {
         applySpacialI18n();
-        refresh();
+        applyOcrBusyState(bubbleOcrBusy);
+        requestRefresh();
       });
       setInterval(() => {
         const env = readStateEnvelope();
@@ -2693,13 +3361,15 @@
         });
         if (sig !== lastStateSig) {
           lastStateSig = sig;
-          refresh();
+          requestRefresh();
         }
-      }, 1500);
+      }, 5000);
       applySpacialI18n();
+      ensureOcrUrlInput();
+      setOcrStatus("muted", tt("spacial.ocr.ready", "OCR ready."));
       window.CANBus?.emit("spacial:ready", { module: "SPaCial" }, "spacial");
 
-      refresh();
+      requestRefresh();
     })();
   </script>
 </body>

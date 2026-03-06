@@ -3,16 +3,54 @@
   const LEGACY_APP_KEYS = ["chrono_drawer_timeline_v5", "chrono_drawer_timeline_v4", "chrono_drawer_timeline_v3"];
   const ALL_APP_KEYS = [APP_KEY, ...LEGACY_APP_KEYS];
   const MODULE_KEY = "vmill:module-data:v1";
+  const AUTH_TOKEN_KEY = "vmill:auth:token";
+  const AUTH_USER_KEY = "vmill:auth:user";
+  const SERVER_URL_KEY = "vmill:server:url";
+  const SYNC_REV_KEY = "vmill:sync:rev";
+  const SYNC_CLIENT_ID_KEY = "vmill:sync:client-id";
+  const SYNC_POLL_MS = 5000;
+  const HTTP_TIMEOUT_MS = 8000;
+  const TABLE_REMOTE_REFRESH_MS = 15000;
   const WINDOW_STORE_PREFIX = "__VMILL_STORE__:";
   const NS_ROUTE = "spacial_routes";
   const NS_ENTITY_TYPES = "global_entity_types";
   const NS_ENTITY_ITEMS = "global_entity_items";
   const NS_ENTITY_LINKS = "global_entity_links";
   const NS_STRUCTURE_RULES = "global_structure_rules";
+  const NS_API_TABLE_PREFIX = "api_table:";
   const DEMO_PRESETS = {
     small: "chrono_examples_small.json",
     medium: "chrono_examples_medium.json",
     large: "chrono_examples_large.json",
+  };
+  const syncSubscribers = new Set();
+  const IS_EMBEDDED_FRAME = (() => {
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true;
+    }
+  })();
+  const syncState = {
+    initialized: false,
+    online: false,
+    serverUrl: "",
+    revision: 0,
+    dirtyApp: false,
+    dirtyModules: false,
+    applyingRemote: false,
+    pollTimer: 0,
+    pushTimer: 0,
+    pulling: false,
+    pushing: false,
+    clientId: "",
+    lastError: "",
+    authError: false,
+    tableCache: Object.create(null),
+    tableInFlight: Object.create(null),
+  };
+  const crudState = {
+    lastError: "",
   };
 
   function safeParse(raw, fallback) {
@@ -22,6 +60,84 @@
     } catch {
       return fallback;
     }
+  }
+
+  function readLs(key, fallback = "") {
+    try {
+      const v = localStorage.getItem(String(key || ""));
+      return v == null ? fallback : v;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function writeLs(key, value) {
+    try { localStorage.setItem(String(key || ""), String(value ?? "")); } catch {}
+  }
+
+  function normalizeServerUrl(raw) {
+    const src = String(raw || "").trim();
+    if (!src) return "";
+    const withProtocol = /^[a-z]+:\/\//i.test(src) ? src : `http://${src}`;
+    try {
+      const u = new URL(withProtocol);
+      return `${u.protocol}//${u.host}`;
+    } catch {
+      return "";
+    }
+  }
+
+  function readAuthToken() {
+    const raw = String(readLs(AUTH_TOKEN_KEY, "") || "").trim();
+    if (!raw) return "";
+    if (raw.startsWith("{")) {
+      const parsed = safeParse(raw, null);
+      return String(parsed?.token || "").trim();
+    }
+    return raw;
+  }
+
+  function authHeaders() {
+    const token = readAuthToken();
+    if (!token) return {};
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  function readSyncRevision() {
+    const n = Number(readLs(SYNC_REV_KEY, "0"));
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  }
+
+  function writeSyncRevision(next) {
+    const n = Number(next || 0);
+    if (!Number.isFinite(n) || n < 0) return;
+    syncState.revision = Math.floor(n);
+    writeLs(SYNC_REV_KEY, String(syncState.revision));
+  }
+
+  function ensureSyncClientId() {
+    let cid = String(readLs(SYNC_CLIENT_ID_KEY, "") || "").trim();
+    if (!cid) {
+      cid = `client_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      writeLs(SYNC_CLIENT_ID_KEY, cid);
+    }
+    syncState.clientId = cid;
+    return cid;
+  }
+
+  function emitSyncStatus(extra = {}) {
+    const payload = {
+      online: !!syncState.online,
+      serverUrl: String(syncState.serverUrl || ""),
+      revision: Number(syncState.revision || 0),
+      authError: !!syncState.authError,
+      lastError: String(syncState.lastError || ""),
+      ...extra,
+    };
+    for (const fn of syncSubscribers) {
+      try { fn(payload); } catch {}
+    }
+    window.CANBus?.emit("data:sync:status", payload, "module-data");
   }
 
   function isValidAppState(v) {
@@ -246,6 +362,12 @@
   }
 
   function stateStamp(v) {
+    const iso = String(v?.meta?.updatedAt || v?.meta?.createdAt || "");
+    const ts = Date.parse(iso);
+    return Number.isFinite(ts) ? ts : -1;
+  }
+
+  function moduleStateStamp(v) {
     const iso = String(v?.meta?.updatedAt || v?.meta?.createdAt || "");
     const ts = Date.parse(iso);
     return Number.isFinite(ts) ? ts : -1;
@@ -536,17 +658,15 @@
     if (fromWindow) candidates.push({ key: "__window_name__", state: fromWindow, stamp: stateStamp(fromWindow) });
     if (!candidates.length) {
       if (!seedIfMissing) return null;
-      const seeded = createDefaultAppState();
+      const seeded = createEmptyAppState();
       writeAppState(seeded);
-      seedRoutesForState(seeded, { overwrite: false, pruneMissing: false });
       return seeded;
     }
     const best = chooseBestState(candidates);
     if (!best) {
       if (!seedIfMissing) return null;
-      const seeded = createDefaultAppState();
+      const seeded = createEmptyAppState();
       writeAppState(seeded);
-      seedRoutesForState(seeded, { overwrite: false, pruneMissing: false });
       return seeded;
     }
     // Keep read path side-effect free by default.
@@ -571,6 +691,11 @@
     }
     writeWindowAppState(normalized);
     window.CANBus?.emit("data:app:updated", { key: APP_KEY, mirrors: LEGACY_APP_KEYS.slice() }, "module-data");
+    if (!syncState.applyingRemote) {
+      syncState.dirtyApp = true;
+      scheduleSyncPush();
+      emitSyncStatus({ reason: "app-write", dirtyApp: true, dirtyModules: syncState.dirtyModules });
+    }
   }
 
   function resetAppStateToDefault() {
@@ -634,11 +759,13 @@
     throw new Error(`Demo load failed for "${file}". Tried: ${tries.join(" | ")}`);
   }
 
-  function ensureModuleState(st) {
+  function ensureModuleState(st, options = {}) {
+    const touchUpdated = options?.touchUpdated === true;
     const base = st && typeof st === "object" ? st : {};
-    if (!base.meta) base.meta = {};
-    if (!base.meta.createdAt) base.meta.createdAt = new Date().toISOString();
-    base.meta.updatedAt = new Date().toISOString();
+    if (!base.meta || typeof base.meta !== "object") base.meta = {};
+    const nowIso = new Date().toISOString();
+    if (!base.meta.createdAt) base.meta.createdAt = nowIso;
+    if (touchUpdated || !base.meta.updatedAt) base.meta.updatedAt = nowIso;
     if (!base.store || typeof base.store !== "object") base.store = {};
     return base;
   }
@@ -738,10 +865,10 @@
   function readModuleState() {
     let raw = null;
     try { raw = localStorage.getItem(MODULE_KEY); } catch {}
-    const fromLs = ensureModuleState(safeParse(raw, {}));
+    const fromLs = ensureModuleState(safeParse(raw, {}), { touchUpdated: false });
     const fromWinRaw = readWindowModuleState();
     if (!fromWinRaw) return fromLs;
-    const fromWin = ensureModuleState(fromWinRaw);
+    const fromWin = ensureModuleState(fromWinRaw, { touchUpdated: false });
     const lsTs = Date.parse(String(fromLs?.meta?.updatedAt || ""));
     const winTs = Date.parse(String(fromWin?.meta?.updatedAt || ""));
     if (Number.isFinite(winTs) && (!Number.isFinite(lsTs) || winTs > lsTs)) return fromWin;
@@ -749,10 +876,15 @@
   }
 
   function writeModuleState(next) {
-    const st = ensureModuleState(next);
+    const st = ensureModuleState(next, { touchUpdated: true });
     try { localStorage.setItem(MODULE_KEY, JSON.stringify(st)); } catch {}
     writeWindowModuleState(st);
     window.CANBus?.emit("data:module:updated", { key: MODULE_KEY }, "module-data");
+    if (!syncState.applyingRemote) {
+      syncState.dirtyModules = true;
+      scheduleSyncPush();
+      emitSyncStatus({ reason: "module-write", dirtyApp: syncState.dirtyApp, dirtyModules: true });
+    }
     return st;
   }
 
@@ -788,6 +920,501 @@
     return Array.isArray(st.store[ns]) ? st.store[ns].slice() : [];
   }
 
+  function apiTableNamespace(table) {
+    return `${NS_API_TABLE_PREFIX}${String(table || "").trim()}`;
+  }
+
+  function normalizeApiTableName(raw) {
+    const key = String(raw || "").trim().toLowerCase();
+    const map = {
+      node: "nodes",
+      nodes: "nodes",
+      product: "products",
+      products: "products",
+      job: "jobs",
+      jobs: "jobs",
+      "chrono/session": "chrono_sessions",
+      "chrono/sessions": "chrono_sessions",
+      chrono_session: "chrono_sessions",
+      chrono_sessions: "chrono_sessions",
+      "chrono/event": "chrono_events",
+      "chrono/events": "chrono_events",
+      chrono_event: "chrono_events",
+      chrono_events: "chrono_events",
+      "spc/characteristic": "spc_characteristics",
+      "spc/characteristics": "spc_characteristics",
+      spc_characteristic: "spc_characteristics",
+      spc_characteristics: "spc_characteristics",
+      "spc/series": "spc_series",
+      spc_series: "spc_series",
+      "spc/measurement": "spc_measurements",
+      "spc/measurements": "spc_measurements",
+      spc_measurement: "spc_measurements",
+      spc_measurements: "spc_measurements",
+      user: "users",
+      users: "users",
+    };
+    return map[key] || "";
+  }
+
+  function toSnakeKey(raw) {
+    return String(raw || "")
+      .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+      .replace(/[\s\-]+/g, "_")
+      .toLowerCase();
+  }
+
+  function toCamelKey(raw) {
+    const s = String(raw || "");
+    return s.replace(/_([a-z0-9])/g, (_, ch) => String(ch || "").toUpperCase());
+  }
+
+  function firstRecordValue(rec, key) {
+    if (!rec || typeof rec !== "object") return undefined;
+    const k = String(key || "");
+    if (k in rec) return rec[k];
+    const snake = toSnakeKey(k);
+    if (snake in rec) return rec[snake];
+    const camel = toCamelKey(k);
+    if (camel in rec) return rec[camel];
+    return undefined;
+  }
+
+  function normalizeMeta(raw) {
+    return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  }
+
+  function apiProductFromLocal(raw) {
+    const src = raw && typeof raw === "object" ? raw : {};
+    return {
+      id: String(src.id || uuid()),
+      code: String(firstRecordValue(src, "code") || ""),
+      name: String(firstRecordValue(src, "name") || "Product"),
+      parent_product_id: String(firstRecordValue(src, "parent_product_id") || firstRecordValue(src, "parentProductId") || ""),
+      image_url: String(firstRecordValue(src, "image_url") || firstRecordValue(src, "imageUrl") || ""),
+      meta: normalizeMeta(firstRecordValue(src, "meta")),
+    };
+  }
+
+  function localProductFromApi(raw, current = null) {
+    const src = raw && typeof raw === "object" ? raw : {};
+    const prev = current && typeof current === "object" ? current : {};
+    return {
+      ...prev,
+      id: String(src.id || prev.id || uuid()),
+      code: String(firstRecordValue(src, "code") || prev.code || ""),
+      name: String(firstRecordValue(src, "name") || prev.name || "Product"),
+      parentProductId: String(firstRecordValue(src, "parent_product_id") || firstRecordValue(src, "parentProductId") || prev.parentProductId || ""),
+      imageUrl: String(firstRecordValue(src, "image_url") || firstRecordValue(src, "imageUrl") || prev.imageUrl || ""),
+      meta: normalizeMeta(firstRecordValue(src, "meta") || prev.meta || {}),
+      updatedAt: String(firstRecordValue(src, "updated_at") || firstRecordValue(src, "updatedAt") || prev.updatedAt || ""),
+    };
+  }
+
+  function apiJobFromLocal(raw) {
+    const src = raw && typeof raw === "object" ? raw : {};
+    const nodeId = String(
+      firstRecordValue(src, "node_id")
+      || firstRecordValue(src, "nodeId")
+      || firstRecordValue(src, "station_id")
+      || firstRecordValue(src, "stationId")
+      || ""
+    );
+    return {
+      id: String(src.id || uuid()),
+      name: String(firstRecordValue(src, "name") || "Job"),
+      node_id: nodeId,
+      product_id: String(firstRecordValue(src, "product_id") || firstRecordValue(src, "productId") || ""),
+      status: String(firstRecordValue(src, "status") || "active"),
+      meta: normalizeMeta(firstRecordValue(src, "meta")),
+    };
+  }
+
+  function localJobFromApi(raw, current = null) {
+    const src = raw && typeof raw === "object" ? raw : {};
+    const prev = current && typeof current === "object" ? current : {};
+    const nodeId = String(firstRecordValue(src, "node_id") || firstRecordValue(src, "nodeId") || prev.nodeId || "");
+    const stationIdFromSrc = String(firstRecordValue(src, "station_id") || firstRecordValue(src, "stationId") || "");
+    const stationId = String(stationIdFromSrc || nodeId || prev.stationId || prev.nodeId || "");
+    return {
+      ...prev,
+      id: String(src.id || prev.id || uuid()),
+      name: String(firstRecordValue(src, "name") || prev.name || "Job"),
+      productId: String(firstRecordValue(src, "product_id") || firstRecordValue(src, "productId") || prev.productId || ""),
+      nodeId,
+      stationId,
+      status: String(firstRecordValue(src, "status") || prev.status || "active"),
+      meta: normalizeMeta(firstRecordValue(src, "meta") || prev.meta || {}),
+      updatedAt: String(firstRecordValue(src, "updated_at") || firstRecordValue(src, "updatedAt") || prev.updatedAt || ""),
+    };
+  }
+
+  function stableJson(v) {
+    try {
+      return JSON.stringify(v ?? {});
+    } catch {
+      return "";
+    }
+  }
+
+  function normalizeRecordForCompare(v) {
+    if (Array.isArray(v)) return v.map((x) => normalizeRecordForCompare(x));
+    if (!v || typeof v !== "object") return v;
+    const out = {};
+    const keys = Object.keys(v).sort();
+    for (const k of keys) {
+      if (k === "updatedAt" || k === "createdAt") continue;
+      out[k] = normalizeRecordForCompare(v[k]);
+    }
+    return out;
+  }
+
+  function recordsEquivalentLoose(a, b) {
+    return stableJson(normalizeRecordForCompare(a)) === stableJson(normalizeRecordForCompare(b));
+  }
+
+  function normalizePayloadForServer(table, raw, id = "") {
+    const src = raw && typeof raw === "object" ? { ...raw } : {};
+    if (id && !src.id) src.id = id;
+    if (table === "products") return apiProductFromLocal(src);
+    if (table === "jobs") return apiJobFromLocal(src);
+    if (table === "nodes") {
+      return {
+        ...src,
+        id: String(src.id || id || uuid()),
+        parent_id: firstRecordValue(src, "parent_id") ?? firstRecordValue(src, "parentId") ?? null,
+        order_index: Number(firstRecordValue(src, "order_index") ?? firstRecordValue(src, "order") ?? 0) || 0,
+        image_url: String(firstRecordValue(src, "image_url") || firstRecordValue(src, "imageUrl") || ""),
+        type: String(firstRecordValue(src, "type") || "Custom"),
+        name: String(firstRecordValue(src, "name") || "Node"),
+        meta: normalizeMeta(firstRecordValue(src, "meta")),
+      };
+    }
+    if ("meta_json" in src && !("meta" in src)) {
+      src.meta = normalizeMeta(src.meta_json);
+      delete src.meta_json;
+    }
+    if ("data_json" in src && !("data" in src)) {
+      src.data = normalizeMeta(src.data_json);
+      delete src.data_json;
+    }
+    return src;
+  }
+
+  function readLocalTable(table, params = {}) {
+    if (table === "products") {
+      const app = readAppState({ seedIfMissing: false }) || createEmptyAppState();
+      const rows = (app.products || []).map((p) => apiProductFromLocal(p));
+      return filterTableRows(rows, params);
+    }
+    if (table === "jobs") {
+      const app = readAppState({ seedIfMissing: false }) || createEmptyAppState();
+      const rows = (app.jobs || []).map((j) => apiJobFromLocal(j));
+      return filterTableRows(rows, params);
+    }
+    return filterTableRows(listRecords(apiTableNamespace(table)), params);
+  }
+
+  function mergeLocalTableRecord(table, raw) {
+    if (!raw || typeof raw !== "object") return null;
+    if (table === "products") {
+      const app = readAppState({ seedIfMissing: false }) || createEmptyAppState();
+      if (!Array.isArray(app.products)) app.products = [];
+      const id = String(raw.id || uuid());
+      const idx = app.products.findIndex((x) => String(x?.id || "") === id);
+      const prev = idx >= 0 ? app.products[idx] : null;
+      const next = localProductFromApi({ ...raw, id }, prev);
+      const changed = idx < 0 || !prev || (
+        String(prev.code || "") !== String(next.code || "")
+        || String(prev.name || "") !== String(next.name || "")
+        || String(prev.parentProductId || "") !== String(next.parentProductId || "")
+        || String(prev.imageUrl || "") !== String(next.imageUrl || "")
+        || stableJson(prev.meta) !== stableJson(next.meta)
+      );
+      if (changed) {
+        if (idx >= 0) app.products[idx] = { ...app.products[idx], ...next };
+        else app.products.push(next);
+        if (!app.activeProductId) app.activeProductId = next.id;
+        writeAppState(app);
+      }
+      return apiProductFromLocal(next);
+    }
+    if (table === "jobs") {
+      const app = readAppState({ seedIfMissing: false }) || createEmptyAppState();
+      if (!Array.isArray(app.jobs)) app.jobs = [];
+      const id = String(raw.id || uuid());
+      const idx = app.jobs.findIndex((x) => String(x?.id || "") === id);
+      const prev = idx >= 0 ? app.jobs[idx] : null;
+      const next = localJobFromApi({ ...raw, id }, prev);
+      const changed = idx < 0 || !prev || (
+        String(prev.name || "") !== String(next.name || "")
+        || String(prev.productId || "") !== String(next.productId || "")
+        || String(prev.nodeId || "") !== String(next.nodeId || "")
+        || String(prev.stationId || "") !== String(next.stationId || "")
+        || String(prev.status || "") !== String(next.status || "")
+        || stableJson(prev.meta) !== stableJson(next.meta)
+      );
+      if (changed) {
+        if (idx >= 0) app.jobs[idx] = { ...app.jobs[idx], ...next };
+        else app.jobs.push(next);
+        if (!app.activeJobId) app.activeJobId = next.id;
+        writeAppState(app);
+      }
+      return apiJobFromLocal(next);
+    }
+    const ns = apiTableNamespace(table);
+    const id = String(raw?.id || "");
+    if (id) {
+      const prev = listRecords(ns).find((x) => String(x?.id || "") === id) || null;
+      if (prev && recordsEquivalentLoose(prev, raw)) return prev;
+    }
+    return upsertRecord(ns, raw);
+  }
+
+  function removeLocalTableRecord(table, id) {
+    const rid = String(id || "");
+    if (!rid) return false;
+    if (table === "products") {
+      const app = readAppState({ seedIfMissing: false }) || createEmptyAppState();
+      const before = Array.isArray(app.products) ? app.products.length : 0;
+      app.products = (app.products || []).filter((x) => String(x?.id || "") !== rid);
+      if (String(app.activeProductId || "") === rid) app.activeProductId = app.products[0]?.id || null;
+      for (const job of (app.jobs || [])) {
+        if (String(job?.productId || "") === rid) job.productId = "";
+      }
+      if (app.products.length !== before) {
+        writeAppState(app);
+        return true;
+      }
+      return false;
+    }
+    if (table === "jobs") {
+      const app = readAppState({ seedIfMissing: false }) || createEmptyAppState();
+      const before = Array.isArray(app.jobs) ? app.jobs.length : 0;
+      app.jobs = (app.jobs || []).filter((x) => String(x?.id || "") !== rid);
+      if (String(app.activeJobId || "") === rid) app.activeJobId = app.jobs[0]?.id || null;
+      if (app.jobs.length !== before) {
+        writeAppState(app);
+        return true;
+      }
+      return false;
+    }
+    return deleteRecord(apiTableNamespace(table), rid);
+  }
+
+  function filterTableRows(rows, params = {}) {
+    const list = Array.isArray(rows) ? rows.slice() : [];
+    const filters = params && typeof params === "object" ? Object.entries(params) : [];
+    if (!filters.length) return list;
+    return list.filter((row) => {
+      for (const [key, value] of filters) {
+        if (value == null || value === "") continue;
+        const got = firstRecordValue(row, key);
+        if (String(got ?? "") !== String(value)) return false;
+      }
+      return true;
+    });
+  }
+
+  function tableQueryString(params = {}) {
+    const q = params && typeof params === "object" ? params : {};
+    const usp = new URLSearchParams();
+    for (const [key, value] of Object.entries(q)) {
+      if (value == null || value === "") continue;
+      usp.set(toSnakeKey(key), String(value));
+    }
+    const raw = usp.toString();
+    return raw ? `?${raw}` : "";
+  }
+
+  function hasTableParams(params = {}) {
+    const q = params && typeof params === "object" ? params : {};
+    return Object.entries(q).some(([, value]) => !(value == null || value === ""));
+  }
+
+  function tableReqKey(table, params = {}) {
+    return `${String(table || "").trim()}${tableQueryString(params)}`;
+  }
+
+  function clearTableFetchCache(table = "") {
+    const wanted = String(table || "").trim();
+    for (const key of Object.keys(syncState.tableCache || {})) {
+      if (!wanted || key === wanted || key.startsWith(`${wanted}?`)) delete syncState.tableCache[key];
+    }
+  }
+
+  function tableCacheFresh(reqKey) {
+    const meta = syncState.tableCache?.[String(reqKey || "")];
+    if (!meta || typeof meta !== "object") return false;
+    const ts = Number(meta.ts || 0);
+    const rev = Number(meta.rev || 0);
+    if (!Number.isFinite(ts) || ts <= 0) return false;
+    if (rev !== Number(syncState.revision || 0)) return false;
+    return (Date.now() - ts) <= TABLE_REMOTE_REFRESH_MS;
+  }
+
+  async function fetchTableAndMerge(table, params = {}, options = {}) {
+    const reqKey = tableReqKey(table, params);
+    const force = options?.force === true;
+    const awaitResult = options?.awaitResult === true;
+    const captureError = options?.captureError === true;
+
+    if (!syncState.online || !getServerUrl() || !readAuthToken()) return null;
+    if (!force && tableCacheFresh(reqKey)) return null;
+
+    const inFlight = syncState.tableInFlight?.[reqKey];
+    if (inFlight) {
+      if (awaitResult) {
+        try { await inFlight; } catch {}
+      }
+      return null;
+    }
+
+    const task = (async () => {
+      const remote = await requestTableApi("GET", table, "", null, params);
+      const remoteItems = Array.isArray(remote.data?.items)
+        ? remote.data.items
+        : (table === "users" && Array.isArray(remote.data?.users) ? remote.data.users : null);
+      if (!remote.ok || !Array.isArray(remoteItems)) {
+        syncState.tableCache[reqKey] = {
+          ts: Date.now(),
+          rev: Number(syncState.revision || 0),
+          ok: false,
+        };
+        if (captureError) crudState.lastError = String(remote?.data?.error || remote?.status || "");
+        return null;
+      }
+      for (const item of remoteItems) mergeLocalTableRecord(table, item);
+      syncState.tableCache[reqKey] = {
+        ts: Date.now(),
+        rev: Number(syncState.revision || 0),
+        ok: true,
+        count: remoteItems.length,
+      };
+      return remoteItems.slice();
+    })().finally(() => {
+      delete syncState.tableInFlight[reqKey];
+    });
+
+    syncState.tableInFlight[reqKey] = task;
+    if (!awaitResult) return null;
+    try {
+      return await task;
+    } catch {
+      return null;
+    }
+  }
+
+  async function requestTableApi(method, table, id = "", payload = null, params = {}) {
+    const baseUrl = getServerUrl();
+    if (!syncState.online || !baseUrl || !readAuthToken()) {
+      return { ok: false, status: 0, data: { error: "offline" } };
+    }
+    const rid = String(id || "").trim();
+    const path = rid
+      ? `${baseUrl}/api/${table}/${encodeURIComponent(rid)}`
+      : `${baseUrl}/api/${table}${method === "GET" ? tableQueryString(params) : ""}`;
+    const headers = { ...authHeaders() };
+    const init = { method: String(method || "GET").toUpperCase(), cache: "no-store", headers };
+    if (payload && init.method !== "GET") {
+      headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(payload);
+    }
+    const out = await fetchJson(path, init);
+    if (out.status === 401 || out.status === 403) {
+      syncState.authError = true;
+      emitSyncStatus({ reason: "table-auth-failed", table, status: out.status });
+    }
+    return out;
+  }
+
+  async function list(tableName, params = {}) {
+    const table = normalizeApiTableName(tableName);
+    if (!table) return [];
+    crudState.lastError = "";
+    const localRows = readLocalTable(table, params);
+    if (!syncState.online || !getServerUrl() || !readAuthToken()) return localRows;
+
+    const hasFilters = hasTableParams(params);
+    if (!localRows.length) {
+      await fetchTableAndMerge(table, params, { force: true, awaitResult: true, captureError: true });
+      return readLocalTable(table, params);
+    }
+
+    // Local-first for render loops; refresh server table in background only when stale.
+    void fetchTableAndMerge(table, params, { force: false, awaitResult: false, captureError: false });
+    if (hasFilters) return readLocalTable(table, params);
+    return localRows;
+  }
+
+  async function create(tableName, payload = {}) {
+    const table = normalizeApiTableName(tableName);
+    if (!table) return null;
+    crudState.lastError = "";
+    const localPayload = normalizePayloadForServer(table, payload);
+    const localItem = mergeLocalTableRecord(table, localPayload);
+    const remote = await requestTableApi("POST", table, "", normalizePayloadForServer(table, localItem || localPayload));
+    const remoteItem = remote.data?.item || remote.data?.user || null;
+    clearTableFetchCache(table);
+    if (!remote.ok || !remoteItem) {
+      crudState.lastError = String(remote?.data?.error || remote?.status || "");
+      return localItem;
+    }
+    return mergeLocalTableRecord(table, remoteItem);
+  }
+
+  async function update(tableName, id, patch = {}) {
+    const table = normalizeApiTableName(tableName);
+    const rid = String(id || "").trim();
+    if (!table || !rid) return null;
+    crudState.lastError = "";
+    const mustServerFirst = table === "spc_measurements" || table === "chrono_events" || table === "chrono_sessions";
+    if (mustServerFirst && syncState.online && getServerUrl() && readAuthToken()) {
+      const remoteFirst = await requestTableApi("PUT", table, rid, normalizePayloadForServer(table, { ...(patch || {}), id: rid }, rid));
+      const remoteFirstItem = remoteFirst.data?.item || remoteFirst.data?.user || null;
+      clearTableFetchCache(table);
+      if (!remoteFirst.ok || !remoteFirstItem) {
+        crudState.lastError = String(remoteFirst?.data?.error || remoteFirst?.status || "");
+        return null;
+      }
+      return mergeLocalTableRecord(table, remoteFirstItem);
+    }
+    const localRows = readLocalTable(table, {});
+    const current = localRows.find((x) => String(x?.id || "") === rid) || { id: rid };
+    const merged = { ...current, ...(patch && typeof patch === "object" ? patch : {}), id: rid };
+    const localItem = mergeLocalTableRecord(table, normalizePayloadForServer(table, merged, rid));
+    const remote = await requestTableApi("PUT", table, rid, normalizePayloadForServer(table, merged, rid));
+    const remoteItem = remote.data?.item || remote.data?.user || null;
+    clearTableFetchCache(table);
+    if (!remote.ok || !remoteItem) {
+      crudState.lastError = String(remote?.data?.error || remote?.status || "");
+      return localItem;
+    }
+    return mergeLocalTableRecord(table, remoteItem);
+  }
+
+  async function remove(tableName, id) {
+    const table = normalizeApiTableName(tableName);
+    const rid = String(id || "").trim();
+    if (!table || !rid) return false;
+    crudState.lastError = "";
+    const remote = await requestTableApi("DELETE", table, rid);
+    if (remote.ok) {
+      clearTableFetchCache(table);
+      return removeLocalTableRecord(table, rid);
+    }
+    if (remote.status === 0) {
+      clearTableFetchCache(table);
+      return removeLocalTableRecord(table, rid);
+    }
+    crudState.lastError = String(remote?.data?.error || remote?.status || "");
+    return false;
+  }
+
+  function getLastCrudError() {
+    return String(crudState.lastError || "");
+  }
+
   function slugId(raw, prefix = "id") {
     const s = String(raw || "")
       .toLowerCase()
@@ -799,9 +1426,9 @@
 
   function baseEntityTypes() {
     return [
-      { id: "product", code: "CAT001", nameSingular: "Product", namePlural: "Products", base: true, locked: true, allowManualItems: false },
-      { id: "station", code: "CAT002", nameSingular: "Station", namePlural: "Stations", base: true, locked: true, allowManualItems: false },
-      { id: "job", code: "CAT003", nameSingular: "Job", namePlural: "Jobs", base: true, locked: true, allowManualItems: false },
+      { id: "product", code: "CAT001", nameSingular: "Product", namePlural: "Products", moduleRole: "product", base: true, locked: false, allowManualItems: true },
+      { id: "station", code: "CAT002", nameSingular: "Station", namePlural: "Stations", moduleRole: "station", base: true, locked: false, allowManualItems: true },
+      { id: "job", code: "CAT003", nameSingular: "Job", namePlural: "Jobs", moduleRole: "job", base: true, locked: false, allowManualItems: true },
     ];
   }
 
@@ -831,6 +1458,15 @@
     return true;
   }
 
+  function normalizeModuleRole(rawRole, fallbackTypeId = "") {
+    const src = String(rawRole || "").trim().toLowerCase();
+    if (src) return src;
+    const fallback = String(fallbackTypeId || "").trim().toLowerCase();
+    if (!fallback) return "custom";
+    if (["product", "station", "job", "route", "machine", "zone", "atelier", "site"].includes(fallback)) return fallback;
+    return "custom";
+  }
+
   function normalizeEntityType(raw) {
     const src = raw && typeof raw === "object" ? raw : {};
     const id = slugId(src.id || src.typeId || src.nameSingular || src.namePlural, "type");
@@ -840,6 +1476,7 @@
       code,
       nameSingular: String(src.nameSingular || src.name || id),
       namePlural: String(src.namePlural || `${String(src.nameSingular || src.name || id)}s`),
+      moduleRole: normalizeModuleRole(src.moduleRole, id),
       description: String(src.description || ""),
       base: !!src.base,
       locked: !!src.locked,
@@ -919,39 +1556,62 @@
     const nowIso = new Date().toISOString();
 
     for (const base of baseEntityTypes()) {
-      const idx = typeRows.findIndex((x) => String(x?.id || "") === String(base.id || ""));
-      const normalized = normalizeEntityType(base);
+      const byRoleIdx = typeRows.findIndex((x) => normalizeModuleRole(x?.moduleRole, x?.id) === base.moduleRole);
+      const byIdIdx = typeRows.findIndex((x) => String(x?.id || "") === String(base.id || ""));
+      const idx = byRoleIdx >= 0 ? byRoleIdx : byIdIdx;
       if (idx < 0) {
-        typeRows.push({ createdAt: nowIso, ...normalized });
+        typeRows.push({
+          ...base,
+          updatedAt: nowIso,
+          createdAt: nowIso,
+        });
         changed = true;
       } else {
-        const prev = normalizeEntityType({ ...base, ...typeRows[idx] });
+        const prev = normalizeEntityType({ ...typeRows[idx] });
         const next = {
           ...typeRows[idx],
-          id: base.id,
+          id: String(typeRows[idx]?.id || base.id),
           code: normalizeTypeCode(typeRows[idx]?.code || base.code),
+          moduleRole: normalizeModuleRole(base.moduleRole, base.id),
           base: true,
-          locked: true,
-          allowManualItems: false,
+          locked: false,
+          allowManualItems: true,
           nameSingular: String(typeRows[idx]?.nameSingular || base.nameSingular),
           namePlural: String(typeRows[idx]?.namePlural || base.namePlural),
           description: String(typeRows[idx]?.description || ""),
           updatedAt: nowIso,
         };
-        if (!shallowEqualKeys(prev, next, ["code", "nameSingular", "namePlural", "description", "id", "base", "locked", "allowManualItems"])) {
+        if (!shallowEqualKeys(prev, next, ["code", "nameSingular", "namePlural", "moduleRole", "description", "id", "base", "locked", "allowManualItems"])) {
           typeRows[idx] = next;
           changed = true;
         }
       }
     }
 
+    for (let i = 0; i < typeRows.length; i += 1) {
+      const row = typeRows[i] || {};
+      const nextRole = normalizeModuleRole(row.moduleRole, row.id);
+      if (String(row.moduleRole || "") !== nextRole) {
+        typeRows[i] = { ...row, moduleRole: nextRole, updatedAt: nowIso };
+        changed = true;
+      }
+    }
+
     const app = readAppState({ seedIfMissing: false });
     if (app) {
+      const resolveRoleTypeId = (role) => {
+        const wanted = normalizeModuleRole(role, role);
+        const byRole = typeRows.find((x) => normalizeModuleRole(x?.moduleRole, x?.id) === wanted) || null;
+        return byRole?.id ? String(byRole.id || "") : "";
+      };
+      const productTypeId = resolveRoleTypeId("product");
+      const stationTypeId = resolveRoleTypeId("station");
+      const jobTypeId = resolveRoleTypeId("job");
       const sourceMap = [
-        { typeId: "product", rows: Array.isArray(app.products) ? app.products : [] },
-        { typeId: "station", rows: Array.isArray(app.stations) ? app.stations : [] },
-        { typeId: "job", rows: Array.isArray(app.jobs) ? app.jobs : [] },
-      ];
+        { typeId: productTypeId, rows: Array.isArray(app.products) ? app.products : [] },
+        { typeId: stationTypeId, rows: Array.isArray(app.stations) ? app.stations : [] },
+        { typeId: jobTypeId, rows: Array.isArray(app.jobs) ? app.jobs : [] },
+      ].filter((cfg) => String(cfg.typeId || ""));
       for (const cfg of sourceMap) {
         const liveIds = new Set();
         for (const src of cfg.rows) {
@@ -1052,17 +1712,17 @@
         const parentId = String(p?.parentProductId || "");
         if (!productId || !parentId) continue;
         if (!validProductIds.has(productId) || !validProductIds.has(parentId)) continue;
-        upsertAppLink("product", parentId, "product", productId, "parent");
+        upsertAppLink(productTypeId, parentId, productTypeId, productId, "parent");
       }
       for (const j of (app.jobs || [])) {
         const jobId = String(j?.id || "");
         const stationId = String(j?.stationId || "");
         const productId = String(j?.productId || "");
         if (jobId && stationId && validJobIds.has(jobId) && validStationIds.has(stationId)) {
-          upsertAppLink("station", stationId, "job", jobId, "contains");
+          upsertAppLink(stationTypeId, stationId, jobTypeId, jobId, "contains");
         }
         if (jobId && productId && validJobIds.has(jobId) && validProductIds.has(productId)) {
-          upsertAppLink("product", productId, "job", jobId, "has-job");
+          upsertAppLink(productTypeId, productId, jobTypeId, jobId, "has-job");
         }
       }
       const beforeAppLinks = linkRows.length;
@@ -1113,6 +1773,39 @@
     );
   }
 
+  function resolveEntityTypeByRole(role) {
+    const wanted = normalizeModuleRole(role, "");
+    const model = readStructureModel({ persist: false });
+    const rows = Array.isArray(model?.types) ? model.types : [];
+    if (!rows.length) return null;
+    const exact = rows.find((t) => normalizeModuleRole(t?.moduleRole, t?.id) === wanted) || null;
+    if (exact) return exact;
+    return rows.find((t) => String(t?.id || "").toLowerCase() === wanted) || null;
+  }
+
+  function resolveEntityTypeIdByRole(role) {
+    const row = resolveEntityTypeByRole(role);
+    return row ? String(row.id || "") : "";
+  }
+
+  function getRoleLabels(role, fallbackSingular = "", fallbackPlural = "") {
+    const row = resolveEntityTypeByRole(role);
+    const singular = String(row?.nameSingular || fallbackSingular || role || "");
+    const plural = String(row?.namePlural || fallbackPlural || (singular ? `${singular}s` : ""));
+    return {
+      role: String(role || ""),
+      typeId: String(row?.id || ""),
+      singular,
+      plural,
+    };
+  }
+
+  function listEntitiesByRole(role) {
+    const typeId = resolveEntityTypeIdByRole(role);
+    if (!typeId) return [];
+    return listEntities(typeId);
+  }
+
   function upsertEntityType(typeRecord) {
     const normalized = normalizeEntityType(typeRecord);
     const model = ensureStructureModel({ persist: false });
@@ -1122,19 +1815,6 @@
     const target = st.store[NS_ENTITY_TYPES];
     const idx = target.findIndex((x) => String(x?.id || "") === String(normalized.id || ""));
     const existing = idx >= 0 ? target[idx] : null;
-    if (existing?.locked) {
-      const lockedCode = normalizeTypeCode(typeRecord?.code || existing.code || normalized.code || "");
-      target[idx] = {
-        ...existing,
-        code: lockedCode || normalizeTypeCode(existing.code || normalized.code || ""),
-        nameSingular: String(typeRecord?.nameSingular || existing.nameSingular || existing.id),
-        namePlural: String(typeRecord?.namePlural || existing.namePlural || `${existing.nameSingular || existing.id}s`),
-        description: String(typeRecord?.description || existing.description || ""),
-        updatedAt: new Date().toISOString(),
-      };
-      writeModuleState(st);
-      return target[idx];
-    }
     let code = normalizeTypeCode(typeRecord?.code || target[idx]?.code || normalized.code || "");
     if (!code) code = nextTypeCode(existingRows);
     if (existingRows.some((x) => String(x?.id || "") !== String(normalized.id || "") && normalizeTypeCode(x?.code) === code)) {
@@ -1153,11 +1833,16 @@
         typeId = `${baseId}-${n++}`;
       }
     }
+    const explicitRole = String(typeRecord?.moduleRole || "").trim();
+    const moduleRole = explicitRole
+      ? normalizeModuleRole(explicitRole, typeId)
+      : normalizeModuleRole(target[idx]?.moduleRole || normalized.moduleRole, typeId);
     const next = {
       createdAt: idx >= 0 ? target[idx]?.createdAt : new Date().toISOString(),
       ...normalized,
       id: typeId,
       code,
+      moduleRole,
       base: false,
       locked: false,
       allowManualItems: true,
@@ -1173,8 +1858,20 @@
     const id = String(typeId || "");
     if (!id) return false;
     const model = ensureStructureModel({ persist: false });
-    const locked = model.types.find((x) => String(x?.id || "") === id)?.locked;
-    if (locked) return false;
+    const row = (model?.types || []).find((x) => String(x?.id || "") === id) || null;
+    const role = normalizeModuleRole(row?.moduleRole, row?.id || "");
+    if (role === "product" || role === "station" || role === "job") {
+      const hasReplacement = (model?.types || []).some((x) =>
+        String(x?.id || "") !== id &&
+        normalizeModuleRole(x?.moduleRole, x?.id) === role
+      );
+      const app = readAppState({ seedIfMissing: false });
+      const hasData =
+        (role === "product" && Array.isArray(app?.products) && app.products.length > 0) ||
+        (role === "station" && Array.isArray(app?.stations) && app.stations.length > 0) ||
+        (role === "job" && Array.isArray(app?.jobs) && app.jobs.length > 0);
+      if (hasData && !hasReplacement) return false;
+    }
     const st = readModuleState();
     if (!Array.isArray(st.store[NS_ENTITY_TYPES])) return false;
     const beforeTypes = st.store[NS_ENTITY_TYPES].length;
@@ -1627,8 +2324,310 @@
     return lines.join("\n");
   }
 
+  function serverCandidates(preferred = "") {
+    const out = [];
+    const push = (v) => {
+      const n = normalizeServerUrl(v);
+      if (n && !out.includes(n)) out.push(n);
+    };
+    push(preferred);
+    push(readLs(SERVER_URL_KEY, ""));
+    if (location.protocol === "http:" || location.protocol === "https:") push(location.origin);
+    push("http://localhost:8080");
+    return out;
+  }
+
+  async function fetchJson(url, options = {}) {
+    const timeoutMs = Math.max(500, Number(options?.timeoutMs || HTTP_TIMEOUT_MS));
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = ctrl ? window.setTimeout(() => {
+      try { ctrl.abort(); } catch {}
+    }, timeoutMs) : 0;
+    const init = { ...options };
+    delete init.timeoutMs;
+    if (ctrl && !init.signal) init.signal = ctrl.signal;
+    try {
+      const res = await fetch(url, init);
+      let data = null;
+      try { data = await res.json(); } catch {}
+      return { ok: !!res.ok, status: Number(res.status || 0), data: data && typeof data === "object" ? data : {} };
+    } catch (err) {
+      if (String(err?.name || "") === "AbortError") {
+        return { ok: false, status: 0, data: { error: "timeout" } };
+      }
+      throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  function setOnlineState(nextOnline, reason = "", extra = {}) {
+    const prev = !!syncState.online;
+    syncState.online = !!nextOnline;
+    if (!syncState.online && syncState.pushTimer) {
+      clearTimeout(syncState.pushTimer);
+      syncState.pushTimer = 0;
+    }
+    if (prev !== syncState.online || reason) {
+      emitSyncStatus({ reason, ...extra });
+    }
+  }
+
+  function ensurePollTimer() {
+    if (IS_EMBEDDED_FRAME) return;
+    if (syncState.pollTimer) return;
+    syncState.pollTimer = window.setInterval(() => {
+      void pollServer();
+    }, SYNC_POLL_MS);
+  }
+
+  async function probeServer(baseUrl) {
+    const url = normalizeServerUrl(baseUrl);
+    if (!url) return false;
+    try {
+      const out = await fetchJson(`${url}/api/status`, { method: "GET", cache: "no-store" });
+      return !!out.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async function detectServer(preferred = "") {
+    const candidates = serverCandidates(preferred);
+    for (const baseUrl of candidates) {
+      const ok = await probeServer(baseUrl);
+      if (!ok) continue;
+      syncState.serverUrl = baseUrl;
+      writeLs(SERVER_URL_KEY, baseUrl);
+      syncState.lastError = "";
+      setOnlineState(true, "server-detected", { serverUrl: baseUrl });
+      return true;
+    }
+    syncState.lastError = "server_unreachable";
+    setOnlineState(false, "server-unreachable");
+    return false;
+  }
+
+  function mergeRemoteSnapshot(workspace) {
+    const remoteApp = normalizeImportedAppState(workspace?.app);
+    const remoteModules = (workspace?.modules && typeof workspace.modules === "object")
+      ? ensureModuleState(workspace.modules)
+      : null;
+    const localApp = readAppState({ seedIfMissing: false });
+    const localModules = readModuleState();
+
+    const remoteAppStamp = stateStamp(remoteApp);
+    const localAppStamp = stateStamp(localApp);
+    if (remoteApp && (!localApp || remoteAppStamp > localAppStamp)) {
+      syncState.applyingRemote = true;
+      try { writeAppState(remoteApp); } finally { syncState.applyingRemote = false; }
+      syncState.dirtyApp = false;
+    } else if (localApp && (!remoteApp || localAppStamp > remoteAppStamp)) {
+      syncState.dirtyApp = true;
+    }
+
+    const remoteModStamp = moduleStateStamp(remoteModules);
+    const localModStamp = moduleStateStamp(localModules);
+    if (remoteModules && (!localModules || remoteModStamp > localModStamp)) {
+      syncState.applyingRemote = true;
+      try { writeModuleState(remoteModules); } finally { syncState.applyingRemote = false; }
+      syncState.dirtyModules = false;
+    } else if (localModules && (!remoteModules || localModStamp > remoteModStamp)) {
+      syncState.dirtyModules = true;
+    }
+  }
+
+  async function pullFromServer() {
+    if (syncState.pulling || !syncState.online || !syncState.serverUrl) return false;
+    const token = readAuthToken();
+    if (!token) {
+      syncState.authError = true;
+      emitSyncStatus({ reason: "pull-no-auth" });
+      return false;
+    }
+    syncState.pulling = true;
+    try {
+      const out = await fetchJson(`${syncState.serverUrl}/api/sync/pull`, {
+        method: "GET",
+        cache: "no-store",
+        headers: { ...authHeaders() },
+      });
+      if (out.status === 401 || out.status === 403) {
+        syncState.authError = true;
+        emitSyncStatus({ reason: "pull-auth-failed" });
+        return false;
+      }
+      if (!out.ok) return false;
+      syncState.authError = false;
+      writeSyncRevision(out.data?.rev || syncState.revision || 0);
+      mergeRemoteSnapshot(out.data?.workspace || {});
+      clearTableFetchCache();
+      emitSyncStatus({ reason: "pull-ok", dirtyApp: syncState.dirtyApp, dirtyModules: syncState.dirtyModules });
+      return true;
+    } catch {
+      syncState.lastError = "pull_failed";
+      setOnlineState(false, "pull-failed");
+      return false;
+    } finally {
+      syncState.pulling = false;
+    }
+  }
+
+  async function pushToServer(force = false) {
+    if (syncState.pushing || !syncState.online || !syncState.serverUrl) return false;
+    const token = readAuthToken();
+    if (!token) return false;
+    if (!force && !syncState.dirtyApp && !syncState.dirtyModules) return true;
+
+    const payload = {
+      client_id: ensureSyncClientId(),
+    };
+    if (syncState.dirtyApp || force) payload.app = readAppState({ seedIfMissing: false });
+    if (syncState.dirtyModules || force) payload.modules = readModuleState();
+    if (!("app" in payload) && !("modules" in payload)) return true;
+
+    syncState.pushing = true;
+    try {
+      const out = await fetchJson(`${syncState.serverUrl}/api/sync/push`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(payload),
+      });
+      if (out.status === 401 || out.status === 403) {
+        syncState.authError = true;
+        emitSyncStatus({ reason: "push-auth-failed" });
+        return false;
+      }
+      if (!out.ok) return false;
+      syncState.authError = false;
+      if (payload.app) syncState.dirtyApp = false;
+      if (payload.modules) syncState.dirtyModules = false;
+      writeSyncRevision(out.data?.rev || syncState.revision || 0);
+      emitSyncStatus({ reason: "push-ok", dirtyApp: syncState.dirtyApp, dirtyModules: syncState.dirtyModules });
+      return true;
+    } catch {
+      syncState.lastError = "push_failed";
+      setOnlineState(false, "push-failed");
+      return false;
+    } finally {
+      syncState.pushing = false;
+    }
+  }
+
+  function scheduleSyncPush(delayMs = 320) {
+    if (syncState.pushTimer) clearTimeout(syncState.pushTimer);
+    syncState.pushTimer = window.setTimeout(() => {
+      syncState.pushTimer = 0;
+      void pushToServer(false);
+    }, Math.max(0, Number(delayMs || 0)));
+  }
+
+  async function pollServer() {
+    if (!syncState.initialized) return;
+    if (typeof document !== "undefined" && document.hidden && !syncState.dirtyApp && !syncState.dirtyModules) {
+      return;
+    }
+    if (!syncState.online) {
+      const online = await detectServer(syncState.serverUrl || readLs(SERVER_URL_KEY, ""));
+      if (!online) return;
+      await pullFromServer();
+      await pushToServer(false);
+      return;
+    }
+    const token = readAuthToken();
+    if (!token) {
+      syncState.authError = true;
+      emitSyncStatus({ reason: "poll-no-auth" });
+      return;
+    }
+    try {
+      const out = await fetchJson(
+        `${syncState.serverUrl}/api/sync/poll?since=${encodeURIComponent(String(syncState.revision || 0))}`,
+        { method: "GET", cache: "no-store", headers: { ...authHeaders() } }
+      );
+      if (out.status === 401 || out.status === 403) {
+        syncState.authError = true;
+        emitSyncStatus({ reason: "poll-auth-failed" });
+        return;
+      }
+      if (!out.ok) {
+        syncState.lastError = "poll_failed";
+        return;
+      }
+      syncState.authError = false;
+      writeSyncRevision(out.data?.rev || syncState.revision || 0);
+      if (out.data?.changed) await pullFromServer();
+      if (syncState.dirtyApp || syncState.dirtyModules) await pushToServer(false);
+    } catch {
+      syncState.lastError = "poll_failed";
+      setOnlineState(false, "poll-failed");
+    }
+  }
+
+  async function init(serverUrl = "") {
+    ensureSyncClientId();
+    writeSyncRevision(readSyncRevision());
+    syncState.initialized = true;
+    const online = await detectServer(serverUrl);
+    if (online) {
+      await pullFromServer();
+      if (syncState.dirtyApp || syncState.dirtyModules) await pushToServer(false);
+    }
+    ensurePollTimer();
+    emitSyncStatus({ reason: "init" });
+    return {
+      online: !!syncState.online,
+      serverUrl: String(syncState.serverUrl || ""),
+      revision: Number(syncState.revision || 0),
+    };
+  }
+
+  function subscribe(fn) {
+    if (typeof fn !== "function") return () => {};
+    syncSubscribers.add(fn);
+    try {
+      fn({
+        online: !!syncState.online,
+        serverUrl: String(syncState.serverUrl || ""),
+        revision: Number(syncState.revision || 0),
+        authError: !!syncState.authError,
+        lastError: String(syncState.lastError || ""),
+      });
+    } catch {}
+    return () => syncSubscribers.delete(fn);
+  }
+
+  function isOnline() {
+    return !!syncState.online;
+  }
+
+  function getServerUrl() {
+    return String(syncState.serverUrl || readLs(SERVER_URL_KEY, "") || "");
+  }
+
   window.VMillData = {
-    keys: { APP_KEY, LEGACY_APP_KEYS, ALL_APP_KEYS, MODULE_KEY, NS_ROUTE, NS_ENTITY_TYPES, NS_ENTITY_ITEMS, NS_ENTITY_LINKS, NS_STRUCTURE_RULES },
+    keys: {
+      APP_KEY,
+      LEGACY_APP_KEYS,
+      ALL_APP_KEYS,
+      MODULE_KEY,
+      NS_ROUTE,
+      NS_ENTITY_TYPES,
+      NS_ENTITY_ITEMS,
+      NS_ENTITY_LINKS,
+      NS_STRUCTURE_RULES,
+      NS_API_TABLE_PREFIX,
+      AUTH_TOKEN_KEY,
+      AUTH_USER_KEY,
+      SERVER_URL_KEY,
+      SYNC_REV_KEY,
+      SYNC_CLIENT_ID_KEY,
+    },
+    init,
+    subscribe,
+    isOnline,
+    getServerUrl,
     readAppState,
     writeAppState,
     createDefaultAppState,
@@ -1645,14 +2644,23 @@
     importJsonPayload,
     readModuleState,
     writeModuleState,
+    list,
+    create,
+    update,
+    remove,
+    getLastCrudError,
     upsertRecord,
     deleteRecord,
     listRecords,
     readStructureModel,
     listEntityTypes,
+    resolveEntityTypeByRole,
+    resolveEntityTypeIdByRole,
+    getRoleLabels,
     upsertEntityType,
     deleteEntityType,
     listEntities,
+    listEntitiesByRole,
     upsertEntityItem,
     deleteEntityItem,
     listEntityLinks,
@@ -1668,4 +2676,6 @@
     makeCsvForJobs,
     makeTextReport,
   };
+  // Auto-init keeps legacy modules working without explicit boot calls.
+  setTimeout(() => { void init(); }, 0);
 })();

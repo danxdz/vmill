@@ -32,12 +32,12 @@ window.VMillModules = [
     tags: ["cnc", "calculator", "thread", "milling", "turning"],
   },
   {
-    id: "structure",
-    name: "Structure Studio",
-    desc: "Global products, stations, jobs, and dependency model controller.",
-    href: "./structure_studio.html",
+    id: "shop-tree",
+    name: "Shop Organizer",
+    desc: "Recursive shop hierarchy with node CRUD, links, and drag reparenting.",
+    href: "./shop_tree.html",
     status: "ready",
-    tags: ["structure", "dependencies", "entities", "global"],
+    tags: ["shop", "tree", "nodes", "crud"],
   },
   {
     id: "theme",
@@ -65,10 +65,10 @@ window.VMillModules = [
   },
   {
     id: "can-bus",
-    name: "CAN Bus Core",
-    desc: "Common module communication backbone (CANBus-v1).",
-    href: "./vmill_hub.html#io",
+    name: "Logger",
+    desc: "Real-time event logger for sync/auth/data changes with filters and export.",
+    href: "./logger.html",
     status: "ready",
-    tags: ["can", "diagnostics", "iot"],
+    tags: ["logger", "can", "diagnostics", "audit"],
   },
 ];

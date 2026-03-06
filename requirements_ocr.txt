@@ -1,0 +1,31 @@
+# Core FastAPI dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# OCR and Image Processing
+paddleocr==3.2.0
+opencv-python-headless==4.8.1.78
+numpy==1.24.3
+paddlepaddle==3.2.0
+
+# HTTP and API
+requests==2.31.0
+httpx==0.25.2
+
+# Image processing utilities
+Pillow==10.1.0
+
+# File handling
+python-multipart==0.0.6
+
+# PDF generation and processing
+reportlab==4.0.7
+PyMuPDF==1.23.8
+
+# Excel generation
+openpyxl==3.1.2
+
+# Additional dependencies for HF Spaces
+python-dotenv==1.0.0
+pydantic==2.5.0
+starlette==0.27.0

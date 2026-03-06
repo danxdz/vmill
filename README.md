@@ -1,65 +1,126 @@
 # VMill
 
-VMill is a browser CNC simulator built with React, Three.js, and a WASM machine kernel.
+Browser CNC workshop suite with:
+- Hub UI + module shell (`public/`)
+- Multiuser backend (`vmill_server.py`, SQLite)
+- Optional OCR backend (`ocr_server.py`)
 
-## What it includes
+## Magic Buttons
 
-- CNC jog and work offset workflow
-- G-code playback with path visualization
-- Tool/holder assembly management
-- STEP import preview workflow
-- Experimental stock material removal (Manifold)
+[![Run VMill](https://img.shields.io/badge/Run-VMill_Server-0B5FFF?style=for-the-badge)](#run-vmill-server)
+[![Run OCR](https://img.shields.io/badge/Run-OCR_Server-0A8F5B?style=for-the-badge)](#run-ocr-server)
+[![Run All](https://img.shields.io/badge/Run-Both_Servers-6B46C1?style=for-the-badge)](#run-both-servers)
+[![Host Setup](https://img.shields.io/badge/Setup-LAN_Hosts-374151?style=for-the-badge)](#host-setup-lan)
 
-## Tech stack
+These call local helper scripts:
+- `scripts/run_vmill.sh`
+- `scripts/run_ocr.sh`
+- `scripts/run_all.sh`
+- `scripts/hosts_hint.sh`
 
-- Vite + React + TypeScript
-- Three.js
-- Rust/WASM kernel consumed from `machine-core/pkg`
+## Quick Start
 
-## Local development
+### 1) Install dependencies
 
 ```bash
 npm ci
-npm run dev
 ```
 
-## Build
+### 2) Backend + Hub (required)
+
+#### Run VMill server
 
 ```bash
-npm run build
+make run-vmill
 ```
 
-## Deploy to Vercel
+Open:
+- `http://localhost:8080/login.html`
+- default login: `admin / vmill2024`
 
-This folder is Vercel-ready (`vercel.json` included).
+### 3) OCR backend (optional)
 
-If your repository root is one level above this folder, set:
-
-- Root Directory: `vmill`
-- Build Command: `npm run build`
-- Output Directory: `dist`
-
-CLI deploy:
+#### Setup OCR env (first time)
 
 ```bash
-vercel
-vercel --prod
+make setup-ocr
 ```
 
-## New Git repo quick start
-
-From this folder (`vmill`):
+#### Run OCR server
 
 ```bash
-git init
-git branch -M main
-git add .
-git commit -m "Initial VMill import"
-git remote add origin https://github.com/<your-user>/<your-repo>.git
-git push -u origin main
+make run-ocr
+```
+
+Open:
+- `http://localhost:8081/docs`
+- `http://localhost:8081/openapi.json`
+
+### 4) Run both servers
+
+```bash
+make run-all
+```
+
+## Host Setup (LAN)
+
+Print host/IP hints:
+
+```bash
+make hosts-hint
+```
+
+Clients can use:
+- `http://<SERVER_IP>:8080/login.html`
+- `http://<SERVER_IP>:8081/docs`
+
+## Deploy
+
+### Recommended split deploy
+
+- Frontend: **Vercel** (static UI)
+- Backend: **Render** (or any VM) for `vmill_server.py`
+- OCR: **Render** optional service for `ocr_server.py`
+
+### Why split
+
+`vmill_server.py` is a long-running Python + SQLite service. This is not a good fit for Vercel serverless functions with ephemeral filesystem behavior.
+
+### Vercel (frontend)
+
+Your `vercel.json` is already present.
+
+If this folder is the project root:
+- Framework: `Vite`
+- Build command: `npm run build`
+- Output: `dist`
+
+### Render (VMill backend)
+
+- Service type: Web Service
+- Start command: `python vmill_server.py`
+- Port: provided by `PORT` env (already supported)
+- Add persistent disk if you need durable `vmill.db`
+
+### Render (OCR backend, optional)
+
+- Service type: Web Service
+- Build command: `pip install -r requirements_ocr.txt`
+- Start command: `python ocr_server.py`
+
+## API Docs
+
+OCR API docs:
+- `docs/OCR_API_OPENAPI_GUIDE.md`
+- `docs/ocr_openapi.v1.yaml`
+- live schema: `/openapi.json`
+
+## Utility targets
+
+```bash
+make help
 ```
 
 ## License
 
-This project is released under the included non-commercial license (`LICENSE`).
-Commercial use is not permitted without written authorization.
+See `LICENSE` (non-commercial).

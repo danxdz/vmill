@@ -1,0 +1,420 @@
+openapi: 3.0.3
+info:
+  title: SPaCial OCR API
+  version: 1.0.0
+  description: |
+    Reference OpenAPI spec for the local OCR server (`ocr_server.py`).
+    Runtime source of truth is FastAPI generated schema at `/openapi.json`.
+servers:
+  - url: http://localhost:8081
+    description: Local OCR server
+paths:
+  /:
+    get:
+      summary: Health
+      responses:
+        '200':
+          description: Service status
+          content:
+            application/json:
+              schema:
+                type: object
+  /ocr/process:
+    post:
+      summary: OCR from upload
+      parameters:
+        - in: query
+          name: mode
+          schema:
+            type: string
+            enum: [fast, accurate, hardcore]
+            default: fast
+        - in: query
+          name: rotation
+          schema:
+            type: integer
+            enum: [0, 90, 180, 270]
+            default: 0
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        '200':
+          description: OCR zones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OcrProcessResponse'
+  /ocr/process-path:
+    post:
+      summary: OCR from image path on server
+      parameters:
+        - in: query
+          name: image_path
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: mode
+          schema:
+            type: string
+            enum: [fast, accurate, hardcore]
+            default: fast
+      responses:
+        '200':
+          description: OCR zones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OcrProcessResponse'
+  /ocr/process-center:
+    post:
+      summary: OCR around center point or explicit rectangle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  description: base64 data URL or raw base64
+                center_point:
+                  type: object
+                  properties:
+                    x: { type: number }
+                    y: { type: number }
+                use_rectangle:
+                  type: boolean
+                  default: false
+                rectangle_bounds:
+                  type: object
+                  properties:
+                    x1: { type: number }
+                    y1: { type: number }
+                    x2: { type: number }
+                    y2: { type: number }
+                rotation:
+                  type: integer
+                  default: 0
+      responses:
+        '200':
+          description: Best matched zone
+          content:
+            application/json:
+              schema:
+                type: object
+  /ocr/process-with-lines:
+    post:
+      summary: OCR and dimension line detection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+      responses:
+        '200':
+          description: Zones and line overlays
+          content:
+            application/json:
+              schema:
+                type: object
+  /ocr/get-text-properties:
+    post:
+      summary: Lookup text properties by bbox
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                bbox:
+                  $ref: '#/components/schemas/BBox'
+      responses:
+        '200':
+          description: Text properties
+          content:
+            application/json:
+              schema:
+                type: object
+  /ocr/process-baseline:
+    post:
+      summary: Find OCR near baseline line
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                baseline:
+                  type: object
+                  properties:
+                    x1: { type: number }
+                    y1: { type: number }
+                    x2: { type: number }
+                    y2: { type: number }
+      responses:
+        '200':
+          description: Baseline-matched zone
+          content:
+            application/json:
+              schema:
+                type: object
+  /blueprint/quick-validate:
+    post:
+      summary: Quick quality/coverage validation on upload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        '200':
+          description: Validation stats
+          content:
+            application/json:
+              schema:
+                type: object
+  /blueprint/stats:
+    get:
+      summary: OCR capability stats
+      responses:
+        '200':
+          description: System stats
+          content:
+            application/json:
+              schema:
+                type: object
+  /export/pdf:
+    post:
+      summary: Export PDF report
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                zones:
+                  type: string
+                  description: JSON string list of zones
+                title:
+                  type: string
+                part_number:
+                  type: string
+              required: [image, zones]
+      responses:
+        '200':
+          description: PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+  /export/excel:
+    post:
+      summary: Export bilingual Excel report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                part_number:
+                  type: string
+                title:
+                  type: string
+                zones:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: XLSX file
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+  /training/save-zone:
+    post:
+      summary: Save OCR zone sample to training dataset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Save result
+          content:
+            application/json:
+              schema:
+                type: object
+  /training-data/list:
+    get:
+      summary: List training samples
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sample list
+          content:
+            application/json:
+              schema:
+                type: object
+  /training-data/{sample_id}:
+    get:
+      summary: Get one training sample
+      parameters:
+        - in: path
+          name: sample_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sample payload
+          content:
+            application/json:
+              schema:
+                type: object
+    put:
+      summary: Update one training sample
+      parameters:
+        - in: path
+          name: sample_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Update result
+          content:
+            application/json:
+              schema:
+                type: object
+    delete:
+      summary: Delete one training sample
+      parameters:
+        - in: path
+          name: sample_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Delete result
+          content:
+            application/json:
+              schema:
+                type: object
+  /training-data/stats:
+    get:
+      summary: Training data statistics
+      responses:
+        '200':
+          description: Training stats
+          content:
+            application/json:
+              schema:
+                type: object
+  /training-data/{sample_id}/validate:
+    post:
+      summary: Revalidate one sample by re-running OCR
+      parameters:
+        - in: path
+          name: sample_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+  /telegram/status:
+    get:
+      summary: Telegram integration status
+      responses:
+        '200':
+          description: Telegram status
+          content:
+            application/json:
+              schema:
+                type: object
+
+components:
+  schemas:
+    BBox:
+      type: object
+      properties:
+        x1: { type: number }
+        y1: { type: number }
+        x2: { type: number }
+        y2: { type: number }
+        width: { type: number }
+        height: { type: number }
+    OcrZone:
+      type: object
+      properties:
+        text:
+          type: string
+        confidence:
+          type: number
+        bbox:
+          $ref: '#/components/schemas/BBox'
+        tolerance_info:
+          type: object
+    OcrProcessResponse:
+      type: object
+      properties:
+        zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/OcrZone'
+        stats:
+          type: object
+        image_info:
+          type: object

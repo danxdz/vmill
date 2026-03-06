@@ -18,16 +18,28 @@
       --bad-rgb:var(--vm-theme-danger-rgb, 255,138,138);
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
       margin: 0;
-      min-height: 100vh;
+      min-height: 100dvh;
       color: var(--text);
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       background:
         radial-gradient(900px 520px at 10% -12%, rgba(var(--accent-rgb), .18), transparent 62%),
         linear-gradient(180deg,var(--bg),color-mix(in srgb, var(--bg) 84%, #000));
+      overflow-x: hidden;
+      overflow-y: auto;
     }
-    .wrap { max-width: 1120px; margin: 0 auto; padding: 14px; display: grid; gap: 10px; }
+    .wrap {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 14px;
+      min-height: 100dvh;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
     .card {
       border: 1px solid var(--border);
       border-radius: 14px;
@@ -192,6 +204,9 @@
       const $ = (id) => document.getElementById(id);
       const ui = { typeId: "" };
       let lastSig = "";
+      let formDirty = false;
+      let suppressDirtyMark = false;
+      let externalPending = false;
 
       function tt(key, fallback = "", vars) {
         return window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
@@ -245,6 +260,17 @@
         if (!el) return;
         el.textContent = msg || "";
         el.style.color = bad ? "var(--bad)" : "var(--muted)";
+      }
+
+      function markDirty() {
+        if (suppressDirtyMark) return;
+        formDirty = true;
+        setStatus(tt("structure.status.unsaved", "Unsaved changes. Save or Refresh."));
+      }
+
+      function confirmDiscardDirty() {
+        if (!formDirty) return true;
+        return confirm(tt("structure.confirm.discard", "Discard unsaved changes?"));
       }
 
       function normalizeCode(raw) {
@@ -370,7 +396,9 @@
         }
       }
 
-      function render() {
+      function render(options = {}) {
+        const force = options?.force === true;
+        if (formDirty && !force) return;
         const model = readModel();
         const types = typeRows(model);
         const rules = ruleRows(model);
@@ -382,6 +410,7 @@
         const parentRule = selected ? incomingRuleFor(selected.id, rules) : null;
         setOptions($("typeParentSel"), parentRows, (t) => typeLabel(t), parentRule?.parentTypeId || "", true, tt("structure.option.noParent", "(no parent)"));
 
+        suppressDirtyMark = true;
         if (selected) {
           $("typeCodeIn").value = String(selected.code || "");
           $("typeKeyIn").value = String(selected.id || "");
@@ -397,6 +426,7 @@
           $("typeDescIn").value = "";
           if (!$("typeRelIn").value.trim()) $("typeRelIn").value = tt("structure.relation.default", "contains");
         }
+        suppressDirtyMark = false;
 
         const children = selected ? childRulesFor(selected.id, rules) : [];
         if (!selected) {
@@ -448,6 +478,8 @@
 
         ui.typeId = String(out.id || id);
         syncParentRuleForType(ui.typeId, parentId, rel);
+        formDirty = false;
+        externalPending = false;
         render();
         setStatus(tt("structure.status.added", "Category added ({code}).", { code: out.code || code }));
       }
@@ -467,6 +499,8 @@
         if (!out) return setStatus(tt("structure.error.saveFailed", "Failed to save category."), true);
 
         syncParentRuleForType(ui.typeId, parentId, rel);
+        formDirty = false;
+        externalPending = false;
         render();
         setStatus(tt("structure.status.saved", "Category saved."));
       }
@@ -477,6 +511,8 @@
         const ok = window.VMillData?.deleteEntityType ? window.VMillData.deleteEntityType(ui.typeId) : false;
         if (!ok) return setStatus(tt("structure.error.deleteFailed", "Delete failed (base or linked category)."), true);
         ui.typeId = "";
+        formDirty = false;
+        externalPending = false;
         render();
         setStatus(tt("structure.status.deleted", "Category deleted."));
       }
@@ -491,27 +527,59 @@
         $("typeDescIn").value = "";
         $("typeParentSel").value = "";
         $("typeRelIn").value = tt("structure.relation.default", "contains");
-        render();
+        formDirty = false;
+        externalPending = false;
+        render({ force: true });
       }
 
       function wire() {
-        $("refreshBtn").addEventListener("click", () => { render(); setStatus(tt("common.status.refreshed", "Refreshed.")); });
+        $("refreshBtn").addEventListener("click", () => {
+          if (!confirmDiscardDirty()) return;
+          formDirty = false;
+          externalPending = false;
+          render({ force: true });
+          setStatus(tt("common.status.refreshed", "Refreshed."));
+        });
         $("openHubBtn").addEventListener("click", () => { window.location.href = "./vmill_hub.html#structure"; });
-        $("typeSel").addEventListener("change", () => { ui.typeId = String($("typeSel").value || ""); render(); });
-        $("newBtn").addEventListener("click", newCategory);
+        $("typeSel").addEventListener("change", () => {
+          if (!confirmDiscardDirty()) {
+            $("typeSel").value = String(ui.typeId || "");
+            return;
+          }
+          ui.typeId = String($("typeSel").value || "");
+          formDirty = false;
+          externalPending = false;
+          render({ force: true });
+        });
+        $("newBtn").addEventListener("click", () => {
+          if (!confirmDiscardDirty()) return;
+          newCategory();
+        });
         $("addBtn").addEventListener("click", addCategory);
         $("saveBtn").addEventListener("click", saveCategory);
         $("deleteBtn").addEventListener("click", deleteCategory);
+        ["typeSingularIn", "typePluralIn", "typeDescIn", "typeRelIn"].forEach((id) => {
+          $(id).addEventListener("input", markDirty);
+        });
+        $("typeParentSel").addEventListener("change", markDirty);
       }
 
       function watch() {
+        const onExternal = () => {
+          if (formDirty) {
+            externalPending = true;
+            setStatus(tt("structure.status.externalPending", "External data changed. Save or Refresh to reload."), false);
+            return;
+          }
+          render();
+        };
         window.CANBus?.onMessage((msg) => {
           if (!msg?.type) return;
-          if (String(msg.type).startsWith("data:")) render();
+          if (String(msg.type).startsWith("data:")) onExternal();
         });
         window.addEventListener("storage", (e) => {
           const key = String(e?.key || "");
-          if (WATCH_KEYS.has(key)) render();
+          if (WATCH_KEYS.has(key)) onExternal();
         });
         setInterval(() => {
           const model = readModel();
@@ -520,16 +588,22 @@
             t: typeRows(model).length,
             r: ruleRows(model).length,
           });
-          if (sig !== lastSig) render();
+          if (sig !== lastSig) onExternal();
         }, 1500);
       }
 
       wire();
       applyTexts();
       watch();
-      render();
-      window.addEventListener("vmill:lang:changed", () => { applyTexts(); render(); });
-      window.addEventListener("vmill:lang:catalog:changed", () => { applyTexts(); render(); });
+      render({ force: true });
+      window.addEventListener("vmill:lang:changed", () => {
+        applyTexts();
+        if (!formDirty) render({ force: true });
+      });
+      window.addEventListener("vmill:lang:catalog:changed", () => {
+        applyTexts();
+        if (!formDirty) render({ force: true });
+      });
       window.CANBus?.emit("structure:ready", { module: "Structure Studio" }, "structure");
       setStatus(tt("structure.status.ready", "Structure Studio ready."));
     })();

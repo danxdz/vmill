@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VMill Logger</title>
+  <style>
+    :root {
+      --bg: var(--vm-theme-bg, #0b111b);
+      --panel: var(--vm-theme-panel, #121b2b);
+      --panel2: var(--vm-theme-panel-2, #0f1726);
+      --text: var(--vm-theme-text, #e8eef8);
+      --muted: var(--vm-theme-muted, rgba(232,238,248,.66));
+      --border: var(--vm-theme-border, rgba(232,238,248,.2));
+      --acc: var(--vm-theme-accent, #57b4ff);
+      --ok: var(--vm-theme-ok, #68d39a);
+      --warn: var(--vm-theme-warn, #ffd37a);
+      --danger: var(--vm-theme-danger, #ff7d93);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      background: linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg) 84%, #000));
+      color: var(--text);
+      font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      overflow: hidden;
+    }
+    .dock {
+      position: fixed;
+      z-index: 100060;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      box-shadow: 0 18px 32px rgba(0,0,0,.32);
+      width: var(--logger-width, min(980px, calc(100vw - 20px)));
+      height: var(--logger-height, min(680px, calc(100dvh - 20px)));
+      display: grid;
+      grid-template-rows: auto auto auto 1fr;
+      overflow: hidden;
+    }
+    .dock[data-pos="top-left"] { top: 10px; left: 10px; }
+    .dock[data-pos="top-right"] { top: 10px; right: 10px; }
+    .dock[data-pos="bottom-left"] { bottom: 10px; left: 10px; }
+    .dock[data-pos="bottom-right"] { bottom: 10px; right: 10px; }
+    .dock[data-active="0"] { display: none; }
+    .dock[data-mode="status"] {
+      grid-template-rows: auto auto;
+      height: var(--logger-status-height, 86px);
+      width: min(860px, calc(100vw - 20px));
+    }
+    .dock[data-mode="status"][data-settings-open="0"] .controls,
+    .dock[data-mode="status"][data-settings-open="0"] .settings,
+    .dock[data-mode="status"][data-settings-open="0"] .logWrap { display: none; }
+    .dock[data-mode="status"] #exportJsonBtn,
+    .dock[data-mode="status"] #exportCsvBtn,
+    .dock[data-mode="status"] #exportTxtBtn,
+    .dock[data-mode="status"] #openHubBtn,
+    .dock[data-mode="status"] #clearBtn,
+    .dock[data-mode="status"] #pauseBtn,
+    .dock[data-mode="status"] #countInfo,
+    .dock[data-mode="status"] #countWarn,
+    .dock[data-mode="status"] #countError { display: none; }
+    .dock[data-mode="status"][data-settings-open="1"] {
+      grid-template-rows: auto auto auto;
+      height: auto;
+      max-height: min(80vh, 520px);
+      width: min(760px, calc(100vw - 20px));
+    }
+    .dock[data-mode="status"][data-settings-open="1"] .controls,
+    .dock[data-mode="status"] .logWrap { display: none; }
+    .dock[data-mode="status"][data-settings-open="1"] .settings { display: flex; }
+
+    .head {
+      padding: 8px;
+      border-bottom: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .title { font-weight: 800; letter-spacing: .03em; }
+    .spacer { flex: 1 1 auto; }
+    .pill {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 10px;
+      color: var(--muted);
+      background: rgba(255,255,255,.03);
+      white-space: nowrap;
+    }
+    .pill.info { border-color: color-mix(in srgb, var(--acc) 52%, var(--border)); color: var(--text); }
+    .pill.warn { border-color: color-mix(in srgb, var(--warn) 52%, var(--border)); color: color-mix(in srgb, var(--warn) 75%, var(--text)); }
+    .pill.error { border-color: color-mix(in srgb, var(--danger) 58%, var(--border)); color: color-mix(in srgb, var(--danger) 78%, var(--text)); }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      padding: 6px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn.primary {
+      border-color: color-mix(in srgb, var(--acc) 58%, var(--border));
+      background: color-mix(in srgb, var(--acc) 12%, transparent);
+    }
+    .btn.warn {
+      border-color: color-mix(in srgb, var(--danger) 52%, var(--border));
+      background: color-mix(in srgb, var(--danger) 12%, transparent);
+    }
+    .launcher {
+      position: fixed;
+      z-index: 100061;
+      bottom: 10px;
+      right: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      color: var(--text);
+      box-shadow: 0 16px 28px rgba(0,0,0,.34);
+      padding: 7px 9px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .launcher.hidden { display: none; }
+
+    .statusStrip {
+      border-bottom: 1px solid color-mix(in srgb, var(--text) 9%, transparent);
+      padding: 7px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: color-mix(in srgb, var(--panel2) 92%, transparent);
+      min-height: 34px;
+    }
+    .statusLine {
+      flex: 1 1 260px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .controls {
+      border-bottom: 1px solid color-mix(in srgb, var(--text) 9%, transparent);
+      padding: 8px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 8px;
+      background: color-mix(in srgb, var(--panel2) 88%, transparent);
+    }
+    .field { display: grid; gap: 5px; }
+    .field label { font-size: 10px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+    .field input,
+    .field select {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: color-mix(in srgb, var(--panel2) 84%, #000);
+      color: var(--text);
+      padding: 6px 7px;
+      font: inherit;
+      font-size: 12px;
+      width: 100%;
+    }
+    .levelRow { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .toggle {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 7px;
+      background: rgba(255,255,255,.03);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .settings {
+      border-bottom: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+      padding: 7px 8px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      background: color-mix(in srgb, var(--panel2) 90%, transparent);
+    }
+    .mini {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 4px 6px;
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .mini input[type="range"] { width: 90px; accent-color: var(--acc); }
+
+    .logWrap {
+      overflow: auto;
+      padding: 0;
+      background: color-mix(in srgb, var(--panel2) 94%, #000 6%);
+    }
+    .table {
+      min-width: 860px;
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .table th,
+    .table td {
+      border-bottom: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+      padding: 6px 8px;
+      vertical-align: top;
+      text-align: left;
+      font-size: 12px;
+    }
+    .table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: color-mix(in srgb, var(--panel2) 96%, transparent);
+      font-size: 10px;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .sev {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 1px 7px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      display: inline-block;
+      min-width: 56px;
+      text-align: center;
+    }
+    .sev.info { border-color: color-mix(in srgb, var(--acc) 58%, var(--border)); color: color-mix(in srgb, var(--acc) 85%, var(--text)); }
+    .sev.warn { border-color: color-mix(in srgb, var(--warn) 52%, var(--border)); color: color-mix(in srgb, var(--warn) 80%, var(--text)); }
+    .sev.error { border-color: color-mix(in srgb, var(--danger) 58%, var(--border)); color: color-mix(in srgb, var(--danger) 84%, var(--text)); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
+    .muted { color: var(--muted); }
+    details.payload { margin-top: 4px; }
+    details.payload > summary { cursor: pointer; color: var(--muted); font-size: 11px; }
+    details.payload pre {
+      margin: 6px 0 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px;
+      background: rgba(0,0,0,.18);
+      color: var(--text);
+      max-height: 200px;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-size: 11px;
+    }
+
+    @media (max-width: 900px) {
+      .dock {
+        top: 6px !important;
+        left: 6px !important;
+        right: 6px !important;
+        bottom: 6px !important;
+        width: auto !important;
+        height: auto !important;
+      }
+      .dock[data-mode="status"] { height: 90px !important; }
+      .table { min-width: 640px; }
+      .controls { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <section class="dock" id="loggerDock" data-pos="bottom-right" data-mode="panel" data-active="1" data-settings-open="0">
+    <header class="head">
+      <div class="title" id="loggerTitle">Logger</div>
+      <a class="btn" href="./vmill_hub.html" id="openHubBtn">Hub</a>
+      <button class="btn" id="pauseBtn" type="button">Pause</button>
+      <button class="btn primary" id="exportJsonBtn" type="button">Export JSON</button>
+      <button class="btn" id="exportCsvBtn" type="button">Export CSV</button>
+      <button class="btn" id="exportTxtBtn" type="button">Export TXT</button>
+      <button class="btn warn" id="clearBtn" type="button">Clear</button>
+      <button class="btn" id="settingsBtn" type="button">Settings</button>
+      <button class="btn" id="activeBtn" type="button">Active</button>
+      <div class="spacer"></div>
+      <span class="pill info" id="countInfo">0 info</span>
+      <span class="pill warn" id="countWarn">0 warn</span>
+      <span class="pill error" id="countError">0 error</span>
+    </header>
+
+    <div class="statusStrip">
+      <div class="statusLine" id="statusLine">No log entries yet.</div>
+      <span class="pill" id="onlinePill">offline</span>
+    </div>
+
+    <section class="controls">
+      <div class="field">
+        <label id="searchLbl" for="searchIn">Search</label>
+        <input id="searchIn" type="text" placeholder="type/source/payload..." />
+      </div>
+      <div class="field">
+        <label id="sourceLbl" for="sourceSel">Source</label>
+        <select id="sourceSel"><option value="all">All</option></select>
+      </div>
+      <div class="field">
+        <label id="categoryLbl" for="categorySel">Category</label>
+        <select id="categorySel"><option value="all">All</option></select>
+      </div>
+      <div class="field">
+        <label id="levelsLbl">Levels</label>
+        <div class="levelRow">
+          <label class="toggle"><input id="lvlInfo" type="checkbox" checked /> info</label>
+          <label class="toggle"><input id="lvlWarn" type="checkbox" checked /> warn</label>
+          <label class="toggle"><input id="lvlError" type="checkbox" checked /> error</label>
+          <label class="toggle"><input id="autoScrollChk" type="checkbox" checked /> autoscroll</label>
+        </div>
+      </div>
+    </section>
+
+    <section class="settings" id="settingsRow">
+      <span class="mini">Mode
+        <select id="modeSel">
+          <option value="panel">panel</option>
+          <option value="status">status-bar</option>
+        </select>
+      </span>
+      <span class="mini">Position
+        <select id="posSel">
+          <option value="bottom-right">bottom-right</option>
+          <option value="bottom-left">bottom-left</option>
+          <option value="top-right">top-right</option>
+          <option value="top-left">top-left</option>
+        </select>
+      </span>
+      <span class="mini">Width <input id="widthRange" type="range" min="320" max="1200" step="10" /><span id="widthVal">0</span></span>
+      <span class="mini">Height <input id="heightRange" type="range" min="160" max="860" step="10" /><span id="heightVal">0</span></span>
+      <span class="mini">Rows <input id="rowsRange" type="range" min="50" max="1200" step="10" /><span id="rowsVal">0</span></span>
+    </section>
+
+    <div class="logWrap" id="logWrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Level</th>
+            <th>Type</th>
+            <th>Source</th>
+            <th>Summary</th>
+          </tr>
+        </thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </section>
+  <button class="launcher hidden" id="loggerLauncher" type="button">Logger</button>
+
+  <script src="./modules/module-shell.js"></script>
+  <script src="./modules/module-registry.js"></script>
+  <script src="./modules/module-io.js"></script>
+  <script src="./modules/module-auth.js"></script>
+  <script src="./modules/module-lang.js"></script>
+  <script src="./modules/module-data.js"></script>
+  <script src="./modules/module-theme.js"></script>
+  <script>
+    (() => {
+      const OFFLINE_MODE_KEY = "vmill:offline:mode";
+      const UI_KEY = "vmill:logger:ui:v1";
+      const LOG_KEY = "vmill:logger:entries:v1";
+
+      if (!window.VMillAuth?.isLoggedIn?.()) {
+        let offline = false;
+        try { offline = String(localStorage.getItem(OFFLINE_MODE_KEY) || "") === "1"; } catch {}
+        if (!offline) {
+          location.replace("./login.html");
+          return;
+        }
+      }
+
+      const dock = document.getElementById("loggerDock");
+      const body = document.getElementById("logBody");
+      const statusLine = document.getElementById("statusLine");
+      const countInfo = document.getElementById("countInfo");
+      const countWarn = document.getElementById("countWarn");
+      const countError = document.getElementById("countError");
+      const onlinePill = document.getElementById("onlinePill");
+      const searchIn = document.getElementById("searchIn");
+      const searchLbl = document.getElementById("searchLbl");
+      const sourceSel = document.getElementById("sourceSel");
+      const sourceLbl = document.getElementById("sourceLbl");
+      const categorySel = document.getElementById("categorySel");
+      const categoryLbl = document.getElementById("categoryLbl");
+      const levelsLbl = document.getElementById("levelsLbl");
+      const lvlInfo = document.getElementById("lvlInfo");
+      const lvlWarn = document.getElementById("lvlWarn");
+      const lvlError = document.getElementById("lvlError");
+      const autoScrollChk = document.getElementById("autoScrollChk");
+      const pauseBtn = document.getElementById("pauseBtn");
+      const exportJsonBtn = document.getElementById("exportJsonBtn");
+      const exportCsvBtn = document.getElementById("exportCsvBtn");
+      const exportTxtBtn = document.getElementById("exportTxtBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const settingsBtn = document.getElementById("settingsBtn");
+      const activeBtn = document.getElementById("activeBtn");
+      const loggerLauncher = document.getElementById("loggerLauncher");
+      const posSel = document.getElementById("posSel");
+      const modeSel = document.getElementById("modeSel");
+      const widthRange = document.getElementById("widthRange");
+      const widthVal = document.getElementById("widthVal");
+      const heightRange = document.getElementById("heightRange");
+      const heightVal = document.getElementById("heightVal");
+      const rowsRange = document.getElementById("rowsRange");
+      const rowsVal = document.getElementById("rowsVal");
+      const logWrap = document.getElementById("logWrap");
+
+      const state = {
+        paused: false,
+        ui: {
+          mode: "panel",
+          position: "bottom-right",
+          width: 860,
+          height: 520,
+          maxRows: 350,
+          autoScroll: true,
+          active: true,
+          settingsOpen: false,
+        },
+      };
+
+      function tt(key, fallback = "", vars) {
+        return window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
+      }
+
+      function applyI18n() {
+        const loggerTitle = document.getElementById("loggerTitle");
+        const openHubBtn = document.getElementById("openHubBtn");
+        if (loggerTitle) loggerTitle.textContent = tt("logger.title", "Logger");
+        if (openHubBtn) openHubBtn.textContent = tt("common.hub", "Hub");
+        if (pauseBtn) pauseBtn.textContent = state.paused ? tt("logger.resume", "Resume") : tt("logger.pause", "Pause");
+        if (exportJsonBtn) exportJsonBtn.textContent = "Export JSON";
+        if (exportCsvBtn) exportCsvBtn.textContent = "Export CSV";
+        if (exportTxtBtn) exportTxtBtn.textContent = "Export TXT";
+        if (clearBtn) clearBtn.textContent = tt("hub.bus.clear", "Clear");
+        if (settingsBtn) settingsBtn.textContent = "Settings";
+        if (loggerLauncher) loggerLauncher.textContent = tt("logger.title", "Logger");
+        if (searchLbl) searchLbl.textContent = "Search";
+        if (searchIn) searchIn.placeholder = "type/source/payload...";
+        if (sourceLbl) sourceLbl.textContent = "Source";
+        if (categoryLbl) categoryLbl.textContent = "Category";
+        if (levelsLbl) levelsLbl.textContent = "Levels";
+      }
+
+      function applyTheme(event) {
+        if (!window.VMillTheme?.applyTheme) return;
+        window.VMillTheme.applyTheme(document, "generic", event?.detail?.theme || null);
+      }
+
+      function safeParse(raw, fallback) {
+        try {
+          const parsed = JSON.parse(String(raw || ""));
+          return parsed ?? fallback;
+        } catch {
+          return fallback;
+        }
+      }
+
+      function readUi() {
+        const src = safeParse(localStorage.getItem(UI_KEY), {});
+        return {
+          mode: String(src.mode || "panel") === "status" ? "status" : "panel",
+          position: ["top-left", "top-right", "bottom-left", "bottom-right"].includes(String(src.position || "")) ? String(src.position) : "bottom-right",
+          width: Math.max(320, Math.min(1200, Number(src.width || 860))),
+          height: Math.max(160, Math.min(860, Number(src.height || 520))),
+          maxRows: Math.max(50, Math.min(1200, Number(src.maxRows || 350))),
+          autoScroll: src.autoScroll !== false,
+          active: src.active !== false,
+          settingsOpen: !!src.settingsOpen,
+        };
+      }
+
+      function writeUi() {
+        try { localStorage.setItem(UI_KEY, JSON.stringify(state.ui)); } catch {}
+      }
+
+      function applyUi() {
+        dock.dataset.pos = state.ui.position;
+        dock.dataset.mode = state.ui.mode;
+        dock.dataset.active = state.ui.active ? "1" : "0";
+        dock.dataset.settingsOpen = state.ui.settingsOpen ? "1" : "0";
+        dock.style.setProperty("--logger-width", `${state.ui.width}px`);
+        dock.style.setProperty("--logger-height", `${state.ui.height}px`);
+        if (loggerLauncher) loggerLauncher.classList.toggle("hidden", !!state.ui.active);
+        if (activeBtn) activeBtn.textContent = state.ui.active ? "Active" : "Inactive";
+        if (settingsBtn) settingsBtn.textContent = state.ui.settingsOpen ? "Close" : "Settings";
+        posSel.value = state.ui.position;
+        modeSel.value = state.ui.mode;
+        widthRange.value = String(state.ui.width);
+        widthVal.textContent = `${state.ui.width}px`;
+        heightRange.value = String(state.ui.height);
+        heightVal.textContent = `${state.ui.height}px`;
+        rowsRange.value = String(state.ui.maxRows);
+        rowsVal.textContent = String(state.ui.maxRows);
+        autoScrollChk.checked = !!state.ui.autoScroll;
+      }
+
+      function readLogs() {
+        if (typeof window.CANBus?.getLogs === "function") return window.CANBus.getLogs();
+        const arr = safeParse(localStorage.getItem(LOG_KEY), []);
+        return Array.isArray(arr) ? arr : [];
+      }
+
+      function levelEnabled(level) {
+        const lv = String(level || "info");
+        if (lv === "error") return !!lvlError.checked;
+        if (lv === "warn") return !!lvlWarn.checked;
+        return !!lvlInfo.checked;
+      }
+
+      function filtered() {
+        const q = String(searchIn.value || "").trim().toLowerCase();
+        const source = String(sourceSel.value || "all");
+        const cat = String(categorySel.value || "all");
+        const rows = readLogs().slice(-Math.max(1, Number(state.ui.maxRows || 350)));
+        return rows.filter((r) => {
+          const level = String(r?.level || "info");
+          if (!levelEnabled(level)) return false;
+          if (source !== "all" && String(r?.source || "") !== source) return false;
+          if (cat !== "all" && String(r?.category || "") !== cat) return false;
+          if (!q) return true;
+          const text = `${r?.type || ""} ${r?.source || ""} ${r?.summary || ""} ${r?.payloadPreview || ""}`.toLowerCase();
+          return text.includes(q);
+        });
+      }
+
+      function esc(v) {
+        return String(v ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;");
+      }
+
+      function refreshSelectOptions(logs) {
+        const srcPrev = String(sourceSel.value || "all");
+        const catPrev = String(categorySel.value || "all");
+        const srcSet = [...new Set(logs.map((r) => String(r?.source || "")).filter(Boolean))].sort();
+        const catSet = [...new Set(logs.map((r) => String(r?.category || "")).filter(Boolean))].sort();
+        sourceSel.innerHTML = `<option value="all">${esc(tt("common.all", "All"))}</option>${srcSet.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("")}`;
+        categorySel.innerHTML = `<option value="all">${esc(tt("common.all", "All"))}</option>${catSet.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("")}`;
+        if ([...sourceSel.options].some((o) => o.value === srcPrev)) sourceSel.value = srcPrev;
+        if ([...categorySel.options].some((o) => o.value === catPrev)) categorySel.value = catPrev;
+      }
+
+      function render() {
+        const allLogs = readLogs();
+        refreshSelectOptions(allLogs);
+        const rows = filtered();
+        const infoCount = rows.filter((r) => String(r?.level || "info") === "info").length;
+        const warnCount = rows.filter((r) => String(r?.level || "info") === "warn").length;
+        const errCount = rows.filter((r) => String(r?.level || "info") === "error").length;
+        countInfo.textContent = `${infoCount} info`;
+        countWarn.textContent = `${warnCount} warn`;
+        countError.textContent = `${errCount} error`;
+
+        const latest = rows.length ? rows[rows.length - 1] : null;
+        statusLine.textContent = latest
+          ? `[${new Date(String(latest.ts || "")).toLocaleTimeString()}] ${latest.type || "event"} - ${latest.summary || ""}`
+          : tt("logger.empty", "No log entries yet.");
+
+        const syncLatest = [...allLogs].reverse().find((r) => String(r?.type || "") === "data:sync:status");
+        const online = !!(syncLatest?.payload && typeof syncLatest.payload === "object" && syncLatest.payload.online);
+        onlinePill.textContent = online ? tt("logger.online", "online") : tt("logger.offline", "offline");
+        onlinePill.className = `pill ${online ? "info" : "warn"}`;
+
+        if (!rows.length) {
+          body.innerHTML = `<tr><td colspan="5" class="muted">${esc(tt("logger.emptyFiltered", "No logs match the current filters."))}</td></tr>`;
+        } else {
+          body.innerHTML = rows.slice().reverse().map((r) => {
+            const ts = new Date(String(r?.ts || "")).toLocaleString();
+            const level = String(r?.level || "info");
+            const payloadText = String(r?.payloadPreview || "").trim();
+            return `
+              <tr>
+                <td class="mono">${esc(ts)}</td>
+                <td><span class="sev ${esc(level)}">${esc(level)}</span></td>
+                <td class="mono">${esc(String(r?.type || ""))}</td>
+                <td class="mono">${esc(String(r?.source || ""))}</td>
+                <td>
+                  <div>${esc(String(r?.summary || ""))}</div>
+                  ${payloadText ? `<details class="payload"><summary>${esc(tt("logger.payload", "payload"))}</summary><pre>${esc(payloadText)}</pre></details>` : ""}
+                </td>
+              </tr>
+            `;
+          }).join("");
+        }
+        if (state.ui.autoScroll && !state.paused && logWrap && state.ui.mode !== "status") {
+          logWrap.scrollTop = 0;
+        }
+      }
+
+      function toCsv(rows) {
+        const escCsv = (v) => {
+          const s = String(v ?? "");
+          return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        const head = ["ts", "level", "category", "type", "source", "direction", "summary", "payloadPreview"];
+        const lines = [head.join(",")];
+        for (const r of rows) {
+          lines.push([
+            r?.ts,
+            r?.level,
+            r?.category,
+            r?.type,
+            r?.source,
+            r?.direction,
+            r?.summary,
+            r?.payloadPreview,
+          ].map(escCsv).join(","));
+        }
+        return lines.join("\n");
+      }
+
+      function download(name, data, type) {
+        const blob = new Blob([data], { type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function bind() {
+        [searchIn, sourceSel, categorySel, lvlInfo, lvlWarn, lvlError].forEach((el) => {
+          el?.addEventListener("input", render);
+          el?.addEventListener("change", render);
+        });
+
+        autoScrollChk?.addEventListener("change", () => {
+          state.ui.autoScroll = !!autoScrollChk.checked;
+          writeUi();
+        });
+
+        pauseBtn?.addEventListener("click", () => {
+          state.paused = !state.paused;
+          pauseBtn.textContent = state.paused ? tt("logger.resume", "Resume") : tt("logger.pause", "Pause");
+        });
+
+        clearBtn?.addEventListener("click", () => {
+          if (!confirm(tt("logger.clearConfirm", "Clear log history?"))) return;
+          if (window.CANBus?.clearLogs) window.CANBus.clearLogs();
+          else localStorage.setItem(LOG_KEY, "[]");
+          render();
+        });
+
+        exportJsonBtn?.addEventListener("click", () => {
+          const rows = filtered();
+          download(`vmill_logger_${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}.json`, JSON.stringify(rows, null, 2), "application/json");
+        });
+
+        exportCsvBtn?.addEventListener("click", () => {
+          const rows = filtered();
+          download(`vmill_logger_${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}.csv`, toCsv(rows), "text/csv");
+        });
+
+        exportTxtBtn?.addEventListener("click", () => {
+          const rows = filtered();
+          const txt = rows.map((r) => `[${r?.ts || ""}] [${r?.level || "info"}] [${r?.source || "?"}] ${r?.type || "event"} :: ${r?.summary || ""}`).join("\n");
+          download(`vmill_logger_${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}.txt`, txt, "text/plain");
+        });
+
+        modeSel?.addEventListener("change", () => {
+          state.ui.mode = String(modeSel.value || "panel") === "status" ? "status" : "panel";
+          if (state.ui.mode !== "status") state.ui.settingsOpen = false;
+          writeUi();
+          applyUi();
+          render();
+        });
+
+        settingsBtn?.addEventListener("click", () => {
+          state.ui.settingsOpen = !state.ui.settingsOpen;
+          writeUi();
+          applyUi();
+        });
+
+        activeBtn?.addEventListener("click", () => {
+          state.ui.active = !state.ui.active;
+          if (!state.ui.active) state.ui.settingsOpen = false;
+          writeUi();
+          applyUi();
+        });
+
+        loggerLauncher?.addEventListener("click", () => {
+          state.ui.active = true;
+          state.ui.settingsOpen = state.ui.mode === "status";
+          writeUi();
+          applyUi();
+          render();
+        });
+
+        posSel?.addEventListener("change", () => {
+          state.ui.position = String(posSel.value || "bottom-right");
+          writeUi();
+          applyUi();
+        });
+
+        widthRange?.addEventListener("input", () => {
+          state.ui.width = Math.max(320, Math.min(1200, Number(widthRange.value || 860)));
+          writeUi();
+          applyUi();
+        });
+
+        heightRange?.addEventListener("input", () => {
+          state.ui.height = Math.max(160, Math.min(860, Number(heightRange.value || 520)));
+          writeUi();
+          applyUi();
+        });
+
+        rowsRange?.addEventListener("input", () => {
+          state.ui.maxRows = Math.max(50, Math.min(1200, Number(rowsRange.value || 350)));
+          writeUi();
+          applyUi();
+          render();
+        });
+
+        window.addEventListener("vmill:logger:new", () => {
+          if (state.paused) return;
+          render();
+        });
+        window.addEventListener("vmill:logger:cleared", () => {
+          if (state.paused) return;
+          render();
+        });
+        window.addEventListener("storage", (e) => {
+          if (String(e.key || "") === LOG_KEY && !state.paused) render();
+          if (String(e.key || "") === UI_KEY) {
+            state.ui = readUi();
+            applyUi();
+            render();
+          }
+        });
+        window.CANBus?.onMessage?.((msg) => {
+          if (!msg || state.paused) return;
+          if (String(msg.type || "") === "data:sync:status") render();
+        });
+
+        window.addEventListener("vmill:theme:changed", applyTheme);
+        window.addEventListener("vmill:lang:changed", () => {
+          applyI18n();
+          render();
+        });
+        window.addEventListener("keydown", (e) => {
+          if (!e || e.key !== "Escape") return;
+          if (!state.ui.active) return;
+          if (state.ui.settingsOpen) {
+            state.ui.settingsOpen = false;
+            writeUi();
+            applyUi();
+            return;
+          }
+          if (state.ui.mode === "status") {
+            state.ui.active = false;
+            writeUi();
+            applyUi();
+          }
+        });
+      }
+
+      state.ui = readUi();
+      applyTheme();
+      applyUi();
+      applyI18n();
+      bind();
+      render();
+    })();
+  </script>
+</body>
+</html>

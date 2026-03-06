@@ -8,26 +8,31 @@
   <title>Chrono Capture</title>
   <style>
     :root {
-      --acc: #3dffa0;
-      --acc-dim: rgba(61,255,160,.14);
-      --acc-b: rgba(61,255,160,.40);
-      --warn: #ffd37a;
-      --warn-dim: rgba(255,211,122,.14);
-      --warn-b: rgba(255,211,122,.40);
-      --danger: #ff4c6a;
-      --danger-dim: rgba(255,76,106,.14);
-      --danger-b: rgba(255,76,106,.40);
+      --acc: var(--vm-theme-accent, #3dffa0);
+      --acc-rgb: var(--vm-theme-accent-rgb, 61,255,160);
+      --acc-dim: rgba(var(--acc-rgb),.14);
+      --acc-b: rgba(var(--acc-rgb),.40);
+      --warn: var(--vm-theme-warn, #ffd37a);
+      --warn-rgb: var(--vm-theme-warn-rgb, 255,211,122);
+      --warn-dim: rgba(var(--warn-rgb),.14);
+      --warn-b: rgba(var(--warn-rgb),.40);
+      --danger: var(--vm-theme-danger, #ff4c6a);
+      --danger-rgb: var(--vm-theme-danger-rgb, 255,76,106);
+      --danger-dim: rgba(var(--danger-rgb),.14);
+      --danger-b: rgba(var(--danger-rgb),.40);
       --glass: rgba(8,10,14,.82);
       --glass2: rgba(8,10,14,.96);
-      --border: rgba(255,255,255,.10);
-      --text: #eef0f6;
-      --muted: rgba(238,240,246,.55);
+      --border: var(--vm-theme-border, rgba(255,255,255,.10));
+      --text: var(--vm-theme-text, #eef0f6);
+      --muted: var(--vm-theme-muted, rgba(238,240,246,.55));
+      --bg: var(--vm-theme-bg, #050608);
+      --panel: var(--vm-theme-panel, #0d1020);
       --mono: ui-monospace, 'JetBrains Mono', Menlo, monospace;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body {
       height: 100%; height: 100dvh;
-      background: #000; color: var(--text);
+      background: var(--bg); color: var(--text);
       font-family: system-ui, -apple-system, sans-serif;
       overflow: hidden; touch-action: manipulation;
     }
@@ -36,7 +41,7 @@
     #camVideo {
       position: fixed; inset: 0;
       width: 100%; height: 100%;
-      object-fit: cover; background: #000;
+      object-fit: cover; background: var(--bg);
       z-index: 0;
     }
 
@@ -45,7 +50,7 @@
       position: fixed; inset: 0;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 14px; z-index: 5; padding: 32px;
-      background: radial-gradient(ellipse at center, #0d1020 0%, #050608 100%);
+      background: radial-gradient(ellipse at center, var(--panel) 0%, var(--bg) 100%);
     }
     .phIcon { font-size: 56px; opacity: .2; }
     .phTitle { font-size: 18px; font-weight: 800; color: var(--acc); letter-spacing: .02em; }
@@ -62,7 +67,7 @@
     }
     #fileWarn {
       display: none; padding: 12px 16px; border-radius: 12px;
-      background: rgba(255,211,122,.08); border: 1px solid rgba(255,211,122,.30);
+      background: var(--warn-dim); border: 1px solid var(--warn-b);
       color: var(--warn); font-size: 11px; line-height: 1.7; max-width: 360px;
     }
     #fileWarn code {
@@ -99,14 +104,14 @@
     #timer {
       font-family: var(--mono); font-size: 20px; font-weight: 700;
       color: var(--acc); letter-spacing: .06em;
-      text-shadow: 0 0 14px rgba(61,255,160,.4);
+      text-shadow: 0 0 14px rgba(var(--acc-rgb),.4);
     }
     #syncBadge {
       padding: 4px 10px; border-radius: 999px;
       font-size: 10px; font-weight: 700; font-family: var(--mono); letter-spacing: .06em;
       background: var(--acc-dim); border: 1px solid var(--acc-b); color: var(--acc);
     }
-    #syncBadge.no { background: rgba(255,76,106,.10); border-color: rgba(255,76,106,.35); color: var(--danger); }
+    #syncBadge.no { background: var(--danger-dim); border-color: var(--danger-b); color: var(--danger); }
 
     /* Center element (while recording) */
     #centerEl {
@@ -116,7 +121,7 @@
     }
     #centerEl.vis { display: flex; }
     .ceLabel { font-size: 10px; font-family: var(--mono); color: rgba(255,255,255,.45); letter-spacing:.07em; text-transform:uppercase; }
-    .ceName { font-size: 26px; font-weight: 800; color: #fff; text-shadow: 0 2px 14px rgba(0,0,0,.9); text-align:center; max-width:280px; line-height:1.2; }
+    .ceName { font-size: 26px; font-weight: 800; color: var(--text); text-shadow: 0 2px 14px rgba(0,0,0,.9); text-align:center; max-width:280px; line-height:1.2; }
     .ceIdx { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-family: var(--mono); background: var(--acc-dim); border: 1px solid var(--acc-b); color: var(--acc); }
 
     /* Laps strip (above bottom bar) */
@@ -286,7 +291,7 @@
 <!-- Start / permission screen -->
 <div id="camPlaceholder">
   <div class="phIcon">📷</div>
-  <div class="phTitle">Chrono Capture</div>
+  <div class="phTitle" id="phTitle">Chrono Capture</div>
   <div class="phSub" id="phSub">Fullscreen camera timing module.<br>Tap to request camera access.</div>
   <button id="startCamBtn" type="button">Enable Camera</button>
   <div id="fileWarn">
@@ -313,7 +318,7 @@
   </div>
 
   <div id="centerEl">
-    <div class="ceLabel">current element</div>
+    <div class="ceLabel" id="ceLabel">current element</div>
     <div class="ceName" id="ceName">—</div>
     <div class="ceIdx" id="ceIdx">—</div>
   </div>
@@ -334,10 +339,10 @@
   <div class="handle"></div>
 
   <div class="pSec">
-    <div class="pLabel">Job</div>
+    <div class="pLabel" id="jobLbl">Job</div>
     <select id="jobSel">
-      <option value="">— Select a job —</option>
-      <option value="__new__">+ Create new job…</option>
+      <option id="jobSelOptPlaceholder" value="">— Select a job —</option>
+      <option id="jobSelOptNew" value="__new__">+ Create new job…</option>
     </select>
     <div id="noJobsHint" style="display:none; font-size:11px; color:var(--muted); margin-top:6px;">
       Create a shared job in Chrono Study or create one here.
@@ -346,10 +351,10 @@
     <div id="newJobSec">
       <label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;color:var(--text);">
         <input id="autoSeqChk" type="checkbox" checked />
-        Auto sequence capture (seq1, seq2, ... on each tap until stop)
+        <span id="autoSeqLbl">Auto sequence capture (seq1, seq2, ... on each tap until stop)</span>
       </label>
       <div style="display:flex; align-items:center; justify-content:space-between; margin:10px 0 6px;">
-        <div class="pLabel" style="margin:0;">New job elements</div>
+        <div class="pLabel" id="newJobElementsLbl" style="margin:0;">New job elements</div>
         <button class="smBtn" id="addElBtn" type="button" style="padding:5px 12px; font-size:11px;">+ Add</button>
       </div>
       <div id="elsList"></div>
@@ -362,21 +367,21 @@
   </div>
 
   <div class="pSec">
-    <div class="pLabel">Capture mode</div>
+    <div class="pLabel" id="captureModeLbl">Capture mode</div>
     <div class="modeRow">
       <button class="mBtn on" id="modeCont" type="button">▶ Continuous</button>
       <button class="mBtn" id="modeSingle" type="button">⟳ Single</button>
     </div>
     <div id="singleSelRow" style="display:none; margin-top:8px;">
-      <select id="singleSel"><option value="">— pick element —</option></select>
+      <select id="singleSel"><option id="singleSelOptPlaceholder" value="">— pick element —</option></select>
     </div>
   </div>
 
   <div class="pSec">
-    <div class="pLabel">Export</div>
+    <div class="pLabel" id="exportLbl">Export</div>
     <label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;color:var(--text);">
       <input id="saveVideoChk" type="checkbox" />
-      Save camera video + bookmarks JSON on stop
+      <span id="saveVideoLbl">Save camera video + bookmarks JSON on stop</span>
     </label>
     <div class="expRow" style="margin-bottom:8px;">
       <button id="downloadLastVideoBtn" class="smBtn" type="button" disabled>⬇ Download last video bundle</button>
@@ -389,7 +394,7 @@
   </div>
 
   <div class="pSec">
-    <div class="pLabel">Recorded bookmarks</div>
+    <div class="pLabel" id="recordedBookmarksLbl">Recorded bookmarks</div>
     <div id="videoBookmarksList" class="libList"></div>
   </div>
 </div>
@@ -400,6 +405,7 @@
 <script src="../modules/module-io.js"></script>
 <script src="../modules/module-data.js"></script>
 <script src="../modules/module-theme.js"></script>
+<script src="../modules/module-lang.js"></script>
 <script>
 (() => {
   function applyGlobalTheme(event) {
@@ -423,6 +429,11 @@
   const launchParams = new URLSearchParams(window.location.search || "");
   let launchRouteApplied = false;
   const $ = id => document.getElementById(id);
+  const tr = (key, fallback, vars) => {
+    const fn = window.VMillLang?.t;
+    if (typeof fn !== "function") return String(fallback ?? key ?? "");
+    return fn(String(key || ""), String(fallback ?? ""), vars);
+  };
   const uuid = () => (crypto.randomUUID?.() ?? Date.now()+"_"+Math.random().toString(16).slice(2));
   const now = () => performance.now();
   const iso = () => new Date().toISOString();
@@ -434,6 +445,62 @@
     return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}.${d}`;
   };
   const esc = s => String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+  function applyTexts(){
+    document.title = tr("camera.title", "Chrono Capture");
+    const setText = (id, key, fallback, vars) => {
+      const el = $(id);
+      if (el) el.textContent = tr(key, fallback, vars);
+    };
+    const setHtml = (id, key, fallback, vars) => {
+      const el = $(id);
+      if (el) el.innerHTML = tr(key, fallback, vars);
+    };
+    setText("phTitle", "camera.title", "Chrono Capture");
+    setHtml("phSub", "camera.sub", "Fullscreen camera timing module.<br>Tap to request camera access.");
+    setText("startCamBtn", "camera.action.enableCamera", "Enable Camera");
+    setText("skipCamBtn", "camera.action.noCamera", "Use without camera →");
+    setHtml("fileWarn", "camera.warn.file", `
+      <strong>⚠ Opened as local file.</strong><br>
+      Browsers block camera on <code>file://</code> for security.<br><br>
+      <strong>Fix - run a local server (30 sec):</strong><br>
+      Open a terminal in this folder:<br>
+      <code>python3 -m http.server 8080</code><br>
+      Then open: <code>http://localhost:8080/chrono_camera.html</code><br><br>
+      Or use without camera below.
+    `);
+    setText("ceLabel", "camera.currentElement", "current element");
+    setText("jobLbl", "camera.job", "Job");
+    setText("jobSelOptPlaceholder", "camera.job.select", "— Select a job —");
+    setText("jobSelOptNew", "camera.job.new", "+ Create new job…");
+    setText("noJobsHint", "camera.job.noneHint", "Create a shared job in Chrono Study or create one here.");
+    setText("autoSeqLbl", "camera.autoSeq", "Auto sequence capture (seq1, seq2, ... on each tap until stop)");
+    setText("newJobElementsLbl", "camera.newJob.elements", "New job elements");
+    setText("addElBtn", "common.add", "+ Add");
+    const newJobName = $("newJobName");
+    if (newJobName) newJobName.placeholder = tr("camera.newJob.nameOptional", "Job name (optional)");
+    setText("createJobBtn", "camera.action.create", "✓ Create");
+    setText("cancelNewJobBtn", "common.cancel", "Cancel");
+    setText("captureModeLbl", "camera.captureMode", "Capture mode");
+    setText("modeCont", "camera.mode.continuous", "▶ Continuous");
+    setText("modeSingle", "camera.mode.single", "⟳ Single");
+    setText("singleSelOptPlaceholder", "camera.pickElement", "— pick element —");
+    setText("exportLbl", "camera.export", "Export");
+    setText("saveVideoLbl", "camera.saveVideoOnStop", "Save camera video + bookmarks JSON on stop");
+    setText("downloadLastVideoBtn", "camera.action.downloadBundle", "⬇ Download last video bundle");
+    setText("exportBtn", "camera.action.sendToChrono", "⬆ Send to Chrono Study");
+    setText("recordedBookmarksLbl", "camera.recordedBookmarks", "Recorded bookmarks");
+    const cfgBtn = $("cfgBtn");
+    if (cfgBtn) cfgBtn.title = tr("camera.action.settings", "Settings (S)");
+    const undoBtn = $("undoBtn");
+    if (undoBtn) undoBtn.title = tr("camera.action.undo", "Undo (Backspace)");
+    const statusTxt = $("statusTxt");
+    if (statusTxt) statusTxt.textContent = running ? tr("camera.status.rec", "REC") : tr("camera.status.idle", "IDLE");
+    updateBadge();
+    updateBtns();
+    updateCycCnt();
+    renderVideoBookmarksLibrary();
+  }
 
   // State
   let state = null; // chrono localStorage state
@@ -559,14 +626,14 @@
     if(!box) return;
     const list = loadVideoBookmarksLib();
     if(!list.length){
-      box.innerHTML = `<div class="libEmpty">No bookmark records yet.</div>`;
+      box.innerHTML = `<div class="libEmpty">${esc(tr("camera.bookmarks.none", "No bookmark records yet."))}</div>`;
       return;
     }
     let h = "";
     for(let i=0;i<list.length;i++){
       const e = list[i] || {};
-      const title = String(e.title || e.jobName || "Capture");
-      const at = e.createdAt ? new Date(e.createdAt).toLocaleString() : "n/a";
+      const title = String(e.title || e.jobName || tr("camera.captureName", "Capture"));
+      const at = e.createdAt ? new Date(e.createdAt).toLocaleString() : tr("common.na", "n/a");
       const n = Array.isArray(e.bookmarks) ? e.bookmarks.length : 0;
       const t = Math.max(0, Math.round(Number(e.totalMs || 0)));
       h += `
@@ -575,23 +642,23 @@
             <div class="libTitle" title="${esc(title)}">${esc(title)}</div>
             <div class="libMeta">${fmtMs(t)}</div>
           </div>
-          <div class="libMeta">${esc(at)} · ${n} marks</div>
+          <div class="libMeta">${esc(at)} · ${n} ${esc(tr("camera.marks", "marks"))}</div>
           <div class="libBtns">
-            <button class="smBtn" type="button" data-lib-use="${i}">Load as cycle</button>
+            <button class="smBtn" type="button" data-lib-use="${i}">${esc(tr("camera.action.loadCycle", "Load as cycle"))}</button>
             <button class="smBtn" type="button" data-lib-json="${i}">JSON</button>
-            <button class="smBtn" type="button" data-lib-del="${i}">Delete</button>
+            <button class="smBtn" type="button" data-lib-del="${i}">${esc(tr("common.delete", "Delete"))}</button>
           </div>
         </div>`;
     }
     box.innerHTML = h;
     box.querySelectorAll("[data-lib-use]").forEach((el) => {
       el.addEventListener("click", () => {
-        if(running) return toast("Stop recording first","w");
+        if(running) return toast(tr("camera.toast.stopFirst", "Stop recording first"),"w");
         const idx = Number(el.dataset.libUse);
         const entry = list[idx];
         if(!entry) return;
         const lapsFromMarks = entryToLaps(entry);
-        if(!lapsFromMarks.length) return toast("No bookmarks in entry","w");
+        if(!lapsFromMarks.length) return toast(tr("camera.toast.noBookmarksEntry", "No bookmarks in entry"),"w");
         const totalMs = lapsFromMarks.reduce((a, l) => a + Number(l.ms || 0), 0);
         cycles.push({
           id: uuid(),
@@ -599,12 +666,12 @@
           laps: lapsFromMarks,
           totalMs,
           tag: "Normal",
-          note: "Loaded from camera bookmarks"
+          note: tr("camera.note.loadedFromBookmarks", "Loaded from camera bookmarks")
         });
         updateCycCnt();
         renderLaps();
         updateBtns();
-        toast(`Loaded cycle from ${lapsFromMarks.length} marks`);
+        toast(tr("camera.toast.loadedCycleFromMarks", "Loaded cycle from {count} marks", { count: lapsFromMarks.length }));
       });
     });
     box.querySelectorAll("[data-lib-json]").forEach((el) => {
@@ -612,7 +679,7 @@
         const idx = Number(el.dataset.libJson);
         const entry = list[idx];
         if(!entry) return;
-        const name = `${sanitizeName(entry.title || entry.jobName || "capture")}_${String(entry.id || idx)}_bookmarks.json`;
+        const name = `${sanitizeName(entry.title || entry.jobName || tr("camera.captureName", "capture"))}_${String(entry.id || idx)}_bookmarks.json`;
         const blob = new Blob([JSON.stringify(entry, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -629,7 +696,7 @@
         const idx = Number(el.dataset.libDel);
         const entry = list[idx];
         if(!entry) return;
-        if(!confirm(`Delete bookmark entry "${entry.title || entry.jobName || "Capture"}"?`)) return;
+        if(!confirm(tr("camera.confirm.deleteBookmarkEntry", `Delete bookmark entry "{name}"?`, { name: entry.title || entry.jobName || tr("camera.captureName", "Capture") }))) return;
         const next = list.filter((_, i) => i !== idx);
         saveVideoBookmarksLib(next);
         renderVideoBookmarksLibrary();
@@ -637,11 +704,31 @@
     });
   }
   function sync() { state=loadCS(); populateJobSel(); updateBadge(); renderVideoBookmarksLibrary(); }
+  let syncQueued = false;
+  let syncTimer = null;
+  function requestSync() {
+    if (syncQueued) return;
+    syncQueued = true;
+    syncTimer = setTimeout(() => {
+      syncQueued = false;
+      syncTimer = null;
+      sync();
+    }, 120);
+  }
 
   function updateBadge() {
     const b=$("syncBadge");
-    if(state){const n=(state.jobs||[]).length; b.textContent=n+" JOB"+(n===1?"":"S"); b.classList.remove("no");}
-    else{b.textContent="NOT LINKED"; b.classList.add("no");}
+    if(state){
+      const n=(state.jobs||[]).length;
+      b.textContent = n === 1
+        ? tr("camera.sync.oneJob", "1 JOB")
+        : tr("camera.sync.manyJobs", "{count} JOBS", { count: n });
+      b.classList.remove("no");
+    }
+    else{
+      b.textContent = tr("camera.sync.notLinked", "NOT LINKED");
+      b.classList.add("no");
+    }
   }
 
   function populateJobSel() {
@@ -653,7 +740,7 @@
       const st=(state.stations||[]).find(s=>s.id===j.stationId);
       const o=document.createElement("option");
       o.value=j.id;
-      o.textContent=(st?st.code+" · ":"")+j.name+` (${(j.elements||[]).length} el.)`;
+      o.textContent=(st?st.code+" · ":"")+j.name+tr("camera.job.elementsCount", " ({count} el.)", { count: (j.elements||[]).length });
       sel.appendChild(o);
     }
     if(prev&&[...sel.options].some(o=>o.value===prev)) sel.value=prev;
@@ -695,7 +782,7 @@
     ensureStateLoaded();
     let st=(state.stations||[]).find(s=>String(s.code||"").toUpperCase()==="CAM");
     if(!st){
-      st={id:uuid(),code:"CAM",name:"Camera capture"};
+      st={id:uuid(),code:"CAM",name:tr("camera.stationCapture", "Camera capture")};
       state.stations.push(st);
     }
     return st.id;
@@ -734,7 +821,7 @@
     const l=$("elsList"); l.innerHTML="";
     newEls.forEach((el,i)=>{
       const d=document.createElement("div"); d.className="elRow";
-      d.innerHTML=`<span class="elN">${i+1}</span><input class="elIn" type="text" placeholder="Element ${i+1}" value="${esc(el.name)}" data-i="${i}"><button class="elDel" type="button" data-d="${i}">✕</button>`;
+      d.innerHTML=`<span class="elN">${i+1}</span><input class="elIn" type="text" placeholder="${esc(tr("camera.element.placeholder", "Element {index}", { index: i + 1 }))}" value="${esc(el.name)}" data-i="${i}"><button class="elDel" type="button" data-d="${i}">✕</button>`;
       l.appendChild(d);
     });
   }
@@ -744,20 +831,20 @@
   $("elsList").addEventListener("click",e=>{ const d=e.target.dataset.d; if(d!=null){newEls.splice(+d,1);renderEls();} });
   $("cancelNewJobBtn").addEventListener("click",()=>{ $("jobSel").value=""; onJobChange(); });
   $("createJobBtn").addEventListener("click",()=>{
-    if(isAutoSeqMode()) return toast("Use Start/Stop to create auto sequence job.","w");
-    if(!newEls.length) return toast("Add at least one element.","e");
+    if(isAutoSeqMode()) return toast(tr("camera.toast.useStartStopAuto", "Use Start/Stop to create auto sequence job."),"w");
+    if(!newEls.length) return toast(tr("camera.toast.addOneElement", "Add at least one element."),"e");
     const els=newEls.map((el,i)=>({...el,name:el.name.trim()||`Action ${i+1}`}));
-    const name=$("newJobName").value.trim()||`Capture ${new Date().toLocaleTimeString()}`;
+    const name=$("newJobName").value.trim()||`${tr("camera.captureName", "Capture")} ${new Date().toLocaleTimeString()}`;
     if(!state) state={meta:{createdAt:iso(),updatedAt:iso()},activeProductId:null,activeJobId:null,products:[],stations:[],jobs:[],actionTypes:defaultATs(),ui:{}};
     normalizeProductsState(state);
     let stId=(state.stations||[])[0]?.id;
-    if(!stId){stId=uuid(); state.stations.push({id:stId,code:"CAM",name:"Camera capture"});}
+    if(!stId){stId=uuid(); state.stations.push({id:stId,code:"CAM",name:tr("camera.stationCapture", "Camera capture")});}
     const productId = String(state.activeProductId || state.products?.[0]?.id || "");
     const j={id:uuid(),productId,stationId:stId,name,allowancePct:12,ratingPct:100,elements:els,cycles:[]};
     state.jobs.push(j); state.activeJobId=j.id; saveCS();
     newEls=[]; $("newJobName").value=""; sync();
     $("jobSel").value=j.id; onJobChange();
-    toast(`✓ "${name}" created`);
+    toast(tr("camera.toast.createdJob", `✓ "{name}" created`, { name }));
   });
 
   function defaultATs(){return[
@@ -772,9 +859,9 @@
   $("modeSingle").addEventListener("click",()=>{ mode="single"; $("modeSingle").classList.add("on"); $("modeCont").classList.remove("on"); $("singleSelRow").style.display=""; populateSingleSel(); updateBtns(); updateCenter(); });
   function populateSingleSel(){
     const job=getJob(); const sel=$("singleSel");
-    sel.innerHTML='<option value="">— pick element —</option>';
+    sel.innerHTML=`<option value="">${esc(tr("camera.pickElement", "— pick element —"))}</option>`;
     if(!job) return;
-    for(const el of(job.elements||[])){const o=document.createElement("option"); o.value=el.id; o.textContent=el.name||`El.${job.elements.indexOf(el)+1}`; sel.appendChild(o);}
+    for(const el of(job.elements||[])){const o=document.createElement("option"); o.value=el.id; o.textContent=el.name||tr("camera.element.short", "El.{index}", { index: job.elements.indexOf(el) + 1 }); sel.appendChild(o);}
     if(singleElId) sel.value=singleElId;
   }
   $("singleSel").addEventListener("change",()=>{ singleElId=$("singleSel").value; updateBtns(); updateCenter(); });
@@ -798,24 +885,24 @@
         const front=c.video?.facingMode==="user"||(typeof c.video?.facingMode==="object"&&c.video.facingMode.exact==="user");
         vid.style.transform=front?"scaleX(-1)":"";
         $("camPlaceholder").style.display="none";
-        toast("✓ Camera active");
+        toast(tr("camera.toast.cameraActive", "✓ Camera active"));
         return;
       }catch(e){}
     }
-    if(isFile) toast("Camera blocked on file://. Use python3 -m http.server 8080","e");
-    else if(!navigator.mediaDevices) toast("Needs HTTPS or localhost","e");
-    else toast("Camera access denied","e");
+    if(isFile) toast(tr("camera.toast.cameraBlockedFile", "Camera blocked on file://. Use python3 -m http.server 8080"),"e");
+    else if(!navigator.mediaDevices) toast(tr("camera.toast.needHttps", "Needs HTTPS or localhost"),"e");
+    else toast(tr("camera.toast.cameraDenied", "Camera access denied"),"e");
   }
 
   $("startCamBtn").addEventListener("click",startCam);
-  $("skipCamBtn").addEventListener("click",()=>{ $("camPlaceholder").style.display="none"; toast("No camera — timing only","w"); });
+  $("skipCamBtn").addEventListener("click",()=>{ $("camPlaceholder").style.display="none"; toast(tr("camera.toast.noCameraTimingOnly", "No camera - timing only"),"w"); });
 
   // Timer
   function startVideoRecording(){
     if(!$("saveVideoChk")?.checked) return;
     const stream = $("camVideo")?.srcObject;
     if(!stream || !window.MediaRecorder){
-      toast("Video save unavailable (no camera stream/MediaRecorder)","w");
+      toast(tr("camera.toast.videoSaveUnavailable", "Video save unavailable (no camera stream/MediaRecorder)"),"w");
       return;
     }
     try {
@@ -841,7 +928,7 @@
       rec.onstop = () => {
         if(!mediaChunks.length) return;
         const blob = new Blob(mediaChunks, {type: mediaChunks[0]?.type || "video/webm"});
-        const jobName = getJob()?.name || $("newJobName").value.trim() || "camera_capture";
+      const jobName = getJob()?.name || $("newJobName").value.trim() || tr("camera.fileBase", "camera_capture");
         const fileBase = `${sanitizeName(jobName)}_${new Date().toISOString().replace(/[:.]/g,"-")}`;
         const bookmarks = captureBookmarks.slice();
         lastVideoBundle = { blob, bookmarks, fileBase };
@@ -852,7 +939,7 @@
     } catch (e) {
       mediaRec = null;
       mediaChunks = [];
-      toast("Could not start video recording","e");
+      toast(tr("camera.toast.videoRecordStartFailed", "Could not start video recording"),"e");
     }
   }
   function stopVideoRecording(){
@@ -888,12 +975,12 @@
     b.click();
     b.remove();
     URL.revokeObjectURL(metaUrl);
-    toast("✓ Video + bookmarks saved");
+    toast(tr("camera.toast.videoAndBookmarksSaved", "✓ Video + bookmarks saved"));
   }
 
-  function startTimer(){ running=true; t0=now(); lapT=t0; captureBookmarks=[]; $("recDot").classList.add("on"); $("statusTxt").textContent="REC"; startVideoRecording(); tick(); }
+  function startTimer(){ running=true; t0=now(); lapT=t0; captureBookmarks=[]; $("recDot").classList.add("on"); $("statusTxt").textContent=tr("camera.status.rec","REC"); startVideoRecording(); tick(); }
   function tick(){ if(!running) return; $("timer").textContent=fmtMs(now()-t0); rafId=requestAnimationFrame(tick); }
-  function stopTimer(){ running=false; if(rafId) cancelAnimationFrame(rafId); $("recDot").classList.remove("on"); $("statusTxt").textContent="IDLE"; stopVideoRecording(); }
+  function stopTimer(){ running=false; if(rafId) cancelAnimationFrame(rafId); $("recDot").classList.remove("on"); $("statusTxt").textContent=tr("camera.status.idle","IDLE"); stopVideoRecording(); }
 
   function getCurEl(){
     if(isAutoSeqMode()){
@@ -909,9 +996,11 @@
     const el=getCurEl(); const job=getJob(); const c=$("centerEl");
     if(!el||(!job&&!isAutoSeqMode())||!running){c.classList.remove("vis"); return;}
     c.classList.add("vis");
-    $("ceName").textContent=el.name||`Element ${idx+1}`;
-    if(isAutoSeqMode()) $("ceIdx").textContent=`${laps.length} captured`;
-    else $("ceIdx").textContent=mode==="single"?`${laps.length} captures`:`${idx+1} / ${job.elements.length}`;
+    $("ceName").textContent=el.name||tr("camera.element.name", "Element {index}", { index: idx + 1 });
+    if(isAutoSeqMode()) $("ceIdx").textContent=tr("camera.capturedCount", `{count} captured`, { count: laps.length });
+    else $("ceIdx").textContent=mode==="single"
+      ? tr("camera.capturesCount", `{count} captures`, { count: laps.length })
+      : `${idx+1} / ${job.elements.length}`;
   }
 
   function renderLaps(){
@@ -919,7 +1008,7 @@
     if(!laps.length&&!cycles.length){s.innerHTML=""; return;}
     let h="";
     for(const l of laps.slice(-4)) h+=`<div class="lap"><span class="lapEl">${esc(l.name)}</span><span class="lapType">${esc(l.type||"?")}</span><span class="lapTime">${fmtMs(l.ms)}</span></div>`;
-    if(running&&mode==="continuous"){const cur=getCurEl(); if(cur) h+=`<div class="lap cur"><span class="lapEl">▶ ${esc(cur.name)}</span><span class="lapType">NOW</span><span class="lapTime">—</span></div>`;}
+    if(running&&mode==="continuous"){const cur=getCurEl(); if(cur) h+=`<div class="lap cur"><span class="lapEl">▶ ${esc(cur.name)}</span><span class="lapType">${esc(tr("camera.now", "NOW"))}</span><span class="lapTime">—</span></div>`;}
     s.innerHTML=h; s.scrollTop=s.scrollHeight;
   }
 
@@ -955,7 +1044,7 @@
         return;
       }
       const el=getCurEl(); if(!el) return;
-      const lap = {elementId:el.id,name:el.name||`El.${idx+1}`,type:el.type||"HUMAN",ms};
+      const lap = {elementId:el.id,name:el.name||tr("camera.element.short", "El.{index}", { index: idx + 1 }),type:el.type||"HUMAN",ms};
       laps.push(lap);
       addBookmark(lap);
       if(mode==="single"){ updateCenter(); renderLaps(); updateBtns(); }
@@ -967,7 +1056,7 @@
     if(!cycle?.laps?.length) return null;
     ensureStateLoaded();
     const stId = ensureCameraStationId();
-    const jobNameRaw = $("newJobName").value.trim() || `Capture ${new Date().toLocaleTimeString()}`;
+    const jobNameRaw = $("newJobName").value.trim() || `${tr("camera.captureName", "Capture")} ${new Date().toLocaleTimeString()}`;
     const seqElements = cycle.laps.map((lap, i) => ({id:uuid(),name:String(lap.name||seqName(i+1)),type:String(lap.type||"HUMAN")}));
     const remappedLaps = cycle.laps.map((lap, i) => ({
       ...lap,
@@ -990,13 +1079,13 @@
     stopTimer();
     const tot=laps.reduce((a,l)=>a+l.ms,0);
     if(!laps.length||!tot){
-      toast("No sequence captured. Tap Seq+1 at least once before Stop.","w");
+      toast(tr("camera.toast.noSequenceCaptured", "No sequence captured. Tap Seq+1 at least once before Stop."),"w");
       reset();
       return;
     }
-    const cycle={id:uuid(),atIso:iso(),laps:laps.slice(),totalMs:tot,tag:"Normal",note:"Camera capture"};
+    const cycle={id:uuid(),atIso:iso(),laps:laps.slice(),totalMs:tot,tag:"Normal",note:tr("camera.note.cameraCapture","Camera capture")};
     const marks = captureBookmarks.slice();
-    const titleBase = $("newJobName").value.trim() || getJob()?.name || `Capture ${new Date().toLocaleTimeString()}`;
+    const titleBase = $("newJobName").value.trim() || getJob()?.name || `${tr("camera.captureName", "Capture")} ${new Date().toLocaleTimeString()}`;
     appendVideoBookmarksEntry({
       id: uuid(),
       createdAt: iso(),
@@ -1009,11 +1098,11 @@
     });
     if(isAutoSeqMode()){
       const job = createAutoSeqJobFromLaps(cycle);
-      if(job) toast(`✓ New job "${job.name}" saved (${job.elements.length} seq)`);
-      else toast("Could not create new auto-seq job","e");
+      if(job) toast(tr("camera.toast.autoJobSaved", `✓ New job "{name}" saved ({count} seq)`, { name: job.name, count: job.elements.length }));
+      else toast(tr("camera.toast.autoJobSaveFailed", "Could not create new auto-seq job"),"e");
     } else {
       cycles.push(cycle);
-      toast(`✓ Cycle ${cycles.length} · ${fmtMs(tot)}`);
+      toast(tr("camera.toast.cycleSaved", `✓ Cycle {count} · {duration}`, { count: cycles.length, duration: fmtMs(tot) }));
     }
     reset();
   }
@@ -1026,7 +1115,7 @@
 
   function updateCycCnt(){
     const n=cycles.length;
-    $("cycCnt").textContent=n?`${n} cycle${n===1?"":"s"} ready to export`:"";
+    $("cycCnt").textContent=n ? tr("camera.cyclesReady", `{count} cycle(s) ready to export`, { count: n }) : "";
     $("exportBtn").disabled=!n;
     $("clearBtn").disabled=!n&&!laps.length;
   }
@@ -1035,14 +1124,14 @@
     const job=getJob();
     const canStart=(!!job || isAutoSeqMode())&&(mode==="continuous"||!!singleElId||isAutoSeqMode());
     const btn=$("mainBtn");
-    if(!running){btn.textContent="▶ Start"; btn.className=""; btn.disabled=!canStart;}
-    else if(mode==="single"){btn.textContent="⏺ Capture"; btn.className="w"; btn.disabled=false;}
-    else if(isAutoSeqMode()){btn.textContent="⏭ Seq+1"; btn.className="w"; btn.disabled=false;}
-    else{const last=idx>=(job?.elements?.length||1)-1; btn.textContent=last?"⏹ Finish":"⏭ Next"; btn.className=last?"d":"w"; btn.disabled=false;}
+    if(!running){btn.textContent=tr("camera.action.start","▶ Start"); btn.className=""; btn.disabled=!canStart;}
+    else if(mode==="single"){btn.textContent=tr("camera.action.capture","⏺ Capture"); btn.className="w"; btn.disabled=false;}
+    else if(isAutoSeqMode()){btn.textContent=tr("camera.action.seqNext","⏭ Seq+1"); btn.className="w"; btn.disabled=false;}
+    else{const last=idx>=(job?.elements?.length||1)-1; btn.textContent=last?tr("camera.action.finish","⏹ Finish"):tr("camera.action.next","⏭ Next"); btn.className=last?"d":"w"; btn.disabled=false;}
     // Single finish btn
     let fb=$("finBtn");
     if((mode==="single"&&running) || (isAutoSeqMode()&&running)){
-      if(!fb){fb=document.createElement("button"); fb.id="finBtn"; fb.className="sb"; fb.style.cssText="color:var(--danger);border-color:var(--danger-b);background:var(--danger-dim);font-size:13px;padding:10px 10px;"; fb.textContent="⏹"; fb.title="Finish (F)"; fb.addEventListener("click",finish); $("bottomBar").insertBefore(fb,$("mainBtn"));}
+      if(!fb){fb=document.createElement("button"); fb.id="finBtn"; fb.className="sb"; fb.style.cssText="color:var(--danger);border-color:var(--danger-b);background:var(--danger-dim);font-size:13px;padding:10px 10px;"; fb.textContent="⏹"; fb.title=tr("camera.action.finishKey", "Finish (F)"); fb.addEventListener("click",finish); $("bottomBar").insertBefore(fb,$("mainBtn"));}
     } else { const x=$("finBtn"); if(x) x.remove(); }
     $("undoBtn").disabled=!(running&&laps.length>0);
     updateCycCnt();
@@ -1055,7 +1144,7 @@
     if(captureBookmarks.length) captureBookmarks.pop();
     if(mode==="continuous"&&idx>0) idx--;
     updateCenter(); renderLaps(); updateBtns();
-    toast(`↩ ${r.name}`,"w");
+    toast(tr("camera.toast.undo", "↩ {name}", { name: r.name }),"w");
   });
   $("downloadLastVideoBtn").addEventListener("click",downloadLastVideoBundle);
 
@@ -1072,18 +1161,18 @@
 
   // Export
   $("exportBtn").addEventListener("click",()=>{
-    state=loadCS(); if(!state) return toast("Chrono Study not found","e");
-    const job=(state.jobs||[]).find(j=>j.id===jobId); if(!job) return toast("Job not found","e");
+    state=loadCS(); if(!state) return toast(tr("camera.toast.chronoNotFound", "Chrono Study not found"),"e");
+    const job=(state.jobs||[]).find(j=>j.id===jobId); if(!job) return toast(tr("camera.toast.jobNotFound", "Job not found"),"e");
     const valid=new Set((job.elements||[]).map(e=>e.id));
     let n=0;
     for(const cy of cycles){ const vl=cy.laps.filter(l=>valid.has(l.elementId)); if(!vl.length) continue; job.cycles.push({...cy,laps:vl}); n++; }
-    if(!n) return toast("No valid cycles","e");
-    saveCS(); cycles=[]; toast(`✓ ${n} cycle${n===1?"":"s"} exported`); updateBtns(); renderLaps();
+    if(!n) return toast(tr("camera.toast.noValidCycles", "No valid cycles"),"e");
+    saveCS(); cycles=[]; toast(tr("camera.toast.cyclesExported", `✓ {count} cycle(s) exported`, { count: n })); updateBtns(); renderLaps();
   });
 
   $("clearBtn").addEventListener("click",()=>{
-    if(!confirm(`Clear ${cycles.length} cycle(s)?`)) return;
-    cycles=[]; reset(); toast("Cleared","w");
+    if(!confirm(tr("camera.confirm.clearCycles", `Clear {count} cycle(s)?`, { count: cycles.length }))) return;
+    cycles=[]; reset(); toast(tr("camera.toast.cleared", "Cleared"),"w");
   });
 
   // Toast
@@ -1105,14 +1194,24 @@
 
   window.addEventListener("storage",e=>{
     if (!e.key) return;
-    if (WATCH_KEYS.includes(e.key)) sync();
+    if (WATCH_KEYS.includes(e.key)) requestSync();
   });
   window.CANBus?.onMessage((msg) => {
     if (!msg?.type) return;
-    if (String(msg.type).startsWith("data:")) sync();
+    const type = String(msg.type || "");
+    if (type === "data:sync:status") return;
+    if (type.startsWith("data:")) requestSync();
   });
-  setInterval(sync,3000);
-  sync(); updateBtns(); renderLaps();
+  window.addEventListener("vmill:lang:changed", applyTexts);
+  window.addEventListener("vmill:lang:catalog:changed", applyTexts);
+  setInterval(() => {
+    if (document.hidden) return;
+    requestSync();
+  }, 8000);
+  applyTexts();
+  sync();
+  updateBtns();
+  renderLaps();
 })();
 </script>
 </body>
