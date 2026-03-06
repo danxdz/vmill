@@ -1,0 +1,29 @@
+# Upsun project configuration for the VMill Python server.
+applications:
+  vmill:
+    source:
+      # Repository-relative root for this application.
+      root: "."
+    type: "python:3.11"
+
+    # Persist SQLite data outside the ephemeral application filesystem.
+    mounts:
+      "/data":
+        source: storage
+        source_path: vmill-data
+
+    variables:
+      env:
+        VMILL_DB_PATH: "/data/vmill.db"
+
+    web:
+      upstream:
+        socket_family: tcp
+      commands:
+        start: "python vmill_server.py"
+
+routes:
+  "https://{default}/":
+    type: upstream
+    upstream: "vmill:http"
+

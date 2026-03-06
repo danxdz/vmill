@@ -125,6 +125,42 @@ If you deploy from a fork, replace the button repo URL with your fork URL:
 https://render.com/deploy?repo=https://github.com/<you>/<repo>
 ```
 
+### Upsun (VMill Python server)
+
+This repo now includes Upsun configuration at `.upsun/config.yaml`.
+
+- App type: `python:3.11`
+- App source root: `.` (repo root)
+- Start command: `python vmill_server.py`
+- Route: `https://{default}/`
+- Persistent SQLite mount: `/data` with `VMILL_DB_PATH=/data/vmill.db`
+
+Deploy with the Upsun CLI from your project root:
+
+```bash
+# 1) Install + authenticate CLI (https://docs.upsun.com/)
+upsun auth:login
+
+# 2) Connect this local repo to your Upsun project
+upsun project:set-remote <PROJECT_ID>
+
+# 3) Push your current branch/environment
+upsun push
+```
+
+After deploy, inspect URL and logs:
+
+```bash
+upsun url
+upsun logs --app vmill
+```
+
+If you get configuration parse errors, verify the config file is committed at:
+
+```text
+.upsun/config.yaml
+```
+
 ## API Docs
 
 OCR API docs:
