@@ -21,10 +21,17 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qs, unquote, urlparse
 import hashlib
 import socket
+import sys
 
-ROOT_DIR = Path(__file__).resolve().parent
+if getattr(sys, "frozen", False):
+    ROOT_DIR = Path(getattr(sys, "_MEIPASS", Path.cwd()))
+    RUNTIME_DIR = Path.cwd()
+else:
+    ROOT_DIR = Path(__file__).resolve().parent
+    RUNTIME_DIR = ROOT_DIR
+
 PUBLIC_DIR = ROOT_DIR / "public"
-DB_PATH = Path(os.environ.get("VMILL_DB_PATH", str(ROOT_DIR / "vmill.db"))).expanduser()
+DB_PATH = Path(os.environ.get("VMILL_DB_PATH", str(RUNTIME_DIR / "vmill.db"))).expanduser()
 DEFAULT_PORT = int(os.environ.get("PORT", "8080"))
 TOKEN_TTL_HOURS = 24 * 7
 
@@ -408,7 +415,16 @@ class VMillHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
-        self.wfile.write(raw)
+        self.safe_write(raw)
+
+    def safe_write(self, raw: bytes) -> bool:
+        try:
+            self.wfile.write(raw)
+            return True
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+            # Client disconnected while we were sending a response.
+            self.close_connection = True
+            return False
 
     def parse_bearer(self) -> str:
         auth = self.headers.get("Authorization", "")
@@ -726,6 +742,29 @@ class VMillHandler(BaseHTTPRequestHandler):
         payload = decode_json_field(row["settings_json"] if row else "{}", {})
         if not isinstance(payload, dict):
             payload = {}
+
+        current_rev = db.last_sync_rev()
+        base_rev = current_rev
+        try:
+            base_rev = int(body.get("base_rev", current_rev))
+        except Exception:
+            base_rev = current_rev
+        if base_rev < current_rev and ("app" in body or "modules" in body):
+            self.send_json(
+                HTTPStatus.CONFLICT,
+                {
+                    "ok": False,
+                    "error": "sync_conflict",
+                    "rev": current_rev,
+                    "workspace": {
+                        "id": "default",
+                        "updated_at": row["updated_at"] if row else now_iso(),
+                        "app": payload.get("app"),
+                        "modules": payload.get("modules"),
+                    },
+                },
+            )
+            return
 
         changed = {"app": False, "modules": False}
         if "app" in body:
@@ -1355,7 +1394,7 @@ class VMillHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
-        self.wfile.write(raw)
+        self.safe_write(raw)
 
     def serve_static(self, req_path: str) -> None:
         clean = unquote(req_path).split("?", 1)[0].split("#", 1)[0]
@@ -1398,7 +1437,7 @@ class VMillHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(content)))
         self.end_headers()
-        self.wfile.write(content)
+        self.safe_write(content)
 
 
 def run() -> None:

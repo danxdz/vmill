@@ -3,6 +3,7 @@
   const STORAGE_KEY = "vmill:canbus:last-message";
   const LOGGER_KEY = "vmill:logger:entries:v1";
   const LOGGER_MAX = 1800;
+  const LOGGER_VERBOSE_KEY = "vmill:logger:verbose:v1";
   const listeners = new Set();
   let bc = null;
   let lastSyncSignature = "";
@@ -110,13 +111,18 @@
   function shouldLogMessage(msg, direction = "emit") {
     const type = String(msg?.type || "");
     if (!type) return false;
+    const verbose = String(localStorage.getItem(LOGGER_VERBOSE_KEY) || "") === "1";
     const now = Date.now();
     // Reduce duplicated network chatter mirrored from other tabs.
     if (String(direction || "") === "rx" && (type === "data:sync:status" || type === "hub:ready")) {
       return false;
     }
+    // Keep logger focused on actionable entries by default.
+    if (!verbose && (type === "data:app:updated" || type === "data:module:updated")) {
+      return false;
+    }
     if (type === "hub:ready") {
-      if ((now - Number(lastHubReadyLoggedAt || 0)) < 120000) return false;
+      if ((now - Number(lastHubReadyLoggedAt || 0)) < 300000) return false;
       lastHubReadyLoggedAt = now;
       return true;
     }

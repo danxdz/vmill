@@ -9,6 +9,11 @@
   const SYNC_REV_KEY = "vmill:sync:rev";
   const SYNC_CLIENT_ID_KEY = "vmill:sync:client-id";
   const SYNC_POLL_MS = 5000;
+  const SYNC_POLL_HIDDEN_MS = 15000;
+  const SYNC_POLL_OFFLINE_MS = 7000;
+  const SYNC_WRITE_DEBOUNCE_MS = 700;
+  const SYNC_WRITE_MAX_WAIT_MS = 2600;
+  const SYNC_PUSH_RETRY_MS = 2200;
   const HTTP_TIMEOUT_MS = 8000;
   const TABLE_REMOTE_REFRESH_MS = 15000;
   const WINDOW_STORE_PREFIX = "__VMILL_STORE__:";
@@ -40,10 +45,16 @@
     dirtyModules: false,
     applyingRemote: false,
     pollTimer: 0,
+    pollInFlight: false,
     pushTimer: 0,
+    pushQueued: false,
     pulling: false,
     pushing: false,
     clientId: "",
+    dirtySince: 0,
+    lastPushAt: 0,
+    lastPullAt: 0,
+    lastPollAt: 0,
     lastError: "",
     authError: false,
     tableCache: Object.create(null),
@@ -692,9 +703,7 @@
     writeWindowAppState(normalized);
     window.CANBus?.emit("data:app:updated", { key: APP_KEY, mirrors: LEGACY_APP_KEYS.slice() }, "module-data");
     if (!syncState.applyingRemote) {
-      syncState.dirtyApp = true;
-      scheduleSyncPush();
-      emitSyncStatus({ reason: "app-write", dirtyApp: true, dirtyModules: syncState.dirtyModules });
+      markDirty("app", "app-write");
     }
   }
 
@@ -881,9 +890,7 @@
     writeWindowModuleState(st);
     window.CANBus?.emit("data:module:updated", { key: MODULE_KEY }, "module-data");
     if (!syncState.applyingRemote) {
-      syncState.dirtyModules = true;
-      scheduleSyncPush();
-      emitSyncStatus({ reason: "module-write", dirtyApp: syncState.dirtyApp, dirtyModules: true });
+      markDirty("modules", "module-write");
     }
     return st;
   }
@@ -1284,7 +1291,12 @@
         if (captureError) crudState.lastError = String(remote?.data?.error || remote?.status || "");
         return null;
       }
-      for (const item of remoteItems) mergeLocalTableRecord(table, item);
+      syncState.applyingRemote = true;
+      try {
+        for (const item of remoteItems) mergeLocalTableRecord(table, item);
+      } finally {
+        syncState.applyingRemote = false;
+      }
       syncState.tableCache[reqKey] = {
         ts: Date.now(),
         rev: Number(syncState.revision || 0),
@@ -1467,6 +1479,21 @@
     return "custom";
   }
 
+  function normalizeEntityAttributes(raw) {
+    const rows = Array.isArray(raw) ? raw : [];
+    const allowed = new Set(["string", "number", "boolean", "date", "text"]);
+    return rows
+      .map((row) => ({
+        id: String(row?.id || uuid()),
+        name: String(row?.name || "").trim(),
+        type: allowed.has(String(row?.type || "string").toLowerCase())
+          ? String(row?.type || "string").toLowerCase()
+          : "string",
+        required: !!row?.required,
+      }))
+      .filter((row) => !!row.name);
+  }
+
   function normalizeEntityType(raw) {
     const src = raw && typeof raw === "object" ? raw : {};
     const id = slugId(src.id || src.typeId || src.nameSingular || src.namePlural, "type");
@@ -1478,6 +1505,7 @@
       namePlural: String(src.namePlural || `${String(src.nameSingular || src.name || id)}s`),
       moduleRole: normalizeModuleRole(src.moduleRole, id),
       description: String(src.description || ""),
+      attributes: normalizeEntityAttributes(src.attributes),
       base: !!src.base,
       locked: !!src.locked,
       allowManualItems: src.allowManualItems !== false,
@@ -1579,9 +1607,12 @@
           nameSingular: String(typeRows[idx]?.nameSingular || base.nameSingular),
           namePlural: String(typeRows[idx]?.namePlural || base.namePlural),
           description: String(typeRows[idx]?.description || ""),
+          attributes: normalizeEntityAttributes(typeRows[idx]?.attributes),
           updatedAt: nowIso,
         };
-        if (!shallowEqualKeys(prev, next, ["code", "nameSingular", "namePlural", "moduleRole", "description", "id", "base", "locked", "allowManualItems"])) {
+        const changedCore = !shallowEqualKeys(prev, next, ["code", "nameSingular", "namePlural", "moduleRole", "description", "id", "base", "locked", "allowManualItems"]);
+        const changedAttrs = JSON.stringify(prev?.attributes || []) !== JSON.stringify(next?.attributes || []);
+        if (changedCore || changedAttrs) {
           typeRows[idx] = next;
           changed = true;
         }
@@ -1591,8 +1622,10 @@
     for (let i = 0; i < typeRows.length; i += 1) {
       const row = typeRows[i] || {};
       const nextRole = normalizeModuleRole(row.moduleRole, row.id);
-      if (String(row.moduleRole || "") !== nextRole) {
-        typeRows[i] = { ...row, moduleRole: nextRole, updatedAt: nowIso };
+      const normAttrs = normalizeEntityAttributes(row?.attributes);
+      const attrsChanged = JSON.stringify(row?.attributes || []) !== JSON.stringify(normAttrs);
+      if (String(row.moduleRole || "") !== nextRole || attrsChanged) {
+        typeRows[i] = { ...row, moduleRole: nextRole, attributes: normAttrs, updatedAt: nowIso };
         changed = true;
       }
     }
@@ -1837,12 +1870,18 @@
     const moduleRole = explicitRole
       ? normalizeModuleRole(explicitRole, typeId)
       : normalizeModuleRole(target[idx]?.moduleRole || normalized.moduleRole, typeId);
+    const attributes = normalizeEntityAttributes(
+      typeRecord?.attributes != null
+        ? typeRecord.attributes
+        : (target[idx]?.attributes || normalized.attributes || [])
+    );
     const next = {
       createdAt: idx >= 0 ? target[idx]?.createdAt : new Date().toISOString(),
       ...normalized,
       id: typeId,
       code,
       moduleRole,
+      attributes,
       base: false,
       locked: false,
       allowManualItems: true,
@@ -2368,17 +2407,58 @@
       clearTimeout(syncState.pushTimer);
       syncState.pushTimer = 0;
     }
+    if (prev !== syncState.online) {
+      if (syncState.pollTimer) {
+        clearTimeout(syncState.pollTimer);
+        syncState.pollTimer = 0;
+      }
+      if (syncState.initialized && !IS_EMBEDDED_FRAME) {
+        schedulePoll(syncState.online ? 450 : SYNC_POLL_OFFLINE_MS);
+      }
+    }
     if (prev !== syncState.online || reason) {
       emitSyncStatus({ reason, ...extra });
     }
   }
 
+  function computePollDelayMs() {
+    if (!syncState.online) return SYNC_POLL_OFFLINE_MS;
+    if (typeof document !== "undefined" && document.hidden && !syncState.dirtyApp && !syncState.dirtyModules) {
+      return SYNC_POLL_HIDDEN_MS;
+    }
+    if (syncState.dirtyApp || syncState.dirtyModules || syncState.pushing || syncState.pulling) {
+      return 1400;
+    }
+    return SYNC_POLL_MS;
+  }
+
+  function schedulePoll(delayMs = SYNC_POLL_MS) {
+    if (IS_EMBEDDED_FRAME) return;
+    if (syncState.pollTimer) clearTimeout(syncState.pollTimer);
+    const wait = Math.max(250, Number(delayMs || 0));
+    syncState.pollTimer = window.setTimeout(() => {
+      syncState.pollTimer = 0;
+      void pollServer();
+    }, wait);
+  }
+
   function ensurePollTimer() {
     if (IS_EMBEDDED_FRAME) return;
-    if (syncState.pollTimer) return;
-    syncState.pollTimer = window.setInterval(() => {
-      void pollServer();
-    }, SYNC_POLL_MS);
+    if (syncState.pollTimer || syncState.pollInFlight) return;
+    schedulePoll(400);
+  }
+
+  function markDirty(kind = "app", reason = "write") {
+    const k = String(kind || "");
+    if (k === "app" || k === "all") syncState.dirtyApp = true;
+    if (k === "modules" || k === "all") syncState.dirtyModules = true;
+    if (!syncState.dirtySince) syncState.dirtySince = Date.now();
+    scheduleSyncPush(SYNC_WRITE_DEBOUNCE_MS);
+    emitSyncStatus({
+      reason,
+      dirtyApp: syncState.dirtyApp,
+      dirtyModules: syncState.dirtyModules,
+    });
   }
 
   async function probeServer(baseUrl) {
@@ -2424,6 +2504,7 @@
       syncState.dirtyApp = false;
     } else if (localApp && (!remoteApp || localAppStamp > remoteAppStamp)) {
       syncState.dirtyApp = true;
+      if (!syncState.dirtySince) syncState.dirtySince = Date.now();
     }
 
     const remoteModStamp = moduleStateStamp(remoteModules);
@@ -2434,6 +2515,7 @@
       syncState.dirtyModules = false;
     } else if (localModules && (!remoteModules || localModStamp > remoteModStamp)) {
       syncState.dirtyModules = true;
+      if (!syncState.dirtySince) syncState.dirtySince = Date.now();
     }
   }
 
@@ -2462,6 +2544,7 @@
       writeSyncRevision(out.data?.rev || syncState.revision || 0);
       mergeRemoteSnapshot(out.data?.workspace || {});
       clearTableFetchCache();
+      syncState.lastPullAt = Date.now();
       emitSyncStatus({ reason: "pull-ok", dirtyApp: syncState.dirtyApp, dirtyModules: syncState.dirtyModules });
       return true;
     } catch {
@@ -2474,13 +2557,18 @@
   }
 
   async function pushToServer(force = false) {
-    if (syncState.pushing || !syncState.online || !syncState.serverUrl) return false;
+    if (syncState.pushing) {
+      syncState.pushQueued = true;
+      return false;
+    }
+    if (!syncState.online || !syncState.serverUrl) return false;
     const token = readAuthToken();
     if (!token) return false;
     if (!force && !syncState.dirtyApp && !syncState.dirtyModules) return true;
 
     const payload = {
       client_id: ensureSyncClientId(),
+      base_rev: Number(syncState.revision || 0),
     };
     if (syncState.dirtyApp || force) payload.app = readAppState({ seedIfMissing: false });
     if (syncState.dirtyModules || force) payload.modules = readModuleState();
@@ -2499,10 +2587,21 @@
         emitSyncStatus({ reason: "push-auth-failed" });
         return false;
       }
+      if (out.status === 409) {
+        // Another client wrote newer state first. Pull latest snapshot, merge, and retry queued local deltas.
+        syncState.authError = false;
+        writeSyncRevision(out.data?.rev || syncState.revision || 0);
+        await pullFromServer();
+        syncState.pushQueued = true;
+        emitSyncStatus({ reason: "push-conflict", dirtyApp: syncState.dirtyApp, dirtyModules: syncState.dirtyModules });
+        return false;
+      }
       if (!out.ok) return false;
       syncState.authError = false;
       if (payload.app) syncState.dirtyApp = false;
       if (payload.modules) syncState.dirtyModules = false;
+      if (!syncState.dirtyApp && !syncState.dirtyModules) syncState.dirtySince = 0;
+      syncState.lastPushAt = Date.now();
       writeSyncRevision(out.data?.rev || syncState.revision || 0);
       emitSyncStatus({ reason: "push-ok", dirtyApp: syncState.dirtyApp, dirtyModules: syncState.dirtyModules });
       return true;
@@ -2512,36 +2611,59 @@
       return false;
     } finally {
       syncState.pushing = false;
+      if (syncState.pushQueued) {
+        syncState.pushQueued = false;
+        if (syncState.dirtyApp || syncState.dirtyModules) scheduleSyncPush(180);
+      }
     }
   }
 
-  function scheduleSyncPush(delayMs = 320) {
+  function scheduleSyncPush(delayMs = SYNC_WRITE_DEBOUNCE_MS) {
+    if (!syncState.dirtyApp && !syncState.dirtyModules) return;
+    if (syncState.pushing) {
+      syncState.pushQueued = true;
+      return;
+    }
+    const now = Date.now();
+    const dirtySince = Number(syncState.dirtySince || now);
+    const elapsed = Math.max(0, now - dirtySince);
+    let wait = Math.max(0, Number(delayMs || 0));
+    if (elapsed >= SYNC_WRITE_MAX_WAIT_MS) wait = 0;
     if (syncState.pushTimer) clearTimeout(syncState.pushTimer);
     syncState.pushTimer = window.setTimeout(() => {
       syncState.pushTimer = 0;
-      void pushToServer(false);
-    }, Math.max(0, Number(delayMs || 0)));
+      void (async () => {
+        const ok = await pushToServer(false);
+        if (!ok && (syncState.dirtyApp || syncState.dirtyModules)) {
+          scheduleSyncPush(SYNC_PUSH_RETRY_MS);
+        }
+      })();
+    }, wait);
   }
 
   async function pollServer() {
-    if (!syncState.initialized) return;
-    if (typeof document !== "undefined" && document.hidden && !syncState.dirtyApp && !syncState.dirtyModules) {
-      return;
-    }
-    if (!syncState.online) {
-      const online = await detectServer(syncState.serverUrl || readLs(SERVER_URL_KEY, ""));
-      if (!online) return;
-      await pullFromServer();
-      await pushToServer(false);
-      return;
-    }
-    const token = readAuthToken();
-    if (!token) {
-      syncState.authError = true;
-      emitSyncStatus({ reason: "poll-no-auth" });
-      return;
-    }
+    if (!syncState.initialized || syncState.pollInFlight) return;
+    syncState.pollInFlight = true;
     try {
+      if (typeof document !== "undefined" && document.hidden && !syncState.dirtyApp && !syncState.dirtyModules && syncState.online) {
+        return;
+      }
+      if (!syncState.online) {
+        const online = await detectServer(syncState.serverUrl || readLs(SERVER_URL_KEY, ""));
+        if (!online) return;
+        await pullFromServer();
+        if (syncState.dirtyApp || syncState.dirtyModules) await pushToServer(false);
+        return;
+      }
+      const token = readAuthToken();
+      if (!token) {
+        syncState.authError = true;
+        emitSyncStatus({ reason: "poll-no-auth" });
+        return;
+      }
+      if (syncState.dirtyApp || syncState.dirtyModules) {
+        await pushToServer(false);
+      }
       const out = await fetchJson(
         `${syncState.serverUrl}/api/sync/poll?since=${encodeURIComponent(String(syncState.revision || 0))}`,
         { method: "GET", cache: "no-store", headers: { ...authHeaders() } }
@@ -2556,12 +2678,18 @@
         return;
       }
       syncState.authError = false;
+      syncState.lastPollAt = Date.now();
       writeSyncRevision(out.data?.rev || syncState.revision || 0);
       if (out.data?.changed) await pullFromServer();
       if (syncState.dirtyApp || syncState.dirtyModules) await pushToServer(false);
     } catch {
       syncState.lastError = "poll_failed";
       setOnlineState(false, "poll-failed");
+    } finally {
+      syncState.pollInFlight = false;
+      if (!IS_EMBEDDED_FRAME && syncState.initialized) {
+        schedulePoll(computePollDelayMs());
+      }
     }
   }
 

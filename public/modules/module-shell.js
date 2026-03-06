@@ -958,6 +958,28 @@
           cursor:pointer;
           text-decoration:none;
         }
+        #vmillScopeDock .scopeToggle{
+          display:none;
+          align-items:center;
+          justify-content:center;
+          min-width:24px;
+          font-size:11px;
+          padding:2px 7px;
+        }
+        #vmillScopeDock.mobile .scopeToggle{
+          display:inline-flex;
+        }
+        #vmillScopeDock.mobile.compact .scopePanel{
+          width:min(260px, calc(100vw - 12px));
+        }
+        #vmillScopeDock.mobile.compact .scopeHead,
+        #vmillScopeDock.mobile.compact .scopeSearchInline,
+        #vmillScopeDock.mobile.compact .scopeSummary{
+          display:none;
+        }
+        #vmillScopeDock.mobile.compact .scopeKpis{
+          margin-left:0;
+        }
         #vmillScopeDock .scopeBtn:hover{
           border-color:color-mix(in srgb, var(--scope-accent) 54%, var(--scope-border));
           background:color-mix(in srgb, var(--scope-accent) 14%, transparent);
@@ -1142,6 +1164,7 @@
         }
       </style>
       <div class="scopePanel" id="vmillScopePanel">
+        <button class="scopeBtn scopeToggle" id="vmillScopeToggle" type="button" aria-expanded="false" title="Scope">☰</button>
         <div class="scopeHead">
           <button class="scopeBtn" id="vmillScopeReset" type="button">Reset</button>
         </div>
@@ -1163,6 +1186,8 @@
     applyTopDockPadding(true);
 
     const resetBtn = node.querySelector("#vmillScopeReset");
+    const toggleBtn = node.querySelector("#vmillScopeToggle");
+    const panelEl = node.querySelector("#vmillScopePanel");
     const kpisEl = node.querySelector("#vmillScopeKpis");
     const summaryEl = node.querySelector("#vmillScopeSummary");
     const filterSearchEl = node.querySelector("#vmillScopeFilterSearch");
@@ -1179,6 +1204,39 @@
     let pickerQuery = "";
     let scopeQueryInputTimer = 0;
     let currentModel = { types: [], items: [], links: [], rules: [] };
+    let mobileScopeExpanded = false;
+    const mobileScopeMq = window.matchMedia
+      ? window.matchMedia("(max-width:760px), (hover:none) and (pointer:coarse)")
+      : null;
+
+    function isMobileScopeCompact() {
+      if (mobileScopeMq) return !!mobileScopeMq.matches;
+      return window.innerWidth <= 760;
+    }
+
+    function syncScopeDockCompactState() {
+      const compactMode = isMobileScopeCompact();
+      node.classList.toggle("mobile", compactMode);
+      const compact = compactMode && !mobileScopeExpanded;
+      node.classList.toggle("compact", compact);
+      if (toggleBtn) {
+        toggleBtn.setAttribute("aria-expanded", compact ? "false" : "true");
+        toggleBtn.title = compact
+          ? tt("common.open", "Open")
+          : tt("common.close", "Close");
+      }
+    }
+
+    function setMobileScopeExpanded(nextExpanded) {
+      const compactMode = isMobileScopeCompact();
+      if (!compactMode) {
+        mobileScopeExpanded = true;
+        syncScopeDockCompactState();
+        return;
+      }
+      mobileScopeExpanded = !!nextExpanded;
+      syncScopeDockCompactState();
+    }
 
     function typeLabel(t) {
       const plural = String(t?.namePlural || "");
@@ -1608,6 +1666,7 @@
       updateScope({ ...scope, selected: nextSelected, openTypeId: "", query: "" });
     }
     function openScopePicker(typeId = "") {
+      setMobileScopeExpanded(true);
       loadModel();
       const wanted = String(typeId || "").trim();
       openTypeId = wanted && visibleTypeIds.includes(wanted)
@@ -1621,6 +1680,18 @@
       clearSelection();
       closePicker();
       render();
+    });
+    toggleBtn?.addEventListener("click", () => {
+      setMobileScopeExpanded(!mobileScopeExpanded);
+      if (!mobileScopeExpanded) closePicker();
+      render();
+    });
+    panelEl?.addEventListener("pointerdown", (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (!isMobileScopeCompact() || mobileScopeExpanded) return;
+      if (target.closest(".scopeToggle")) return;
+      setMobileScopeExpanded(true);
     });
     pickerCloseEl?.addEventListener("click", () => {
       closePicker();
@@ -1646,14 +1717,37 @@
     document.addEventListener("pointerdown", (e) => {
       const target = e.target;
       if (!(target instanceof Node)) return;
-      if (!scopeDock || !pickerEl || pickerEl.classList.contains("hidden")) return;
+      if (!scopeDock) return;
       if (scopeDock.contains(target)) return;
-      closePicker();
-      render();
+      let changed = false;
+      if (pickerEl && !pickerEl.classList.contains("hidden")) {
+        closePicker();
+        changed = true;
+      }
+      if (isMobileScopeCompact() && mobileScopeExpanded) {
+        setMobileScopeExpanded(false);
+        changed = true;
+      }
+      if (changed) render();
     });
+
+    if (mobileScopeMq) {
+      const onMobileScopeChange = () => {
+        if (!isMobileScopeCompact()) mobileScopeExpanded = true;
+        else mobileScopeExpanded = false;
+        syncScopeDockCompactState();
+        render();
+      };
+      if (typeof mobileScopeMq.addEventListener === "function") {
+        mobileScopeMq.addEventListener("change", onMobileScopeChange);
+      } else if (typeof mobileScopeMq.addListener === "function") {
+        mobileScopeMq.addListener(onMobileScopeChange);
+      }
+    }
 
     scopeDock.openScopePicker = openScopePicker;
     scopeDock.render = render;
+    syncScopeDockCompactState();
     render();
   }
 

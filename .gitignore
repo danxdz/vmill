@@ -42,3 +42,8 @@ vmill.db-wal
 
 # Local OCR correction exports
 ocr_corrections_*.json
+
+# PyInstaller build artifacts
+dist_portable/
+build/pyinstaller-*/
+build/*.spec

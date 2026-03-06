@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+VENV_OCR="$ROOT_DIR/.venv_ocr"
+if [[ ! -f "$VENV_OCR/bin/activate" ]]; then
+  echo "[pack] .venv_ocr not found. Run: make setup-ocr"
+  exit 1
+fi
+
+# shellcheck disable=SC1091
+source "$VENV_OCR/bin/activate"
+PYTHON_BIN="${PYTHON_BIN:-python}"
+DIST_BASE="$ROOT_DIR/dist_portable/ocr-linux"
+WORK_DIR="$ROOT_DIR/build/pyinstaller-ocr"
+SPEC_DIR="$ROOT_DIR/build"
+
+echo "[pack] building OCR portable Linux bundle with ${PYTHON_BIN}"
+"$PYTHON_BIN" -m pip install --upgrade pip pyinstaller
+
+rm -rf "$DIST_BASE" "$WORK_DIR"
+mkdir -p "$DIST_BASE"
+
+"$PYTHON_BIN" -m PyInstaller \
+  --noconfirm \
+  --clean \
+  --onedir \
+  --name ocr_server \
+  --distpath "$DIST_BASE" \
+  --workpath "$WORK_DIR" \
+  --specpath "$SPEC_DIR" \
+  --collect-all fastapi \
+  --collect-all starlette \
+  --collect-all uvicorn \
+  --collect-all paddleocr \
+  --collect-all paddlex \
+  --collect-all paddle \
+  --collect-all cv2 \
+  --collect-all numpy \
+  --collect-all openpyxl \
+  --collect-all PIL \
+  --hidden-import python_multipart \
+  "$ROOT_DIR/ocr_server.py"
+
+cat >"$DIST_BASE/run_ocr_portable.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PORT="${PORT:-8081}"
+export PORT
+echo "[ocr-portable] starting on :${PORT}"
+"$APP_DIR/ocr_server/ocr_server"
+EOF
+
+chmod +x "$DIST_BASE/run_ocr_portable.sh"
+
+echo
+echo "Built OCR portable bundle:"
+echo "  $DIST_BASE"
+echo "Run:"
+echo "  $DIST_BASE/run_ocr_portable.sh"
