@@ -31,6 +31,10 @@
       --vm-shell-scope-top-mobile:44px;
       --vm-shell-scope-width:min(520px, calc(100vw - 180px));
       --vm-shell-scope-width-mobile:calc(100vw - 20px);
+      --z-hub-header-zone:100110;
+      --z-hub-backdrop:100120;
+      --z-hub-panels:100130;
+      --z-hub-buttons:100140;
     }
     * { box-sizing: border-box; }
     body {
@@ -52,7 +56,7 @@
       position: fixed;
       left: 12px;
       top: 12px;
-      z-index: 46;
+      z-index: var(--z-hub-buttons);
       width: 38px;
       height: 38px;
       border-radius: 11px;
@@ -76,7 +80,7 @@
       position: fixed;
       right: 12px;
       top: 12px;
-      z-index: 46;
+      z-index: var(--z-hub-buttons);
       width: 38px;
       height: 38px;
       border-radius: 11px;
@@ -98,7 +102,7 @@
       right: 0;
       top: 0;
       height: 66px;
-      z-index: 39;
+      z-index: var(--z-hub-header-zone);
       background: transparent;
     }
     .layout.menuOpen .headerHoverZone {
@@ -109,7 +113,7 @@
       left: 50%;
       top: 10px;
       transform: translateX(-50%);
-      z-index: 45;
+      z-index: var(--z-hub-panels);
       min-width: 220px;
       max-width: min(620px, calc(100vw - 120px));
       border: 1px solid var(--border);
@@ -186,7 +190,7 @@
     .menuBackdrop {
       position: fixed;
       inset: 0;
-      z-index: 43;
+      z-index: var(--z-hub-backdrop);
       background: rgba(0,0,0,.34);
       opacity: 0;
       pointer-events: none;
@@ -201,7 +205,7 @@
       left: 10px;
       top: 10px;
       bottom: 10px;
-      z-index: 44;
+      z-index: var(--z-hub-panels);
       width: min(280px, calc(100vw - 20px));
       border: 1px solid var(--border);
       background: color-mix(in srgb, var(--panel2) 90%, transparent);
@@ -256,7 +260,7 @@
       position: fixed;
       top: 56px;
       right: 12px;
-      z-index: 40;
+      z-index: var(--z-hub-panels);
       border: 1px solid var(--border);
       border-radius: 12px;
       background:
@@ -1513,7 +1517,6 @@
                 <option value="all">All categories</option>
               </select>
             </div>
-            <div class="minor" id="scopeToolbarHint" style="margin-top:6px;">Choose what appears in the top scope bar.</div>
             <div class="minor" id="scopeToolbarOrderLbl" style="margin-top:8px;">Shown in toolbar</div>
             <div class="scopeToolbarList" id="scopeToolbarTypeOrderList" style="margin-top:6px;"></div>
             <div class="minor" id="scopeToolbarAvailableLbl" style="margin-top:8px;">Available sets</div>
@@ -1585,7 +1588,6 @@
             </div>
           </header>
           <div class="widgetBody">
-            <div class="minor" id="jobsFlowHint" style="margin-bottom:8px;">Filter and browse as cards or details list.</div>
             <div class="jobsExplorerNav" id="jobsExplorerNav"></div>
             <div class="jobsPrefsBox" style="margin-bottom:8px;">
               <label class="toggle">
@@ -1707,7 +1709,6 @@
       const openThemeSettingsBtn = document.getElementById("openThemeSettingsBtn");
       const openTranslationSettingsBtn = document.getElementById("openTranslationSettingsBtn");
       const topbarPanel = document.getElementById("topbarPanel");
-      const busLog = document.getElementById("busLog");
       const globalLangSel = document.getElementById("globalLangSel");
       const hubAutoScaleChk = document.getElementById("hubAutoScaleChk");
       const hubScaleRange = document.getElementById("hubScaleRange");
@@ -1921,7 +1922,6 @@
         setTxt("addJobBtn", "hub.jobs.addJob", "+ Job");
         setTxt("jobsViewCardsBtn", "hub.jobs.viewCards", "Cards");
         setTxt("jobsViewListBtn", "hub.jobs.viewList", "List");
-        setTxt("jobsFlowHint", "hub.jobs.flowHint", "Filter and browse as cards or details list.");
         setTxt("jobsCompactCardsLbl", "hub.jobs.compactCards", "Compact cards");
         setTxt("jobsOverlayTextLbl", "hub.jobs.overlayText", "Text over image");
         setTxt("renameStationBtn", "hub.jobs.renameStation", "Rename Station");
@@ -1942,7 +1942,6 @@
         setTxt("settingsDisplayTitle", "hub.personalize.title", "Personalize");
         setTxt("settingsTopToolbarTitle", "hub.toolbar.title", "Top Toolbar");
         setTxt("scopeToolbarModeLbl", "hub.toolbar.mode", "Category source");
-        setTxt("scopeToolbarHint", "hub.toolbar.hint", "Choose what appears in the top scope bar.");
         setTxt("scopeToolbarOrderLbl", "hub.toolbar.order", "Shown in toolbar");
         setTxt("scopeToolbarAvailableLbl", "hub.toolbar.available", "Available sets");
         setTxt("settingsModulesTitle", "hub.modules.title", "Modules");
@@ -3237,13 +3236,6 @@
         return removed;
       }
 
-      function log(line) {
-        if (HIDE_HUB_LOGGER_WIDGET || !busLog) return;
-        const ts = new Date().toLocaleTimeString();
-        const next = `[${ts}] ${line}\n${String(busLog.textContent || "")}`;
-        busLog.textContent = next.split("\n").slice(0, 120).join("\n");
-      }
-
       function updateDockButtons() {
         for (const btn of dockButtons) {
           const id = String(btn.dataset.dockId || "");
@@ -4285,7 +4277,6 @@
         const searchInput = document.getElementById("stationJobSearch");
         const box = document.getElementById("jobsList");
         const entitySel = document.getElementById("jobsEntitySel");
-        const hint = document.getElementById("jobsFlowHint");
         if (!stationFilter || !productFilter || !flowSel || !searchInput || !box || !entitySel) return;
 
         const st = getState() || {};
@@ -4328,20 +4319,9 @@
             .map((r) => String(r?.childTypeId || ""))
             .filter((id) => id && modelTypes.some((t) => String(t?.id || "") === id))
         );
-        const rootTypes = modelTypes
-          .filter((t) => {
-            const id = String(t?.id || "");
-            return id && !childTypeIds.has(id);
-          })
-          .sort((a, b) => String(a?.namePlural || a?.nameSingular || a?.id || "").localeCompare(String(b?.namePlural || b?.nameSingular || b?.id || "")));
         const customTypes = modelTypes
           .filter((t) => !coreTypeIds.has(String(t?.id || "")))
           .sort((a, b) => String(a?.namePlural || a?.nameSingular || a?.id || "").localeCompare(String(b?.namePlural || b?.nameSingular || b?.id || "")));
-        const schemaMainCats = (rootTypes.length ? rootTypes : modelTypes)
-          .map((t) => String(t?.namePlural || t?.nameSingular || t?.id || ""))
-          .filter(Boolean)
-          .join(" | ")
-          || `${productTypeName.plural} | ${stationTypeName.plural} | ${jobTypeName.plural}`;
 
         entitySel.innerHTML = [
           `<option value="jobs">${escHtml(jobTypeName.plural)}</option>`,
@@ -4395,8 +4375,6 @@
           return [];
         };
         const currentModeTypeId = modeTypeId(jobsEntityMode);
-        const currentChildTypeIds = childTypeIdsFor(currentModeTypeId);
-        const canDrillDown = currentChildTypeIds.length > 0;
 
         if (jobsExplorerNav) {
           const trailText = [modeLabel(jobsEntityMode), ...jobsExploreTrail.slice().reverse().map((m) => modeLabel(m))]
@@ -4405,7 +4383,6 @@
           jobsExplorerNav.innerHTML = `
             <button class="btn ghost" id="jobsExploreBackBtn" type="button" ${jobsExploreTrail.length ? "" : "disabled"}>${escHtml(tt("hub.jobs.explorer.back", "Back"))}</button>
             <div class="jobsExplorerTrail">${escHtml(trailText || modeLabel(jobsEntityMode))}</div>
-            <span class="jobsExplorerHint">${escHtml(canDrillDown ? tt("hub.jobs.explorer.hintOpen", "Double click item to open") : tt("hub.jobs.explorer.hintEnd", "No child level"))}</span>
           `;
           jobsExplorerNav.querySelector("#jobsExploreBackBtn")?.addEventListener("click", () => {
             if (!jobsExploreTrail.length) return;
@@ -4494,38 +4471,6 @@
         productFilter.style.display = showProductFilter ? "" : "none";
         stationFilter.disabled = !!dynamicModeTypeId;
         stationFilter.style.display = dynamicModeTypeId ? "none" : "";
-
-        if (hint) {
-          const baseHint = tt(
-            dynamicModeTypeId
-              ? "hub.jobs.hint.dynamic"
-              : jobsEntityMode === "products"
-              ? "hub.jobs.hint.products"
-              : jobsEntityMode === "stations"
-                ? "hub.jobs.hint.stations"
-                : "hub.jobs.hint.jobs",
-            dynamicModeTypeId
-              ? "Browse items from selected schema category."
-              : jobsEntityMode === "products"
-              ? "Browse products visually, then open linked jobs."
-                : jobsEntityMode === "stations"
-                  ? "Explore stations visually, then open linked jobs."
-                  : "Explore jobs with cards or detail list."
-          );
-          const modeName = dynamicModeType
-            ? String(dynamicModeType?.namePlural || dynamicModeType?.nameSingular || dynamicModeType?.id || "")
-            : "";
-          const schemaText = dynamicModeTypeId
-            ? tt("hub.jobs.schemaMode", "Schema mode: {name}", { name: modeName || dynamicModeTypeId })
-            : tt("hub.jobs.schemaMain", "Schema: {names}", { names: schemaMainCats });
-          const activeScope = Object.entries(scopeState?.selected || {})
-            .map(([typeId, itemId]) => [String(typeId || ""), String(itemId || "")])
-            .filter(([typeId, itemId]) => typeId && itemId && itemId !== "all");
-          const scopeText = activeScope.length
-            ? tt("hub.overview.scopeActive", "Scope filters: {count}", { count: activeScope.length })
-            : tt("hub.overview.scopeAll", "Scope filters: all");
-          hint.textContent = `${baseHint} | ${schemaText} | ${scopeText}`;
-        }
 
         const flowMatch = (job) => {
           const cycCount = Array.isArray(job?.cycles) ? job.cycles.length : 0;
@@ -5020,7 +4965,7 @@
         applyLayout();
       });
       document.getElementById("clearBusBtn")?.addEventListener("click", () => {
-        if (busLog) busLog.textContent = "";
+        window.CANBus?.clearLogs?.();
       });
 
       function runDataAction(action, fallbackErrKey = "hub.alert.dataActionFailed") {
@@ -5188,7 +5133,6 @@
 
       window.CANBus?.onMessage((msg) => {
         if (!msg) return;
-        log(`${msg.source || "?"} -> ${msg.type || "event"}`);
         if (msg.type === "data:sync:status") {
           updateOnlineStatus(msg.payload || {});
           return;

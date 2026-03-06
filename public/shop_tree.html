@@ -278,6 +278,38 @@
     }
     .flash.show { opacity: 1; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
+    .attrTable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .attrTable th, .attrTable td {
+      border-bottom: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+      padding: 6px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    .attrTable th {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .attrTable tr:last-child td { border-bottom: 0; }
+    .attrTable input, .attrTable select {
+      min-width: 110px;
+      padding: 6px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+    details.advanced > summary {
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      list-style: none;
+    }
+    details.advanced > summary::-webkit-details-marker { display: none; }
     @media (max-width: 980px) {
       .layout { grid-template-columns: 1fr; }
       .panel { min-height: auto; }
@@ -292,16 +324,16 @@
       <div class="head">
         <div class="title" id="treeTitle">Shop Organizer</div>
         <button class="btn ghost" id="openHubBtn" type="button">Hub</button>
-        <button class="btn" id="addRootBtn" type="button">+ Category</button>
+        <button class="btn" id="addRootBtn" type="button">+ Folder</button>
         <button class="btn ghost" id="refreshBtn" type="button">Refresh</button>
-        <input class="search" id="searchIn" type="text" placeholder="Search categories..." />
+        <input class="search" id="searchIn" type="text" placeholder="Search folders..." />
       </div>
       <div class="body" id="treeWrap"></div>
     </section>
 
     <section class="panel">
       <div class="head">
-        <div class="title" id="detailTitle">Category Detail</div>
+        <div class="title" id="detailTitle">Folder Detail</div>
         <span class="flash" id="saveFlash">Saved ✓</span>
       </div>
       <div class="body" id="detailWrap"></div>
@@ -355,11 +387,11 @@
         const treeTitle = document.getElementById("treeTitle");
         if (treeTitle) treeTitle.textContent = tt("shop.title", "Shop Organizer");
         const detailTitle = document.getElementById("detailTitle");
-        if (detailTitle) detailTitle.textContent = tt("shop.form.detailTitle", "Category Detail");
+        if (detailTitle) detailTitle.textContent = tt("shop.form.detailTitle", "Folder Detail");
         if (openHubBtn) openHubBtn.textContent = tt("common.hub", "Hub");
-        if (addRootBtn) addRootBtn.textContent = tt("shop.action.addCategory", "+ Category");
+        if (addRootBtn) addRootBtn.textContent = tt("shop.action.addCategory", "+ Folder");
         if (refreshBtn) refreshBtn.textContent = tt("common.refresh", "Refresh");
-        if (searchIn) searchIn.placeholder = tt("shop.search.placeholder", "Search categories...");
+        if (searchIn) searchIn.placeholder = tt("shop.search.placeholder", "Search folders...");
         if (saveFlash) saveFlash.textContent = tt("shop.status.saved", "Saved ✓");
       }
 
@@ -402,6 +434,24 @@
         return relationOptions().includes(rel) ? rel : "contains";
       }
 
+      function normalizeTypeAttributes(raw) {
+        const list = Array.isArray(raw) ? raw : [];
+        const allowed = new Set(["string", "number", "boolean", "date", "text"]);
+        const out = [];
+        for (const row of list) {
+          const name = String(row?.name || "").trim();
+          if (!name) continue;
+          const type = String(row?.type || "string").trim().toLowerCase();
+          out.push({
+            id: String(row?.id || makeId("attr")),
+            name,
+            type: allowed.has(type) ? type : "string",
+            required: !!row?.required,
+          });
+        }
+        return out;
+      }
+
       function makeId(prefix = "id") {
         const rng = Math.random().toString(36).slice(2, 8);
         return `${prefix}_${Date.now().toString(36)}_${rng}`;
@@ -421,9 +471,11 @@
       }
 
       function typeLabel(t) {
-        const code = String(t?.code || "").trim();
-        const singular = String(t?.nameSingular || t?.id || tt("shop.category", "Category")).trim();
-        return code ? `${code} - ${singular}` : singular;
+        const singular = String(t?.nameSingular || t?.id || tt("shop.category", "Folder"))
+          .replace(/^CAT\d+\s*-\s*/i, "")
+          .replace(/^TYPE\d+\s*-\s*/i, "")
+          .trim();
+        return singular;
       }
       function roleLabel(role) {
         const r = String(role || "custom").toLowerCase();
@@ -482,7 +534,7 @@
         const { parentOf } = childMap();
         const keep = new Set();
         for (const t of (state.types || [])) {
-          const txt = `${t.nameSingular || ""} ${t.code || ""} ${t.id || ""}`.toLowerCase();
+          const txt = `${t.nameSingular || ""} ${t.namePlural || ""} ${t.moduleRole || ""}`.toLowerCase();
           if (!txt.includes(q)) continue;
           let cur = String(t.id || "");
           while (cur && !keep.has(cur) && mapById.has(cur)) {
@@ -657,7 +709,7 @@
           return;
         }
         if (!state.types.length) {
-          treeWrap.innerHTML = `<div class="empty">${esc(tt("shop.empty.clickCreate", "No categories yet - click + Category to create your schema."))}</div>`;
+          treeWrap.innerHTML = `<div class="empty">${esc(tt("shop.empty.clickCreate", "No folders yet - click + Folder to create your structure."))}</div>`;
           return;
         }
 
@@ -667,14 +719,14 @@
 
         const roots = state.types
           .filter((t) => !parentOf.has(String(t.id || "")))
-          .sort((a, b) => String(a?.code || "").localeCompare(String(b?.code || "")) || String(a?.nameSingular || "").localeCompare(String(b?.nameSingular || "")));
+          .sort((a, b) => String(a?.nameSingular || "").localeCompare(String(b?.nameSingular || "")));
 
         const renderBranch = (typeId) => {
           const rows = (out.get(String(typeId || "")) || [])
             .map((id) => typesById.get(id))
             .filter(Boolean)
             .filter((t) => !visible || visible.has(String(t.id || "")))
-            .sort((a, b) => String(a?.code || "").localeCompare(String(b?.code || "")) || String(a?.nameSingular || "").localeCompare(String(b?.nameSingular || "")));
+            .sort((a, b) => String(a?.nameSingular || "").localeCompare(String(b?.nameSingular || "")));
           if (!rows.length) return "";
           return `<ul>${rows.map((t) => {
             const id = String(t.id || "");
@@ -692,11 +744,11 @@
                     <span class="dot ${dotClass}"></span>
                     <div class="nodeText">
                       <div class="nodeName">${esc(typeLabel(t))}</div>
-                      <div class="tiny mono">${esc(id)} · ${esc(role)}</div>
+                      <div class="tiny">${esc(role)}${t.base ? ` · ${esc(tt("shop.tag.base", "base"))}` : ""}</div>
                     </div>
                   </div>
                   <div class="nodeActions">
-                    <button class="iconBtn" type="button" data-add-child="${esc(id)}">${esc(tt("shop.action.addChild", "+ Child"))}</button>
+                    <button class="iconBtn" type="button" data-add-child="${esc(id)}">${esc(tt("shop.action.addChild", "+ Subfolder"))}</button>
                     <button class="iconBtn" type="button" data-rename-type="${esc(id)}">${esc(tt("shop.action.rename", "Rename"))}</button>
                     <button class="iconBtn" type="button" data-delete-type="${esc(id)}">${esc(tt("shop.action.delete", "Delete"))}</button>
                   </div>
@@ -729,11 +781,11 @@
                   <span class="dot ${dotClass}"></span>
                   <div class="nodeText">
                     <div class="nodeName">${esc(typeLabel(t))}</div>
-                    <div class="tiny mono">${esc(id)} · ${esc(role)}</div>
+                    <div class="tiny">${esc(role)}${t.base ? ` · ${esc(tt("shop.tag.base", "base"))}` : ""}</div>
                   </div>
                 </div>
                 <div class="nodeActions">
-                  <button class="iconBtn" type="button" data-add-child="${esc(id)}">${esc(tt("shop.action.addChild", "+ Child"))}</button>
+                  <button class="iconBtn" type="button" data-add-child="${esc(id)}">${esc(tt("shop.action.addChild", "+ Subfolder"))}</button>
                   <button class="iconBtn" type="button" data-rename-type="${esc(id)}">${esc(tt("shop.action.rename", "Rename"))}</button>
                   <button class="iconBtn" type="button" data-delete-type="${esc(id)}">${esc(tt("shop.action.delete", "Delete"))}</button>
                 </div>
@@ -754,13 +806,13 @@
           detailWrap.innerHTML = `
             <section class="section">
               <div class="sectionHead">
-                <div class="sectionTitle">${esc(tt("shop.form.systemCategories", "System Categories"))}</div>
-                <div class="tiny">${esc(tt("shop.form.editCoreHint", "Edit Jobs, Stations, Products and custom categories here"))}</div>
+                <div class="sectionTitle">${esc(tt("shop.form.systemCategories", "Folder Structure"))}</div>
+                <div class="tiny">${esc(tt("shop.form.editCoreHint", "Manage folders and records here"))}</div>
               </div>
               <div class="row">
-                <button class="btn" id="newTypeBtn" type="button">${esc(tt("shop.action.addCategory", "+ Category"))}</button>
+                <button class="btn" id="newTypeBtn" type="button">${esc(tt("shop.action.addCategory", "+ Folder"))}</button>
               </div>
-              <div class="empty">${esc(tt("shop.empty.selectInTree", "Select one category in the tree."))}</div>
+              <div class="empty">${esc(tt("shop.empty.selectInTree", "Select one folder in the tree."))}</div>
             </section>
           `;
           return;
@@ -814,12 +866,30 @@
           ].join("");
         }
         const parentAssignColumnTitle = parentTypeId
-          ? typeLabel(parentType || { nameSingular: tt("shop.form.parentCategory", "Parent category") })
-          : tt("shop.form.parentCategory", "Parent category");
+          ? typeLabel(parentType || { nameSingular: tt("shop.form.parentCategory", "Parent folder") })
+          : tt("shop.form.parentCategory", "Parent folder");
+        const typeAttributes = normalizeTypeAttributes(type.attributes);
+        const attributeRows = typeAttributes.length
+          ? typeAttributes.map((attr) => `
+              <tr data-type-attr-row data-attr-id="${esc(String(attr.id || ""))}">
+                <td><input data-attr-field="name" type="text" value="${esc(String(attr.name || ""))}" /></td>
+                <td>
+                  <select data-attr-field="type">
+                    ${["string", "number", "boolean", "date", "text"].map((k) => `<option value="${esc(k)}" ${String(attr.type || "string") === k ? "selected" : ""}>${esc(k)}</option>`).join("")}
+                  </select>
+                </td>
+                <td><input data-attr-field="required" type="checkbox" ${attr.required ? "checked" : ""} style="width:auto;" /></td>
+                <td><button class="recordDeleteBtn" type="button" data-delete-attr-id="${esc(String(attr.id || ""))}">${esc(tt("common.delete", "Delete"))}</button></td>
+              </tr>
+            `).join("")
+          : `<tr><td colspan="4"><div class="tiny">${esc(tt("shop.empty.noFields", "No custom fields yet."))}</div></td></tr>`;
 
         function tableRecordRows(rows) {
           if (!Array.isArray(rows) || !rows.length) {
-            return `<tr><td colspan="8"><div class="tiny">${esc(tt("shop.empty.noRecords", "No records"))}</div></td></tr>`;
+            const emptyCols = role === "job"
+              ? 6
+              : (role === "product" ? 5 : (role === "station" ? 4 : ((typeAttributes || []).length + 3)));
+            return `<tr><td colspan="${emptyCols}"><div class="tiny">${esc(tt("shop.empty.noRecords", "No records"))}</div></td></tr>`;
           }
           return rows.map((raw) => {
             const row = toUiItem(raw);
@@ -828,6 +898,32 @@
             const parentSelect = parentTypeId
               ? `<select data-record-field="parentAssign">${parentAssignOptionsFor(parentAssigned)}</select>`
               : `<span class="tiny">${esc(tt("shop.empty.noParentRuleShort", "-"))}</span>`;
+            const rowMeta = raw?.meta && typeof raw.meta === "object" ? raw.meta : {};
+            const customCells = (typeAttributes || []).map((attr) => {
+              const attrId = String(attr?.id || "");
+              const attrType = String(attr?.type || "string").toLowerCase();
+              const metaById = rowMeta?.[attrId];
+              const metaByName = rowMeta?.[String(attr?.name || "")];
+              const val = metaById != null ? metaById : (metaByName != null ? metaByName : "");
+              if (attrType === "boolean") {
+                const checked = !!val ? "checked" : "";
+                return `<td><input data-record-custom-id="${esc(attrId)}" data-record-custom-type="boolean" type="checkbox" ${checked} style="width:auto;" /></td>`;
+              }
+              if (attrType === "number") {
+                const numVal = Number.isFinite(Number(val)) ? String(Number(val)) : "";
+                return `<td><input data-record-custom-id="${esc(attrId)}" data-record-custom-type="number" type="number" value="${esc(numVal)}" /></td>`;
+              }
+              if (attrType === "date") {
+                const strVal = String(val || "");
+                return `<td><input data-record-custom-id="${esc(attrId)}" data-record-custom-type="date" type="date" value="${esc(strVal)}" /></td>`;
+              }
+              if (attrType === "text") {
+                const strVal = String(val || "");
+                return `<td><input data-record-custom-id="${esc(attrId)}" data-record-custom-type="text" type="text" value="${esc(strVal)}" /></td>`;
+              }
+              const strVal = String(val || "");
+              return `<td><input data-record-custom-id="${esc(attrId)}" data-record-custom-type="string" type="text" value="${esc(strVal)}" /></td>`;
+            }).join("");
 
             if (role === "job") {
               const stationOpts = [`<option value="">${esc(tt("shop.option.none", "(none)"))}</option>`, ...(state.app.stations || []).map((x) => {
@@ -843,7 +939,6 @@
               const statusVal = String(raw?.status || "active");
               return `
                 <tr data-record-id="${esc(rid)}">
-                  <td class="mono">${esc(rid)}</td>
                   <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
                   <td><select data-record-field="stationId">${stationOpts}</select></td>
                   <td><select data-record-field="productId">${productOpts}</select></td>
@@ -868,7 +963,6 @@
                 })].join("");
               return `
                 <tr data-record-id="${esc(rid)}">
-                  <td class="mono">${esc(rid)}</td>
                   <td><input data-record-field="code" type="text" value="${esc(String(raw?.code || ""))}" /></td>
                   <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
                   <td><select data-record-field="parentProductId">${parentProductOpts}</select></td>
@@ -881,7 +975,6 @@
             if (role === "station") {
               return `
                 <tr data-record-id="${esc(rid)}">
-                  <td class="mono">${esc(rid)}</td>
                   <td><input data-record-field="code" type="text" value="${esc(String(raw?.code || ""))}" /></td>
                   <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
                   <td>${parentSelect}</td>
@@ -892,9 +985,8 @@
 
             return `
               <tr data-record-id="${esc(rid)}">
-                <td class="mono">${esc(rid)}</td>
-                <td><input data-record-field="code" type="text" value="${esc(String(raw?.code || ""))}" /></td>
                 <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
+                ${customCells}
                 <td>${parentSelect}</td>
                 <td><button class="recordDeleteBtn" type="button" data-record-delete-id="${esc(rid)}">${esc(tt("common.delete", "Delete"))}</button></td>
               </tr>
@@ -911,18 +1003,16 @@
             <section class="section">
               <div class="sectionHead">
                 <div class="sectionTitle">${esc(tt("shop.form.records", "Records"))}</div>
-                <div class="tiny">${esc(tt("shop.form.recordsInlineHint", "Inline edit: changes are saved automatically."))}</div>
               </div>
               <div class="row">
                 <button class="btn ghost" type="button" id="newItemBtn">${esc(tt("shop.action.addRecord", "+ Record"))}</button>
               </div>
-              ${parentTypeId ? "" : `<div class="tiny">${esc(tt("shop.empty.noParentRule", "No parent category rule for this type. Set parent category above first."))}</div>`}
+              ${parentTypeId ? "" : `<div class="tiny">${esc(tt("shop.empty.noParentRule", "No parent folder configured for this one. Set parent folder above first."))}</div>`}
               <div class="tableWrap">
                 <table class="recordsTable">
                   <thead>
                     ${role === "job" ? `
                       <tr>
-                        <th>${esc(tt("common.id", "id"))}</th>
                         <th>${esc(tt("shop.form.name", "Name"))}</th>
                         <th>${esc(tt("shop.form.station", "Station"))}</th>
                         <th>${esc(tt("shop.form.product", "Product"))}</th>
@@ -932,7 +1022,6 @@
                       </tr>
                     ` : role === "product" ? `
                       <tr>
-                        <th>${esc(tt("common.id", "id"))}</th>
                         <th>${esc(tt("shop.form.code", "Code"))}</th>
                         <th>${esc(tt("shop.form.name", "Name"))}</th>
                         <th>${esc(tt("shop.form.parentProduct", "Parent product"))}</th>
@@ -941,7 +1030,6 @@
                       </tr>
                     ` : `
                       <tr>
-                        <th>${esc(tt("common.id", "id"))}</th>
                         <th>${esc(tt("shop.form.code", "Code"))}</th>
                         <th>${esc(tt("shop.form.name", "Name"))}</th>
                         <th>${esc(parentAssignColumnTitle)}</th>
@@ -957,23 +1045,24 @@
             </section>
           `;
         } else {
+          const customHeaderCols = (typeAttributes || [])
+            .map((attr) => `<th>${esc(String(attr?.name || tt("shop.form.field", "Field")))}</th>`)
+            .join("");
           recordSection = `
             <section class="section">
               <div class="sectionHead">
                 <div class="sectionTitle">${esc(tt("shop.form.records", "Records"))}</div>
-                <div class="tiny">${esc(tt("shop.form.recordsInlineHint", "Inline edit: changes are saved automatically."))}</div>
               </div>
               <div class="row">
                 <button class="btn ghost" type="button" id="newItemBtn">${esc(tt("shop.action.addRecord", "+ Record"))}</button>
               </div>
-              ${parentTypeId ? "" : `<div class="tiny">${esc(tt("shop.empty.noParentRule", "No parent category rule for this type. Set parent category above first."))}</div>`}
+              ${parentTypeId ? "" : `<div class="tiny">${esc(tt("shop.empty.noParentRule", "No parent folder configured for this one. Set parent folder above first."))}</div>`}
               <div class="tableWrap">
                 <table class="recordsTable">
                   <thead>
                     <tr>
-                      <th>${esc(tt("common.id", "id"))}</th>
-                      <th>${esc(tt("shop.form.code", "Code"))}</th>
                       <th>${esc(tt("shop.form.name", "Name"))}</th>
+                      ${customHeaderCols}
                       <th>${esc(parentAssignColumnTitle)}</th>
                       <th>${esc(tt("common.actions", "Actions"))}</th>
                     </tr>
@@ -990,12 +1079,12 @@
         detailWrap.innerHTML = `
           <section class="section">
             <div class="sectionHead">
-              <div class="sectionTitle">${esc(tt("shop.form.systemCategory", "System Category"))}</div>
+              <div class="sectionTitle">${esc(tt("shop.form.systemCategory", "Folder"))}</div>
               <div class="tag">${type.base ? esc(tt("shop.tag.base", "base")) : esc(tt("shop.role.custom", "custom"))}</div>
             </div>
             <div class="grid2">
               <div class="field">
-                <label>${esc(tt("shop.category", "Category"))}</label>
+                <label>${esc(tt("shop.category", "Folder"))}</label>
                 <select id="typeSel">${typeOptions}</select>
               </div>
               <div class="field">
@@ -1003,33 +1092,57 @@
                 <input id="typeNameIn" type="text" value="${esc(String(type.nameSingular || ""))}" />
               </div>
             </div>
-            <div class="grid2">
-              <div class="field">
-                <label>${esc(tt("shop.form.parentCategory", "Parent category"))}</label>
-                <select id="typeParentSel">${parentOptions}</select>
-              </div>
-              <div class="field">
-                <label>${esc(tt("shop.form.parentRelation", "Parent relation"))}</label>
-                <select id="typeRelIn">${relationSel}</select>
-              </div>
+            <div class="field">
+              <label>${esc(tt("shop.form.parentCategory", "Parent folder"))}</label>
+              <select id="typeParentSel">${parentOptions}</select>
             </div>
-            <div class="grid2">
-              <div class="field">
-                <label>${esc(tt("shop.form.role", "Role"))}</label>
-                <select id="typeRoleSel">${roleOptions}</select>
-              </div>
-              <div class="field">
-                <label>${esc(tt("common.id", "id"))}</label>
-                <input class="mono" type="text" value="${esc(String(type.id || ""))}" readonly />
-              </div>
-            </div>
+            <input id="typeRelIn" type="hidden" value="${esc(currentRelation)}" />
             <div class="row">
-              <button class="btn ghost" id="newTypeBtn" type="button">${esc(tt("shop.action.addCategory", "+ Category"))}</button>
-              <button class="btn ghost" id="newChildTypeBtn" type="button">${esc(tt("shop.action.addChild", "+ Child"))}</button>
+              <button class="btn ghost" id="newTypeBtn" type="button">${esc(tt("shop.action.addCategory", "+ Folder"))}</button>
+              <button class="btn ghost" id="newChildTypeBtn" type="button">${esc(tt("shop.action.addChild", "+ Subfolder"))}</button>
               <button class="btn" id="saveTypeBtn" type="button">${esc(tt("common.save", "Save"))}</button>
               <button class="btn warn" id="deleteTypeBtn" type="button">${esc(tt("common.delete", "Delete"))}</button>
             </div>
-            <div class="tiny">${esc(tt("shop.form.relationHelp", "This changes the global base model. Roles product/station/job are used by all modules."))}</div>
+          </section>
+
+          <section class="section">
+            <div class="sectionHead">
+              <div class="sectionTitle">${esc(tt("shop.form.attributes", "Fields"))}</div>
+            </div>
+            <div class="row">
+              <button class="btn ghost" id="addAttrBtn" type="button">${esc(tt("shop.action.addField", "+ Field"))}</button>
+            </div>
+            <div class="tableWrap">
+              <table class="attrTable">
+                <thead>
+                  <tr>
+                    <th>${esc(tt("shop.form.name", "Name"))}</th>
+                    <th>${esc(tt("shop.form.type", "Type"))}</th>
+                    <th>${esc(tt("shop.form.required", "Required"))}</th>
+                    <th>${esc(tt("common.actions", "Actions"))}</th>
+                  </tr>
+                </thead>
+                <tbody id="typeAttrBody">
+                  ${attributeRows}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="section">
+            <details class="advanced">
+              <summary>${esc(tt("shop.form.advanced", "Advanced mapping"))}</summary>
+              <div class="grid2" style="margin-top:8px;">
+                <div class="field">
+                  <label>${esc(tt("shop.form.role", "Role"))}</label>
+                  <select id="typeRoleSel">${roleOptions}</select>
+                </div>
+                <div class="field">
+                  <label>${esc(tt("shop.form.parentRelation", "Parent relation"))}</label>
+                  <select id="typeRelVisible">${relationSel}</select>
+                </div>
+              </div>
+            </details>
           </section>
           ${recordSection}
         `;
@@ -1093,7 +1206,7 @@
       async function createType(parentTypeId = "") {
         const upsertType = window.VMillData?.upsertEntityType;
         if (typeof upsertType !== "function") return;
-        const nameInput = prompt(tt("shop.prompt.name", "Category name:"), tt("shop.prompt.defaultName", "New Category"));
+        const nameInput = prompt(tt("shop.prompt.name", "Folder name:"), tt("shop.prompt.defaultName", "New Folder"));
         if (nameInput == null) return;
         const name = String(nameInput || "").trim();
         if (!name) return;
@@ -1115,7 +1228,7 @@
       async function renameType(typeId) {
         const row = findType(typeId);
         if (!row) return;
-        const nextName = prompt(tt("shop.prompt.name", "Category name:"), String(row.nameSingular || ""));
+        const nextName = prompt(tt("shop.prompt.name", "Folder name:"), String(row.nameSingular || ""));
         if (nextName == null) return;
         const name = String(nextName || "").trim();
         if (!name) return;
@@ -1137,12 +1250,33 @@
         const typeId = String(document.getElementById("typeSel")?.value || state.selectedTypeId || "");
         const row = findType(typeId);
         if (!row) return;
+        const readAttrRows = () => {
+          const body = document.getElementById("typeAttrBody");
+          if (!(body instanceof HTMLElement)) return [];
+          const rows = Array.from(body.querySelectorAll("[data-type-attr-row]"));
+          const out = [];
+          for (const tr of rows) {
+            if (!(tr instanceof HTMLElement)) continue;
+            const attrId = String(tr.getAttribute("data-attr-id") || makeId("attr"));
+            const name = String(tr.querySelector('[data-attr-field="name"]')?.value || "").trim();
+            const type = String(tr.querySelector('[data-attr-field="type"]')?.value || "string").trim().toLowerCase();
+            const required = !!tr.querySelector('[data-attr-field="required"]')?.checked;
+            if (!name) continue;
+            out.push({ id: attrId, name, type, required });
+          }
+          return normalizeTypeAttributes(out);
+        };
         const name = String(document.getElementById("typeNameIn")?.value || row.nameSingular || "").trim();
         if (!name) return;
         const parentTypeId = String(document.getElementById("typeParentSel")?.value || "");
-        const relation = normalizeRelation(document.getElementById("typeRelIn")?.value || "contains");
+        const relation = normalizeRelation(
+          document.getElementById("typeRelVisible")?.value
+          || document.getElementById("typeRelIn")?.value
+          || "contains"
+        );
         const rowRole = String(row.moduleRole || "custom").trim().toLowerCase() || "custom";
         const role = String(document.getElementById("typeRoleSel")?.value || rowRole).trim().toLowerCase() || "custom";
+        const attributes = readAttrRows();
         remapCoreRole(row.id, role);
         const out = window.VMillData.upsertEntityType({
           ...row,
@@ -1150,6 +1284,7 @@
           nameSingular: name,
           namePlural: autoPluralName(name),
           moduleRole: role,
+          attributes,
         });
         if (!out?.id) return;
         syncParentRule(String(out.id || row.id), parentTypeId, relation);
@@ -1164,10 +1299,10 @@
         if (!id) return;
         const row = findType(id);
         if (!row) return;
-        if (!confirm(tt("shop.confirm.delete", "Delete category \"{name}\"?", { name: row.nameSingular || id }))) return;
+        if (!confirm(tt("shop.confirm.delete", "Delete folder \"{name}\"?", { name: row.nameSingular || id }))) return;
         const ok = !!window.VMillData.deleteEntityType?.(id);
         if (!ok) {
-          alert(tt("shop.error.deleteBlockedDetails", "Delete blocked: category still required by data or by protected base role."));
+          alert(tt("shop.error.deleteBlockedDetails", "Delete blocked: folder still required by data or protected mapping."));
           return;
         }
         if (String(state.selectedTypeId || "") === id) state.selectedTypeId = "";
@@ -1232,11 +1367,30 @@
 
         const code = getVal("code");
         const name = getVal("name");
+        const meta = {};
+        rowEl.querySelectorAll("[data-record-custom-id]").forEach((el) => {
+          if (!(el instanceof HTMLElement)) return;
+          const attrId = String(el.getAttribute("data-record-custom-id") || "");
+          const fieldType = String(el.getAttribute("data-record-custom-type") || "string").toLowerCase();
+          if (!attrId) return;
+          let value = "";
+          if (fieldType === "boolean" && el instanceof HTMLInputElement) {
+            value = !!el.checked;
+          } else if (fieldType === "number" && el instanceof HTMLInputElement) {
+            const num = Number(el.value);
+            value = Number.isFinite(num) ? num : null;
+          } else if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
+            value = String(el.value || "");
+          }
+          meta[attrId] = value;
+        });
+        const existing = listTypeItems(typeId).find((x) => String(x?.id || "") === itemId) || null;
         const out = window.VMillData?.upsertEntityItem?.({
           typeId,
           id: itemId,
-          code,
+          code: code || String(existing?.code || ""),
           name: name || code || tt("shop.item.defaultName", "New Record"),
+          meta,
         });
         if (!out?.id) return;
         applyParentAssignmentFor(typeId, String(out.id || ""), parentAssignedId);
@@ -1390,6 +1544,41 @@
         const target = e.target;
         if (!(target instanceof HTMLElement)) return;
 
+        if (target.id === "addAttrBtn") {
+          const body = document.getElementById("typeAttrBody");
+          if (body) {
+            const attrId = makeId("attr");
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-type-attr-row", "");
+            tr.setAttribute("data-attr-id", attrId);
+            tr.innerHTML = `
+              <td><input data-attr-field="name" type="text" value="" /></td>
+              <td>
+                <select data-attr-field="type">
+                  <option value="string" selected>string</option>
+                  <option value="number">number</option>
+                  <option value="boolean">boolean</option>
+                  <option value="date">date</option>
+                  <option value="text">text</option>
+                </select>
+              </td>
+              <td><input data-attr-field="required" type="checkbox" style="width:auto;" /></td>
+              <td><button class="recordDeleteBtn" type="button" data-delete-attr-id="${esc(attrId)}">${esc(tt("common.delete", "Delete"))}</button></td>
+            `;
+            body.appendChild(tr);
+            const input = tr.querySelector('[data-attr-field="name"]');
+            if (input instanceof HTMLElement) input.focus();
+          }
+          return;
+        }
+
+        const delAttrBtn = target.closest("[data-delete-attr-id]");
+        if (delAttrBtn) {
+          const row = delAttrBtn.closest("[data-type-attr-row]");
+          if (row && row.parentElement) row.parentElement.removeChild(row);
+          return;
+        }
+
         if (target.id === "newTypeBtn") { await createType(""); return; }
         if (target.id === "newChildTypeBtn") { await createType(state.selectedTypeId); return; }
         if (target.id === "saveTypeBtn") { await saveTypeFromForm(); return; }
@@ -1411,18 +1600,30 @@
           renderDetail();
           return;
         }
-        if (target.hasAttribute("data-record-field")) {
+        if (target.id === "typeRelVisible") {
+          const hidden = document.getElementById("typeRelIn");
+          if (hidden) hidden.value = String(target.value || "contains");
+          return;
+        }
+        if (target.hasAttribute("data-record-field") || target.hasAttribute("data-record-custom-id")) {
           const rowEl = target.closest("tr[data-record-id]");
           const rowId = String(rowEl?.getAttribute("data-record-id") || "");
           if (!rowId || !(rowEl instanceof HTMLElement)) return;
           await saveRecordInline(rowId, rowEl);
+          return;
+        }
+        if (target.hasAttribute("data-attr-field")) {
+          // keep UX simple: changes in field schema save when user clicks Save
+          const hidden = document.getElementById("typeRelIn");
+          const relVisible = document.getElementById("typeRelVisible");
+          if (hidden && relVisible) hidden.value = String(relVisible.value || "contains");
         }
       });
 
       detailWrap.addEventListener("keydown", (e) => {
         const target = e.target;
         if (!(target instanceof HTMLElement)) return;
-        if (!target.hasAttribute("data-record-field")) return;
+        if (!target.hasAttribute("data-record-field") && !target.hasAttribute("data-record-custom-id") && !target.hasAttribute("data-attr-field")) return;
         if (e.key !== "Enter") return;
         if (target instanceof HTMLTextAreaElement) return;
         e.preventDefault();

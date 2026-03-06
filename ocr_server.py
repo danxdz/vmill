@@ -14,6 +14,7 @@ import cv2
 import numpy as np
 import os
 import tempfile
+import base64
 import math
 import re
 import warnings
@@ -23,6 +24,7 @@ from collections import defaultdict
 import time
 import asyncio
 import concurrent.futures
+import threading
 from functools import lru_cache
 import atexit
 import gc
@@ -144,8 +146,17 @@ except Exception as e:
 # Global OCR instance (initialize once at startup)
 ocr = None
 
-# Thread pool for CPU-intensive tasks
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+# Paddle OCR runtime can crash under concurrent predict calls in some environments.
+# Keep server task execution controlled and serialize predict() calls with a lock.
+OCR_WORKERS = max(1, int(os.getenv("OCR_WORKERS", "1")))
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=OCR_WORKERS)
+ocr_predict_lock = threading.Lock()
+
+
+def ocr_predict_safe(image_path: str):
+    """Thread-safe OCR predict wrapper."""
+    with ocr_predict_lock:
+        return ocr.predict(str(image_path))
 
 # Cleanup function for temporary files and resources
 def cleanup_resources():
@@ -1443,7 +1454,7 @@ def detect_and_process_vertical_text(img):
             
             try:
                 # Run OCR on rotated region
-                result = ocr.predict(temp_path)
+                result = ocr_predict_safe(temp_path)
                 
                 if result and result[0]:
                     for detection in result[0]:
@@ -2087,7 +2098,7 @@ def process_image(image_path, mode="fast", rotation=0):
                 try:
                     if idx > 0:
                         logger.info(f"🔄 OCR retry on alternate source: {candidate_path}")
-                    result = ocr.predict(str(candidate_path))
+                    result = ocr_predict_safe(str(candidate_path))
                     break
                 except Exception as candidate_error:
                     last_ocr_error = candidate_error
@@ -2102,7 +2113,7 @@ def process_image(image_path, mode="fast", rotation=0):
             # Try fallback with minimal parameters
             try:
                 logger.info("🔄 Trying fallback OCR with minimal parameters...")
-                result = ocr.predict(str(input_image_path))
+                result = ocr_predict_safe(str(input_image_path))
             except Exception as fallback_error:
                 logger.error(f"❌ Fallback OCR also failed: {fallback_error}")
                 return {"zones": [], "metadata": {"error": f"OCR processing failed: {str(ocr_error)}"}}
@@ -2138,7 +2149,7 @@ def process_image(image_path, mode="fast", rotation=0):
                         cv2.imwrite(temp_path, rotated_zone)
                         
                         try:
-                            result = ocr.predict(temp_path)
+                            result = ocr_predict_safe(temp_path)
                             if result and result[0]:
                                 for detection in result[0]:
                                     if detection and len(detection) >= 2:
@@ -2410,6 +2421,293 @@ async def process_ocr_path(image_path: str = Query(...), mode: str = Query("fast
     except Exception as e:
         logger.error(f"Error processing image path: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
+
+
+@app.post("/ocr/pdf-to-image")
+async def pdf_to_image(
+    file: UploadFile = File(...),
+    page: int = Query(0, description="PDF page index (0-based)"),
+    dpi: int = Query(220, description="Render DPI (120-400)"),
+):
+    """Convert one PDF page to PNG data URL for frontend annotation viewer."""
+    filename = str(file.filename or "").strip()
+    mime = str(file.content_type or "").strip().lower()
+    is_pdf_name = filename.lower().endswith(".pdf")
+    is_pdf_mime = mime == "application/pdf" or mime == "application/octet-stream"
+    if not (is_pdf_name or is_pdf_mime):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    safe_page = max(0, int(page or 0))
+    safe_dpi = max(120, min(400, int(dpi or 220)))
+    temp_pdf_path = create_secure_temp_file(".pdf")
+    temp_image_path = None
+    try:
+        content = await file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="Empty PDF upload")
+        with open(temp_pdf_path, "wb") as f:
+            f.write(content)
+
+        temp_image_path = convert_pdf_to_image(temp_pdf_path, page_number=safe_page, dpi=safe_dpi)
+        with open(temp_image_path, "rb") as img_f:
+            image_bytes = img_f.read()
+        image_b64 = base64.b64encode(image_bytes).decode("ascii")
+        data_url = f"data:image/png;base64,{image_b64}"
+
+        width = 0
+        height = 0
+        img = cv2.imread(temp_image_path)
+        if img is not None:
+            height, width = img.shape[:2]
+
+        return JSONResponse(
+            content={
+                "ok": True,
+                "image": {
+                    "data_url": data_url,
+                    "mime": "image/png",
+                    "width": int(width),
+                    "height": int(height),
+                    "page": int(safe_page),
+                    "dpi": int(safe_dpi),
+                    "source_name": os.path.basename(filename or "document.pdf"),
+                },
+            }
+        )
+    finally:
+        for path in (temp_pdf_path, temp_image_path):
+            if path and os.path.exists(path):
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
+
+
+def decode_image_data_to_temp(image_data: str, suffix: str = ".jpg") -> str:
+    """Decode base64 image data/dataURL to a temp file and return its path."""
+    raw = str(image_data or "").strip()
+    if not raw:
+        raise HTTPException(status_code=400, detail="No image data provided")
+    try:
+        if raw.startswith("data:image"):
+            raw = raw.split(",", 1)[1]
+        image_bytes = base64.b64decode(raw)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid image data format")
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+        tmp_file.write(image_bytes)
+        return tmp_file.name
+
+
+def zone_bbox(zone):
+    """Extract bbox dict from OCR zone payload."""
+    if not isinstance(zone, dict):
+        return None
+    bbox = zone.get("bbox")
+    if isinstance(bbox, dict):
+        x1 = int(round(float(bbox.get("x1", 0))))
+        y1 = int(round(float(bbox.get("y1", 0))))
+        x2 = int(round(float(bbox.get("x2", 0))))
+        y2 = int(round(float(bbox.get("y2", 0))))
+        if x2 > x1 and y2 > y1:
+            return {
+                "x1": x1,
+                "y1": y1,
+                "x2": x2,
+                "y2": y2,
+                "width": x2 - x1,
+                "height": y2 - y1,
+            }
+    if all(k in zone for k in ("x", "y", "width", "height")):
+        x1 = int(round(float(zone.get("x", 0))))
+        y1 = int(round(float(zone.get("y", 0))))
+        w = max(1, int(round(float(zone.get("width", 0)))))
+        h = max(1, int(round(float(zone.get("height", 0)))))
+        return {
+            "x1": x1,
+            "y1": y1,
+            "x2": x1 + w,
+            "y2": y1 + h,
+            "width": w,
+            "height": h,
+        }
+    return None
+
+
+def best_zone_for_point(zones, center_x: float, center_y: float):
+    """Pick the best OCR zone close to the click point using confidence+distance score."""
+    best = None
+    best_score = -1.0
+    for zone in zones or []:
+        bbox = zone_bbox(zone)
+        if not bbox:
+            continue
+        zx = (bbox["x1"] + bbox["x2"]) / 2.0
+        zy = (bbox["y1"] + bbox["y2"]) / 2.0
+        conf = float(zone.get("confidence", 0) or 0)
+        distance = math.hypot(center_x - zx, center_y - zy)
+        score = conf / (1.0 + (distance / 100.0))
+        if score > best_score:
+            best = zone
+            best_score = score
+    return best, best_score
+
+
+def make_annotation_thumbnail(
+    image_path: str,
+    bbox,
+    *,
+    max_size: int = 160,
+    padding: int = 8,
+    jpeg_quality: int = 85,
+):
+    """Crop bbox from source image and return a small JPEG data URL thumbnail."""
+    img = cv2.imread(image_path)
+    if img is None:
+        return None
+    h, w = img.shape[:2]
+    x1 = int(round(float(bbox.get("x1", 0))))
+    y1 = int(round(float(bbox.get("y1", 0))))
+    x2 = int(round(float(bbox.get("x2", 0))))
+    y2 = int(round(float(bbox.get("y2", 0))))
+    pad = max(0, int(padding or 0))
+    x1 = max(0, x1 - pad)
+    y1 = max(0, y1 - pad)
+    x2 = min(w, x2 + pad)
+    y2 = min(h, y2 + pad)
+    if x2 <= x1 or y2 <= y1:
+        return None
+    crop = img[y1:y2, x1:x2]
+    if crop is None or crop.size == 0:
+        return None
+    ch, cw = crop.shape[:2]
+    wanted = max(24, int(max_size or 160))
+    scale = min(1.0, wanted / max(cw, ch))
+    if scale < 0.999:
+        crop = cv2.resize(crop, (max(1, int(cw * scale)), max(1, int(ch * scale))), interpolation=cv2.INTER_AREA)
+    quality = max(35, min(95, int(jpeg_quality or 85)))
+    ok, enc = cv2.imencode(".jpg", crop, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+    if not ok:
+        return None
+    thumb_b64 = base64.b64encode(enc.tobytes()).decode("ascii")
+    out_h, out_w = crop.shape[:2]
+    return {
+        "data_url": f"data:image/jpeg;base64,{thumb_b64}",
+        "mime": "image/jpeg",
+        "width": int(out_w),
+        "height": int(out_h),
+        "source_bbox": {
+            "x1": int(x1),
+            "y1": int(y1),
+            "x2": int(x2),
+            "y2": int(y2),
+            "width": int(x2 - x1),
+            "height": int(y2 - y1),
+        },
+    }
+
+
+@app.post("/ocr/annotation-thumbnail")
+async def annotation_thumbnail(request: dict = Body(...)):
+    """Create a cropped thumbnail for an annotation bbox."""
+    image_data = request.get("image", "")
+    bbox = request.get("bbox", {}) or {}
+    max_size = int(request.get("max_size", 160) or 160)
+    padding = int(request.get("padding", 8) or 8)
+    quality = int(request.get("quality", 85) or 85)
+
+    temp_path = decode_image_data_to_temp(image_data, suffix=".jpg")
+    try:
+        zone = {"bbox": bbox}
+        normalized_bbox = zone_bbox(zone)
+        if not normalized_bbox:
+            raise HTTPException(status_code=400, detail="Invalid bbox")
+        thumb = make_annotation_thumbnail(
+            temp_path,
+            normalized_bbox,
+            max_size=max_size,
+            padding=padding,
+            jpeg_quality=quality,
+        )
+        if not thumb:
+            raise HTTPException(status_code=400, detail="Could not create thumbnail")
+        return {"ok": True, "thumbnail": thumb}
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+
+
+@app.post("/ocr/annotation-click")
+async def annotation_click_ocr(request: dict = Body(...)):
+    """OCR near a clicked point and return best matching annotation + thumbnail."""
+    image_data = request.get("image", "")
+    click = request.get("point", {}) or request.get("center_point", {}) or {}
+    mode = str(request.get("mode", "fast") or "fast").lower()
+    rotation = int(request.get("rotation", 0) or 0)
+    max_thumb = int(request.get("max_thumb", 160) or 160)
+    thumb_padding = int(request.get("thumb_padding", 8) or 8)
+    want_thumb = bool(request.get("thumbnail", True))
+    center_x = float(click.get("x", 0) or 0)
+    center_y = float(click.get("y", 0) or 0)
+
+    if mode not in ["fast", "accurate", "hardcore"]:
+        mode = "fast"
+    if rotation not in [0, 90, 180, 270]:
+        rotation = 0
+
+    temp_path = decode_image_data_to_temp(image_data, suffix=".jpg")
+    try:
+        result = await process_image_async(temp_path, mode=mode, rotation=rotation)
+        zones = result.get("zones", []) if isinstance(result, dict) else []
+        if not zones:
+            return {"ok": True, "zone": None, "message": "No annotation zone detected"}
+
+        selected, score = best_zone_for_point(zones, center_x, center_y)
+        if not selected:
+            return {"ok": True, "zone": None, "message": "No annotation zone detected"}
+
+        bbox = zone_bbox(selected)
+        if not bbox:
+            return {"ok": True, "zone": None, "message": "Detected zone has no bbox"}
+
+        payload_zone = {
+            "text": str(selected.get("text", "") or ""),
+            "confidence": float(selected.get("confidence", 0) or 0),
+            "bbox": bbox,
+            "x": bbox["x1"],
+            "y": bbox["y1"],
+            "width": bbox["width"],
+            "height": bbox["height"],
+            "tolerance_info": selected.get("tolerance_info", {}) or {},
+            "text_orientation": selected.get("text_orientation", 0),
+            "rotation": selected.get("rotation", rotation),
+            "score": float(score),
+        }
+        thumb = None
+        if want_thumb:
+            thumb = make_annotation_thumbnail(
+                temp_path,
+                bbox,
+                max_size=max_thumb,
+                padding=thumb_padding,
+                jpeg_quality=85,
+            )
+        return {
+            "ok": True,
+            "zone": payload_zone,
+            "thumbnail": thumb,
+            "message": f"Found annotation '{payload_zone['text']}'",
+            "center_point": {"x": center_x, "y": center_y},
+        }
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
 
 @app.post("/ocr/process-center")
 async def process_center_point(request: dict = Body(...)):

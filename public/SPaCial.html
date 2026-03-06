@@ -189,6 +189,20 @@
       color:color-mix(in srgb,var(--text) 85%, transparent);
       font-size:11px;
     }
+    .annIdCell{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .annThumb{
+      width:34px;
+      height:34px;
+      border-radius:8px;
+      border:1px solid color-mix(in srgb,var(--text) 16%, transparent);
+      object-fit:cover;
+      flex:0 0 auto;
+      background:color-mix(in srgb,var(--panel) 84%, transparent);
+    }
   </style>
 </head>
 <body>
@@ -214,7 +228,6 @@
       <div class="mini" id="stateInfo" style="margin-top:8px;"></div>
       <div class="chartBox" style="margin-top:10px;">
         <div id="routingTitle" style="font-weight:700;">Routing and Dimensional Control</div>
-        <div class="mini" id="routingHint">Per selected job: route, operations, dimensional annotations, and blueprint annotations.</div>
         <div class="mini" id="routeInfo" style="margin-top:8px;"></div>
 
         <details class="section" open>
@@ -318,10 +331,10 @@
               <button id="opExportFileJpgBtn" type="button">Export Annotated JPG</button>
               <button id="opExportPdfBtn" class="warn" type="button">Operation PDF</button>
             </div>
-            <div class="mini" id="opFileHint">Each operation file has independent annotations.</div>
             <div class="routeTools">
               <button id="bubbleDrawingClearBtn" type="button">Clear Image</button>
               <button id="bubbleOcrDetectBtn" type="button" class="warn">Auto OCR Annotations</button>
+              <button id="bubbleOcrClickBtn" type="button">Click OCR</button>
               <select id="bubbleOcrModeSel">
                 <option value="auto">auto</option>
                 <option value="fast">fast</option>
@@ -341,9 +354,16 @@
                 <span id="bubbleShowBoxesLbl">Show boxes</span>
               </label>
             </div>
+            <div class="routeTools">
+              <button id="bubbleZoomOutBtn" type="button">-</button>
+              <button id="bubbleZoomResetBtn" type="button">100%</button>
+              <button id="bubbleZoomFitBtn" type="button">Fit</button>
+              <button id="bubbleZoomInBtn" type="button">+</button>
+              <button id="bubbleFullscreenBtn" type="button">Fullscreen</button>
+            </div>
             <div class="mini" id="bubbleOcrStatus"></div>
-            <div class="mini" id="bubbleCanvasInfo">Upload drawing, then drag to create/select annotation boxes. Drag the marker to move annotation label.</div>
-            <div class="canvasWrap">
+            <div class="mini" id="bubbleCanvasInfo">Drag to draw, move, zoom, and double-click OCR.</div>
+            <div class="canvasWrap" id="bubbleCanvasWrap">
               <canvas id="bubbleCanvas" width="1000" height="560"></canvas>
             </div>
           </div>
@@ -410,6 +430,9 @@
       let bubbleCanvasRect = null;
       let bubbleCanvasLast = null;
       let bubbleOcrBusy = false;
+      let bubbleClickOcrArmed = false;
+      let bubbleCanvasZoom = 1;
+      let bubbleCanvasPan = null;
       let refreshRaf = 0;
       function requestRefresh() {
         if (refreshRaf) return;
@@ -440,7 +463,6 @@
         setTxt("routeDupBtn", "spacial.route.duplicate", "Duplicate Route");
         setTxt("routeDeleteBtn", "spacial.route.delete", "Delete Route");
         setTxt("routingTitle", "spacial.routing.title", "Routing and Dimensional Control");
-        setTxt("routingHint", "spacial.routing.hint.annotations", "Per selected job: route, operations, dimensional annotations, and blueprint annotations.");
         setTxt("sectionRouteSummary", "spacial.section.route", "Route");
         setTxt("sectionOpsSummary", "spacial.section.operations", "Operations");
         setTxt("sectionBubblesSummary", "spacial.section.annotations", "Annotations");
@@ -470,14 +492,19 @@
         setTxt("opFileDeleteBtn", "spacial.file.delete", "Delete File");
         setTxt("opExportFileJpgBtn", "spacial.file.exportJpg", "Export Annotated JPG");
         setTxt("opExportPdfBtn", "spacial.file.exportOpPdf", "Operation PDF");
-        setTxt("opFileHint", "spacial.file.hint", "Each operation file has independent annotations.");
         setTxt("bubbleDrawingClearBtn", "spacial.canvas.clearImage", "Clear Image");
         setTxt("bubbleOcrDetectBtn", "spacial.ocr.detect.annotations", "Auto OCR Annotations");
+        setTxt("bubbleOcrClickBtn", "spacial.ocr.clickDetect", "Click OCR");
         setTxt("bubbleOcrTestBtn", "spacial.ocr.test", "Test OCR");
         setTxt("bubbleOcrSettingsSummary", "spacial.ocr.settings", "OCR Settings");
         setTxt("bubbleDeleteSelBtn", "spacial.canvas.deleteSelectedAnnotation", "Delete Selected Annotation");
         setTxt("bubbleShowBoxesLbl", "spacial.canvas.showBoxes", "Show boxes");
-        setTxt("bubbleCanvasInfo", "spacial.canvas.help.annotations", "Upload drawing, then drag to create/select annotation boxes. Drag the marker to move annotation label.");
+        setTxt("bubbleZoomOutBtn", "spacial.canvas.zoomOut", "-");
+        setTxt("bubbleZoomResetBtn", "spacial.canvas.zoomReset", "100%");
+        setTxt("bubbleZoomFitBtn", "spacial.canvas.zoomFit", "Fit");
+        setTxt("bubbleZoomInBtn", "spacial.canvas.zoomIn", "+");
+        setTxt("bubbleFullscreenBtn", "spacial.canvas.fullscreen", "Fullscreen");
+        setTxt("bubbleCanvasInfo", "spacial.canvas.help.annotations", "Drag to draw, move, zoom, and double-click OCR.");
         const modeSel = $("bubbleOcrModeSel");
         if (modeSel) {
           const prev = strOrEmpty(modeSel.value || "auto") || "auto";
@@ -531,7 +558,8 @@
         const cleaned = src
           .replace(/\/+$/, "")
           .replace(/\/ocr\/process(?:\?.*)?$/i, "")
-          .replace(/\/ocr\/process-with-lines(?:\?.*)?$/i, "");
+          .replace(/\/ocr\/process-with-lines(?:\?.*)?$/i, "")
+          .replace(/\/ocr\/pdf-to-image(?:\?.*)?$/i, "");
         const withProto = /^[a-z]+:\/\//i.test(cleaned) ? cleaned : `http://${cleaned}`;
         try {
           const u = new URL(withProto);
@@ -592,6 +620,101 @@
           }
         }
         throw lastError || new Error("OCR server not reachable");
+      }
+      async function callOcrPdfToImageWithRetry(uploadFile, preferredBaseUrl, page = 0, dpi = 220) {
+        const candidates = ocrCandidateBaseUrls(preferredBaseUrl);
+        let lastError = null;
+        const safePage = Math.max(0, Number(page || 0) || 0);
+        const safeDpi = Math.max(120, Math.min(400, Number(dpi || 220) || 220));
+        for (const baseUrl of candidates) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          try {
+            const formData = new FormData();
+            formData.append("file", uploadFile, uploadFile.name);
+            const res = await fetch(`${baseUrl}/ocr/pdf-to-image?page=${encodeURIComponent(safePage)}&dpi=${encodeURIComponent(safeDpi)}`, {
+              method: "POST",
+              body: formData,
+              signal: controller.signal,
+            });
+            let out = {};
+            try {
+              out = await res.json();
+            } catch {
+              out = {};
+            }
+            if (!res.ok) {
+              const detail = out?.detail;
+              const detailMsg = typeof detail === "string" ? detail : (detail?.message || detail?.error || "");
+              throw new Error(detailMsg || out?.error || `${res.status} ${res.statusText}`);
+            }
+            const urlInput = $("bubbleOcrUrlIn");
+            if (urlInput && urlInput.value !== baseUrl) urlInput.value = baseUrl;
+            localStorage.setItem(OCR_URL_KEY, baseUrl);
+            return out;
+          } catch (err) {
+            lastError = err;
+          } finally {
+            clearTimeout(timeoutId);
+          }
+        }
+        throw lastError || new Error("OCR server not reachable");
+      }
+      async function callOcrJsonWithRetry(path, payload, preferredBaseUrl) {
+        const candidates = ocrCandidateBaseUrls(preferredBaseUrl);
+        let lastError = null;
+        for (const baseUrl of candidates) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 25000);
+          try {
+            const res = await fetch(`${baseUrl}${path}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload || {}),
+              signal: controller.signal,
+            });
+            let out = {};
+            try {
+              out = await res.json();
+            } catch {
+              out = {};
+            }
+            if (!res.ok) {
+              const detail = out?.detail;
+              const detailMsg = typeof detail === "string" ? detail : (detail?.message || detail?.error || "");
+              throw new Error(detailMsg || out?.error || `${res.status} ${res.statusText}`);
+            }
+            const urlInput = $("bubbleOcrUrlIn");
+            if (urlInput && urlInput.value !== baseUrl) urlInput.value = baseUrl;
+            localStorage.setItem(OCR_URL_KEY, baseUrl);
+            return out;
+          } catch (err) {
+            lastError = err;
+          } finally {
+            clearTimeout(timeoutId);
+          }
+        }
+        throw lastError || new Error("OCR server not reachable");
+      }
+      async function callOcrAnnotationClickWithRetry(imageDataUrl, point, mode, preferredBaseUrl) {
+        return callOcrJsonWithRetry("/ocr/annotation-click", {
+          image: imageDataUrl,
+          point: { x: Number(point?.x || 0), y: Number(point?.y || 0) },
+          mode: strOrEmpty(mode || "fast") || "fast",
+          rotation: 0,
+          thumbnail: true,
+          max_thumb: 160,
+          thumb_padding: 8,
+        }, preferredBaseUrl);
+      }
+      async function callOcrThumbnailWithRetry(imageDataUrl, bbox, preferredBaseUrl) {
+        return callOcrJsonWithRetry("/ocr/annotation-thumbnail", {
+          image: imageDataUrl,
+          bbox,
+          max_size: 160,
+          padding: 8,
+          quality: 85,
+        }, preferredBaseUrl);
       }
       function defaultOcrUrl() {
         const stored = normalizeHttpBaseUrl(localStorage.getItem(OCR_URL_KEY) || "");
@@ -797,12 +920,19 @@
       function applyOcrBusyState(on) {
         bubbleOcrBusy = !!on;
         const btn = $("bubbleOcrDetectBtn");
+        const clickBtn = $("bubbleOcrClickBtn");
         const testBtn = $("bubbleOcrTestBtn");
         if (btn) {
           btn.disabled = !!on;
           btn.textContent = on
             ? tt("spacial.ocr.detectRunning", "Detecting...")
             : tt("spacial.ocr.detect.annotations", "Auto OCR Annotations");
+        }
+        if (clickBtn) {
+          clickBtn.disabled = !!on;
+          clickBtn.textContent = bubbleClickOcrArmed
+            ? tt("spacial.ocr.clickArmed", "Click OCR: armed")
+            : tt("spacial.ocr.clickDetect", "Click OCR");
         }
         if (testBtn) testBtn.disabled = !!on;
       }
@@ -866,6 +996,100 @@
         }
         return { op, opFile };
       }
+      function selectedOcrModeOrDefault() {
+        const selectedMode = strOrEmpty($("bubbleOcrModeSel")?.value || "auto") || "auto";
+        return selectedMode === "auto" ? "fast" : selectedMode;
+      }
+      async function refreshBubbleThumbnail(bubble, opFile, preferredBaseUrl) {
+        if (!bubble || !opFile || !isImageDataUrl(opFile?.dataUrl)) return;
+        const bbox = normalizeBbox(bubble?.bbox);
+        if (!bbox) return;
+        try {
+          const out = await callOcrThumbnailWithRetry(opFile.dataUrl, bbox, preferredBaseUrl || ensureOcrUrlInput());
+          const thumb = out?.thumbnail;
+          const dataUrl = strOrEmpty(thumb?.data_url || "");
+          if (!dataUrl) return;
+          bubble.thumbnailDataUrl = dataUrl;
+          bubble.thumbnailBBox = normalizeBbox(thumb?.source_bbox || bbox) || bbox;
+          writeRoutePlan(routePlan);
+          renderBubbleTable();
+          drawBubbleCanvas();
+        } catch {
+          // Non-blocking thumbnail refresh.
+        }
+      }
+      async function runOcrClickForCanvasPoint(point) {
+        if (bubbleOcrBusy) return;
+        if (!routePlan) {
+          setOcrStatus("warn", tt("spacial.none.routeSelected", "Select or create a route."));
+          return;
+        }
+        const ensured = ensureOperationForOcr();
+        const op = ensured?.op || null;
+        const opFile = ensured?.opFile || null;
+        if (!op || !opFile || !isImageDataUrl(opFile.dataUrl)) {
+          setOcrStatus("warn", tt("spacial.alert.imageFileRequired", "Current file is not an image. Upload/select an image file first."));
+          return;
+        }
+        const ocrBaseUrl = ensureOcrUrlInput();
+        if (!ocrBaseUrl) {
+          setOcrStatus("danger", tt("spacial.ocr.alert.urlInvalid", "Invalid OCR URL."));
+          return;
+        }
+        const mode = selectedOcrModeOrDefault();
+        applyOcrBusyState(true);
+        setOcrStatus("info", tt("spacial.ocr.click.running", "Detecting annotation at click..."));
+        try {
+          let out;
+          try {
+            out = await callOcrAnnotationClickWithRetry(opFile.dataUrl, point, mode, ocrBaseUrl);
+          } catch (clickErr) {
+            // Backward-compatible fallback with older OCR server endpoint.
+            out = await callOcrJsonWithRetry("/ocr/process-center", {
+              image: opFile.dataUrl,
+              center_point: { x: Number(point?.x || 0), y: Number(point?.y || 0) },
+              use_rectangle: false,
+              rotation: 0,
+            }, ocrBaseUrl);
+          }
+          const zone = (out && typeof out === "object") ? (out.zone || null) : null;
+          const rawBbox = bboxFromOcrZone(zone);
+          const bbox = clampBboxToCanvas(rawBbox) || normalizeBbox(rawBbox);
+          if (!zone || !bbox) {
+            setOcrStatus("warn", tt("spacial.ocr.click.none", "No annotation found at clicked area."));
+            return;
+          }
+          const bubbles = selectedFileBubbles(op);
+          const idSet = new Set(bubbles.map((b) => String(b?.id || "")).filter(Boolean));
+          const bubble = normalizeBubble({
+            id: nextBubbleId(idSet),
+            name: strOrEmpty(zone?.text) || `Annotation ${bubbles.length + 1}`,
+            method: tt("spacial.ocr.method.click", "OCR Click"),
+            unit: "mm",
+            bbox,
+            bubbleOffset: { x: -14, y: -14 },
+            thumbnailDataUrl: strOrEmpty(out?.thumbnail?.data_url || ""),
+            thumbnailBBox: out?.thumbnail?.source_bbox || bbox,
+          }, bubbles.length);
+          bubble.bbox = bbox;
+          bubbles.push(bubble);
+          selectedCanvasBubbleId = String(bubble.id || "");
+          const showBoxesChk = $("bubbleShowBoxesChk");
+          if (showBoxesChk) showBoxesChk.checked = true;
+          writeRoutePlan(routePlan);
+          renderRoutingPanel();
+          if (!bubble.thumbnailDataUrl) {
+            refreshBubbleThumbnail(bubble, opFile, ocrBaseUrl);
+          }
+          setOcrStatus("ok", tt("spacial.ocr.click.added", "Added annotation from clicked OCR area."));
+        } catch (err) {
+          setOcrStatus("danger", tt("spacial.ocr.alert.failed", "OCR detection failed: {err}", {
+            err: err?.message || String(err || "unknown"),
+          }));
+        } finally {
+          applyOcrBusyState(false);
+        }
+      }
       async function testOcrConnection() {
         if (bubbleOcrBusy) return;
         const base = ensureOcrUrlInput();
@@ -922,7 +1146,7 @@
         }
         const selectedMode = strOrEmpty($("bubbleOcrModeSel")?.value || "auto") || "auto";
         const modeList = selectedMode === "auto"
-          ? ["accurate", "hardcore", "fast"]
+          ? ["fast", "accurate"]
           : [selectedMode];
         applyOcrBusyState(true);
         setOcrStatus("info", tt("spacial.ocr.detectRunning", "Detecting..."));
@@ -944,6 +1168,9 @@
                   zones: candidateZones,
                   metadata: out?.metadata && typeof out.metadata === "object" ? out.metadata : {},
                 };
+                if (selectedMode === "auto" && mode === "fast" && (candidateZones.length >= 4 || score >= 9)) {
+                  break;
+                }
               }
             } catch (err) {
               lastError = err;
@@ -963,9 +1190,11 @@
           const idSet = new Set(bubbles.map((b) => String(b?.id || "")).filter(Boolean));
           let added = 0;
           let firstAddedId = "";
+          const addedBubbles = [];
           for (const row of zoneRows) {
             const z = row.zone;
-            const bbox = row.bbox;
+            const bbox = clampBboxToCanvas(row.bbox) || normalizeBbox(row.bbox);
+            if (!bbox) continue;
             let id = strOrEmpty(z?.id);
             if (!id || idSet.has(id)) id = nextBubbleId(idSet);
             idSet.add(id);
@@ -989,7 +1218,10 @@
               bubbleOffset: { x: -14, y: -14 },
             }, bubbles.length + added);
             bubble.bbox = bbox;
+            bubble.thumbnailDataUrl = "";
+            bubble.thumbnailBBox = null;
             bubbles.push(bubble);
+            addedBubbles.push(bubble);
             if (!firstAddedId) firstAddedId = String(bubble.id || "");
             added += 1;
           }
@@ -1002,6 +1234,9 @@
           if (showBoxesChk) showBoxesChk.checked = true;
           writeRoutePlan(routePlan);
           renderRoutingPanel();
+          for (const bubble of addedBubbles) {
+            refreshBubbleThumbnail(bubble, opFile, ocrBaseUrl);
+          }
           const statusMsg = bestResult.mode
             ? tt("spacial.ocr.alert.importedMode.annotations", "Imported {count} OCR annotation(s) using {mode}.", { count: added, mode: bestResult.mode })
             : tt("spacial.ocr.alert.imported.annotations", "Imported {count} OCR annotation(s).", { count: added });
@@ -1184,6 +1419,8 @@
         const hasBbox = Number.isFinite(x1) && Number.isFinite(y1) && Number.isFinite(x2) && Number.isFinite(y2);
         const bx = Number(raw?.bubbleOffset?.x);
         const by = Number(raw?.bubbleOffset?.y);
+        const thumbDataUrl = strOrEmpty(raw?.thumbnailDataUrl || raw?.thumbnail?.data_url || raw?.thumbnail?.dataUrl || "");
+        const thumbBbox = normalizeBbox(raw?.thumbnailBBox || raw?.thumbnail?.source_bbox || raw?.thumbnail?.bbox || null);
         return {
           id: id || `B${String(idx + 1).padStart(3, "0")}`,
           name: name || `Dimension ${idx + 1}`,
@@ -1196,6 +1433,8 @@
           reactionPlan: strOrEmpty(raw?.reactionPlan || raw?.reaction),
           bbox: hasBbox ? { x1, y1, x2, y2 } : null,
           bubbleOffset: (Number.isFinite(bx) && Number.isFinite(by)) ? { x: bx, y: by } : null,
+          thumbnailDataUrl: thumbDataUrl,
+          thumbnailBBox: thumbBbox,
         };
       }
       function isImageDataUrl(v) {
@@ -1211,6 +1450,10 @@
           name: strOrEmpty(src.name) || `${tt("spacial.file.default", "File")} ${idx + 1}`,
           mime,
           dataUrl,
+          sourceDataUrl: strOrEmpty(src.sourceDataUrl || ""),
+          sourceMime: strOrEmpty(src.sourceMime || ""),
+          sourceName: strOrEmpty(src.sourceName || ""),
+          sourcePage: Number(src.sourcePage || 0) || 0,
           bubbles: bubbles.map((b, i) => normalizeBubble(b, i)),
           createdAt: strOrEmpty(src.createdAt || new Date().toISOString()),
         };
@@ -1602,7 +1845,8 @@
           "bubbleUslIn","bubbleUnitIn","bubbleMethodIn","bubbleInstrumentIn","bubbleReactionIn",
           "opFileSel","opFileUploadBtn","opFileRenameBtn","opFileDeleteBtn","opFileInput","opExportFileJpgBtn","opExportPdfBtn",
           "bubbleSaveBtn","bubbleClearBtn","bubbleImportBtn","bubbleDrawingClearBtn",
-          "bubbleOcrDetectBtn","bubbleOcrModeSel","bubbleOcrTestBtn","bubbleOcrUrlIn","bubbleDeleteSelBtn","bubbleShowBoxesChk",
+          "bubbleOcrDetectBtn","bubbleOcrClickBtn","bubbleOcrModeSel","bubbleOcrTestBtn","bubbleOcrUrlIn","bubbleDeleteSelBtn","bubbleShowBoxesChk",
+          "bubbleZoomOutBtn","bubbleZoomResetBtn","bubbleZoomFitBtn","bubbleZoomInBtn","bubbleFullscreenBtn",
         ];
         for (const id of ids) {
           const el = $(id);
@@ -1705,7 +1949,12 @@
         }
         body.innerHTML = bubbles.map((b, idx) => `
           <tr class="${String(selectedCanvasBubbleId || "") === String(b.id || "") ? "sel" : ""}" data-bubble-pick="${idx}">
-            <td class="mono">${escHtml(b.id || "")}</td>
+            <td class="mono">
+              <div class="annIdCell">
+                ${strOrEmpty(b.thumbnailDataUrl) ? `<img class="annThumb" src="${escHtml(b.thumbnailDataUrl)}" alt="thumb" />` : ""}
+                <span>${escHtml(b.id || "")}</span>
+              </div>
+            </td>
             <td>${escHtml(b.name || "")}</td>
             <td class="specCell">N:${b.nominal == null ? "-" : escHtml(b.nominal)} | L:${b.lsl == null ? "-" : escHtml(b.lsl)} | U:${b.usl == null ? "-" : escHtml(b.usl)} ${escHtml(b.unit || "")}</td>
             <td>
@@ -1812,10 +2061,20 @@
             cv.width = img.width;
             cv.height = img.height;
           }
+          bubbleCanvasZoom = 1;
+          updateCanvasViewport();
+          setTimeout(() => fitCanvasInView(), 0);
+          const op = getSelectedOperation();
+          if (op && clampBubblesToCanvas(op)) {
+            writeRoutePlan(routePlan);
+            renderBubbleTable();
+          }
           drawBubbleCanvas();
         };
         img.onerror = () => {
           bubbleCanvasImage = null;
+          bubbleCanvasZoom = 1;
+          updateCanvasViewport();
           drawBubbleCanvas();
         };
         img.src = bubbleCanvasImageSrc;
@@ -1826,6 +2085,109 @@
         const ctx = cv.getContext("2d");
         if (!ctx) return null;
         return { cv, ctx };
+      }
+      function canvasImageBounds() {
+        const cv = $("bubbleCanvas");
+        if (!cv) return { width: 0, height: 0 };
+        return { width: Math.max(0, Number(cv.width || 0)), height: Math.max(0, Number(cv.height || 0)) };
+      }
+      function clampBboxToCanvas(bbox) {
+        const r = normalizeBbox(bbox);
+        if (!r) return null;
+        const bounds = canvasImageBounds();
+        if (!bounds.width || !bounds.height) return r;
+        let x1 = Math.max(0, Math.min(bounds.width, r.x1));
+        let y1 = Math.max(0, Math.min(bounds.height, r.y1));
+        let x2 = Math.max(0, Math.min(bounds.width, r.x2));
+        let y2 = Math.max(0, Math.min(bounds.height, r.y2));
+        if (x2 - x1 < 2) {
+          if (x1 <= 0) x2 = Math.min(bounds.width, x1 + 2);
+          else x1 = Math.max(0, x2 - 2);
+        }
+        if (y2 - y1 < 2) {
+          if (y1 <= 0) y2 = Math.min(bounds.height, y1 + 2);
+          else y1 = Math.max(0, y2 - 2);
+        }
+        return normalizeBbox({ x1, y1, x2, y2 });
+      }
+      function clampBubblesToCanvas(op = null) {
+        const target = op || getSelectedOperation();
+        if (!target) return false;
+        const bubbles = selectedFileBubbles(target);
+        let changed = false;
+        for (const b of bubbles) {
+          const prev = normalizeBbox(b?.bbox);
+          if (!prev) continue;
+          const next = clampBboxToCanvas(prev);
+          if (!next) continue;
+          if (next.x1 !== prev.x1 || next.y1 !== prev.y1 || next.x2 !== prev.x2 || next.y2 !== prev.y2) {
+            b.bbox = next;
+            changed = true;
+          }
+        }
+        return changed;
+      }
+      function bubbleDeleteControlRect(boxB) {
+        const box = normalizeBbox(boxB);
+        if (!box) return null;
+        const size = 16;
+        return { x1: box.x2 - size - 2, y1: box.y1 + 2, x2: box.x2 - 2, y2: box.y1 + 2 + size };
+      }
+      function updateCanvasViewport() {
+        const cv = $("bubbleCanvas");
+        if (!cv) return;
+        const z = Math.max(0.25, Math.min(6, Number(bubbleCanvasZoom || 1)));
+        bubbleCanvasZoom = z;
+        cv.style.width = `${Math.max(12, Math.round(cv.width * z))}px`;
+        cv.style.height = `${Math.max(12, Math.round(cv.height * z))}px`;
+        const zr = $("bubbleZoomResetBtn");
+        if (zr) zr.textContent = `${Math.round(z * 100)}%`;
+      }
+      function setCanvasZoom(nextZoom, anchorEvent = null) {
+        const wrap = $("bubbleCanvasWrap");
+        const cv = $("bubbleCanvas");
+        if (!wrap || !cv) return;
+        const prevZoom = Math.max(0.25, Math.min(6, Number(bubbleCanvasZoom || 1)));
+        const z = Math.max(0.25, Math.min(6, Number(nextZoom || 1)));
+        if (Math.abs(z - prevZoom) < 0.0001) return;
+        let relX = 0.5;
+        let relY = 0.5;
+        if (anchorEvent && typeof anchorEvent.clientX === "number" && typeof anchorEvent.clientY === "number") {
+          const rect = wrap.getBoundingClientRect();
+          relX = (anchorEvent.clientX - rect.left) / Math.max(1, rect.width);
+          relY = (anchorEvent.clientY - rect.top) / Math.max(1, rect.height);
+        }
+        const oldW = cv.width * prevZoom;
+        const oldH = cv.height * prevZoom;
+        const worldX = (wrap.scrollLeft + relX * wrap.clientWidth) / Math.max(1, oldW);
+        const worldY = (wrap.scrollTop + relY * wrap.clientHeight) / Math.max(1, oldH);
+        bubbleCanvasZoom = z;
+        updateCanvasViewport();
+        const newW = cv.width * z;
+        const newH = cv.height * z;
+        wrap.scrollLeft = Math.max(0, worldX * newW - relX * wrap.clientWidth);
+        wrap.scrollTop = Math.max(0, worldY * newH - relY * wrap.clientHeight);
+      }
+      function fitCanvasInView() {
+        const wrap = $("bubbleCanvasWrap");
+        const cv = $("bubbleCanvas");
+        if (!wrap || !cv || !cv.width || !cv.height) return;
+        const zx = wrap.clientWidth / cv.width;
+        const zy = wrap.clientHeight / cv.height;
+        setCanvasZoom(Math.max(0.25, Math.min(6, Math.min(zx, zy))));
+        wrap.scrollLeft = 0;
+        wrap.scrollTop = 0;
+      }
+      async function toggleCanvasFullscreen() {
+        const wrap = $("bubbleCanvasWrap");
+        if (!wrap || !document.fullscreenEnabled) return;
+        try {
+          if (document.fullscreenElement === wrap) {
+            await document.exitFullscreen();
+          } else {
+            await wrap.requestFullscreen();
+          }
+        } catch {}
       }
       function pointFromCanvasEvent(e) {
         const cv = $("bubbleCanvas");
@@ -1841,22 +2203,30 @@
       function findBubbleAtPoint(x, y) {
         const op = getSelectedOperation();
         const bubbles = selectedFileBubbles(op);
-        if (!op) return { bubble: null, onLabel: false };
+        if (!op) return { bubble: null, onLabel: false, onDelete: false };
+        const selected = bubbles.find((b) => String(b?.id || "") === String(selectedCanvasBubbleId || ""));
+        if (selected) {
+          const sbox = normalizeBbox(selected?.bbox);
+          const delRect = bubbleDeleteControlRect(sbox);
+          if (delRect && x >= delRect.x1 && x <= delRect.x2 && y >= delRect.y1 && y <= delRect.y2) {
+            return { bubble: selected, onLabel: false, onDelete: true };
+          }
+        }
         for (let i = bubbles.length - 1; i >= 0; i--) {
           const b = bubbles[i];
           const label = bubbleLabelPosition(b);
           if (label) {
             const d = Math.hypot(x - label.x, y - label.y);
-            if (d <= label.r) return { bubble: b, onLabel: true };
+            if (d <= label.r) return { bubble: b, onLabel: true, onDelete: false };
           }
         }
         for (let i = bubbles.length - 1; i >= 0; i--) {
           const b = bubbles[i];
           const box = normalizeBbox(b?.bbox);
           if (!box) continue;
-          if (x >= box.x1 && x <= box.x2 && y >= box.y1 && y <= box.y2) return { bubble: b, onLabel: false };
+          if (x >= box.x1 && x <= box.x2 && y >= box.y1 && y <= box.y2) return { bubble: b, onLabel: false, onDelete: false };
         }
-        return { bubble: null, onLabel: false };
+        return { bubble: null, onLabel: false, onDelete: false };
       }
       function drawBubbleCanvas() {
         const box = ensureCanvasReady();
@@ -1885,7 +2255,7 @@
           const opName = op?.name || tt("spacial.canvas.noOp", "No operation");
           const fileName = opFile?.name ? ` | ${tt("spacial.file.label", "File")}: ${opFile.name}` : "";
           const sel = selectedCanvasBubbleId ? ` | ${tt("spacial.canvas.selected", "Selected: {id}", { id: selectedCanvasBubbleId })}` : "";
-          info.textContent = `${tt("spacial.canvas.instructions.annotations", "Operation: {op}{selected}. Drag empty area to create box; drag box to move; drag marker to move annotation label.", { op: opName, selected: sel })}${fileName}`;
+          info.textContent = `${tt("spacial.canvas.instructions.annotations", "Operation: {op}{selected}. Drag to create/move, wheel to zoom, double-click OCR.", { op: opName, selected: sel })}${fileName}`;
         }
         if (op && Array.isArray(bubbles)) {
           bubbles.forEach((b, idx) => {
@@ -1898,6 +2268,21 @@
               ctx.fillStyle = isSel ? hexToRgba(okHex, .08) : hexToRgba(accentHex, .06);
               ctx.strokeRect(boxB.x1, boxB.y1, boxB.x2 - boxB.x1, boxB.y2 - boxB.y1);
               ctx.fillRect(boxB.x1, boxB.y1, boxB.x2 - boxB.x1, boxB.y2 - boxB.y1);
+              if (isSel) {
+                const delRect = bubbleDeleteControlRect(boxB);
+                if (delRect) {
+                  ctx.fillStyle = hexToRgba(cssThemeHex("--danger", "#ff6a7f"), .92);
+                  ctx.fillRect(delRect.x1, delRect.y1, delRect.x2 - delRect.x1, delRect.y2 - delRect.y1);
+                  ctx.strokeStyle = hexToRgba(textHex, .92);
+                  ctx.lineWidth = 1.2;
+                  ctx.beginPath();
+                  ctx.moveTo(delRect.x1 + 4, delRect.y1 + 4);
+                  ctx.lineTo(delRect.x2 - 4, delRect.y2 - 4);
+                  ctx.moveTo(delRect.x2 - 4, delRect.y1 + 4);
+                  ctx.lineTo(delRect.x1 + 4, delRect.y2 - 4);
+                  ctx.stroke();
+                }
+              }
             }
             const label = bubbleLabelPosition(b);
             if (label) {
@@ -1960,7 +2345,7 @@
       function upsertCanvasBubbleWithRect(rect) {
         const op = getSelectedOperation();
         if (!op) return;
-        const r = normalizeBbox(rect);
+        const r = clampBboxToCanvas(rect);
         if (!r) return;
         const bubbles = selectedFileBubbles(op);
         let id = strOrEmpty(selectedCanvasBubbleId || editingBubbleId || $("bubbleIdIn").value);
@@ -1991,11 +2376,15 @@
         bubble.instrument = strOrEmpty($("bubbleInstrumentIn").value);
         bubble.reactionPlan = strOrEmpty($("bubbleReactionIn").value);
         bubble.bbox = r;
+        bubble.thumbnailDataUrl = "";
+        bubble.thumbnailBBox = null;
         if (!bubble.bubbleOffset) bubble.bubbleOffset = { x: -14, y: -14 };
         selectedCanvasBubbleId = bubble.id;
         editingBubbleId = "";
         writeRoutePlan(routePlan);
         renderRoutingPanel();
+        const opFile = selectedOperationFile(op);
+        if (opFile?.dataUrl) refreshBubbleThumbnail(bubble, opFile, ensureOcrUrlInput());
       }
       function saveCanvasInteractions() {
         if (!routePlan) return;
@@ -2004,13 +2393,43 @@
       }
       function bindBubbleCanvas() {
         const cv = $("bubbleCanvas");
+        const wrap = $("bubbleCanvasWrap");
         if (!cv || cv.dataset.bound === "1") return;
         cv.dataset.bound = "1";
         cv.addEventListener("mousedown", (e) => {
           const op = getSelectedOperation();
           if (!op) return;
+          if ((e.button === 1 || e.shiftKey) && wrap) {
+            bubbleCanvasMode = "pan";
+            bubbleCanvasPan = {
+              x: e.clientX,
+              y: e.clientY,
+              scrollLeft: wrap.scrollLeft,
+              scrollTop: wrap.scrollTop,
+            };
+            e.preventDefault();
+            return;
+          }
           const p = pointFromCanvasEvent(e);
+          if (bubbleClickOcrArmed) {
+            bubbleClickOcrArmed = false;
+            applyOcrBusyState(false);
+            runOcrClickForCanvasPoint(p);
+            e.preventDefault();
+            return;
+          }
           const hit = findBubbleAtPoint(p.x, p.y);
+          if (hit.onDelete && hit.bubble) {
+            const opFile = selectedOperationFile(op);
+            if (opFile) {
+              opFile.bubbles = (opFile.bubbles || []).filter((x) => String(x.id || "") !== String(hit.bubble.id || ""));
+              selectedCanvasBubbleId = opFile.bubbles[0]?.id || "";
+              writeRoutePlan(routePlan);
+              renderRoutingPanel();
+            }
+            e.preventDefault();
+            return;
+          }
           if (hit.bubble) {
             canvasPickBubble(hit.bubble);
             bubbleCanvasMode = hit.onLabel ? "dragLabel" : "dragBox";
@@ -2024,13 +2443,33 @@
           renderBubbleTable();
           drawBubbleCanvas();
         });
+        cv.addEventListener("dblclick", async (e) => {
+          const op = getSelectedOperation();
+          const opFile = selectedOperationFile(op);
+          if (!op || !opFile || !isImageDataUrl(opFile?.dataUrl)) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const p = pointFromCanvasEvent(e);
+          bubbleCanvasMode = "idle";
+          bubbleCanvasStart = null;
+          bubbleCanvasRect = null;
+          bubbleCanvasLast = null;
+          await runOcrClickForCanvasPoint(p);
+        });
         cv.addEventListener("mousemove", (e) => {
           const op = getSelectedOperation();
           if (!op || !bubbleCanvasMode || bubbleCanvasMode === "idle") return;
+          if (bubbleCanvasMode === "pan" && wrap && bubbleCanvasPan) {
+            const dx = e.clientX - bubbleCanvasPan.x;
+            const dy = e.clientY - bubbleCanvasPan.y;
+            wrap.scrollLeft = bubbleCanvasPan.scrollLeft - dx;
+            wrap.scrollTop = bubbleCanvasPan.scrollTop - dy;
+            return;
+          }
           const bubbles = selectedFileBubbles(op);
           const p = pointFromCanvasEvent(e);
           if (bubbleCanvasMode === "draw" && bubbleCanvasStart) {
-            bubbleCanvasRect = { x1: bubbleCanvasStart.x, y1: bubbleCanvasStart.y, x2: p.x, y2: p.y };
+            bubbleCanvasRect = clampBboxToCanvas({ x1: bubbleCanvasStart.x, y1: bubbleCanvasStart.y, x2: p.x, y2: p.y });
             drawBubbleCanvas();
             return;
           }
@@ -2044,7 +2483,7 @@
             sel.bubbleOffset = { x: Number(cur.x || 0) + dx, y: Number(cur.y || 0) + dy };
           } else if (bubbleCanvasMode === "dragBox") {
             const b = normalizeBbox(sel.bbox);
-            if (b) sel.bbox = { x1: b.x1 + dx, y1: b.y1 + dy, x2: b.x2 + dx, y2: b.y2 + dy };
+            if (b) sel.bbox = clampBboxToCanvas({ x1: b.x1 + dx, y1: b.y1 + dy, x2: b.x2 + dx, y2: b.y2 + dy }) || b;
           }
           bubbleCanvasLast = p;
           drawBubbleCanvas();
@@ -2056,11 +2495,13 @@
           bubbleCanvasStart = null;
           bubbleCanvasRect = null;
           bubbleCanvasLast = null;
+          bubbleCanvasPan = null;
           if (mode === "draw" && rect) {
             upsertCanvasBubbleWithRect(rect);
             return;
           }
           if (mode === "dragLabel" || mode === "dragBox") {
+            clampBubblesToCanvas();
             saveCanvasInteractions();
             return;
           }
@@ -2068,9 +2509,21 @@
         };
         cv.addEventListener("mouseup", onUp);
         cv.addEventListener("mouseleave", onUp);
+        if (wrap) {
+          wrap.addEventListener("wheel", (e) => {
+            if (e.shiftKey) return;
+            e.preventDefault();
+            const dir = e.deltaY > 0 ? -0.1 : 0.1;
+            setCanvasZoom(bubbleCanvasZoom + dir, e);
+          }, { passive: false });
+        }
       }
       function renderRoutingPanel() {
         bindBubbleCanvas();
+        if (bubbleClickOcrArmed) {
+          bubbleClickOcrArmed = false;
+          applyOcrBusyState(false);
+        }
         const state = readState();
         routePlan = selectedRouteFromState(state);
         const job = getJob(state, routePlan?.jobId) || null;
@@ -2561,6 +3014,8 @@
         const prev = editIdx >= 0 ? bubbles[editIdx] : (idIdx >= 0 ? bubbles[idIdx] : null);
         if (prev?.bbox && !b?.bbox) b.bbox = prev.bbox;
         if (prev?.bubbleOffset && !b?.bubbleOffset) b.bubbleOffset = prev.bubbleOffset;
+        if (prev?.thumbnailDataUrl && !b?.thumbnailDataUrl) b.thumbnailDataUrl = prev.thumbnailDataUrl;
+        if (prev?.thumbnailBBox && !b?.thumbnailBBox) b.thumbnailBBox = prev.thumbnailBBox;
         if (editIdx >= 0) bubbles[editIdx] = b;
         else if (idIdx >= 0) bubbles[idIdx] = b;
         else bubbles.push(b);
@@ -2570,6 +3025,8 @@
         editingBubbleId = "";
         writeRoutePlan(routePlan);
         renderRoutingPanel();
+        const opFile = selectedOperationFile(op);
+        if (b?.bbox && opFile?.dataUrl) refreshBubbleThumbnail(b, opFile, ensureOcrUrlInput());
       }
       function splitCsvLine(line, sep) {
         const out = [];
@@ -2877,45 +3334,38 @@
         const current = selectedRouteFromState(state);
         const job = getJob(state, current?.jobId || selectedJobFilterId || state.activeJobId) || null;
         const product = getProduct(state, current?.productId || job?.productId) || null;
-        const updated = state?.meta?.updatedAt ? new Date(state.meta.updatedAt).toLocaleString() : "n/a";
         const noShared = !stations.length && !jobs.length;
         if (noShared) {
-          $("stateInfo").textContent = tt("spacial.state.none", "Data source: {source} | No shared stations/jobs yet.", { source: env.source });
+          $("stateInfo").textContent = tt("spacial.state.none", "No shared stations/jobs yet.");
         } else {
-          $("stateInfo").textContent = tt("spacial.state.withCountsProducts", "Data source: {source} | Products: {products} | Stations: {stations} | Jobs: {jobs} | Routes: {routes} | Updated: {updated}", {
-            source: env.source,
+          $("stateInfo").textContent = tt("spacial.state.withCountsProducts", "Products: {products} • Stations: {stations} • Jobs: {jobs} • Routes: {routes}", {
             products: products.length,
             stations: stations.length,
             jobs: jobs.length,
             routes: routes.length,
-            updated,
           });
         }
         if (job?.id) setActiveJob(job.id);
         if (current) {
-          $("stateInfo").textContent = tt("spacial.state.routeActive", "Data source: {source} | Route: {route} ({rev}) | Product: {product} | Job: {job} | Updated: {updated}", {
-            source: env.source,
+          $("stateInfo").textContent = tt("spacial.state.routeActive", "Route: {route} ({rev}) • Product: {product} • Job: {job}", {
             route: current.routeName || tt("spacial.section.route", "Route"),
             rev: current.revision || "A",
             product: product ? `${product.code || "--"} - ${product.name || tt("hub.structure.productDefault", "Product")}` : "-",
             job: job?.name || tt("spacial.jobDefault", "Job"),
-            updated,
           });
         } else if (job) {
           const vals = (job.cycles || []).map((c) => Number(c.totalMs || 0)).filter((x) => Number.isFinite(x) && x > 0);
-          $("stateInfo").textContent = tt("spacial.state.active", "Data source: {source} | Active job: {job} | Product: {product} | Captured cycles: {cycles} | Updated: {updated}", {
-            source: env.source,
+          $("stateInfo").textContent = tt("spacial.state.active", "Job: {job} • Product: {product} • Cycles: {cycles}", {
             job: job.name || tt("spacial.jobDefault", "Job"),
             product: product ? `${product.code || "--"} - ${product.name || tt("hub.structure.productDefault", "Product")}` : "-",
             cycles: vals.length,
-            updated,
           });
         } else {
-        $("stateInfo").textContent += tt("spacial.state.selectOne.annotations", " Select one job to manage routing and annotations.");
+          $("stateInfo").textContent += tt("spacial.state.selectOne.annotations", " • Select one job.");
         }
         const scopeLabel = currentScopeLabel();
         if (scopeLabel) {
-          $("stateInfo").textContent += ` | ${tt("spacial.state.scope", "Scope: {scope}", { scope: scopeLabel })}`;
+          $("stateInfo").textContent += ` • ${tt("spacial.state.scope", "Scope: {scope}", { scope: scopeLabel })}`;
         }
         renderRoutingPanel();
       }
@@ -2968,10 +3418,36 @@
         if (!filesToAdd.length) return;
         const opFiles = ensureOperationFiles(op);
         let lastId = "";
+        const hasPdf = filesToAdd.some((f) => /\.pdf$/i.test(String(f?.name || "")) || /application\/pdf/i.test(String(f?.type || "")));
+        if (hasPdf) applyOcrBusyState(true);
         for (let index = 0; index < filesToAdd.length; index++) {
           const file = filesToAdd[index];
           try {
-            const dataUrl = await readFileAsDataUrl(file);
+            const isPdf = /\.pdf$/i.test(String(file?.name || "")) || /application\/pdf/i.test(String(file?.type || ""));
+            let dataUrl = await readFileAsDataUrl(file);
+            let mime = file.type || "";
+            let sourceDataUrl = "";
+            let sourceMime = "";
+            let sourceName = "";
+            let sourcePage = 0;
+            if (isPdf) {
+              sourceDataUrl = dataUrl;
+              sourceMime = file.type || "application/pdf";
+              sourceName = String(file.name || "file.pdf");
+              setOcrStatus("info", tt("spacial.ocr.pdf.converting", "Converting PDF page to image..."));
+              try {
+                const out = await callOcrPdfToImageWithRetry(file, ensureOcrUrlInput(), 0, 220);
+                const converted = strOrEmpty(out?.image?.data_url || out?.data_url || "");
+                if (!isImageDataUrl(converted)) throw new Error("converted-image-missing");
+                dataUrl = converted;
+                mime = strOrEmpty(out?.image?.mime || "image/png");
+                sourcePage = Number(out?.image?.page || 0) || 0;
+                setOcrStatus("ok", tt("spacial.ocr.pdf.converted", "PDF converted. You can annotate this page now."));
+              } catch (err) {
+                setOcrStatus("danger", tt("spacial.ocr.pdf.convertFailed", "PDF convert failed: {err}", { err: err?.message || String(err || "unknown") }));
+                continue;
+              }
+            }
             const first = opFiles[0];
             const canReuseFirst =
               index === 0 &&
@@ -2982,21 +3458,30 @@
               first.bubbles.length === 0;
             if (canReuseFirst) {
               first.name = file.name || `${tt("spacial.file.default", "File")} 1`;
-              first.mime = file.type || "";
+              first.mime = mime;
               first.dataUrl = dataUrl;
+              first.sourceDataUrl = sourceDataUrl;
+              first.sourceMime = sourceMime;
+              first.sourceName = sourceName;
+              first.sourcePage = sourcePage;
               lastId = first.id;
               continue;
             }
             const next = normalizeOperationFile({
               name: file.name || `${tt("spacial.file.default", "File")} ${opFiles.length + 1}`,
-              mime: file.type || "",
+              mime,
               dataUrl,
+              sourceDataUrl,
+              sourceMime,
+              sourceName,
+              sourcePage,
               bubbles: [],
             }, opFiles.length);
             opFiles.push(next);
             lastId = next.id;
           } catch {}
         }
+        if (hasPdf) applyOcrBusyState(false);
         if (!lastId) return;
         selectedOpFileId = lastId;
         op.activeFileId = lastId;
@@ -3272,6 +3757,7 @@
         if (files?.length) await addFilesToSelectedOperation(files);
         e.target.value = "";
       });
+      $("opFileInput").setAttribute("accept", "image/*,.pdf");
       $("opFileRenameBtn").addEventListener("click", renameSelectedOperationFile);
       $("opFileDeleteBtn").addEventListener("click", deleteSelectedOperationFile);
       $("opExportFileJpgBtn").addEventListener("click", exportSelectedOperationAnnotatedJpg);
@@ -3309,6 +3795,17 @@
         renderRoutingPanel();
       });
       $("bubbleOcrDetectBtn").addEventListener("click", runOcrDetectionForSelectedFile);
+      $("bubbleOcrClickBtn").addEventListener("click", () => {
+        if (bubbleOcrBusy) return;
+        bubbleClickOcrArmed = !bubbleClickOcrArmed;
+        applyOcrBusyState(false);
+        setOcrStatus(
+          "info",
+          bubbleClickOcrArmed
+            ? tt("spacial.ocr.clickArmedHint", "Click on canvas to OCR one annotation.")
+            : tt("spacial.ocr.clickDisarmed", "Click OCR mode disabled."),
+        );
+      });
       $("bubbleOcrTestBtn").addEventListener("click", testOcrConnection);
       $("bubbleOcrUrlIn").addEventListener("change", () => {
         const normalized = normalizeHttpBaseUrl($("bubbleOcrUrlIn").value);
@@ -3317,6 +3814,21 @@
         localStorage.setItem(OCR_URL_KEY, normalized);
       });
       $("bubbleShowBoxesChk").addEventListener("change", drawBubbleCanvas);
+      $("bubbleZoomOutBtn").addEventListener("click", () => setCanvasZoom(bubbleCanvasZoom - 0.1));
+      $("bubbleZoomInBtn").addEventListener("click", () => setCanvasZoom(bubbleCanvasZoom + 0.1));
+      $("bubbleZoomResetBtn").addEventListener("click", () => setCanvasZoom(1));
+      $("bubbleZoomFitBtn").addEventListener("click", fitCanvasInView);
+      $("bubbleFullscreenBtn").addEventListener("click", toggleCanvasFullscreen);
+      document.addEventListener("fullscreenchange", () => {
+        const wrap = $("bubbleCanvasWrap");
+        if (!wrap) return;
+        if (document.fullscreenElement === wrap) {
+          wrap.style.maxHeight = "96dvh";
+        } else {
+          wrap.style.maxHeight = "";
+        }
+        setTimeout(() => fitCanvasInView(), 20);
+      });
       $("routeExportJsonBtn").addEventListener("click", () => {
         if (!routePlan) return;
         exportJsonFile(`Route_${routePlan.jobName || "job"}_${new Date().toISOString().slice(0, 10)}.json`, routePlan);
