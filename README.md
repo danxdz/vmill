@@ -111,6 +111,7 @@ If this folder is the project root:
 - Build command: `pip install --upgrade pip && pip install -r requirements.txt`
 - Start command: `python vmill_server.py`
 - Python version: `3.11.10` (pinned via `.python-version`/`runtime.txt`, and also set in `render.yaml`)
+- Python version: `3.11.10` (via `PYTHON_VERSION` in `render.yaml`)
 - Port: provided by `PORT` env (already supported)
 - Persistent disk configured in `render.yaml`
 - DB path is controlled by `VMILL_DB_PATH` (default `/var/data/vmill.db` on Render)
@@ -146,6 +147,9 @@ This repo now includes Upsun configuration at `.upsun/config.yaml`.
 
 `requirements.txt` is included for the main app service build on Upsun.
 The VMill app server currently uses stdlib-only Python dependencies.
+
+- Route: `https://{default}/`
+- Persistent SQLite mount: `/data` with `VMILL_DB_PATH=/data/vmill.db`
 
 Deploy with the Upsun CLI from your project root:
 
