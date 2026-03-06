@@ -24,7 +24,7 @@ import socket
 
 ROOT_DIR = Path(__file__).resolve().parent
 PUBLIC_DIR = ROOT_DIR / "public"
-DB_PATH = ROOT_DIR / "vmill.db"
+DB_PATH = Path(os.environ.get("VMILL_DB_PATH", str(ROOT_DIR / "vmill.db"))).expanduser()
 DEFAULT_PORT = int(os.environ.get("PORT", "8080"))
 TOKEN_TTL_HOURS = 24 * 7
 

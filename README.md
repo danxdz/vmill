@@ -82,6 +82,16 @@ Clients can use:
 - Backend: **Render** (or any VM) for `vmill_server.py`
 - OCR: **Render** optional service for `ocr_server.py`
 
+### One-click Render deploy (auto create + auto deploy)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/danxdz/vmill)
+
+This uses `render.yaml` to create:
+- `vmill-api` (main app + SQLite backend)
+- `vmill-ocr` (OCR API)
+
+After first deploy, pushes to `main` auto-deploy both services (`autoDeploy: true`).
+
 ### Why split
 
 `vmill_server.py` is a long-running Python + SQLite service. This is not a good fit for Vercel serverless functions with ephemeral filesystem behavior.
@@ -100,13 +110,20 @@ If this folder is the project root:
 - Service type: Web Service
 - Start command: `python vmill_server.py`
 - Port: provided by `PORT` env (already supported)
-- Add persistent disk if you need durable `vmill.db`
+- Persistent disk configured in `render.yaml`
+- DB path is controlled by `VMILL_DB_PATH` (default `/var/data/vmill.db` on Render)
 
 ### Render (OCR backend, optional)
 
 - Service type: Web Service
 - Build command: `pip install -r requirements_ocr.txt`
 - Start command: `python ocr_server.py`
+
+If you deploy from a fork, replace the button repo URL with your fork URL:
+
+```text
+https://render.com/deploy?repo=https://github.com/<you>/<repo>
+```
 
 ## API Docs
 
