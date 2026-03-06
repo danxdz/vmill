@@ -5,9 +5,12 @@ services:
     plan: starter
     branch: main
     rootDir: .
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: python vmill_server.py
     autoDeploy: true
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.10
       - key: VMILL_DB_PATH
         value: /var/data/vmill.db
     disk:
