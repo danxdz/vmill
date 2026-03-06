@@ -108,10 +108,17 @@ If this folder is the project root:
 ### Render (VMill backend)
 
 - Service type: Web Service
+- Build command: `pip install --upgrade pip && pip install -r requirements.txt`
 - Start command: `python vmill_server.py`
+- Python version: `3.11.10` (pinned via `.python-version`/`runtime.txt`, and also set in `render.yaml`)
 - Port: provided by `PORT` env (already supported)
 - Persistent disk configured in `render.yaml`
 - DB path is controlled by `VMILL_DB_PATH` (default `/var/data/vmill.db` on Render)
+
+If Render logs show a different Python version (for example `3.14.x`), your service is likely not using Blueprint sync.
+In that case, either:
+- re-create/sync service from `render.yaml`, or
+- set `PYTHON_VERSION=3.11.10` manually in the Render dashboard environment settings.
 
 ### Render (OCR backend, optional)
 
@@ -123,6 +130,47 @@ If you deploy from a fork, replace the button repo URL with your fork URL:
 
 ```text
 https://render.com/deploy?repo=https://github.com/<you>/<repo>
+```
+
+### Upsun (VMill Python server)
+
+This repo now includes Upsun configuration at `.upsun/config.yaml`.
+
+- App type: `python:3.11`
+- App source root: `.` (repo root)
+- Start command: `python vmill_server.py`
+- Build hook: `pip install -r requirements.txt`
+- Route: `https://{default}/`
+- Persistent SQLite mount: `/data` with `VMILL_DB_PATH=/data/vmill.db`
+
+
+`requirements.txt` is included for the main app service build on Upsun.
+The VMill app server currently uses stdlib-only Python dependencies.
+
+Deploy with the Upsun CLI from your project root:
+
+```bash
+# 1) Install + authenticate CLI (https://docs.upsun.com/)
+upsun auth:login
+
+# 2) Connect this local repo to your Upsun project
+upsun project:set-remote <PROJECT_ID>
+
+# 3) Push your current branch/environment
+upsun push
+```
+
+After deploy, inspect URL and logs:
+
+```bash
+upsun url
+upsun logs --app vmill
+```
+
+If you get configuration parse errors, verify the config file is committed at:
+
+```text
+.upsun/config.yaml
 ```
 
 ## API Docs
