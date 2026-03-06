@@ -27,3 +27,6 @@ routes:
     type: upstream
     upstream: "vmill:http"
 
+storage:
+  vmill-data:
+    size: 1024
