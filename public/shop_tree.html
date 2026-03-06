@@ -302,14 +302,6 @@
       font-size: 12px;
       border-radius: 8px;
     }
-    details.advanced > summary {
-      cursor: pointer;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 700;
-      list-style: none;
-    }
-    details.advanced > summary::-webkit-details-marker { display: none; }
     @media (max-width: 980px) {
       .layout { grid-template-columns: 1fr; }
       .panel { min-height: auto; }
@@ -798,9 +790,6 @@
 
       function renderDetail() {
         const type = selectedType();
-        const typeOptions = (state.types || [])
-          .map((t) => `<option value="${esc(String(t.id || ""))}" ${String(t.id || "") === String(type?.id || "") ? "selected" : ""}>${esc(typeLabel(t))}</option>`)
-          .join("");
 
         if (!type) {
           detailWrap.innerHTML = `
@@ -826,16 +815,6 @@
             .filter((t) => String(t.id || "") !== String(type.id || "") && !descendants.has(String(t.id || "")))
             .map((t) => `<option value="${esc(String(t.id || ""))}" ${String(currentRule?.parentTypeId || "") === String(t.id || "") ? "selected" : ""}>${esc(typeLabel(t))}</option>`),
         ].join("");
-
-        const currentRole = String(type.moduleRole || "custom").toLowerCase();
-        const roleOptions = ["product", "station", "job", "custom"].map((role) => {
-          const selected = currentRole === role ? "selected" : "";
-          return `<option value="${role}" ${selected}>${esc(roleLabel(role))}</option>`;
-        }).join("");
-        const currentRelation = normalizeRelation(String(currentRule?.relation || "contains"));
-        const relationSel = relationOptions()
-          .map((rel) => `<option value="${esc(rel)}" ${rel === currentRelation ? "selected" : ""}>${esc(rel)}</option>`)
-          .join("");
 
         const typeId = String(type.id || "");
         const typeItems = listTypeItems(typeId);
@@ -887,8 +866,12 @@
         function tableRecordRows(rows) {
           if (!Array.isArray(rows) || !rows.length) {
             const emptyCols = role === "job"
-              ? 6
-              : (role === "product" ? 5 : (role === "station" ? 4 : ((typeAttributes || []).length + 3)));
+              ? (6 + (typeAttributes || []).length)
+              : (role === "product"
+                ? (5 + (typeAttributes || []).length)
+                : (role === "station"
+                  ? (4 + (typeAttributes || []).length)
+                  : ((typeAttributes || []).length + 3)));
             return `<tr><td colspan="${emptyCols}"><div class="tiny">${esc(tt("shop.empty.noRecords", "No records"))}</div></td></tr>`;
           }
           return rows.map((raw) => {
@@ -947,6 +930,7 @@
                     <option value="paused" ${statusVal === "paused" ? "selected" : ""}>paused</option>
                     <option value="archived" ${statusVal === "archived" ? "selected" : ""}>archived</option>
                   </select></td>
+                  ${customCells}
                   <td>${parentSelect}</td>
                   <td><button class="recordDeleteBtn" type="button" data-record-delete-id="${esc(rid)}">${esc(tt("common.delete", "Delete"))}</button></td>
                 </tr>
@@ -966,6 +950,7 @@
                   <td><input data-record-field="code" type="text" value="${esc(String(raw?.code || ""))}" /></td>
                   <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
                   <td><select data-record-field="parentProductId">${parentProductOpts}</select></td>
+                  ${customCells}
                   <td>${parentSelect}</td>
                   <td><button class="recordDeleteBtn" type="button" data-record-delete-id="${esc(rid)}">${esc(tt("common.delete", "Delete"))}</button></td>
                 </tr>
@@ -977,6 +962,7 @@
                 <tr data-record-id="${esc(rid)}">
                   <td><input data-record-field="code" type="text" value="${esc(String(raw?.code || ""))}" /></td>
                   <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
+                  ${customCells}
                   <td>${parentSelect}</td>
                   <td><button class="recordDeleteBtn" type="button" data-record-delete-id="${esc(rid)}">${esc(tt("common.delete", "Delete"))}</button></td>
                 </tr>
@@ -998,6 +984,9 @@
         if (isCore) {
           const key = role === "product" ? "products" : (role === "station" ? "stations" : "jobs");
           const rows = Array.isArray(state.app?.[key]) ? state.app[key] : [];
+          const customHeaderCols = (typeAttributes || [])
+            .map((attr) => `<th>${esc(String(attr?.name || tt("shop.form.field", "Field")))}</th>`)
+            .join("");
 
           recordSection = `
             <section class="section">
@@ -1017,6 +1006,7 @@
                         <th>${esc(tt("shop.form.station", "Station"))}</th>
                         <th>${esc(tt("shop.form.product", "Product"))}</th>
                         <th>${esc(tt("shop.form.status", "Status"))}</th>
+                        ${customHeaderCols}
                         <th>${esc(parentAssignColumnTitle)}</th>
                         <th>${esc(tt("common.actions", "Actions"))}</th>
                       </tr>
@@ -1025,6 +1015,7 @@
                         <th>${esc(tt("shop.form.code", "Code"))}</th>
                         <th>${esc(tt("shop.form.name", "Name"))}</th>
                         <th>${esc(tt("shop.form.parentProduct", "Parent product"))}</th>
+                        ${customHeaderCols}
                         <th>${esc(parentAssignColumnTitle)}</th>
                         <th>${esc(tt("common.actions", "Actions"))}</th>
                       </tr>
@@ -1032,6 +1023,7 @@
                       <tr>
                         <th>${esc(tt("shop.form.code", "Code"))}</th>
                         <th>${esc(tt("shop.form.name", "Name"))}</th>
+                        ${customHeaderCols}
                         <th>${esc(parentAssignColumnTitle)}</th>
                         <th>${esc(tt("common.actions", "Actions"))}</th>
                       </tr>
@@ -1084,8 +1076,8 @@
             </div>
             <div class="grid2">
               <div class="field">
-                <label>${esc(tt("shop.category", "Folder"))}</label>
-                <select id="typeSel">${typeOptions}</select>
+                <label>${esc(tt("shop.form.selectedCategory", "Selected folder"))}</label>
+                <input type="text" value="${esc(typeLabel(type))}" readonly />
               </div>
               <div class="field">
                 <label>${esc(tt("shop.form.name", "Name"))}</label>
@@ -1096,7 +1088,6 @@
               <label>${esc(tt("shop.form.parentCategory", "Parent folder"))}</label>
               <select id="typeParentSel">${parentOptions}</select>
             </div>
-            <input id="typeRelIn" type="hidden" value="${esc(currentRelation)}" />
             <div class="row">
               <button class="btn ghost" id="newTypeBtn" type="button">${esc(tt("shop.action.addCategory", "+ Folder"))}</button>
               <button class="btn ghost" id="newChildTypeBtn" type="button">${esc(tt("shop.action.addChild", "+ Subfolder"))}</button>
@@ -1127,22 +1118,6 @@
                 </tbody>
               </table>
             </div>
-          </section>
-
-          <section class="section">
-            <details class="advanced">
-              <summary>${esc(tt("shop.form.advanced", "Advanced mapping"))}</summary>
-              <div class="grid2" style="margin-top:8px;">
-                <div class="field">
-                  <label>${esc(tt("shop.form.role", "Role"))}</label>
-                  <select id="typeRoleSel">${roleOptions}</select>
-                </div>
-                <div class="field">
-                  <label>${esc(tt("shop.form.parentRelation", "Parent relation"))}</label>
-                  <select id="typeRelVisible">${relationSel}</select>
-                </div>
-              </div>
-            </details>
           </section>
           ${recordSection}
         `;
@@ -1247,7 +1222,7 @@
       }
 
       async function saveTypeFromForm() {
-        const typeId = String(document.getElementById("typeSel")?.value || state.selectedTypeId || "");
+        const typeId = String(state.selectedTypeId || "");
         const row = findType(typeId);
         if (!row) return;
         const readAttrRows = () => {
@@ -1269,13 +1244,9 @@
         const name = String(document.getElementById("typeNameIn")?.value || row.nameSingular || "").trim();
         if (!name) return;
         const parentTypeId = String(document.getElementById("typeParentSel")?.value || "");
-        const relation = normalizeRelation(
-          document.getElementById("typeRelVisible")?.value
-          || document.getElementById("typeRelIn")?.value
-          || "contains"
-        );
+        const relation = "contains";
         const rowRole = String(row.moduleRole || "custom").trim().toLowerCase() || "custom";
-        const role = String(document.getElementById("typeRoleSel")?.value || rowRole).trim().toLowerCase() || "custom";
+        const role = rowRole;
         const attributes = readAttrRows();
         remapCoreRole(row.id, role);
         const out = window.VMillData.upsertEntityType({
@@ -1347,6 +1318,27 @@
 
         if (role === "product" || role === "station" || role === "job") {
           const payload = { id: itemId };
+          const currentRows = role === "product"
+            ? (state.app?.products || [])
+            : (role === "station" ? (state.app?.stations || []) : (state.app?.jobs || []));
+          const currentRow = currentRows.find((x) => String(x?.id || "") === itemId) || {};
+          const customMeta = {};
+          rowEl.querySelectorAll("[data-record-custom-id]").forEach((el) => {
+            if (!(el instanceof HTMLElement)) return;
+            const attrId = String(el.getAttribute("data-record-custom-id") || "");
+            const fieldType = String(el.getAttribute("data-record-custom-type") || "string").toLowerCase();
+            if (!attrId) return;
+            let value = "";
+            if (fieldType === "boolean" && el instanceof HTMLInputElement) {
+              value = !!el.checked;
+            } else if (fieldType === "number" && el instanceof HTMLInputElement) {
+              const num = Number(el.value);
+              value = Number.isFinite(num) ? num : null;
+            } else if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
+              value = String(el.value || "");
+            }
+            customMeta[attrId] = value;
+          });
           payload.name = getVal("name");
           if (role !== "job") payload.code = getVal("code");
           if (role === "product") payload.parentProductId = getVal("parentProductId");
@@ -1356,6 +1348,10 @@
             payload.productId = getVal("productId");
             payload.status = getVal("status") || "active";
           }
+          payload.meta = {
+            ...((currentRow?.meta && typeof currentRow.meta === "object") ? currentRow.meta : {}),
+            ...customMeta,
+          };
           const savedId = upsertAppRow(role, payload);
           if (!savedId) return;
           applyParentAssignmentFor(typeId, String(savedId || ""), parentAssignedId);
@@ -1576,6 +1572,7 @@
         if (delAttrBtn) {
           const row = delAttrBtn.closest("[data-type-attr-row]");
           if (row && row.parentElement) row.parentElement.removeChild(row);
+          await saveTypeFromForm();
           return;
         }
 
@@ -1594,17 +1591,6 @@
       detailWrap.addEventListener("change", async (e) => {
         const target = e.target;
         if (!(target instanceof HTMLElement)) return;
-        if (target.id === "typeSel") {
-          state.selectedTypeId = String(document.getElementById("typeSel")?.value || "");
-          renderTree();
-          renderDetail();
-          return;
-        }
-        if (target.id === "typeRelVisible") {
-          const hidden = document.getElementById("typeRelIn");
-          if (hidden) hidden.value = String(target.value || "contains");
-          return;
-        }
         if (target.hasAttribute("data-record-field") || target.hasAttribute("data-record-custom-id")) {
           const rowEl = target.closest("tr[data-record-id]");
           const rowId = String(rowEl?.getAttribute("data-record-id") || "");
@@ -1613,10 +1599,8 @@
           return;
         }
         if (target.hasAttribute("data-attr-field")) {
-          // keep UX simple: changes in field schema save when user clicks Save
-          const hidden = document.getElementById("typeRelIn");
-          const relVisible = document.getElementById("typeRelVisible");
-          if (hidden && relVisible) hidden.value = String(relVisible.value || "contains");
+          await saveTypeFromForm();
+          return;
         }
       });
 
