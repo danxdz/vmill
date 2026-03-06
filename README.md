@@ -132,13 +132,8 @@ This repo now includes Upsun configuration at `.upsun/config.yaml`.
 - App type: `python:3.11`
 - App source root: `.` (repo root)
 - Start command: `python vmill_server.py`
-- Build hook: `pip install -r requirements.txt`
 - Route: `https://{default}/`
 - Persistent SQLite mount: `/data` with `VMILL_DB_PATH=/data/vmill.db`
-
-
-`requirements.txt` is included for the main app service build on Upsun.
-The VMill app server currently uses stdlib-only Python dependencies.
 
 Deploy with the Upsun CLI from your project root:
 

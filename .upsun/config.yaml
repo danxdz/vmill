@@ -16,10 +16,6 @@ applications:
       env:
         VMILL_DB_PATH: "/data/vmill.db"
 
-    hooks:
-      build: |
-        pip install -r requirements.txt
-
     web:
       upstream:
         socket_family: tcp
@@ -31,3 +27,6 @@ routes:
     type: upstream
     upstream: "vmill:http"
 
+storage:
+  vmill-data:
+    size: 1024
