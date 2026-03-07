@@ -9,6 +9,10 @@
   const SHELL_JOB_KEY = "vmill:shell:job-id";
   const HUB_SCOPE_KEY = "vmill:hub-scope:v1";
   const HUB_SCOPE_TOOLBAR_KEY = "vmill:hub-scope-toolbar:v1";
+  const SCOPE_DOCK_STYLE_KEY = "vmill:scope-dock-style:v1";
+  const SCOPE_DOCK_UI_KEY = "vmill:scope-dock-ui:v1";
+  const LOGGER_UI_KEY = "vmill:logger:ui:v1";
+  const LOGGER_LOG_KEY = "vmill:logger:entries:v1";
   const ENABLE_RIGHT_RAIL = false;
   const RIGHT_RAIL_COLLAPSED_KEY = "vmill:shell:right-rail:collapsed:v1";
 
@@ -63,6 +67,70 @@
 
   function readScopeToolbarPrefs() {
     return normalizeScopeToolbarPrefs(safeParse(localStorage.getItem(HUB_SCOPE_TOOLBAR_KEY), {}));
+  }
+
+  function readScopeDockUi() {
+    const raw = safeParse(localStorage.getItem(SCOPE_DOCK_UI_KEY), null);
+    if (!raw || typeof raw !== "object" || !Object.prototype.hasOwnProperty.call(raw, "collapsed")) {
+      return { collapsed: null };
+    }
+    return { collapsed: raw.collapsed === true };
+  }
+
+  function writeScopeDockUi(next) {
+    const payload = { collapsed: !!next?.collapsed };
+    try { localStorage.setItem(SCOPE_DOCK_UI_KEY, JSON.stringify(payload)); } catch {}
+    return payload;
+  }
+
+  function normalizeScopeDockStyle(raw) {
+    const src = raw && typeof raw === "object" ? raw : {};
+    const viewport = Math.max(640, window.innerWidth || 1440);
+    const legacyMax = Number(src.maxWidth);
+    const legacySelect = Number(src.selectWidth);
+    const legacySearch = Number(src.searchMax);
+    const baseWidthPct = Number(src.widthPct);
+    const widthPctSeed = Number.isFinite(baseWidthPct) && baseWidthPct > 0
+      ? baseWidthPct
+      : (Number.isFinite(legacyMax) && legacyMax > 0 ? ((legacyMax / viewport) * 100) : 92);
+    const widthPct = Math.max(65, Math.min(99, widthPctSeed));
+    const estMaxPx = Math.max(720, Math.min(2000, Math.round((viewport * widthPct) / 100)));
+    const baseSelectPct = Number(src.selectPct);
+    const selectPctSeed = Number.isFinite(baseSelectPct) && baseSelectPct > 0
+      ? baseSelectPct
+      : (Number.isFinite(legacySelect) && legacySelect > 0 ? ((legacySelect / estMaxPx) * 100) : 14);
+    const baseSearchPct = Number(src.searchPct);
+    const searchPctSeed = Number.isFinite(baseSearchPct) && baseSearchPct > 0
+      ? baseSearchPct
+      : (Number.isFinite(legacySearch) && legacySearch > 0 ? ((legacySearch / estMaxPx) * 100) : 17);
+    const selectPct = Math.max(10, Math.min(28, selectPctSeed));
+    const searchPct = Math.max(12, Math.min(30, searchPctSeed));
+    const maxWidth = Math.max(720, Math.min(2000, Math.round((viewport * widthPct) / 100)));
+    const selectWidth = Math.max(108, Math.min(240, Math.round((maxWidth * selectPct) / 100)));
+    const searchMax = Math.max(120, Math.min(360, Math.round((maxWidth * searchPct) / 100)));
+    return {
+      widthPct: Math.round(widthPct),
+      selectPct: Math.round(selectPct),
+      searchPct: Math.round(searchPct),
+      maxWidth: Math.round(maxWidth),
+      selectWidth: Math.round(selectWidth),
+      searchMax: Math.round(searchMax),
+    };
+  }
+
+  function readScopeDockStyle() {
+    return normalizeScopeDockStyle(safeParse(localStorage.getItem(SCOPE_DOCK_STYLE_KEY), {}));
+  }
+
+  function applyScopeDockStyle(node) {
+    if (!(node instanceof HTMLElement)) return;
+    const style = readScopeDockStyle();
+    node.style.setProperty("--vm-shell-scope-max-width", `${style.maxWidth}px`);
+    node.style.setProperty("--vm-shell-scope-select-width", `${style.selectWidth}px`);
+    node.style.setProperty("--vm-shell-scope-select-width-md", `${Math.max(108, style.selectWidth - 12)}px`);
+    node.style.setProperty("--vm-shell-scope-search-max", `${style.searchMax}px`);
+    const sideGap = Math.max(8, Math.min(80, Math.round((100 - style.widthPct) * 2)));
+    node.style.setProperty("--vm-shell-scope-side-gap", `${sideGap}px`);
   }
 
   function isValidAppState(st) {
@@ -534,6 +602,7 @@
   let rightRailToggle = null;
   let rightRailCollapsed = true;
   let scopeDock = null;
+  let loggerOverlay = null;
 
   function applyTopDockPadding(enabled) {
     const isHub = currentModuleId() === "hub";
@@ -546,6 +615,10 @@
     }
   }
 
+  function setScopeDockBodyClass(enabled) {
+    document.body.classList.toggle("vmillHasScopeDock", !!enabled);
+  }
+
   function shouldOwnScopeDock() {
     // When a module is rendered inside the Hub iframe, only the top window
     // should own the single global scope bar.
@@ -556,6 +629,224 @@
       if (window.frameElement) return false;
     } catch {}
     return true;
+  }
+
+  function shouldOwnLoggerOverlay() {
+    if (IS_EMBEDDED_FRAME) return false;
+    if (currentModuleId() === "can-bus") return false;
+    try {
+      if (window.frameElement) return false;
+    } catch {}
+    return true;
+  }
+
+  function readLoggerUi() {
+    const src = safeParse(localStorage.getItem(LOGGER_UI_KEY), {});
+    const pos = String(src.position || "");
+    return {
+      mode: String(src.mode || "status") === "panel" ? "panel" : "status",
+      position: ["top-left", "top-right", "bottom-left", "bottom-right"].includes(pos) ? pos : "bottom-right",
+      maxRows: Math.max(50, Math.min(1200, Number(src.maxRows || 350))),
+      active: src.active !== false,
+    };
+  }
+
+  function writeLoggerUi(nextUi) {
+    const ui = {
+      ...readLoggerUi(),
+      ...(nextUi && typeof nextUi === "object" ? nextUi : {}),
+    };
+    try { localStorage.setItem(LOGGER_UI_KEY, JSON.stringify(ui)); } catch {}
+    return ui;
+  }
+
+  function readLoggerEntries() {
+    const rows = safeParse(localStorage.getItem(LOGGER_LOG_KEY), []);
+    return Array.isArray(rows) ? rows : [];
+  }
+
+  function loggerRoute() {
+    return MODULES.find((m) => String(m.id || "") === "can-bus")?.route || ROUTES.logger || "/logger.html";
+  }
+
+  function ensureLoggerOverlay() {
+    if (!shouldOwnLoggerOverlay()) {
+      if (loggerOverlay) {
+        loggerOverlay.remove();
+        loggerOverlay = null;
+      }
+      return;
+    }
+    if (loggerOverlay) return;
+    const node = document.createElement("div");
+    node.id = "vmillLoggerOverlay";
+    node.innerHTML = `
+      <style>
+        #vmillLoggerOverlay{
+          position:fixed;
+          z-index:99999;
+          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+          --logger-bg: color-mix(in srgb, var(--vm-theme-panel, #111a2a) 92%, transparent);
+          --logger-border: var(--vm-theme-border, rgba(230,237,248,.24));
+          --logger-text: var(--vm-theme-text, #e6edf8);
+          --logger-muted: var(--vm-theme-muted, rgba(230,237,248,.66));
+          --logger-accent: var(--vm-theme-accent, #57b4ff);
+          --logger-ok: var(--ok, #68d39a);
+          --logger-warn: var(--warn, #f5c96a);
+          --logger-danger: var(--danger, #f47f96);
+        }
+        #vmillLoggerOverlay.hidden{ display:none; }
+        #vmillLoggerOverlay[data-pos="top-left"]{ top:calc(var(--vm-shell-scope-top, 10px) + 42px); left:10px; }
+        #vmillLoggerOverlay[data-pos="top-right"]{ top:calc(var(--vm-shell-scope-top, 10px) + 42px); right:10px; }
+        #vmillLoggerOverlay[data-pos="bottom-left"]{ bottom:10px; left:10px; }
+        #vmillLoggerOverlay[data-pos="bottom-right"]{ bottom:10px; right:10px; }
+        #vmillLoggerOverlay .loggerBar{
+          min-width:min(420px, calc(100vw - 20px));
+          max-width:min(760px, calc(100vw - 20px));
+          border:1px solid var(--logger-border);
+          border-radius:10px;
+          background:
+            radial-gradient(220px 110px at 0% -30%, color-mix(in srgb, var(--logger-accent) 20%, transparent), transparent 62%),
+            var(--logger-bg);
+          box-shadow:0 10px 24px rgba(0,0,0,.34);
+          backdrop-filter: blur(8px);
+          padding:4px 7px;
+          display:flex;
+          align-items:center;
+          gap:8px;
+        }
+        #vmillLoggerOverlay .loggerDot{
+          width:8px;height:8px;border-radius:999px;flex:0 0 auto;
+          background:var(--logger-muted);
+          box-shadow:0 0 0 2px color-mix(in srgb, var(--logger-border) 80%, transparent);
+        }
+        #vmillLoggerOverlay .loggerDot.online{ background:var(--logger-ok); }
+        #vmillLoggerOverlay .loggerDot.offline{ background:var(--logger-warn); }
+        #vmillLoggerOverlay .loggerText{
+          min-width:0;flex:1 1 auto;
+          color:var(--logger-text);
+          font-size:11px;
+          font-weight:700;
+          white-space:nowrap;
+          overflow:hidden;
+          text-overflow:ellipsis;
+        }
+        #vmillLoggerOverlay .loggerCounts{
+          display:inline-flex;
+          align-items:center;
+          gap:5px;
+          color:var(--logger-muted);
+          font-size:10px;
+          flex:0 0 auto;
+        }
+        #vmillLoggerOverlay .loggerCountErr{ color:var(--logger-danger); }
+        #vmillLoggerOverlay .loggerBtn{
+          border:1px solid var(--logger-border);
+          background:rgba(255,255,255,.04);
+          color:var(--logger-text);
+          border-radius:999px;
+          padding:2px 8px;
+          font-size:10px;
+          font-weight:700;
+          cursor:pointer;
+          text-decoration:none;
+          flex:0 0 auto;
+        }
+        #vmillLoggerOverlay .loggerBtn:hover{
+          border-color:color-mix(in srgb, var(--logger-accent) 54%, var(--logger-border));
+          background:color-mix(in srgb, var(--logger-accent) 14%, transparent);
+        }
+        @media (max-width:760px){
+          #vmillLoggerOverlay[data-pos="top-left"],
+          #vmillLoggerOverlay[data-pos="top-right"]{
+            top:calc(var(--vm-shell-scope-top-mobile, var(--vm-shell-scope-top, 10px)) + 40px);
+          }
+          #vmillLoggerOverlay{
+            left:6px !important;
+            right:6px !important;
+          }
+          #vmillLoggerOverlay .loggerBar{
+            min-width:0;
+            max-width:none;
+            width:calc(100vw - 12px);
+            padding:4px 6px;
+            gap:6px;
+          }
+          #vmillLoggerOverlay .loggerCounts{ display:none; }
+        }
+      </style>
+      <div class="loggerBar" id="vmillLoggerBar">
+        <span class="loggerDot" id="vmillLoggerDot"></span>
+        <div class="loggerText" id="vmillLoggerText"></div>
+        <div class="loggerCounts" id="vmillLoggerCounts"></div>
+        <button class="loggerBtn" id="vmillLoggerOpen" type="button">Logs</button>
+        <button class="loggerBtn" id="vmillLoggerHide" type="button">Hide</button>
+      </div>
+    `;
+    document.body.appendChild(node);
+    loggerOverlay = node;
+    const openBtn = node.querySelector("#vmillLoggerOpen");
+    const hideBtn = node.querySelector("#vmillLoggerHide");
+    openBtn?.addEventListener("click", () => {
+      const ctx = getCtxFromState();
+      const handoff = "";
+      location.href = makeUrlWithCtx(loggerRoute(), { jobId: ctx.jobId, stationId: ctx.stationId, handoff });
+    });
+    hideBtn?.addEventListener("click", () => {
+      writeLoggerUi({ active: false });
+      renderLoggerOverlay();
+    });
+  }
+
+  function renderLoggerOverlay() {
+    if (!shouldOwnLoggerOverlay()) {
+      if (loggerOverlay) {
+        loggerOverlay.remove();
+        loggerOverlay = null;
+      }
+      return;
+    }
+    ensureLoggerOverlay();
+    if (!loggerOverlay) return;
+    const ui = readLoggerUi();
+    const show = !!ui.active && ui.mode === "status";
+    loggerOverlay.classList.toggle("hidden", !show);
+    loggerOverlay.setAttribute("data-pos", String(ui.position || "bottom-right"));
+    const textEl = loggerOverlay.querySelector("#vmillLoggerText");
+    const dotEl = loggerOverlay.querySelector("#vmillLoggerDot");
+    const countsEl = loggerOverlay.querySelector("#vmillLoggerCounts");
+    const openBtn = loggerOverlay.querySelector("#vmillLoggerOpen");
+    const hideBtn = loggerOverlay.querySelector("#vmillLoggerHide");
+    if (openBtn) openBtn.textContent = tt("logger.openPanel", "Logs");
+    if (hideBtn) hideBtn.textContent = tt("common.hide", "Hide");
+    if (!show) return;
+    const all = readLoggerEntries().slice(-Math.max(1, Number(ui.maxRows || 350)));
+    const infoCount = all.filter((r) => String(r?.level || "info") === "info").length;
+    const warnCount = all.filter((r) => String(r?.level || "info") === "warn").length;
+    const errCount = all.filter((r) => String(r?.level || "info") === "error").length;
+    const latest = all.length ? all[all.length - 1] : null;
+    const syncLatest = [...all].reverse().find((r) => String(r?.type || "") === "data:sync:status");
+    const online = !!(syncLatest?.payload && typeof syncLatest.payload === "object" && syncLatest.payload.online);
+    if (dotEl) {
+      dotEl.classList.toggle("online", online);
+      dotEl.classList.toggle("offline", !online);
+    }
+    if (countsEl) {
+      countsEl.innerHTML = `
+        <span>${infoCount}i</span>
+        <span>${warnCount}w</span>
+        <span class="loggerCountErr">${errCount}e</span>
+      `;
+    }
+    if (textEl) {
+      if (!latest) {
+        textEl.textContent = tt("logger.empty", "No log entries yet.");
+      } else {
+        const ts = new Date(String(latest.ts || "")).toLocaleTimeString();
+        const summary = String(latest.summary || latest.type || "event");
+        textEl.textContent = `[${ts}] ${summary}`;
+      }
+    }
   }
 
   function applyI18n() {
@@ -670,6 +961,7 @@
     renderMenuItems();
     renderRightRail();
     renderScopeDock();
+    renderLoggerOverlay();
   }
 
   function readRightRailCollapsed() {
@@ -888,6 +1180,7 @@
         scopeDock.remove();
         scopeDock = null;
       }
+      setScopeDockBodyClass(false);
       applyTopDockPadding(false);
       return;
     }
@@ -900,7 +1193,7 @@
         #vmillScopeDock{
           position:fixed;
           left:50%;
-          top:var(--vm-shell-scope-top, 12px);
+          top:var(--vm-shell-scope-top, 4px);
           transform:translateX(-50%);
           z-index:99997;
           font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
@@ -911,8 +1204,13 @@
           --scope-accent: var(--vm-theme-accent, #57b4ff);
           --scope-accent-rgb: var(--vm-theme-accent-rgb, 87,180,255);
         }
+        body.hubHeaderMinimal #vmillScopeDock{
+          opacity:1 !important;
+          pointer-events:auto !important;
+          transform:translateX(-50%) translateY(0) !important;
+        }
         #vmillScopeDock .scopePanel{
-          width:var(--vm-shell-scope-width, min(320px, calc(100vw - 118px)));
+          width:var(--vm-shell-scope-width, min(var(--vm-shell-scope-max-width, 1480px), calc(100vw - var(--vm-shell-scope-side-gap, 112px))));
           border:1px solid var(--scope-border);
           border-radius:9px;
           background:
@@ -920,32 +1218,81 @@
             var(--scope-bg);
           box-shadow:0 10px 24px rgba(0,0,0,.34);
           backdrop-filter: blur(8px);
-          padding:2px 4px;
-          display:flex;
+          padding:4px 6px;
+          display:grid;
+          grid-template-columns:auto minmax(34px, 220px) 1fr;
           align-items:center;
-          gap:3px;
-          flex-wrap:nowrap;
+          gap:4px;
           overflow:hidden;
         }
+        #vmillScopeDock .scopeInfoBar{
+          display:block;
+          grid-column:1 / -1;
+          min-width:0;
+          border:1px solid var(--scope-border);
+          border-radius:10px;
+          background:rgba(255,255,255,.03);
+          color:var(--scope-text);
+          padding:3px 7px;
+          font-size:10px;
+          font-weight:700;
+          letter-spacing:.01em;
+          text-align:left;
+          white-space:nowrap;
+          overflow:hidden;
+          text-overflow:ellipsis;
+          cursor:pointer;
+        }
         #vmillScopeDock .scopeSearchInline{
-          flex:1 1 140px;
-          min-width:120px;
+          grid-column:2;
+          flex:0 0 32px;
+          width:32px;
+          min-width:32px;
           border-radius:10px;
           border:1px solid var(--scope-border);
           background: color-mix(in srgb, var(--vm-theme-panel-2, #0f1726) 90%, transparent);
-          color:var(--scope-text);
-          padding:7px 9px;
-          font-size:12px;
+          background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23a8b6cb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+          background-repeat:no-repeat;
+          background-position:center;
+          background-size:12px 12px;
+          color:transparent;
+          caret-color:var(--scope-text);
+          padding:6px 8px 6px 8px;
+          font-size:11px;
           line-height:1.2;
+          transition:
+            width .18s ease,
+            min-width .18s ease,
+            flex-basis .18s ease,
+            color .16s ease,
+            border-color .16s ease,
+            box-shadow .16s ease;
         }
         #vmillScopeDock .scopeSearchInline::placeholder{
+          color:transparent;
+          transition: color .16s ease;
+        }
+        #vmillScopeDock .scopeSearchInline:focus,
+        #vmillScopeDock .scopeSearchInline.hasText{
+          flex:0 1 170px;
+          width:clamp(110px, 18vw, var(--vm-shell-scope-search-max, 210px));
+          min-width:120px;
+          background-position:8px center;
+          padding-left:24px;
+          color:var(--scope-text);
+          box-shadow:0 0 0 2px color-mix(in srgb, var(--scope-accent) 22%, transparent);
+        }
+        #vmillScopeDock .scopeSearchInline:focus::placeholder,
+        #vmillScopeDock .scopeSearchInline.hasText::placeholder{
           color:var(--scope-muted);
         }
         #vmillScopeDock .scopeHead{
           display:flex;
-          gap:6px;
+          gap:4px;
           flex-wrap:wrap;
           align-items:center;
+          flex:0 0 auto;
+          grid-column:1;
         }
         #vmillScopeDock .scopeBtn{
           border:1px solid var(--scope-border);
@@ -953,107 +1300,88 @@
           color:var(--scope-text);
           border-radius:999px;
           padding:2px 6px;
-          font-size:9px;
+          font-size:8px;
           font-weight:700;
           cursor:pointer;
           text-decoration:none;
         }
-        #vmillScopeDock .scopeToggle{
-          display:none;
-          align-items:center;
-          justify-content:center;
-          min-width:24px;
-          font-size:11px;
-          padding:2px 7px;
-        }
-        #vmillScopeDock.mobile .scopeToggle{
-          display:inline-flex;
-        }
-        #vmillScopeDock.mobile.compact .scopePanel{
+        #vmillScopeDock.compact .scopePanel{
           width:min(260px, calc(100vw - 12px));
         }
-        #vmillScopeDock.mobile.compact .scopeHead,
-        #vmillScopeDock.mobile.compact .scopeSearchInline,
-        #vmillScopeDock.mobile.compact .scopeSummary{
-          display:none;
+        #vmillScopeDock.compact .scopeInfoBar{
+          display:none !important;
         }
-        #vmillScopeDock.mobile.compact .scopeKpis{
-          margin-left:0;
+        #vmillScopeDock.compact .scopeHead,
+        #vmillScopeDock.compact .scopeSearchInline,
+        #vmillScopeDock.compact .scopeSummary,
+        #vmillScopeDock.compact .scopeKpis{
+          display:initial;
         }
         #vmillScopeDock .scopeBtn:hover{
           border-color:color-mix(in srgb, var(--scope-accent) 54%, var(--scope-border));
           background:color-mix(in srgb, var(--scope-accent) 14%, transparent);
         }
+        #vmillScopeDock:not(.is-open):not(:hover):not(:focus-within) .scopeHead,
+        #vmillScopeDock:not(.is-open):not(:hover):not(:focus-within) .scopeSearchInline,
+        #vmillScopeDock:not(.is-open):not(:hover):not(:focus-within) .scopeKpis{
+          display:none;
+        }
         #vmillScopeDock .scopeKpis{
+          grid-column:1 / -1;
           display:flex;
-          flex-wrap:nowrap;
-          gap:3px;
-          margin-left:2px;
-          max-width:100%;
-          overflow-x:auto;
-          overflow-y:hidden;
-          scrollbar-width:thin;
-          padding-bottom:1px;
+          flex-wrap:wrap;
+          gap:3px 5px;
+          margin-left:0;
+          width:100%;
         }
-        #vmillScopeDock .scopeChip{
-          border:1px solid var(--scope-border);
-          border-radius:999px;
-          padding:1px 5px;
-          font-size:7px;
+        #vmillScopeDock .scopeSelWrap{
+          display:grid;
+          gap:1px;
+          flex:0 0 var(--vm-shell-scope-select-width, 148px);
+          max-width:var(--vm-shell-scope-select-width, 148px);
+          min-width:118px;
+        }
+        #vmillScopeDock .scopeSelLabel{
           color:var(--scope-muted);
-          background:rgba(255,255,255,.03);
-          max-width:100%;
+          font-size:7px;
+          font-weight:700;
+          letter-spacing:.03em;
+          text-transform:uppercase;
+          white-space:nowrap;
           overflow:hidden;
           text-overflow:ellipsis;
-          white-space:nowrap;
         }
-        #vmillScopeDock .scopeKpi{
+        #vmillScopeDock .scopeSel{
+          color-scheme: light dark;
           border:1px solid var(--scope-border);
-          background:rgba(255,255,255,.03);
+          border-radius:8px;
+          background:
+            linear-gradient(180deg,
+              color-mix(in srgb, var(--vm-theme-panel-2, #0f1726) 94%, transparent),
+              color-mix(in srgb, var(--vm-theme-panel-2, #0f1726) 82%, transparent)
+            );
           color:var(--scope-text);
-          border-radius:999px;
-          padding:2px 6px;
-          display:inline-flex;
-          align-items:center;
-          gap:4px;
-          cursor:pointer;
-          font-size:9px;
-          max-width:88px;
-          min-width:0;
-          flex:0 0 auto;
-        }
-        #vmillScopeDock .scopeKpi:hover{
-          border-color:color-mix(in srgb, var(--scope-accent) 54%, var(--scope-border));
-          background:color-mix(in srgb, var(--scope-accent) 14%, transparent);
-        }
-        #vmillScopeDock .scopeKpi.active{
-          border-color:color-mix(in srgb, var(--scope-accent) 72%, var(--scope-border));
-          background:color-mix(in srgb, var(--scope-accent) 20%, transparent);
-        }
-        #vmillScopeDock .scopeKpiCount{
-          border:1px solid color-mix(in srgb, var(--scope-accent) 45%, var(--scope-border));
-          background:color-mix(in srgb, var(--scope-accent) 20%, transparent);
-          color:var(--scope-text);
-          border-radius:999px;
-          padding:0 4px;
+          padding:2px 5px;
           font-size:8px;
-          font-weight:700;
-          flex:0 0 auto;
-        }
-        #vmillScopeDock .scopeKpiLabel{
-          overflow:hidden;
-          text-overflow:ellipsis;
-          white-space:nowrap;
-          font-weight:700;
-          flex:1 1 auto;
           min-width:0;
+          width:100%;
+        }
+        #vmillScopeDock .scopeSel:focus{
+          outline:none;
+          border-color:color-mix(in srgb, var(--scope-accent) 64%, var(--scope-border));
+          box-shadow:0 0 0 2px color-mix(in srgb, var(--scope-accent) 22%, transparent);
+        }
+        #vmillScopeDock .scopeSel option,
+        #vmillScopeDock .scopeSel optgroup{
+          background:color-mix(in srgb, var(--vm-theme-panel, #111a2a) 96%, transparent);
+          color:var(--scope-text);
         }
         #vmillScopeDock .scopeSummary{
           display:none;
         }
         #vmillScopeDock .scopePicker{
           margin-top:6px;
-          width:var(--vm-shell-scope-width, min(320px, calc(100vw - 118px)));
+          width:var(--vm-shell-scope-width, min(var(--vm-shell-scope-max-width, 1480px), calc(100vw - var(--vm-shell-scope-side-gap, 112px))));
           border:1px solid var(--scope-border);
           border-radius:12px;
           background:
@@ -1120,51 +1448,85 @@
         }
         @media (max-width:1200px){
           #vmillScopeDock .scopePanel{
-            width:var(--vm-shell-scope-width, min(304px, calc(100vw - 104px)));
+            width:var(--vm-shell-scope-width, min(var(--vm-shell-scope-max-width, 1280px), calc(100vw - var(--vm-shell-scope-side-gap, 80px))));
           }
           #vmillScopeDock .scopePicker{
-            width:var(--vm-shell-scope-width, min(304px, calc(100vw - 104px)));
-          }
-          #vmillScopeDock .scopeKpi{
-            max-width:84px;
+            width:var(--vm-shell-scope-width, min(var(--vm-shell-scope-max-width, 1280px), calc(100vw - var(--vm-shell-scope-side-gap, 80px))));
           }
         }
         @media (max-width:960px){
           #vmillScopeDock .scopePanel{
-            width:var(--vm-shell-scope-width, min(288px, calc(100vw - 86px)));
+            width:var(--vm-shell-scope-width, min(var(--vm-shell-scope-max-width, 1000px), calc(100vw - var(--vm-shell-scope-side-gap, 40px))));
+            gap:5px;
+            grid-template-columns:auto minmax(34px, 180px) 1fr;
           }
           #vmillScopeDock .scopePicker{
-            width:var(--vm-shell-scope-width, min(288px, calc(100vw - 86px)));
+            width:var(--vm-shell-scope-width, min(var(--vm-shell-scope-max-width, 1000px), calc(100vw - var(--vm-shell-scope-side-gap, 40px))));
           }
           #vmillScopeDock .scopeSummary{
             display:none;
             margin-left:0;
           }
-          #vmillScopeDock .scopeKpi{
-            max-width:78px;
+          #vmillScopeDock .scopeKpis{
+            gap:3px 4px;
+          }
+          #vmillScopeDock .scopeSelWrap{
+            flex-basis:var(--vm-shell-scope-select-width-md, 134px);
+            max-width:var(--vm-shell-scope-select-width-md, 134px);
+            min-width:108px;
           }
         }
         @media (max-width:760px){
           #vmillScopeDock{
-            top:var(--vm-shell-scope-top-mobile, var(--vm-shell-scope-top, 10px));
+            top:var(--vm-shell-scope-top-mobile, var(--vm-shell-scope-top, 4px));
           }
         #vmillScopeDock .scopePanel{
-          width:var(--vm-shell-scope-width-mobile, calc(100vw - 10px));
-          gap:4px;
-          padding:4px 5px;
+          width:var(--vm-shell-scope-width-mobile, calc(100vw - 16px));
+          gap:6px;
+          padding:6px;
+          grid-template-columns:1fr;
+          align-items:stretch;
         }
+          #vmillScopeDock .scopeHead{
+            grid-column:1;
+            order:initial;
+          }
           #vmillScopeDock .scopeSearchInline{
-            min-width:96px;
+            grid-column:1;
+            order:initial;
+            min-width:32px;
             padding:6px 8px;
             font-size:11px;
+            align-self:flex-start;
           }
-          #vmillScopeDock .scopeKpi{ max-width:none; }
-          #vmillScopeDock .scopePicker{ width:var(--vm-shell-scope-width-mobile, calc(100vw - 10px)); }
+          #vmillScopeDock .scopeSearchInline:focus,
+          #vmillScopeDock .scopeSearchInline.hasText{
+            width:100%;
+            min-width:100%;
+            flex:1 1 100%;
+            align-self:stretch;
+          }
+          #vmillScopeDock .scopeKpis{
+            grid-column:1;
+            order:initial;
+            display:flex;
+            flex-wrap:wrap;
+            width:100%;
+          }
+          #vmillScopeDock .scopeSelWrap{
+            flex-basis:calc(50% - 3px);
+            max-width:calc(50% - 3px);
+            min-width:0;
+          }
+          #vmillScopeDock .scopePicker{ width:var(--vm-shell-scope-width-mobile, calc(100vw - 16px)); }
           #vmillScopeDock .scopeSummary{ display:none; }
+        }
+        @media (max-width:520px){
+          #vmillScopeDock .scopeSelWrap{ flex-basis:100%; max-width:100%; }
         }
       </style>
       <div class="scopePanel" id="vmillScopePanel">
-        <button class="scopeBtn scopeToggle" id="vmillScopeToggle" type="button" aria-expanded="false" title="Scope">☰</button>
+        <button class="scopeInfoBar" id="vmillScopeInfoBar" type="button"></button>
         <div class="scopeHead">
           <button class="scopeBtn" id="vmillScopeReset" type="button">Reset</button>
         </div>
@@ -1183,10 +1545,12 @@
     `;
     document.body.appendChild(node);
     scopeDock = node;
+    applyScopeDockStyle(node);
+    setScopeDockBodyClass(true);
     applyTopDockPadding(true);
 
     const resetBtn = node.querySelector("#vmillScopeReset");
-    const toggleBtn = node.querySelector("#vmillScopeToggle");
+    const infoBarEl = node.querySelector("#vmillScopeInfoBar");
     const panelEl = node.querySelector("#vmillScopePanel");
     const kpisEl = node.querySelector("#vmillScopeKpis");
     const summaryEl = node.querySelector("#vmillScopeSummary");
@@ -1204,7 +1568,8 @@
     let pickerQuery = "";
     let scopeQueryInputTimer = 0;
     let currentModel = { types: [], items: [], links: [], rules: [] };
-    let mobileScopeExpanded = false;
+    const initialScopeDockUi = readScopeDockUi();
+    let scopeCollapsed = false;
     const mobileScopeMq = window.matchMedia
       ? window.matchMedia("(max-width:760px), (hover:none) and (pointer:coarse)")
       : null;
@@ -1217,24 +1582,13 @@
     function syncScopeDockCompactState() {
       const compactMode = isMobileScopeCompact();
       node.classList.toggle("mobile", compactMode);
-      const compact = compactMode && !mobileScopeExpanded;
-      node.classList.toggle("compact", compact);
-      if (toggleBtn) {
-        toggleBtn.setAttribute("aria-expanded", compact ? "false" : "true");
-        toggleBtn.title = compact
-          ? tt("common.open", "Open")
-          : tt("common.close", "Close");
-      }
+      node.classList.remove("compact");
     }
 
-    function setMobileScopeExpanded(nextExpanded) {
-      const compactMode = isMobileScopeCompact();
-      if (!compactMode) {
-        mobileScopeExpanded = true;
-        syncScopeDockCompactState();
-        return;
-      }
-      mobileScopeExpanded = !!nextExpanded;
+    function setScopeCollapsed(nextCollapsed, persist = true) {
+      // Scope toolbar is always expanded now to keep selectors visible.
+      scopeCollapsed = false;
+      if (persist) writeScopeDockUi({ collapsed: false });
       syncScopeDockCompactState();
     }
 
@@ -1242,6 +1596,17 @@
       const plural = String(t?.namePlural || "");
       const singular = String(t?.nameSingular || "");
       return plural || singular || String(t?.id || "Type");
+    }
+    function typeByIdSafe(typeId) {
+      const wanted = String(typeId || "");
+      if (!wanted) return null;
+      const exact = typeById.get(wanted);
+      if (exact) return exact;
+      const lw = wanted.toLowerCase();
+      for (const [id, row] of typeById.entries()) {
+        if (String(id || "").toLowerCase() === lw) return row;
+      }
+      return null;
     }
     function itemLabel(it) {
       const code = String(it?.code || "").trim();
@@ -1261,13 +1626,37 @@
     function loadModel() {
       typeById.clear();
       itemsByType.clear();
-      const model = window.VMillData?.readStructureModel
+      let model = window.VMillData?.readStructureModel
         ? window.VMillData.readStructureModel({ persist: false })
         : { types: [], items: [], links: [], rules: [] };
-      const types = Array.isArray(model?.types) ? model.types.slice() : [];
-      const items = Array.isArray(model?.items) ? model.items.slice() : [];
+      let types = Array.isArray(model?.types) ? model.types.slice() : [];
+      let items = Array.isArray(model?.items) ? model.items.slice() : [];
       const links = Array.isArray(model?.links) ? model.links.slice() : [];
       const rules = Array.isArray(model?.rules) ? model.rules.slice() : [];
+
+      // Relink/fallback path: when structure model is temporarily empty,
+      // use the same dynamic source used by Hub settings.
+      if (!types.length && window.VMillData?.listEntityTypes) {
+        const typeRows = window.VMillData.listEntityTypes() || [];
+        types = Array.isArray(typeRows) ? typeRows.slice() : [];
+        items = [];
+        if (window.VMillData?.listEntities) {
+          for (const t of types) {
+            const tid = String(t?.id || "");
+            if (!tid) continue;
+            const rows = window.VMillData.listEntities(tid) || [];
+            if (!Array.isArray(rows)) continue;
+            for (const row of rows) {
+              items.push({
+                ...(row || {}),
+                typeId: tid,
+              });
+            }
+          }
+        }
+        model = { types, items, links, rules };
+      }
+
       currentModel = { types, items, links, rules };
       types.sort((a, b) => typeLabel(a).localeCompare(typeLabel(b)));
       for (const t of types) typeById.set(String(t?.id || ""), t);
@@ -1310,6 +1699,16 @@
       }
       const hidden = new Set(prefs.hiddenTypeIds || []);
       visibleTypeIds = orderedBase.filter((id) => !hidden.has(id));
+      if (!visibleTypeIds.length) {
+        // Fallback: never leave the scope bar empty because of stale/over-strict prefs.
+        visibleTypeIds = (orderedBase.length ? orderedBase : allTypeIds).slice();
+      }
+      if (!visibleTypeIds.length && Array.isArray(prefs.orderTypeIds) && prefs.orderTypeIds.length) {
+        // Last-resort fallback: preserve toolbar prefs visibility even if
+        // model types are still loading.
+        visibleTypeIds = [...new Set(prefs.orderTypeIds.map((x) => String(x || "").trim()).filter(Boolean))]
+          .filter((id) => !hidden.has(id));
+      }
     }
     function selectedScopeEntries(selectedMap, excludeTypeId = "") {
       const selected = selectedMap && typeof selectedMap === "object" ? selectedMap : {};
@@ -1524,53 +1923,73 @@
       applyScopeToAppContext(written);
       return written;
     }
+    function escHtml(v) {
+      return String(v ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;");
+    }
     function closePicker() {
       openTypeId = "";
       pickerQuery = "";
       pickerEl?.classList.add("hidden");
       if (pickerSearchEl) pickerSearchEl.value = "";
     }
+    function syncSearchInlineState() {
+      if (!filterSearchEl) return;
+      const hasText = String(filterSearchEl.value || "").trim().length > 0;
+      filterSearchEl.classList.toggle("hasText", hasText);
+    }
     function renderKpis(scope) {
       if (!kpisEl) return;
       const ctx = buildScopeContext(scope);
-      const types = visibleTypeIds
-        .map((id) => typeById.get(id))
+      let types = visibleTypeIds
+        .map((id) => typeByIdSafe(id))
         .filter(Boolean);
+      if (!types.length && typeById.size) {
+        // Settings/prefs may contain stale IDs (case or old ids). Fallback to all.
+        types = Array.from(typeById.values());
+      }
       if (!types.length) {
-        kpisEl.innerHTML = `<span class="scopeChip">${tt("hub.overview.none", "No categories")}</span>`;
+        kpisEl.innerHTML = `<span class="scopeSelLabel">${tt("hub.overview.none", "No categories")}</span>`;
         return;
       }
       kpisEl.innerHTML = types.map((t) => {
         const tid = String(t?.id || "");
         const rows = rowsForTypeWithScope(scope, tid, ctx, tid);
         const selectedId = String(scope.selected?.[tid] || "all");
-        const selectedItem = (itemsByType.get(tid) || []).find((it) => String(it?.id || "") === selectedId) || null;
-        const label = selectedItem ? itemLabel(selectedItem) : tt("hub.common.all", "All");
-        const active = String(openTypeId || "") === tid ? "active" : "";
-        return `<button class="scopeKpi ${active}" type="button" data-scope-type="${tid}">
-          <span class="scopeKpiCount">${rows.length}</span>
-          <span class="scopeKpiLabel">${typeLabel(t)}: ${label}</span>
-        </button>`;
+        const opts = [
+          `<option value="all">${tt("hub.common.all", "All")} (${rows.length})</option>`,
+          ...rows.map((it) => {
+            const id = String(it?.id || "");
+            const selected = selectedId === id ? "selected" : "";
+            return `<option value="${escHtml(id)}" ${selected}>${escHtml(itemLabel(it))}</option>`;
+          }),
+        ].join("");
+        return `<label class="scopeSelWrap">
+          <span class="scopeSelLabel">${escHtml(typeLabel(t))}</span>
+          <select class="scopeSel" data-scope-select="${escHtml(tid)}">${opts}</select>
+        </label>`;
       }).join("");
-      kpisEl.querySelectorAll("[data-scope-type]").forEach((btn) => {
-        const supportsHover = !!(window.matchMedia && window.matchMedia("(hover:hover) and (pointer:fine)").matches);
-        btn.addEventListener("click", () => {
-          const tid = String(btn.getAttribute("data-scope-type") || "");
+      kpisEl.querySelectorAll("[data-scope-select]").forEach((sel) => {
+        sel.addEventListener("change", () => {
+          const tid = String(sel.getAttribute("data-scope-select") || "");
           if (!tid) return;
-          openTypeId = openTypeId === tid ? "" : tid;
-          pickerQuery = "";
+          const nextValue = String(sel.value || "all");
+          const scopeNow = readHubScope();
+          const next = {
+            ...scopeNow,
+            selected: {
+              ...(scopeNow.selected || {}),
+              [tid]: nextValue && nextValue !== "all" ? nextValue : "all",
+            },
+            openTypeId: "",
+          };
+          const nextCtx = buildScopeContext(next);
+          updateScope(sanitizeScopeSelection(next, nextCtx));
           render();
-          if (!openTypeId) closePicker();
         });
-        if (supportsHover) {
-          btn.addEventListener("mouseenter", () => {
-            const tid = String(btn.getAttribute("data-scope-type") || "");
-            if (!tid || openTypeId === tid) return;
-            openTypeId = tid;
-            pickerQuery = "";
-            render();
-          });
-        }
       });
     }
     function renderSummary(scope) {
@@ -1589,6 +2008,25 @@
         const labelB = itemLabel(item || { id: iid, name: iid });
         return `<span class="scopeChip">${labelA}: ${labelB}</span>`;
       }).join("");
+    }
+    function renderInfoBar(scope) {
+      if (!infoBarEl) return;
+      const selectedRows = Object.entries(scope.selected || {})
+        .map(([tid, iid]) => [String(tid || ""), String(iid || "")])
+        .filter(([tid, iid]) => tid && iid && iid !== "all")
+        .filter(([tid]) => visibleTypeIds.includes(tid))
+        .map(([tid, iid]) => {
+          const t = typeById.get(tid);
+          const item = (itemsByType.get(tid) || []).find((it) => String(it?.id || "") === iid);
+          const labelA = typeLabel(t);
+          const labelB = itemLabel(item || { id: iid, name: iid });
+          return `${labelA}: ${labelB}`;
+        });
+      const txt = selectedRows.length
+        ? `${tt("hub.overview.scopeTitle", "Scope")}: ${selectedRows.join(" · ")}`
+        : `${tt("hub.overview.scopeTitle", "Scope")}: ${tt("hub.scope.allScope", "All scope")}`;
+      infoBarEl.textContent = txt;
+      infoBarEl.removeAttribute("title");
     }
     function renderPicker(scope) {
       if (!pickerEl || !pickerTitleEl || !pickerListEl || !openTypeId || !typeById.has(openTypeId)) {
@@ -1639,6 +2077,7 @@
       });
     }
     function render() {
+      applyScopeDockStyle(node);
       const scopeRaw = readHubScope();
       loadModel();
       const scopeCtx = buildScopeContext(scopeRaw);
@@ -1647,6 +2086,7 @@
         updateScope(scope);
       }
       renderKpis(scope);
+      renderInfoBar(scope);
       if (resetBtn) resetBtn.textContent = tt("hub.overview.resetFilters", "Reset");
       if (filterSearchEl) {
         if (document.activeElement !== filterSearchEl) {
@@ -1654,10 +2094,11 @@
           if (filterSearchEl.value !== nextVal) filterSearchEl.value = nextVal;
         }
         filterSearchEl.placeholder = tt("hub.jobs.searchPlaceholder", "Search station/job...");
+        syncSearchInlineState();
       }
       if (pickerSearchEl) pickerSearchEl.placeholder = tt("hub.jobs.searchPlaceholder", "Search station/job...");
       if (pickerCloseEl) pickerCloseEl.textContent = tt("common.close", "Close");
-      renderPicker(scope);
+      closePicker();
     }
     function clearSelection() {
       const scope = readHubScope();
@@ -1666,32 +2107,35 @@
       updateScope({ ...scope, selected: nextSelected, openTypeId: "", query: "" });
     }
     function openScopePicker(typeId = "") {
-      setMobileScopeExpanded(true);
-      loadModel();
-      const wanted = String(typeId || "").trim();
-      openTypeId = wanted && visibleTypeIds.includes(wanted)
-        ? wanted
-        : String(visibleTypeIds[0] || "");
-      pickerQuery = "";
-      if (pickerSearchEl) pickerSearchEl.value = "";
+      setScopeCollapsed(false);
+      closePicker();
       render();
+      const wanted = String(typeId || "").trim();
+      let targetSel = null;
+      if (wanted) {
+        const sels = kpisEl ? Array.from(kpisEl.querySelectorAll("[data-scope-select]")) : [];
+        targetSel = sels.find((el) => String(el.getAttribute("data-scope-select") || "") === wanted) || null;
+      } else {
+        targetSel = kpisEl?.querySelector("[data-scope-select]") || null;
+      }
+      if (targetSel instanceof HTMLElement) targetSel.focus();
     }
     resetBtn?.addEventListener("click", () => {
       clearSelection();
       closePicker();
       render();
     });
-    toggleBtn?.addEventListener("click", () => {
-      setMobileScopeExpanded(!mobileScopeExpanded);
-      if (!mobileScopeExpanded) closePicker();
+    infoBarEl?.addEventListener("click", () => {
+      node.classList.add("is-open");
+      setScopeCollapsed(false);
       render();
+      const firstSel = kpisEl?.querySelector("[data-scope-select]");
+      if (firstSel instanceof HTMLElement) firstSel.focus();
     });
     panelEl?.addEventListener("pointerdown", (e) => {
       const target = e.target;
       if (!(target instanceof Element)) return;
-      if (!isMobileScopeCompact() || mobileScopeExpanded) return;
-      if (target.closest(".scopeToggle")) return;
-      setMobileScopeExpanded(true);
+      if (target.closest(".scopeInfoBar")) return;
     });
     pickerCloseEl?.addEventListener("click", () => {
       closePicker();
@@ -1702,6 +2146,7 @@
       renderPicker(readHubScope());
     });
     filterSearchEl?.addEventListener("input", () => {
+      syncSearchInlineState();
       if (scopeQueryInputTimer) clearTimeout(scopeQueryInputTimer);
       scopeQueryInputTimer = setTimeout(() => {
         const nextQuery = String(filterSearchEl.value || "");
@@ -1714,6 +2159,9 @@
         render();
       }, 140);
     });
+    filterSearchEl?.addEventListener("blur", () => {
+      syncSearchInlineState();
+    });
     document.addEventListener("pointerdown", (e) => {
       const target = e.target;
       if (!(target instanceof Node)) return;
@@ -1724,17 +2172,13 @@
         closePicker();
         changed = true;
       }
-      if (isMobileScopeCompact() && mobileScopeExpanded) {
-        setMobileScopeExpanded(false);
-        changed = true;
-      }
+      node.classList.remove("is-open");
       if (changed) render();
     });
 
     if (mobileScopeMq) {
       const onMobileScopeChange = () => {
-        if (!isMobileScopeCompact()) mobileScopeExpanded = true;
-        else mobileScopeExpanded = false;
+        // Keep collapsed/expanded state stable across viewport changes.
         syncScopeDockCompactState();
         render();
       };
@@ -1757,10 +2201,12 @@
         scopeDock.remove();
         scopeDock = null;
       }
+      setScopeDockBodyClass(false);
       applyTopDockPadding(false);
       return;
     }
     ensureScopeDock();
+    setScopeDockBodyClass(true);
     if (scopeDock && typeof scopeDock.render === "function") {
       scopeDock.render();
     }
@@ -1819,6 +2265,15 @@
     if (String(e.key || "") === HUB_SCOPE_TOOLBAR_KEY) {
       renderScopeDock();
     }
+    if (String(e.key || "") === SCOPE_DOCK_STYLE_KEY) {
+      renderScopeDock();
+    }
+    if (String(e.key || "") === SCOPE_DOCK_UI_KEY) {
+      renderScopeDock();
+    }
+    if (String(e.key || "") === LOGGER_UI_KEY || String(e.key || "") === LOGGER_LOG_KEY) {
+      renderLoggerOverlay();
+    }
   });
 
   window.addEventListener("vmill:module-prefs-changed", () => {
@@ -1837,6 +2292,7 @@
     else {
       applyI18n();
       renderScopeDock();
+      renderLoggerOverlay();
     }
   });
   window.addEventListener("vmill:lang:catalog:changed", () => {
@@ -1844,12 +2300,16 @@
     else {
       applyI18n();
       renderScopeDock();
+      renderLoggerOverlay();
     }
   });
   window.addEventListener("vmill:hub-scope:changed", () => {
     renderScopeDock();
   });
   window.addEventListener("vmill:scope-toolbar-prefs:changed", () => {
+    renderScopeDock();
+  });
+  window.addEventListener("vmill:scope-dock-style:changed", () => {
     renderScopeDock();
   });
   window.addEventListener("vmill:scope:open", (e) => {
@@ -1862,15 +2322,23 @@
     }
     renderScopeDock();
   });
+  window.addEventListener("vmill:logger:new", () => {
+    renderLoggerOverlay();
+  });
+  window.addEventListener("vmill:logger:cleared", () => {
+    renderLoggerOverlay();
+  });
   window.addEventListener("load", () => {
     applyModuleViewportFix();
     if (host.classList.contains("open")) renderAll();
     else applyI18n();
     renderRightRail();
     renderScopeDock();
+    renderLoggerOverlay();
   });
   applyModuleViewportFix();
   applyI18n();
   renderRightRail();
   renderScopeDock();
+  renderLoggerOverlay();
 })();

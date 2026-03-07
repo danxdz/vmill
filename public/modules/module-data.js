@@ -11,6 +11,7 @@
   const SYNC_POLL_MS = 5000;
   const SYNC_POLL_HIDDEN_MS = 15000;
   const SYNC_POLL_OFFLINE_MS = 7000;
+  const SYNC_POLL_AUTH_ERROR_MS = 30000;
   const SYNC_WRITE_DEBOUNCE_MS = 700;
   const SYNC_WRITE_MAX_WAIT_MS = 2600;
   const SYNC_PUSH_RETRY_MS = 2200;
@@ -753,9 +754,20 @@
           continue;
         }
         const parsed = await res.json();
+        const hasSnapshotShape = !!(
+          parsed && typeof parsed === "object" && (
+            parsed.app || parsed.modules || parsed.snapshot
+            || parsed.state || (parsed.data && typeof parsed.data === "object" && (parsed.data.app || parsed.data.modules))
+          )
+        );
+        if (hasSnapshotShape) {
+          const imported = importJsonPayload(parsed, { seedRoutes: true, seedOverwrite: true, seedPrune: true });
+          const appState = readAppState({ seedIfMissing: false }) || createEmptyAppState();
+          return { state: appState, source: candidate, imported };
+        }
         const normalized = normalizeImportedAppState(parsed);
         if (!normalized) {
-          tries.push(`${candidate} -> invalid app state format`);
+          tries.push(`${candidate} -> invalid app/snapshot format`);
           continue;
         }
         writeAppState(normalized);
@@ -1482,16 +1494,26 @@
   function normalizeEntityAttributes(raw) {
     const rows = Array.isArray(raw) ? raw : [];
     const allowed = new Set(["string", "number", "boolean", "date", "text"]);
-    return rows
-      .map((row) => ({
+    const out = rows
+      .map((row, idx) => {
+        const parsedOrder = Number(row?.order);
+        const order = Number.isFinite(parsedOrder) ? parsedOrder : idx;
+        return {
         id: String(row?.id || uuid()),
         name: String(row?.name || "").trim(),
         type: allowed.has(String(row?.type || "string").toLowerCase())
           ? String(row?.type || "string").toLowerCase()
           : "string",
-        required: !!row?.required,
-      }))
+          required: !!row?.required,
+          enabled: row?.enabled !== false,
+          order,
+          core: !!row?.core,
+          key: String(row?.key || ""),
+        };
+      })
       .filter((row) => !!row.name);
+    out.sort((a, b) => Number(a?.order || 0) - Number(b?.order || 0));
+    return out.map((row, idx) => ({ ...row, order: idx }));
   }
 
   function normalizeEntityType(raw) {
@@ -2423,6 +2445,7 @@
 
   function computePollDelayMs() {
     if (!syncState.online) return SYNC_POLL_OFFLINE_MS;
+    if (syncState.authError) return SYNC_POLL_AUTH_ERROR_MS;
     if (typeof document !== "undefined" && document.hidden && !syncState.dirtyApp && !syncState.dirtyModules) {
       return SYNC_POLL_HIDDEN_MS;
     }

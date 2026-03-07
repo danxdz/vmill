@@ -203,6 +203,49 @@
       flex:0 0 auto;
       background:color-mix(in srgb,var(--panel) 84%, transparent);
     }
+    @media(max-width:760px){
+      .wrap{
+        padding:8px;
+      }
+      .head{
+        margin-bottom:8px;
+      }
+      .head h1{
+        font-size:24px;
+      }
+      .sub{
+        font-size:12px;
+      }
+      .card{
+        padding:10px;
+        border-radius:12px;
+      }
+      .controls{
+        grid-template-columns:1fr;
+        gap:6px;
+      }
+      .routeGrid{
+        grid-template-columns:1fr;
+      }
+      .routeTools{
+        gap:6px;
+      }
+      .routeTools > *{
+        flex:1 1 100%;
+      }
+      .tableWrap{
+        max-height:46dvh;
+        min-height:160px;
+      }
+      .tbl{
+        min-width:420px;
+        font-size:11px;
+      }
+      .canvasWrap{
+        min-height:260px;
+        max-height:58dvh;
+      }
+    }
   </style>
 </head>
 <body>

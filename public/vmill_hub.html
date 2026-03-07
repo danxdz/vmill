@@ -131,6 +131,9 @@
       text-align: left;
       transition: .16s ease;
     }
+    body.vmillHasScopeDock .topbarPeek {
+      display: none;
+    }
     .topbarPeek:hover {
       border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
       background:
@@ -1521,6 +1524,25 @@
             <div class="scopeToolbarList" id="scopeToolbarTypeOrderList" style="margin-top:6px;"></div>
             <div class="minor" id="scopeToolbarAvailableLbl" style="margin-top:8px;">Available sets</div>
             <div class="scopeToolbarList" id="scopeToolbarTypeAvailableList" style="margin-top:6px;"></div>
+            <div class="minor" id="scopeToolbarStyleLbl" style="margin-top:10px;">Scope Bar Style</div>
+            <div class="controlRow" style="margin-top:6px;">
+              <label class="minor" id="scopeDockWidthLbl" for="scopeDockWidthRange">Bar size (% screen)</label>
+              <input class="rangeInput" id="scopeDockWidthRange" type="range" min="65" max="99" step="1" value="92" />
+              <span class="pill mono" id="scopeDockWidthValue">92%</span>
+            </div>
+            <div class="controlRow" style="margin-top:6px;">
+              <label class="minor" id="scopeDockSelectWidthLbl" for="scopeDockSelectWidthRange">Selector size (% bar)</label>
+              <input class="rangeInput" id="scopeDockSelectWidthRange" type="range" min="10" max="28" step="1" value="14" />
+              <span class="pill mono" id="scopeDockSelectWidthValue">14%</span>
+            </div>
+            <div class="controlRow" style="margin-top:6px;">
+              <label class="minor" id="scopeDockSearchWidthLbl" for="scopeDockSearchWidthRange">Search size (% bar)</label>
+              <input class="rangeInput" id="scopeDockSearchWidthRange" type="range" min="12" max="30" step="1" value="17" />
+              <span class="pill mono" id="scopeDockSearchWidthValue">17%</span>
+            </div>
+            <div class="controlRow" style="margin-top:6px;">
+              <button class="btn ghost" id="scopeDockStyleResetBtn" type="button">Reset style</button>
+            </div>
           </div>
           <div class="settingsCard">
             <div class="settingsTitle" id="settingsModulesTitle">Modules</div>
@@ -1670,6 +1692,7 @@
       const HUB_SCOPE_KEY = "vmill:hub-scope:v1";
       const HUB_SCOPE_UI_KEY = "vmill:hub-scope-ui:v1";
       const HUB_SCOPE_TOOLBAR_KEY = "vmill:hub-scope-toolbar:v1";
+      const HUB_SCOPE_DOCK_STYLE_KEY = "vmill:scope-dock-style:v1";
       const HUB_TOPBAR_KEY = "vmill:hub-topbar:v1";
       const HUB_UI_PREF_KEY = "vmill:hub-ui-prefs:v1";
       const HUB_DEMO_PRESET_KEY = "vmill:hub-demo-preset:v1";
@@ -1717,6 +1740,13 @@
       const scopeToolbarModeSel = document.getElementById("scopeToolbarModeSel");
       const scopeToolbarTypeOrderList = document.getElementById("scopeToolbarTypeOrderList");
       const scopeToolbarTypeAvailableList = document.getElementById("scopeToolbarTypeAvailableList");
+      const scopeDockWidthRange = document.getElementById("scopeDockWidthRange");
+      const scopeDockWidthValue = document.getElementById("scopeDockWidthValue");
+      const scopeDockSelectWidthRange = document.getElementById("scopeDockSelectWidthRange");
+      const scopeDockSelectWidthValue = document.getElementById("scopeDockSelectWidthValue");
+      const scopeDockSearchWidthRange = document.getElementById("scopeDockSearchWidthRange");
+      const scopeDockSearchWidthValue = document.getElementById("scopeDockSearchWidthValue");
+      const scopeDockStyleResetBtn = document.getElementById("scopeDockStyleResetBtn");
       const hubCompactChk = document.getElementById("hubCompactChk");
       const hubReduceMotionChk = document.getElementById("hubReduceMotionChk");
       const USE_SINGLE_GLOBAL_SCOPE = true;
@@ -1772,6 +1802,7 @@
       let imageUploadTarget = null;
       let hubUiPrefs = { autoScale: true, scalePct: 100, compact: false, reduceMotion: false, panelStack: "vertical" };
       let scopeToolbarPrefs = { mode: "roots", hiddenTypeIds: [] };
+      let scopeDockStylePrefs = { widthPct: 92, selectPct: 14, searchPct: 17 };
       function requestHubRender(opts = {}) {
         hubRenderNeedOverview = hubRenderNeedOverview || !!opts.overview;
         hubRenderNeedJobs = hubRenderNeedJobs || !!opts.jobs;
@@ -1944,6 +1975,11 @@
         setTxt("scopeToolbarModeLbl", "hub.toolbar.mode", "Category source");
         setTxt("scopeToolbarOrderLbl", "hub.toolbar.order", "Shown in toolbar");
         setTxt("scopeToolbarAvailableLbl", "hub.toolbar.available", "Available sets");
+        setTxt("scopeToolbarStyleLbl", "hub.toolbar.style", "Scope Bar Style");
+        setTxt("scopeDockWidthLbl", "hub.toolbar.style.width", "Bar size (% screen)");
+        setTxt("scopeDockSelectWidthLbl", "hub.toolbar.style.selectWidth", "Selector size (% bar)");
+        setTxt("scopeDockSearchWidthLbl", "hub.toolbar.style.searchWidth", "Search size (% bar)");
+        setTxt("scopeDockStyleResetBtn", "hub.toolbar.style.reset", "Reset style");
         setTxt("settingsModulesTitle", "hub.modules.title", "Modules");
         setTxt("resetLayoutBtn", "hub.personalize.resetLayout", "Reset Layout");
         setTxt("hubPanelStackLbl", "hub.personalize.panelStack", "Panel stack");
@@ -2162,6 +2198,63 @@
         return payload;
       }
 
+      function normalizeScopeDockStylePrefs(raw) {
+        const src = raw && typeof raw === "object" ? raw : {};
+        const vw = Math.max(640, window.innerWidth || 1440);
+        const legacyMax = Number(src.maxWidth);
+        const legacySelect = Number(src.selectWidth);
+        const legacySearch = Number(src.searchMax);
+        const baseWidthPct = Number(src.widthPct);
+        const widthPctSeed = Number.isFinite(baseWidthPct) && baseWidthPct > 0
+          ? baseWidthPct
+          : (Number.isFinite(legacyMax) && legacyMax > 0 ? ((legacyMax / vw) * 100) : 92);
+        const widthPct = Math.max(65, Math.min(99, widthPctSeed));
+        const estMaxPx = Math.max(720, Math.min(2000, Math.round((vw * widthPct) / 100)));
+        const baseSelectPct = Number(src.selectPct);
+        const selectPctSeed = Number.isFinite(baseSelectPct) && baseSelectPct > 0
+          ? baseSelectPct
+          : (Number.isFinite(legacySelect) && legacySelect > 0 ? ((legacySelect / estMaxPx) * 100) : 14);
+        const baseSearchPct = Number(src.searchPct);
+        const searchPctSeed = Number.isFinite(baseSearchPct) && baseSearchPct > 0
+          ? baseSearchPct
+          : (Number.isFinite(legacySearch) && legacySearch > 0 ? ((legacySearch / estMaxPx) * 100) : 17);
+        const selectPct = Math.max(10, Math.min(28, selectPctSeed));
+        const searchPct = Math.max(12, Math.min(30, searchPctSeed));
+        return {
+          widthPct: Math.round(widthPct),
+          selectPct: Math.round(selectPct),
+          searchPct: Math.round(searchPct),
+        };
+      }
+
+      function readScopeDockStylePrefs() {
+        try {
+          const raw = localStorage.getItem(HUB_SCOPE_DOCK_STYLE_KEY);
+          const parsed = raw ? JSON.parse(raw) : {};
+          return normalizeScopeDockStylePrefs(parsed);
+        } catch {
+          return normalizeScopeDockStylePrefs({});
+        }
+      }
+
+      function writeScopeDockStylePrefs(next) {
+        const payload = normalizeScopeDockStylePrefs(next);
+        try { localStorage.setItem(HUB_SCOPE_DOCK_STYLE_KEY, JSON.stringify(payload)); } catch {}
+        window.dispatchEvent(new CustomEvent("vmill:scope-dock-style:changed", { detail: { prefs: payload } }));
+        return payload;
+      }
+
+      function applyScopeDockStyleSettings(prefs, persist = false) {
+        scopeDockStylePrefs = normalizeScopeDockStylePrefs(prefs);
+        if (scopeDockWidthRange) scopeDockWidthRange.value = String(scopeDockStylePrefs.widthPct);
+        if (scopeDockWidthValue) scopeDockWidthValue.textContent = `${scopeDockStylePrefs.widthPct}%`;
+        if (scopeDockSelectWidthRange) scopeDockSelectWidthRange.value = String(scopeDockStylePrefs.selectPct);
+        if (scopeDockSelectWidthValue) scopeDockSelectWidthValue.textContent = `${scopeDockStylePrefs.selectPct}%`;
+        if (scopeDockSearchWidthRange) scopeDockSearchWidthRange.value = String(scopeDockStylePrefs.searchPct);
+        if (scopeDockSearchWidthValue) scopeDockSearchWidthValue.textContent = `${scopeDockStylePrefs.searchPct}%`;
+        if (persist) scopeDockStylePrefs = writeScopeDockStylePrefs(scopeDockStylePrefs);
+      }
+
       function readHubScopeUiPrefs() {
         const defaultCompact = true;
         try {
@@ -2367,6 +2460,35 @@
             const mode = String(scopeToolbarModeSel.value || "roots") === "all" ? "all" : "roots";
             scopeToolbarPrefs = writeScopeToolbarPrefs({ ...scopeToolbarPrefs, mode });
             renderScopeToolbarSettings();
+          });
+        }
+        if (scopeDockWidthRange) {
+          scopeDockWidthRange.addEventListener("input", () => {
+            applyScopeDockStyleSettings({
+              ...scopeDockStylePrefs,
+              widthPct: Number(scopeDockWidthRange.value) || scopeDockStylePrefs.widthPct,
+            }, true);
+          });
+        }
+        if (scopeDockSelectWidthRange) {
+          scopeDockSelectWidthRange.addEventListener("input", () => {
+            applyScopeDockStyleSettings({
+              ...scopeDockStylePrefs,
+              selectPct: Number(scopeDockSelectWidthRange.value) || scopeDockStylePrefs.selectPct,
+            }, true);
+          });
+        }
+        if (scopeDockSearchWidthRange) {
+          scopeDockSearchWidthRange.addEventListener("input", () => {
+            applyScopeDockStyleSettings({
+              ...scopeDockStylePrefs,
+              searchPct: Number(scopeDockSearchWidthRange.value) || scopeDockStylePrefs.searchPct,
+            }, true);
+          });
+        }
+        if (scopeDockStyleResetBtn) {
+          scopeDockStyleResetBtn.addEventListener("click", () => {
+            applyScopeDockStyleSettings({ widthPct: 92, selectPct: 14, searchPct: 17 }, true);
           });
         }
         if (hubCompactChk) {
@@ -4375,6 +4497,8 @@
           return [];
         };
         const currentModeTypeId = modeTypeId(jobsEntityMode);
+        const currentChildTypeIds = childTypeIdsFor(currentModeTypeId);
+        const canDrillDown = currentChildTypeIds.length > 0;
 
         if (jobsExplorerNav) {
           const trailText = [modeLabel(jobsEntityMode), ...jobsExploreTrail.slice().reverse().map((m) => modeLabel(m))]
@@ -5212,6 +5336,10 @@
           scopeToolbarPrefs = readScopeToolbarPrefs();
           renderScopeToolbarSettings();
         }
+        if (e.key === HUB_SCOPE_DOCK_STYLE_KEY) {
+          scopeDockStylePrefs = readScopeDockStylePrefs();
+          applyScopeDockStyleSettings(scopeDockStylePrefs, false);
+        }
       });
       window.addEventListener("vmill:hub-scope:changed", () => {
         hubScope = readHubScopePrefs();
@@ -5220,6 +5348,10 @@
       window.addEventListener("vmill:scope-toolbar-prefs:changed", () => {
         scopeToolbarPrefs = readScopeToolbarPrefs();
         renderScopeToolbarSettings();
+      });
+      window.addEventListener("vmill:scope-dock-style:changed", () => {
+        scopeDockStylePrefs = readScopeDockStylePrefs();
+        applyScopeDockStyleSettings(scopeDockStylePrefs, false);
       });
       window.addEventListener("vmill:module-prefs-changed", () => {
         renderModules();
@@ -5259,6 +5391,7 @@
       hubUiPrefs = readHubUiPrefs();
       hubScope = readHubScopePrefs();
       scopeToolbarPrefs = readScopeToolbarPrefs();
+      scopeDockStylePrefs = readScopeDockStylePrefs();
       const scopeUiPrefs = readHubScopeUiPrefs();
       overlayVisible = workspacePrefs.overlayVisible;
       topbarCollapsed = topbarPrefs.collapsed;
@@ -5275,6 +5408,7 @@
       initGlobalLanguageControl();
       applyHubI18nStatic();
       applyHubUiPrefs(hubUiPrefs, false);
+      applyScopeDockStyleSettings(scopeDockStylePrefs, false);
       bindHubUiPrefsControls();
       bindTopbarPanel();
       bindHeaderReveal();

@@ -105,6 +105,21 @@
       background: rgba(255,255,255,.02);
     }
     .tree, .tree ul { list-style: none; margin: 0; padding-left: 12px; }
+    .treeRootDrop {
+      border: 1px dashed color-mix(in srgb, var(--acc) 40%, transparent);
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      font-size: 11px;
+      color: var(--muted);
+      background: rgba(255,255,255,.02);
+      user-select: none;
+    }
+    .treeRootDrop.dragOver {
+      border-color: color-mix(in srgb, var(--ok) 70%, transparent);
+      background: color-mix(in srgb, var(--ok) 14%, transparent);
+      color: var(--text);
+    }
     .treeNode {
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -116,6 +131,14 @@
       gap: 6px;
       background: rgba(255,255,255,.02);
       cursor: pointer;
+    }
+    .treeNode.dragging {
+      opacity: .45;
+      border-style: dashed;
+    }
+    .treeNode.dropOver {
+      border-color: color-mix(in srgb, var(--ok) 65%, transparent);
+      background: color-mix(in srgb, var(--ok) 14%, transparent);
     }
     .treeNode.selected {
       border-color: color-mix(in srgb, var(--acc) 72%, transparent);
@@ -251,12 +274,46 @@
       background: color-mix(in srgb, var(--panel2) 94%, transparent);
     }
     .recordsTable tr:last-child td { border-bottom: 0; }
+    .recordsTable tr[data-record-id][data-record-drag-id] {
+      cursor: grab;
+    }
+    .recordsTable tr[data-record-id][data-record-drag-id].dragging {
+      opacity: .45;
+    }
+    .recordsTable tr[data-record-id].recordDragOver td {
+      background: color-mix(in srgb, var(--acc) 14%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 65%, transparent);
+    }
     .recordsTable input,
     .recordsTable select {
       min-width: 120px;
       padding: 6px;
       font-size: 12px;
       border-radius: 8px;
+    }
+    .recordDropArea {
+      margin: 8px 0 10px;
+      display: grid;
+      gap: 6px;
+    }
+    .recordDropChips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .parentDropChip {
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--panel2) 94%, transparent);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .parentDropChip.dropOver {
+      border-color: color-mix(in srgb, var(--acc) 70%, transparent);
+      background: color-mix(in srgb, var(--acc) 16%, transparent);
     }
     .recordDeleteBtn {
       border: 1px solid color-mix(in srgb, var(--danger) 65%, transparent);
@@ -296,11 +353,37 @@
       text-transform: uppercase;
     }
     .attrTable tr:last-child td { border-bottom: 0; }
+    .attrTable tr.dragging {
+      opacity: .45;
+      border-style: dashed;
+    }
+    .attrTable tr.attrDragOver td {
+      background: color-mix(in srgb, var(--acc) 14%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 65%, transparent);
+    }
     .attrTable input, .attrTable select {
       min-width: 110px;
       padding: 6px;
       font-size: 12px;
       border-radius: 8px;
+    }
+    .attrActions {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+    }
+    .attrMoveBtn {
+      border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      color: var(--text);
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 5px 8px;
+      cursor: pointer;
+      line-height: 1;
+      min-width: 28px;
     }
     @media (max-width: 980px) {
       .layout { grid-template-columns: 1fr; }
@@ -361,6 +444,9 @@
         flashTimer: 0,
         loadTimer: 0,
         loadSilent: true,
+        dragTypeId: "",
+        dragAttrId: "",
+        dragRecordId: "",
       };
 
       const treeWrap = document.getElementById("treeWrap");
@@ -430,18 +516,31 @@
         const list = Array.isArray(raw) ? raw : [];
         const allowed = new Set(["string", "number", "boolean", "date", "text"]);
         const out = [];
+        let fallbackOrder = 0;
         for (const row of list) {
           const name = String(row?.name || "").trim();
           if (!name) continue;
           const type = String(row?.type || "string").trim().toLowerCase();
+          const parsedOrder = Number(row?.order);
+          const order = Number.isFinite(parsedOrder) ? parsedOrder : fallbackOrder;
           out.push({
             id: String(row?.id || makeId("attr")),
             name,
             type: allowed.has(type) ? type : "string",
             required: !!row?.required,
+            enabled: row?.enabled !== false,
+            order,
+            core: !!row?.core,
+            key: String(row?.key || ""),
           });
+          fallbackOrder += 1;
         }
-        return out;
+        out.sort((a, b) => Number(a?.order || 0) - Number(b?.order || 0));
+        return out.map((row, idx) => ({ ...row, order: idx }));
+      }
+
+      function withCoreTypeAttributes(type) {
+        return normalizeTypeAttributes(type?.attributes);
       }
 
       function makeId(prefix = "id") {
@@ -481,6 +580,58 @@
         const tid = String(typeId || "");
         if (!tid) return null;
         return (state.rules || []).find((r) => String(r?.childTypeId || "") === tid) || null;
+      }
+
+      function parentTypeChain(typeId) {
+        const start = String(typeId || "");
+        const seen = new Set([start]);
+        const out = [];
+        let cur = start;
+        while (cur) {
+          const rule = incomingRule(cur);
+          const pid = String(rule?.parentTypeId || "");
+          if (!pid || seen.has(pid)) break;
+          out.push(pid);
+          seen.add(pid);
+          cur = pid;
+        }
+        return out;
+      }
+
+      function mergedTypeAttributes(type) {
+        const own = withCoreTypeAttributes(type);
+        const ownKeySet = new Set(own.map((a) => String(a?.name || "").trim().toLowerCase()).filter(Boolean));
+        const inheritedMap = new Map();
+        const chain = parentTypeChain(String(type?.id || ""));
+        // Process far parent -> near parent so nearest definition wins.
+        const orderedParents = chain.slice().reverse();
+        for (const parentId of orderedParents) {
+          const parentType = findType(parentId);
+          if (!parentType) continue;
+          const attrs = withCoreTypeAttributes(parentType);
+          for (const attr of attrs) {
+            const key = String(attr?.name || "").trim().toLowerCase();
+            if (!key) continue;
+            inheritedMap.set(key, {
+              ...attr,
+              origin: "inherited",
+              sourceTypeId: String(parentType.id || ""),
+              sourceLabel: typeLabel(parentType),
+            });
+          }
+        }
+        const ownRows = own.map((attr) => ({
+          ...attr,
+          origin: "own",
+          sourceTypeId: String(type?.id || ""),
+          sourceLabel: tt("shop.form.sourceOwn", "Current"),
+        }));
+        const inheritedRows = [];
+        for (const [key, row] of inheritedMap.entries()) {
+          if (ownKeySet.has(key)) continue;
+          inheritedRows.push(row);
+        }
+        return [...ownRows, ...inheritedRows];
       }
 
       function childMap() {
@@ -550,10 +701,12 @@
       function toUiItem(row) {
         const src = row && typeof row === "object" ? row : {};
         return {
+          ...src,
           id: String(src.id || ""),
           code: String(src.code || ""),
           name: String(src.name || ""),
           source: String(src.source || "custom"),
+          meta: (src.meta && typeof src.meta === "object") ? { ...src.meta } : {},
         };
       }
 
@@ -574,6 +727,96 @@
         const name = String(item?.name || "").trim();
         if (code && name) return `${code} - ${name}`;
         return name || code || String(item?.id || "");
+      }
+
+      function reservedRecordAttrNames(role) {
+        const r = String(role || "custom").toLowerCase();
+        const out = new Set(["id"]);
+        if (r === "product") {
+          out.add("code");
+          out.add("name");
+          out.add("parentproduct");
+          out.add("parentproductid");
+          return out;
+        }
+        if (r === "station") {
+          out.add("code");
+          out.add("name");
+          return out;
+        }
+        if (r === "job") {
+          out.add("name");
+          out.add("station");
+          out.add("stationid");
+          out.add("nodeid");
+          out.add("product");
+          out.add("productid");
+          out.add("status");
+          return out;
+        }
+        out.add("code");
+        out.add("name");
+        return out;
+      }
+
+      function canonicalFieldKey(v) {
+        return String(v || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+      }
+
+      function recordAttributesForType(type) {
+        if (!type) return [];
+        const role = String(type.moduleRole || "custom").toLowerCase();
+        const reserved = reservedRecordAttrNames(role);
+        return mergedTypeAttributes(type)
+          .filter((attr) => attr?.enabled !== false)
+          .filter((attr) => {
+            const name = canonicalFieldKey(attr?.name);
+            return !!name && !reserved.has(name);
+          });
+      }
+
+      function displayRecordFieldsForType(type) {
+        return mergedTypeAttributes(type)
+          .filter((attr) => attr?.enabled !== false)
+          .filter((attr) => !!String(attr?.name || "").trim());
+      }
+
+      function readRecordAttrMeta(rowEl, attrs, baseMeta = {}) {
+        const out = (baseMeta && typeof baseMeta === "object") ? { ...baseMeta } : {};
+        if (!(rowEl instanceof HTMLElement)) return out;
+        const inputs = Array.from(rowEl.querySelectorAll('[data-record-field^="attr:"]'));
+        const byId = new Map();
+        for (const el of inputs) {
+          if (!(el instanceof HTMLElement)) continue;
+          const field = String(el.getAttribute("data-record-field") || "");
+          if (!field.startsWith("attr:")) continue;
+          byId.set(field.slice(5), el);
+        }
+        for (const attr of (Array.isArray(attrs) ? attrs : [])) {
+          const id = String(attr?.id || "");
+          if (!id) continue;
+          const name = String(attr?.name || "");
+          const type = String(attr?.type || "string").toLowerCase();
+          const el = byId.get(id);
+          if (!(el instanceof HTMLElement)) continue;
+          let value = "";
+          if (type === "boolean") {
+            value = (el instanceof HTMLInputElement) ? !!el.checked : false;
+          } else {
+            const raw = (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement)
+              ? String(el.value || "").trim()
+              : "";
+            if (type === "number" && raw) {
+              const n = Number(raw);
+              value = Number.isFinite(n) ? n : raw;
+            } else {
+              value = raw;
+            }
+          }
+          out[id] = value;
+          if (name && Object.prototype.hasOwnProperty.call(out, name)) delete out[name];
+        }
+        return out;
       }
 
       function upsertAppRow(role, payload) {
@@ -691,6 +934,46 @@
         window.CANBus?.emit("shop:tree:changed", { reason, typeId: state.selectedTypeId || "" }, "shop-tree");
       }
 
+      function clearTreeDropUi() {
+        if (!(treeWrap instanceof HTMLElement)) return;
+        treeWrap.querySelectorAll(".treeNode.dropOver, .treeNode.dragging, .treeRootDrop.dragOver")
+          .forEach((el) => el.classList.remove("dropOver", "dragging", "dragOver"));
+      }
+
+      function clearAttrDropUi() {
+        if (!(detailWrap instanceof HTMLElement)) return;
+        detailWrap.querySelectorAll('tr[data-type-attr-row].dragging, tr[data-type-attr-row].attrDragOver')
+          .forEach((el) => el.classList.remove("dragging", "attrDragOver"));
+      }
+
+      function clearRecordDropUi() {
+        if (!(detailWrap instanceof HTMLElement)) return;
+        detailWrap.querySelectorAll('tr[data-record-id].dragging, tr[data-record-id].recordDragOver, [data-record-parent-drop].dropOver')
+          .forEach((el) => el.classList.remove("dragging", "recordDragOver", "dropOver"));
+      }
+
+      async function moveTypeToParent(typeId, parentTypeId = "") {
+        const childId = String(typeId || "");
+        const parentId = String(parentTypeId || "");
+        if (!childId) return false;
+        const child = findType(childId);
+        if (!child) return false;
+        if (parentId && parentId === childId) return false;
+        if (parentId && !findType(parentId)) return false;
+        const current = incomingRule(childId);
+        const currentParent = String(current?.parentTypeId || "");
+        if (currentParent === parentId) return false;
+        const descendants = descendantsOf(childId);
+        if (parentId && descendants.has(parentId)) return false;
+        syncParentRule(childId, parentId, "contains");
+        state.selectedTypeId = childId;
+        if (parentId) state.expanded.add(parentId);
+        emitTreeChanged("type-dnd-parent");
+        await loadAll({ silent: true });
+        flashSaved();
+        return true;
+      }
+
       function renderTree() {
         if (state.loading) {
           treeWrap.innerHTML = `<div class="empty">${esc(tt("shop.status.loading", "Loading..."))}</div>`;
@@ -730,7 +1013,7 @@
             const dotClass = t.base ? "base" : "custom";
             return `
               <li>
-                <div class="treeNode${selected}" data-select-type="${esc(id)}">
+                <div class="treeNode${selected}" data-select-type="${esc(id)}" draggable="true" data-drag-type="${esc(id)}" data-drop-type="${esc(id)}">
                   <div class="treeNodeMain">
                     <button class="twisty" type="button" data-toggle-type="${esc(id)}">${hasChild ? (open ? "-" : "+") : "·"}</button>
                     <span class="dot ${dotClass}"></span>
@@ -767,7 +1050,7 @@
           const dotClass = t.base ? "base" : "custom";
           return `
             <li>
-              <div class="treeNode${selected}" data-select-type="${esc(id)}">
+              <div class="treeNode${selected}" data-select-type="${esc(id)}" draggable="true" data-drag-type="${esc(id)}" data-drop-type="${esc(id)}">
                 <div class="treeNodeMain">
                   <button class="twisty" type="button" data-toggle-type="${esc(id)}">${hasChild ? (open ? "-" : "+") : "·"}</button>
                   <span class="dot ${dotClass}"></span>
@@ -786,6 +1069,11 @@
             </li>
           `;
         }).join("")}</ul></div>`;
+
+        treeWrap.innerHTML = `
+          <div class="treeRootDrop" data-drop-root="1">${esc(tt("shop.drag.dropRoot", "Drop folder here to move it to root"))}</div>
+          ${treeWrap.innerHTML}
+        `;
       }
 
       function renderDetail() {
@@ -847,31 +1135,122 @@
         const parentAssignColumnTitle = parentTypeId
           ? typeLabel(parentType || { nameSingular: tt("shop.form.parentCategory", "Parent folder") })
           : tt("shop.form.parentCategory", "Parent folder");
-        const typeAttributes = normalizeTypeAttributes(type.attributes);
+        const parentDropTargets = parentTypeId
+          ? `
+            <div class="recordDropArea">
+              <div class="tiny">${esc(tt("shop.drag.recordToParent", "Drag a record row to a parent chip to move it between parent folders."))}</div>
+              <div class="recordDropChips">
+                <button class="parentDropChip" type="button" data-record-parent-drop="">${esc(tt("shop.option.none", "(none)"))}</button>
+                ${parentItems.map((row) => {
+                  const id = String(row?.id || "");
+                  return `<button class="parentDropChip" type="button" data-record-parent-drop="${esc(id)}">${esc(itemLabel(row))}</button>`;
+                }).join("")}
+              </div>
+            </div>
+          `
+          : "";
+        const typeAttributes = mergedTypeAttributes(type);
+        const displayRecordFields = displayRecordFieldsForType(type);
+        const recordAttrHeaders = displayRecordFields
+          .map((attr) => `<th>${esc(String(attr?.name || ""))}</th>`)
+          .join("");
         const attributeRows = typeAttributes.length
-          ? typeAttributes.map((attr) => `
-              <tr data-type-attr-row data-attr-id="${esc(String(attr.id || ""))}">
-                <td><input data-attr-field="name" type="text" value="${esc(String(attr.name || ""))}" /></td>
+          ? typeAttributes.map((attr) => {
+            const isOwn = String(attr?.origin || "own") === "own";
+            const attrKey = String(attr?.key || attr?.name || "");
+            const displayName = String(attr?.name || "");
+            return `
+              <tr data-type-attr-row data-attr-origin="${esc(isOwn ? "own" : "inherited")}" data-attr-id="${esc(String(attr.id || ""))}" data-attr-core="0" data-attr-key="${esc(attrKey)}" ${isOwn ? 'draggable="true"' : ""}>
+                <td><input data-attr-field="name" type="text" value="${esc(displayName)}" ${isOwn ? "" : "readonly"} /></td>
                 <td>
-                  <select data-attr-field="type">
+                  <select data-attr-field="type" ${isOwn ? "" : "disabled"}>
                     ${["string", "number", "boolean", "date", "text"].map((k) => `<option value="${esc(k)}" ${String(attr.type || "string") === k ? "selected" : ""}>${esc(k)}</option>`).join("")}
                   </select>
                 </td>
-                <td><input data-attr-field="required" type="checkbox" ${attr.required ? "checked" : ""} style="width:auto;" /></td>
-                <td><button class="recordDeleteBtn" type="button" data-delete-attr-id="${esc(String(attr.id || ""))}">${esc(tt("common.delete", "Delete"))}</button></td>
+                <td><input data-attr-field="required" type="checkbox" ${attr.required ? "checked" : ""} style="width:auto;" ${isOwn ? "" : "disabled"} /></td>
+                <td><input data-attr-field="enabled" type="checkbox" ${attr.enabled !== false ? "checked" : ""} style="width:auto;" ${isOwn ? "" : "disabled"} /></td>
+                <td>${esc(String(attr?.sourceLabel || tt("shop.form.sourceInherited", "Inherited")))}</td>
+                <td>${isOwn ? `
+                  <div class="attrActions">
+                    <button class="attrMoveBtn" type="button" data-move-attr="${esc(String(attr.id || ""))}" data-dir="up" title="${esc(tt("shop.action.moveUp", "Move up"))}">↑</button>
+                    <button class="attrMoveBtn" type="button" data-move-attr="${esc(String(attr.id || ""))}" data-dir="down" title="${esc(tt("shop.action.moveDown", "Move down"))}">↓</button>
+                    <button class="recordDeleteBtn" type="button" data-delete-attr-id="${esc(String(attr.id || ""))}">${esc(tt("common.delete", "Delete"))}</button>
+                  </div>
+                `
+                  : `<span class="tiny">-</span>`}
+                </td>
               </tr>
-            `).join("")
-          : `<tr><td colspan="4"><div class="tiny">${esc(tt("shop.empty.noFields", "No custom fields yet."))}</div></td></tr>`;
+            `;
+          }).join("")
+          : `<tr><td colspan="6"><div class="tiny">${esc(tt("shop.empty.noFields", "No custom fields yet."))}</div></td></tr>`;
 
         function tableRecordRows(rows) {
+          const renderAttrCell = (attr, raw, rid) => {
+            const key = canonicalFieldKey(attr?.key || attr?.name || "");
+            if (key === "code") {
+              return `<input data-record-field="code" type="text" value="${esc(String(raw?.code || ""))}" />`;
+            }
+            if (key === "name") {
+              return `<input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" />`;
+            }
+            if (key === "stationid") {
+              const opts = [`<option value="">${esc(tt("shop.option.none", "(none)"))}</option>`, ...(state.app.stations || []).map((x) => {
+                const id = String(x?.id || "");
+                const selected = id === String(raw?.stationId || raw?.nodeId || "") ? "selected" : "";
+                return `<option value="${esc(id)}" ${selected}>${esc(itemLabel(x))}</option>`;
+              })].join("");
+              return `<select data-record-field="stationId">${opts}</select>`;
+            }
+            if (key === "productid") {
+              const opts = [`<option value="">${esc(tt("shop.option.none", "(none)"))}</option>`, ...(state.app.products || []).map((x) => {
+                const id = String(x?.id || "");
+                const selected = id === String(raw?.productId || "") ? "selected" : "";
+                return `<option value="${esc(id)}" ${selected}>${esc(itemLabel(x))}</option>`;
+              })].join("");
+              return `<select data-record-field="productId">${opts}</select>`;
+            }
+            if (key === "status") {
+              const statusVal = String(raw?.status || "active");
+              return `
+                <select data-record-field="status">
+                  <option value="active" ${statusVal === "active" ? "selected" : ""}>active</option>
+                  <option value="paused" ${statusVal === "paused" ? "selected" : ""}>paused</option>
+                  <option value="archived" ${statusVal === "archived" ? "selected" : ""}>archived</option>
+                </select>
+              `;
+            }
+            if (key === "parentproductid") {
+              const opts = [`<option value="">${esc(tt("shop.option.none", "(none)"))}</option>`, ...(state.app.products || [])
+                .filter((x) => String(x?.id || "") !== rid)
+                .map((x) => {
+                  const id = String(x?.id || "");
+                  const selected = id === String(raw?.parentProductId || "") ? "selected" : "";
+                  return `<option value="${esc(id)}" ${selected}>${esc(itemLabel(x))}</option>`;
+                })].join("");
+              return `<select data-record-field="parentProductId">${opts}</select>`;
+            }
+            const attrId = String(attr?.id || "");
+            const attrType = String(attr?.type || "string").toLowerCase();
+            const meta = (raw?.meta && typeof raw.meta === "object") ? raw.meta : {};
+            let value = "";
+            if (Object.prototype.hasOwnProperty.call(meta, attrId)) value = meta[attrId];
+            else if (Object.prototype.hasOwnProperty.call(meta, String(attr?.name || ""))) value = meta[String(attr?.name || "")];
+            else value = raw?.[String(attr?.name || "")];
+            if (attrType === "boolean") {
+              const checked = value === true || value === 1 || String(value).toLowerCase() === "true";
+              return `<input data-record-field="attr:${esc(attrId)}" data-attr-type="${esc(attrType)}" type="checkbox" style="width:auto;" ${checked ? "checked" : ""} />`;
+            }
+            if (attrType === "number") {
+              return `<input data-record-field="attr:${esc(attrId)}" data-attr-type="${esc(attrType)}" type="number" step="any" value="${esc(value == null ? "" : String(value))}" />`;
+            }
+            if (attrType === "date") {
+              return `<input data-record-field="attr:${esc(attrId)}" data-attr-type="${esc(attrType)}" type="date" value="${esc(value == null ? "" : String(value))}" />`;
+            }
+            return `<input data-record-field="attr:${esc(attrId)}" data-attr-type="${esc(attrType)}" type="text" value="${esc(value == null ? "" : String(value))}" />`;
+          };
+
           if (!Array.isArray(rows) || !rows.length) {
-            const emptyCols = role === "job"
-              ? (6 + (typeAttributes || []).length)
-              : (role === "product"
-                ? (5 + (typeAttributes || []).length)
-                : (role === "station"
-                  ? (4 + (typeAttributes || []).length)
-                  : ((typeAttributes || []).length + 3)));
+            const emptyCols = displayRecordFields.length + 2;
             return `<tr><td colspan="${emptyCols}"><div class="tiny">${esc(tt("shop.empty.noRecords", "No records"))}</div></td></tr>`;
           }
           return rows.map((raw) => {
@@ -881,98 +1260,12 @@
             const parentSelect = parentTypeId
               ? `<select data-record-field="parentAssign">${parentAssignOptionsFor(parentAssigned)}</select>`
               : `<span class="tiny">${esc(tt("shop.empty.noParentRuleShort", "-"))}</span>`;
-            const rowMeta = raw?.meta && typeof raw.meta === "object" ? raw.meta : {};
-            const customCells = (typeAttributes || []).map((attr) => {
-              const attrId = String(attr?.id || "");
-              const attrType = String(attr?.type || "string").toLowerCase();
-              const metaById = rowMeta?.[attrId];
-              const metaByName = rowMeta?.[String(attr?.name || "")];
-              const val = metaById != null ? metaById : (metaByName != null ? metaByName : "");
-              if (attrType === "boolean") {
-                const checked = !!val ? "checked" : "";
-                return `<td><input data-record-custom-id="${esc(attrId)}" data-record-custom-type="boolean" type="checkbox" ${checked} style="width:auto;" /></td>`;
-              }
-              if (attrType === "number") {
-                const numVal = Number.isFinite(Number(val)) ? String(Number(val)) : "";
-                return `<td><input data-record-custom-id="${esc(attrId)}" data-record-custom-type="number" type="number" value="${esc(numVal)}" /></td>`;
-              }
-              if (attrType === "date") {
-                const strVal = String(val || "");
-                return `<td><input data-record-custom-id="${esc(attrId)}" data-record-custom-type="date" type="date" value="${esc(strVal)}" /></td>`;
-              }
-              if (attrType === "text") {
-                const strVal = String(val || "");
-                return `<td><input data-record-custom-id="${esc(attrId)}" data-record-custom-type="text" type="text" value="${esc(strVal)}" /></td>`;
-              }
-              const strVal = String(val || "");
-              return `<td><input data-record-custom-id="${esc(attrId)}" data-record-custom-type="string" type="text" value="${esc(strVal)}" /></td>`;
-            }).join("");
-
-            if (role === "job") {
-              const stationOpts = [`<option value="">${esc(tt("shop.option.none", "(none)"))}</option>`, ...(state.app.stations || []).map((x) => {
-                const id = String(x?.id || "");
-                const selected = id === String(raw?.stationId || raw?.nodeId || "") ? "selected" : "";
-                return `<option value="${esc(id)}" ${selected}>${esc(itemLabel(x))}</option>`;
-              })].join("");
-              const productOpts = [`<option value="">${esc(tt("shop.option.none", "(none)"))}</option>`, ...(state.app.products || []).map((x) => {
-                const id = String(x?.id || "");
-                const selected = id === String(raw?.productId || "") ? "selected" : "";
-                return `<option value="${esc(id)}" ${selected}>${esc(itemLabel(x))}</option>`;
-              })].join("");
-              const statusVal = String(raw?.status || "active");
-              return `
-                <tr data-record-id="${esc(rid)}">
-                  <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
-                  <td><select data-record-field="stationId">${stationOpts}</select></td>
-                  <td><select data-record-field="productId">${productOpts}</select></td>
-                  <td><select data-record-field="status">
-                    <option value="active" ${statusVal === "active" ? "selected" : ""}>active</option>
-                    <option value="paused" ${statusVal === "paused" ? "selected" : ""}>paused</option>
-                    <option value="archived" ${statusVal === "archived" ? "selected" : ""}>archived</option>
-                  </select></td>
-                  ${customCells}
-                  <td>${parentSelect}</td>
-                  <td><button class="recordDeleteBtn" type="button" data-record-delete-id="${esc(rid)}">${esc(tt("common.delete", "Delete"))}</button></td>
-                </tr>
-              `;
-            }
-
-            if (role === "product") {
-              const parentProductOpts = [`<option value="">${esc(tt("shop.option.none", "(none)"))}</option>`, ...(state.app.products || [])
-                .filter((x) => String(x?.id || "") !== rid)
-                .map((x) => {
-                  const id = String(x?.id || "");
-                  const selected = id === String(raw?.parentProductId || "") ? "selected" : "";
-                  return `<option value="${esc(id)}" ${selected}>${esc(itemLabel(x))}</option>`;
-                })].join("");
-              return `
-                <tr data-record-id="${esc(rid)}">
-                  <td><input data-record-field="code" type="text" value="${esc(String(raw?.code || ""))}" /></td>
-                  <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
-                  <td><select data-record-field="parentProductId">${parentProductOpts}</select></td>
-                  ${customCells}
-                  <td>${parentSelect}</td>
-                  <td><button class="recordDeleteBtn" type="button" data-record-delete-id="${esc(rid)}">${esc(tt("common.delete", "Delete"))}</button></td>
-                </tr>
-              `;
-            }
-
-            if (role === "station") {
-              return `
-                <tr data-record-id="${esc(rid)}">
-                  <td><input data-record-field="code" type="text" value="${esc(String(raw?.code || ""))}" /></td>
-                  <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
-                  ${customCells}
-                  <td>${parentSelect}</td>
-                  <td><button class="recordDeleteBtn" type="button" data-record-delete-id="${esc(rid)}">${esc(tt("common.delete", "Delete"))}</button></td>
-                </tr>
-              `;
-            }
-
+            const cells = displayRecordFields
+              .map((attr) => `<td>${renderAttrCell(attr, raw, rid)}</td>`)
+              .join("");
             return `
-              <tr data-record-id="${esc(rid)}">
-                <td><input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" /></td>
-                ${customCells}
+              <tr data-record-id="${esc(rid)}" data-record-drag-id="${esc(rid)}" draggable="true">
+                ${cells}
                 <td>${parentSelect}</td>
                 <td><button class="recordDeleteBtn" type="button" data-record-delete-id="${esc(rid)}">${esc(tt("common.delete", "Delete"))}</button></td>
               </tr>
@@ -980,93 +1273,18 @@
           }).join("");
         }
 
-        let recordSection = "";
-        if (isCore) {
-          const key = role === "product" ? "products" : (role === "station" ? "stations" : "jobs");
-          const rows = Array.isArray(state.app?.[key]) ? state.app[key] : [];
-          const customHeaderCols = (typeAttributes || [])
-            .map((attr) => `<th>${esc(String(attr?.name || tt("shop.form.field", "Field")))}</th>`)
-            .join("");
-
-          recordSection = `
-            <section class="section">
-              <div class="sectionHead">
-                <div class="sectionTitle">${esc(tt("shop.form.records", "Records"))}</div>
-              </div>
-              <div class="row">
-                <button class="btn ghost" type="button" id="newItemBtn">${esc(tt("shop.action.addRecord", "+ Record"))}</button>
-              </div>
-              ${parentTypeId ? "" : `<div class="tiny">${esc(tt("shop.empty.noParentRule", "No parent folder configured for this one. Set parent folder above first."))}</div>`}
-              <div class="tableWrap">
-                <table class="recordsTable">
-                  <thead>
-                    ${role === "job" ? `
-                      <tr>
-                        <th>${esc(tt("shop.form.name", "Name"))}</th>
-                        <th>${esc(tt("shop.form.station", "Station"))}</th>
-                        <th>${esc(tt("shop.form.product", "Product"))}</th>
-                        <th>${esc(tt("shop.form.status", "Status"))}</th>
-                        ${customHeaderCols}
-                        <th>${esc(parentAssignColumnTitle)}</th>
-                        <th>${esc(tt("common.actions", "Actions"))}</th>
-                      </tr>
-                    ` : role === "product" ? `
-                      <tr>
-                        <th>${esc(tt("shop.form.code", "Code"))}</th>
-                        <th>${esc(tt("shop.form.name", "Name"))}</th>
-                        <th>${esc(tt("shop.form.parentProduct", "Parent product"))}</th>
-                        ${customHeaderCols}
-                        <th>${esc(parentAssignColumnTitle)}</th>
-                        <th>${esc(tt("common.actions", "Actions"))}</th>
-                      </tr>
-                    ` : `
-                      <tr>
-                        <th>${esc(tt("shop.form.code", "Code"))}</th>
-                        <th>${esc(tt("shop.form.name", "Name"))}</th>
-                        ${customHeaderCols}
-                        <th>${esc(parentAssignColumnTitle)}</th>
-                        <th>${esc(tt("common.actions", "Actions"))}</th>
-                      </tr>
-                    `}
-                  </thead>
-                  <tbody>
-                    ${tableRecordRows(rows)}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          `;
-        } else {
-          const customHeaderCols = (typeAttributes || [])
-            .map((attr) => `<th>${esc(String(attr?.name || tt("shop.form.field", "Field")))}</th>`)
-            .join("");
-          recordSection = `
-            <section class="section">
-              <div class="sectionHead">
-                <div class="sectionTitle">${esc(tt("shop.form.records", "Records"))}</div>
-              </div>
-              <div class="row">
-                <button class="btn ghost" type="button" id="newItemBtn">${esc(tt("shop.action.addRecord", "+ Record"))}</button>
-              </div>
-              ${parentTypeId ? "" : `<div class="tiny">${esc(tt("shop.empty.noParentRule", "No parent folder configured for this one. Set parent folder above first."))}</div>`}
-              <div class="tableWrap">
-                <table class="recordsTable">
-                  <thead>
-                    <tr>
-                      <th>${esc(tt("shop.form.name", "Name"))}</th>
-                      ${customHeaderCols}
-                      <th>${esc(parentAssignColumnTitle)}</th>
-                      <th>${esc(tt("common.actions", "Actions"))}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${tableRecordRows(typeItems)}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          `;
-        }
+        const recordRows = isCore
+          ? (Array.isArray(state.app?.[role === "product" ? "products" : (role === "station" ? "stations" : "jobs")])
+            ? state.app[role === "product" ? "products" : (role === "station" ? "stations" : "jobs")]
+            : [])
+          : typeItems;
+        const recordHeader = `
+          <tr>
+            ${recordAttrHeaders}
+            <th>${esc(parentAssignColumnTitle)}</th>
+            <th>${esc(tt("common.actions", "Actions"))}</th>
+          </tr>
+        `;
 
         detailWrap.innerHTML = `
           <section class="section">
@@ -1076,33 +1294,25 @@
             </div>
             <div class="grid2">
               <div class="field">
-                <label>${esc(tt("shop.form.selectedCategory", "Selected folder"))}</label>
-                <input type="text" value="${esc(typeLabel(type))}" readonly />
-              </div>
-              <div class="field">
                 <label>${esc(tt("shop.form.name", "Name"))}</label>
                 <input id="typeNameIn" type="text" value="${esc(String(type.nameSingular || ""))}" />
               </div>
-            </div>
-            <div class="field">
-              <label>${esc(tt("shop.form.parentCategory", "Parent folder"))}</label>
-              <select id="typeParentSel">${parentOptions}</select>
+              <div class="field">
+                <label>${esc(tt("shop.form.parentCategory", "Parent folder"))}</label>
+                <select id="typeParentSel">${parentOptions}</select>
+              </div>
             </div>
             <div class="row">
               <button class="btn ghost" id="newTypeBtn" type="button">${esc(tt("shop.action.addCategory", "+ Folder"))}</button>
               <button class="btn ghost" id="newChildTypeBtn" type="button">${esc(tt("shop.action.addChild", "+ Subfolder"))}</button>
-              <button class="btn" id="saveTypeBtn" type="button">${esc(tt("common.save", "Save"))}</button>
+              <button class="btn ghost" type="button" id="addAttrBtn">${esc(tt("shop.action.addField", "+ Field"))}</button>
+              <button class="btn ghost" type="button" id="newItemBtn">${esc(tt("shop.action.addRecord", "+ Record"))}</button>
               <button class="btn warn" id="deleteTypeBtn" type="button">${esc(tt("common.delete", "Delete"))}</button>
             </div>
-          </section>
-
-          <section class="section">
             <div class="sectionHead">
               <div class="sectionTitle">${esc(tt("shop.form.attributes", "Fields"))}</div>
             </div>
-            <div class="row">
-              <button class="btn ghost" id="addAttrBtn" type="button">${esc(tt("shop.action.addField", "+ Field"))}</button>
-            </div>
+            <div class="tiny">${esc(tt("shop.form.fieldsCategoryHint", "Fields are defined on this folder schema (not per record row). Parent folder fields are inherited automatically."))}</div>
             <div class="tableWrap">
               <table class="attrTable">
                 <thead>
@@ -1110,6 +1320,8 @@
                     <th>${esc(tt("shop.form.name", "Name"))}</th>
                     <th>${esc(tt("shop.form.type", "Type"))}</th>
                     <th>${esc(tt("shop.form.required", "Required"))}</th>
+                    <th>${esc(tt("shop.form.enabled", "Enabled"))}</th>
+                    <th>${esc(tt("shop.form.source", "Source"))}</th>
                     <th>${esc(tt("common.actions", "Actions"))}</th>
                   </tr>
                 </thead>
@@ -1118,8 +1330,20 @@
                 </tbody>
               </table>
             </div>
+            <div class="sectionHead" style="margin-top:14px;">
+              <div class="sectionTitle">${esc(tt("shop.form.records", "Records"))}</div>
+            </div>
+            ${parentTypeId ? "" : `<div class="tiny">${esc(tt("shop.empty.noParentRule", "No parent folder configured for this one. Set parent folder above first."))}</div>`}
+            ${parentDropTargets}
+            <div class="tableWrap">
+              <table class="recordsTable">
+                <thead>${recordHeader}</thead>
+                <tbody>
+                  ${tableRecordRows(recordRows)}
+                </tbody>
+              </table>
+            </div>
           </section>
-          ${recordSection}
         `;
       }
 
@@ -1228,16 +1452,19 @@
         const readAttrRows = () => {
           const body = document.getElementById("typeAttrBody");
           if (!(body instanceof HTMLElement)) return [];
-          const rows = Array.from(body.querySelectorAll("[data-type-attr-row]"));
+          const rows = Array.from(body.querySelectorAll('[data-type-attr-row][data-attr-origin="own"]'));
           const out = [];
+          let order = 0;
           for (const tr of rows) {
             if (!(tr instanceof HTMLElement)) continue;
             const attrId = String(tr.getAttribute("data-attr-id") || makeId("attr"));
             const name = String(tr.querySelector('[data-attr-field="name"]')?.value || "").trim();
             const type = String(tr.querySelector('[data-attr-field="type"]')?.value || "string").trim().toLowerCase();
             const required = !!tr.querySelector('[data-attr-field="required"]')?.checked;
+            const enabled = !!tr.querySelector('[data-attr-field="enabled"]')?.checked;
             if (!name) continue;
-            out.push({ id: attrId, name, type, required });
+            out.push({ id: attrId, name, type, required, enabled, order, key: name });
+            order += 1;
           }
           return normalizeTypeAttributes(out);
         };
@@ -1315,43 +1542,48 @@
         if (!itemId) return;
         const getVal = (field) => String(rowEl.querySelector(`[data-record-field="${field}"]`)?.value || "").trim();
         const parentAssignedId = getVal("parentAssign");
+        const attrs = recordAttributesForType(type);
+        const visibleFields = displayRecordFieldsForType(type);
+        const visibleFieldKeys = new Set(
+          visibleFields
+            .map((x) => canonicalFieldKey(x?.key || x?.name || ""))
+            .filter(Boolean),
+        );
 
         if (role === "product" || role === "station" || role === "job") {
+          const roleRows = role === "product"
+            ? (state.app.products || [])
+            : (role === "station" ? (state.app.stations || []) : (state.app.jobs || []));
+          const existingRow = roleRows.find((x) => String(x?.id || "") === itemId) || null;
+          const baseMeta = (existingRow?.meta && typeof existingRow.meta === "object") ? existingRow.meta : {};
+          const nextMeta = readRecordAttrMeta(rowEl, attrs, baseMeta);
           const payload = { id: itemId };
-          const currentRows = role === "product"
-            ? (state.app?.products || [])
-            : (role === "station" ? (state.app?.stations || []) : (state.app?.jobs || []));
-          const currentRow = currentRows.find((x) => String(x?.id || "") === itemId) || {};
-          const customMeta = {};
-          rowEl.querySelectorAll("[data-record-custom-id]").forEach((el) => {
-            if (!(el instanceof HTMLElement)) return;
-            const attrId = String(el.getAttribute("data-record-custom-id") || "");
-            const fieldType = String(el.getAttribute("data-record-custom-type") || "string").toLowerCase();
-            if (!attrId) return;
-            let value = "";
-            if (fieldType === "boolean" && el instanceof HTMLInputElement) {
-              value = !!el.checked;
-            } else if (fieldType === "number" && el instanceof HTMLInputElement) {
-              const num = Number(el.value);
-              value = Number.isFinite(num) ? num : null;
-            } else if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
-              value = String(el.value || "");
-            }
-            customMeta[attrId] = value;
-          });
-          payload.name = getVal("name");
-          if (role !== "job") payload.code = getVal("code");
-          if (role === "product") payload.parentProductId = getVal("parentProductId");
-          if (role === "job") {
-            payload.stationId = getVal("stationId");
-            payload.nodeId = payload.stationId;
-            payload.productId = getVal("productId");
-            payload.status = getVal("status") || "active";
+          payload.name = visibleFieldKeys.has("name")
+            ? getVal("name")
+            : String(existingRow?.name || "");
+          if (role !== "job") {
+            payload.code = visibleFieldKeys.has("code")
+              ? getVal("code")
+              : String(existingRow?.code || "");
           }
-          payload.meta = {
-            ...((currentRow?.meta && typeof currentRow.meta === "object") ? currentRow.meta : {}),
-            ...customMeta,
-          };
+          if (role === "product") {
+            payload.parentProductId = visibleFieldKeys.has("parentproductid")
+              ? getVal("parentProductId")
+              : String(existingRow?.parentProductId || "");
+          }
+          if (role === "job") {
+            payload.stationId = visibleFieldKeys.has("stationid")
+              ? getVal("stationId")
+              : String(existingRow?.stationId || existingRow?.nodeId || "");
+            payload.nodeId = payload.stationId;
+            payload.productId = visibleFieldKeys.has("productid")
+              ? getVal("productId")
+              : String(existingRow?.productId || "");
+            payload.status = visibleFieldKeys.has("status")
+              ? (getVal("status") || "active")
+              : String(existingRow?.status || "active");
+          }
+          payload.meta = nextMeta;
           const savedId = upsertAppRow(role, payload);
           if (!savedId) return;
           applyParentAssignmentFor(typeId, String(savedId || ""), parentAssignedId);
@@ -1361,32 +1593,21 @@
           return;
         }
 
-        const code = getVal("code");
-        const name = getVal("name");
-        const meta = {};
-        rowEl.querySelectorAll("[data-record-custom-id]").forEach((el) => {
-          if (!(el instanceof HTMLElement)) return;
-          const attrId = String(el.getAttribute("data-record-custom-id") || "");
-          const fieldType = String(el.getAttribute("data-record-custom-type") || "string").toLowerCase();
-          if (!attrId) return;
-          let value = "";
-          if (fieldType === "boolean" && el instanceof HTMLInputElement) {
-            value = !!el.checked;
-          } else if (fieldType === "number" && el instanceof HTMLInputElement) {
-            const num = Number(el.value);
-            value = Number.isFinite(num) ? num : null;
-          } else if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
-            value = String(el.value || "");
-          }
-          meta[attrId] = value;
-        });
         const existing = listTypeItems(typeId).find((x) => String(x?.id || "") === itemId) || null;
+        const code = visibleFieldKeys.has("code")
+          ? getVal("code")
+          : String(existing?.code || "");
+        const name = visibleFieldKeys.has("name")
+          ? getVal("name")
+          : String(existing?.name || "");
+        const baseMeta = (existing?.meta && typeof existing.meta === "object") ? existing.meta : {};
+        const nextMeta = readRecordAttrMeta(rowEl, attrs, baseMeta);
         const out = window.VMillData?.upsertEntityItem?.({
           typeId,
           id: itemId,
           code: code || String(existing?.code || ""),
           name: name || code || tt("shop.item.defaultName", "New Record"),
-          meta,
+          meta: nextMeta,
         });
         if (!out?.id) return;
         applyParentAssignmentFor(typeId, String(out.id || ""), parentAssignedId);
@@ -1417,6 +1638,17 @@
         emitTreeChanged("record-delete");
         await loadAll({ silent: true });
         flashSaved(tt("shop.status.deleted", "Deleted ✓"));
+      }
+
+      async function moveRecordParentByDrop(recordId, parentId) {
+        const rid = String(recordId || "");
+        if (!rid) return;
+        const rowEl = detailWrap.querySelector(`tr[data-record-id="${rid}"]`);
+        if (!(rowEl instanceof HTMLElement)) return;
+        const sel = rowEl.querySelector('[data-record-field="parentAssign"]');
+        if (!(sel instanceof HTMLSelectElement)) return;
+        sel.value = String(parentId || "");
+        await saveRecordInline(rid, rowEl);
       }
 
       function applyParentAssignmentFor(typeId, itemId, selectedParentId = "") {
@@ -1536,6 +1768,59 @@
         }
       });
 
+      treeWrap.addEventListener("dragstart", (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (target.closest("button, input, select, textarea")) {
+          e.preventDefault();
+          return;
+        }
+        const node = target.closest("[data-drag-type]");
+        if (!(node instanceof HTMLElement)) return;
+        const typeId = String(node.getAttribute("data-drag-type") || "");
+        if (!typeId) return;
+        state.dragTypeId = typeId;
+        node.classList.add("dragging");
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", typeId);
+        }
+      });
+
+      treeWrap.addEventListener("dragover", (e) => {
+        if (!String(state.dragTypeId || "")) return;
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        const dropNode = target.closest("[data-drop-type],[data-drop-root]");
+        if (!(dropNode instanceof HTMLElement)) return;
+        const dropType = String(dropNode.getAttribute("data-drop-type") || "");
+        if (dropType && dropType === String(state.dragTypeId || "")) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+        clearTreeDropUi();
+        dropNode.classList.add("dropOver");
+        if (dropNode.hasAttribute("data-drop-root")) dropNode.classList.add("dragOver");
+      });
+
+      treeWrap.addEventListener("drop", async (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        const dropNode = target.closest("[data-drop-type],[data-drop-root]");
+        if (!(dropNode instanceof HTMLElement)) return;
+        e.preventDefault();
+        const dragged = String(state.dragTypeId || (e.dataTransfer ? e.dataTransfer.getData("text/plain") : "") || "");
+        const parentId = String(dropNode.getAttribute("data-drop-type") || "");
+        clearTreeDropUi();
+        state.dragTypeId = "";
+        if (!dragged) return;
+        await moveTypeToParent(dragged, parentId);
+      });
+
+      treeWrap.addEventListener("dragend", () => {
+        clearTreeDropUi();
+        state.dragTypeId = "";
+      });
+
       detailWrap.addEventListener("click", async (e) => {
         const target = e.target;
         if (!(target instanceof HTMLElement)) return;
@@ -1543,10 +1828,16 @@
         if (target.id === "addAttrBtn") {
           const body = document.getElementById("typeAttrBody");
           if (body) {
+            const emptyRow = body.querySelector("tr:not([data-type-attr-row])");
+            if (emptyRow && emptyRow.parentElement) emptyRow.parentElement.removeChild(emptyRow);
             const attrId = makeId("attr");
             const tr = document.createElement("tr");
             tr.setAttribute("data-type-attr-row", "");
+            tr.setAttribute("data-attr-origin", "own");
             tr.setAttribute("data-attr-id", attrId);
+            tr.setAttribute("data-attr-core", "0");
+            tr.setAttribute("data-attr-key", "");
+            tr.setAttribute("draggable", "true");
             tr.innerHTML = `
               <td><input data-attr-field="name" type="text" value="" /></td>
               <td>
@@ -1559,12 +1850,41 @@
                 </select>
               </td>
               <td><input data-attr-field="required" type="checkbox" style="width:auto;" /></td>
-              <td><button class="recordDeleteBtn" type="button" data-delete-attr-id="${esc(attrId)}">${esc(tt("common.delete", "Delete"))}</button></td>
+              <td><input data-attr-field="enabled" type="checkbox" style="width:auto;" checked /></td>
+              <td>${esc(tt("shop.form.sourceOwn", "Current"))}</td>
+              <td>
+                <div class="attrActions">
+                  <button class="attrMoveBtn" type="button" data-move-attr="${esc(attrId)}" data-dir="up" title="${esc(tt("shop.action.moveUp", "Move up"))}">↑</button>
+                  <button class="attrMoveBtn" type="button" data-move-attr="${esc(attrId)}" data-dir="down" title="${esc(tt("shop.action.moveDown", "Move down"))}">↓</button>
+                  <button class="recordDeleteBtn" type="button" data-delete-attr-id="${esc(attrId)}">${esc(tt("common.delete", "Delete"))}</button>
+                </div>
+              </td>
             `;
             body.appendChild(tr);
             const input = tr.querySelector('[data-attr-field="name"]');
             if (input instanceof HTMLElement) input.focus();
           }
+          return;
+        }
+
+        const moveAttrBtn = target.closest("[data-move-attr]");
+        if (moveAttrBtn) {
+          const body = document.getElementById("typeAttrBody");
+          if (!(body instanceof HTMLElement)) return;
+          const attrId = String(moveAttrBtn.getAttribute("data-move-attr") || "");
+          const dir = String(moveAttrBtn.getAttribute("data-dir") || "");
+          if (!attrId || !dir) return;
+          const ownRows = Array.from(body.querySelectorAll('[data-type-attr-row][data-attr-origin="own"]'));
+          const curIdx = ownRows.findIndex((row) => String(row.getAttribute("data-attr-id") || "") === attrId);
+          if (curIdx < 0) return;
+          const nextIdx = dir === "up" ? curIdx - 1 : curIdx + 1;
+          if (nextIdx < 0 || nextIdx >= ownRows.length) return;
+          const row = ownRows[curIdx];
+          const targetRow = ownRows[nextIdx];
+          if (!(row instanceof HTMLElement) || !(targetRow instanceof HTMLElement)) return;
+          if (dir === "up") body.insertBefore(row, targetRow);
+          else body.insertBefore(row, targetRow.nextSibling);
+          await saveTypeFromForm();
           return;
         }
 
@@ -1578,7 +1898,6 @@
 
         if (target.id === "newTypeBtn") { await createType(""); return; }
         if (target.id === "newChildTypeBtn") { await createType(state.selectedTypeId); return; }
-        if (target.id === "saveTypeBtn") { await saveTypeFromForm(); return; }
         if (target.id === "deleteTypeBtn") { await deleteType(state.selectedTypeId); return; }
         if (target.id === "newItemBtn") { await createItemForType(); return; }
         const deleteRecordId = String(target.closest("[data-record-delete-id]")?.getAttribute("data-record-delete-id") || "");
@@ -1588,10 +1907,147 @@
         }
       });
 
+      detailWrap.addEventListener("dragstart", (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (target.closest("input, select, textarea, button")) {
+          e.preventDefault();
+          return;
+        }
+        const recordRow = target.closest("tr[data-record-id][data-record-drag-id]");
+        if (recordRow instanceof HTMLElement) {
+          const recordId = String(recordRow.getAttribute("data-record-drag-id") || "");
+          if (!recordId) return;
+          state.dragRecordId = recordId;
+          recordRow.classList.add("dragging");
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", recordId);
+          }
+          return;
+        }
+        const row = target.closest('tr[data-type-attr-row][data-attr-origin="own"]');
+        if (!(row instanceof HTMLElement)) return;
+        const attrId = String(row.getAttribute("data-attr-id") || "");
+        if (!attrId) return;
+        state.dragAttrId = attrId;
+        row.classList.add("dragging");
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", attrId);
+        }
+      });
+
+      detailWrap.addEventListener("dragover", (e) => {
+        if (String(state.dragRecordId || "")) {
+          const target = e.target;
+          if (!(target instanceof HTMLElement)) return;
+          const targetRow = target.closest("tr[data-record-id]");
+          const targetChip = target.closest("[data-record-parent-drop]");
+          if (!(targetRow instanceof HTMLElement) && !(targetChip instanceof HTMLElement)) return;
+          const sid = String(state.dragRecordId || "");
+          if (targetRow instanceof HTMLElement) {
+            const tid = String(targetRow.getAttribute("data-record-id") || "");
+            if (!tid || tid === sid) return;
+          }
+          e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+          clearRecordDropUi();
+          if (targetRow instanceof HTMLElement) targetRow.classList.add("recordDragOver");
+          if (targetChip instanceof HTMLElement) targetChip.classList.add("dropOver");
+          return;
+        }
+      });
+
+      detailWrap.addEventListener("drop", async (e) => {
+        if (!String(state.dragRecordId || "")) return;
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        e.preventDefault();
+        const sourceId = String(state.dragRecordId || (e.dataTransfer ? e.dataTransfer.getData("text/plain") : "") || "");
+        const type = selectedType();
+        const typeId = String(type?.id || "");
+        const parentRule = incomingRule(typeId);
+        const parentTypeId = String(parentRule?.parentTypeId || "");
+        const targetChip = target.closest("[data-record-parent-drop]");
+        const targetRow = target.closest("tr[data-record-id]");
+        clearRecordDropUi();
+        state.dragRecordId = "";
+        if (!sourceId || !parentTypeId) return;
+        if (targetChip instanceof HTMLElement) {
+          const parentId = String(targetChip.getAttribute("data-record-parent-drop") || "");
+          await moveRecordParentByDrop(sourceId, parentId);
+          return;
+        }
+        if (!(targetRow instanceof HTMLElement)) return;
+        const targetId = String(targetRow.getAttribute("data-record-id") || "");
+        if (!targetId || targetId === sourceId) return;
+        let parentId = "";
+        if (parentTypeId === typeId) {
+          parentId = targetId;
+        } else {
+          const targetSel = targetRow.querySelector('[data-record-field="parentAssign"]');
+          parentId = targetSel instanceof HTMLSelectElement ? String(targetSel.value || "") : "";
+        }
+        await moveRecordParentByDrop(sourceId, parentId);
+      });
+
+      detailWrap.addEventListener("dragend", () => {
+        clearRecordDropUi();
+        state.dragRecordId = "";
+      });
+
+      detailWrap.addEventListener("dragover", (e) => {
+        if (!String(state.dragAttrId || "")) return;
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        const row = target.closest('tr[data-type-attr-row][data-attr-origin="own"]');
+        if (!(row instanceof HTMLElement)) return;
+        const rid = String(row.getAttribute("data-attr-id") || "");
+        if (!rid || rid === String(state.dragAttrId || "")) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+        clearAttrDropUi();
+        row.classList.add("attrDragOver");
+      });
+
+      detailWrap.addEventListener("drop", async (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        const row = target.closest('tr[data-type-attr-row][data-attr-origin="own"]');
+        if (!(row instanceof HTMLElement)) return;
+        e.preventDefault();
+        const sourceId = String(state.dragAttrId || (e.dataTransfer ? e.dataTransfer.getData("text/plain") : "") || "");
+        if (!sourceId) return;
+        const sourceRow = Array.from(detailWrap.querySelectorAll('tr[data-type-attr-row][data-attr-origin="own"]'))
+          .find((el) => String(el.getAttribute("data-attr-id") || "") === sourceId);
+        if (!(sourceRow instanceof HTMLElement) || sourceRow === row || !row.parentElement) {
+          clearAttrDropUi();
+          state.dragAttrId = "";
+          return;
+        }
+        const rect = row.getBoundingClientRect();
+        const insertAfter = Number(e.clientY || 0) > (rect.top + (rect.height / 2));
+        if (insertAfter) row.parentElement.insertBefore(sourceRow, row.nextSibling);
+        else row.parentElement.insertBefore(sourceRow, row);
+        clearAttrDropUi();
+        state.dragAttrId = "";
+        await saveTypeFromForm();
+      });
+
+      detailWrap.addEventListener("dragend", () => {
+        clearAttrDropUi();
+        state.dragAttrId = "";
+      });
+
       detailWrap.addEventListener("change", async (e) => {
         const target = e.target;
         if (!(target instanceof HTMLElement)) return;
-        if (target.hasAttribute("data-record-field") || target.hasAttribute("data-record-custom-id")) {
+        if (target.id === "typeNameIn" || target.id === "typeParentSel") {
+          await saveTypeFromForm();
+          return;
+        }
+        if (target.hasAttribute("data-record-field")) {
           const rowEl = target.closest("tr[data-record-id]");
           const rowId = String(rowEl?.getAttribute("data-record-id") || "");
           if (!rowId || !(rowEl instanceof HTMLElement)) return;
@@ -1607,7 +2063,12 @@
       detailWrap.addEventListener("keydown", (e) => {
         const target = e.target;
         if (!(target instanceof HTMLElement)) return;
-        if (!target.hasAttribute("data-record-field") && !target.hasAttribute("data-record-custom-id") && !target.hasAttribute("data-attr-field")) return;
+        if (target.id === "typeNameIn" && e.key === "Enter") {
+          e.preventDefault();
+          target.blur();
+          return;
+        }
+        if (!target.hasAttribute("data-record-field") && !target.hasAttribute("data-attr-field")) return;
         if (e.key !== "Enter") return;
         if (target instanceof HTMLTextAreaElement) return;
         e.preventDefault();

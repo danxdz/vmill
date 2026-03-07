@@ -2,19 +2,24 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>vmill</title>
+    <title>VMill</title>
   </head>
   <body>
     <script>
       (function () {
-        var s = document.createElement("script");
-        s.src = (location.protocol === "file:") ? "./public/modules/module-shell.js" : "/modules/module-shell.js";
-        document.body.appendChild(s);
+        var token = "";
+        var offline = false;
+        try {
+          token = String(localStorage.getItem("vmill:auth:token") || "");
+          offline = String(localStorage.getItem("vmill:offline-mode") || "") === "1";
+        } catch (e) {}
+        var target = (token || offline) ? "/vmill_hub.html" : "/login.html";
+        location.replace(target);
       })();
     </script>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <noscript>
+      <p>VMill requires JavaScript. Open <a href="/login.html">Login</a>.</p>
+    </noscript>
   </body>
 </html>

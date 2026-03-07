@@ -25,6 +25,8 @@ import time
 import asyncio
 import concurrent.futures
 import threading
+import signal
+import subprocess
 from functools import lru_cache
 import atexit
 import gc
@@ -145,6 +147,7 @@ except Exception as e:
 
 # Global OCR instance (initialize once at startup)
 ocr = None
+PID_FILE = Path(__file__).with_name(".ocr_server.pid")
 
 # Paddle OCR runtime can crash under concurrent predict calls in some environments.
 # Keep server task execution controlled and serialize predict() calls with a lock.
@@ -195,6 +198,111 @@ def cleanup_resources():
 
 # Register cleanup function
 atexit.register(cleanup_resources)
+
+
+def _pid_is_running(pid: int) -> bool:
+    """Return True when PID exists and is reachable."""
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _pid_looks_like_this_server(pid: int) -> bool:
+    """
+    Best-effort verification that PID belongs to this OCR server script.
+    Prevents killing unrelated processes from stale PID reuse.
+    """
+    script_name = Path(__file__).name
+
+    # Linux/Unix fast path via /proc
+    proc_cmdline = Path("/proc") / str(pid) / "cmdline"
+    if proc_cmdline.exists():
+        try:
+            raw = proc_cmdline.read_bytes().replace(b"\x00", b" ").decode("utf-8", "ignore")
+            return script_name in raw
+        except Exception:
+            return False
+
+    # Windows fallback: query command line via PowerShell (best effort).
+    if os.name == "nt":
+        try:
+            cmd = [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                f"(Get-CimInstance Win32_Process -Filter \"ProcessId={pid}\").CommandLine",
+            ]
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+            line = (out.stdout or "").strip()
+            return script_name.lower() in line.lower()
+        except Exception:
+            return False
+
+    # Unknown platform without process inspection: be conservative.
+    return False
+
+
+def _remove_pid_file_if_ours() -> None:
+    """Remove PID file only if it points to current process."""
+    try:
+        if not PID_FILE.exists():
+            return
+        raw = PID_FILE.read_text(encoding="utf-8").strip()
+        if raw and int(raw) == os.getpid():
+            PID_FILE.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
+def _write_pid_file() -> None:
+    PID_FILE.write_text(str(os.getpid()), encoding="utf-8")
+
+
+def ensure_single_ocr_server_instance() -> None:
+    """
+    If a previous OCR server instance exists (based on PID file), stop it first.
+    Then claim the PID file for this process.
+    """
+    if PID_FILE.exists():
+        raw = ""
+        try:
+            raw = PID_FILE.read_text(encoding="utf-8").strip()
+            old_pid = int(raw)
+        except Exception:
+            old_pid = -1
+
+        if old_pid > 0 and old_pid != os.getpid() and _pid_is_running(old_pid):
+            if _pid_looks_like_this_server(old_pid):
+                logger.warning(f"Found running OCR server PID {old_pid}; stopping it before start...")
+                try:
+                    os.kill(old_pid, signal.SIGTERM)
+                except Exception as err:
+                    logger.warning(f"Failed to send SIGTERM to PID {old_pid}: {err}")
+
+                # Wait briefly for graceful exit.
+                for _ in range(20):
+                    if not _pid_is_running(old_pid):
+                        break
+                    time.sleep(0.1)
+
+                # Hard kill if still alive.
+                if _pid_is_running(old_pid):
+                    sigkill = getattr(signal, "SIGKILL", signal.SIGTERM)
+                    try:
+                        os.kill(old_pid, sigkill)
+                    except Exception as err:
+                        logger.warning(f"Failed to force-stop PID {old_pid}: {err}")
+            else:
+                logger.warning(
+                    f"PID file points to running PID {old_pid}, but command does not look like this OCR server; not killing."
+                )
+
+    _write_pid_file()
+    atexit.register(_remove_pid_file_if_ours)
 
 # Periodic cleanup function (run every 30 minutes)
 def periodic_cleanup():
@@ -4507,6 +4615,7 @@ async def validate_training_sample(sample_id: str):
 
 if __name__ == "__main__":
     import uvicorn
+    ensure_single_ocr_server_instance()
     # Get port from environment variable (for Hugging Face Spaces) or default to 8000
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
