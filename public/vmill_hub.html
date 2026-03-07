@@ -27,8 +27,8 @@
       --radius:14px;
       --dockw:92px;
       --workspace-top-offset:82px;
-      --vm-shell-scope-top:46px;
-      --vm-shell-scope-top-mobile:44px;
+      --vm-shell-scope-top:calc(env(safe-area-inset-top, 0px) + 12px);
+      --vm-shell-scope-top-mobile:calc(env(safe-area-inset-top, 0px) + 12px);
       --vm-shell-scope-width:min(520px, calc(100vw - 180px));
       --vm-shell-scope-width-mobile:calc(100vw - 20px);
       --z-hub-header-zone:100110;
@@ -1389,8 +1389,8 @@
       .main { order: 1; padding-left: 16px; }
       :root {
         --workspace-top-offset: 88px;
-        --vm-shell-scope-top: 44px;
-        --vm-shell-scope-top-mobile: 42px;
+        --vm-shell-scope-top: calc(env(safe-area-inset-top, 0px) + 12px);
+        --vm-shell-scope-top-mobile: calc(env(safe-area-inset-top, 0px) + 12px);
         --vm-shell-scope-width: calc(100vw - 20px);
         --vm-shell-scope-width-mobile: calc(100vw - 16px);
       }
