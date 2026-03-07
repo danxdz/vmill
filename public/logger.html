@@ -28,50 +28,19 @@
       overflow: hidden;
     }
     .dock {
-      position: fixed;
-      z-index: 100060;
+      position: relative;
+      z-index: 1;
       border: 1px solid var(--border);
       border-radius: 12px;
       background: linear-gradient(180deg, var(--panel), var(--panel2));
       box-shadow: 0 18px 32px rgba(0,0,0,.32);
-      width: var(--logger-width, min(980px, calc(100vw - 20px)));
-      height: var(--logger-height, min(680px, calc(100dvh - 20px)));
+      width: min(1680px, calc(100vw - 16px));
+      height: calc(100dvh - 86px);
+      margin: 74px auto 10px;
       display: grid;
       grid-template-rows: auto auto auto 1fr;
       overflow: hidden;
     }
-    .dock[data-pos="top-left"] { top: 10px; left: 10px; }
-    .dock[data-pos="top-right"] { top: 10px; right: 10px; }
-    .dock[data-pos="bottom-left"] { bottom: 10px; left: 10px; }
-    .dock[data-pos="bottom-right"] { bottom: 10px; right: 10px; }
-    .dock[data-active="0"] { display: none; }
-    .dock[data-mode="status"] {
-      grid-template-rows: auto auto;
-      height: var(--logger-status-height, 66px);
-      width: min(720px, calc(100vw - 20px));
-    }
-    .dock[data-mode="status"][data-settings-open="0"] .controls,
-    .dock[data-mode="status"][data-settings-open="0"] .settings,
-    .dock[data-mode="status"][data-settings-open="0"] .logWrap { display: none; }
-    .dock[data-mode="status"] #exportJsonBtn,
-    .dock[data-mode="status"] #exportCsvBtn,
-    .dock[data-mode="status"] #exportTxtBtn,
-    .dock[data-mode="status"] #openHubBtn,
-    .dock[data-mode="status"] #clearBtn,
-    .dock[data-mode="status"] #pauseBtn,
-    .dock[data-mode="status"] #countInfo,
-    .dock[data-mode="status"] #countWarn,
-    .dock[data-mode="status"] #countError { display: none; }
-    .dock[data-mode="status"][data-settings-open="1"] {
-      grid-template-rows: auto auto auto;
-      height: auto;
-      max-height: min(80vh, 520px);
-      width: min(760px, calc(100vw - 20px));
-    }
-    .dock[data-mode="panel"] #openPanelBtn { display: none; }
-    .dock[data-mode="status"][data-settings-open="1"] .controls,
-    .dock[data-mode="status"] .logWrap { display: none; }
-    .dock[data-mode="status"][data-settings-open="1"] .settings { display: flex; }
 
     .head {
       padding: 8px;
@@ -117,26 +86,6 @@
       border-color: color-mix(in srgb, var(--danger) 52%, var(--border));
       background: color-mix(in srgb, var(--danger) 12%, transparent);
     }
-    .launcher {
-      position: fixed;
-      z-index: 100061;
-      bottom: 10px;
-      right: 10px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: linear-gradient(180deg, var(--panel), var(--panel2));
-      color: var(--text);
-      box-shadow: 0 16px 28px rgba(0,0,0,.34);
-      padding: 7px 9px;
-      font-size: 11px;
-      font-weight: 800;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-    }
-    .launcher.hidden { display: none; }
-
     .statusStrip {
       border-bottom: 1px solid color-mix(in srgb, var(--text) 9%, transparent);
       padding: 7px 8px;
@@ -194,13 +143,12 @@
     .settings {
       border-bottom: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
       padding: 7px 8px;
-      display: none;
+      display: flex;
       gap: 8px;
       align-items: center;
       flex-wrap: wrap;
       background: color-mix(in srgb, var(--panel2) 90%, transparent);
     }
-    .dock[data-settings-open="1"] .settings { display: flex; }
     .mini {
       display: inline-flex;
       align-items: center;
@@ -275,32 +223,25 @@
 
     @media (max-width: 900px) {
       .dock {
-        top: 6px !important;
-        left: 6px !important;
-        right: 6px !important;
-        bottom: 6px !important;
-        width: auto !important;
-        height: auto !important;
+        width: calc(100vw - 12px);
+        height: calc(100dvh - 76px);
+        margin: 70px auto 6px;
       }
-      .dock[data-mode="status"] { height: 90px !important; }
       .table { min-width: 640px; }
       .controls { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <section class="dock" id="loggerDock" data-pos="bottom-right" data-mode="status" data-active="1" data-settings-open="0">
+  <section class="dock" id="loggerDock">
     <header class="head">
       <div class="title" id="loggerTitle">Logger</div>
-      <button class="btn" id="openPanelBtn" type="button">Logs</button>
       <a class="btn" href="./vmill_hub.html" id="openHubBtn">Hub</a>
       <button class="btn" id="pauseBtn" type="button">Pause</button>
       <button class="btn primary" id="exportJsonBtn" type="button">Export JSON</button>
       <button class="btn" id="exportCsvBtn" type="button">Export CSV</button>
       <button class="btn" id="exportTxtBtn" type="button">Export TXT</button>
       <button class="btn warn" id="clearBtn" type="button">Clear</button>
-      <button class="btn" id="settingsBtn" type="button">Settings</button>
-      <button class="btn" id="activeBtn" type="button">Active</button>
       <div class="spacer"></div>
       <span class="pill info" id="countInfo">0 info</span>
       <span class="pill warn" id="countWarn">0 warn</span>
@@ -337,12 +278,8 @@
     </section>
 
     <section class="settings" id="settingsRow">
-      <span class="mini">Mode
-        <select id="modeSel">
-          <option value="panel">panel</option>
-          <option value="status">status-bar</option>
-        </select>
-      </span>
+      <label class="toggle"><input id="activeChk" type="checkbox" checked /> show status bar</label>
+      <label class="toggle"><input id="alertOnlyChk" type="checkbox" /> status: issues only</label>
       <span class="mini">Position
         <select id="posSel">
           <option value="bottom-right">bottom-right</option>
@@ -351,8 +288,6 @@
           <option value="top-left">top-left</option>
         </select>
       </span>
-      <span class="mini">Width <input id="widthRange" type="range" min="320" max="1200" step="10" /><span id="widthVal">0</span></span>
-      <span class="mini">Height <input id="heightRange" type="range" min="160" max="860" step="10" /><span id="heightVal">0</span></span>
       <span class="mini">Rows <input id="rowsRange" type="range" min="50" max="1200" step="10" /><span id="rowsVal">0</span></span>
     </section>
 
@@ -371,7 +306,6 @@
       </table>
     </div>
   </section>
-  <button class="launcher hidden" id="loggerLauncher" type="button">Logger</button>
 
   <script src="./modules/module-shell.js"></script>
   <script src="./modules/module-registry.js"></script>
@@ -414,20 +348,13 @@
       const lvlError = document.getElementById("lvlError");
       const autoScrollChk = document.getElementById("autoScrollChk");
       const pauseBtn = document.getElementById("pauseBtn");
-      const openPanelBtn = document.getElementById("openPanelBtn");
       const exportJsonBtn = document.getElementById("exportJsonBtn");
       const exportCsvBtn = document.getElementById("exportCsvBtn");
       const exportTxtBtn = document.getElementById("exportTxtBtn");
       const clearBtn = document.getElementById("clearBtn");
-      const settingsBtn = document.getElementById("settingsBtn");
-      const activeBtn = document.getElementById("activeBtn");
-      const loggerLauncher = document.getElementById("loggerLauncher");
+      const activeChk = document.getElementById("activeChk");
       const posSel = document.getElementById("posSel");
-      const modeSel = document.getElementById("modeSel");
-      const widthRange = document.getElementById("widthRange");
-      const widthVal = document.getElementById("widthVal");
-      const heightRange = document.getElementById("heightRange");
-      const heightVal = document.getElementById("heightVal");
+      const alertOnlyChk = document.getElementById("alertOnlyChk");
       const rowsRange = document.getElementById("rowsRange");
       const rowsVal = document.getElementById("rowsVal");
       const logWrap = document.getElementById("logWrap");
@@ -435,14 +362,11 @@
       const state = {
         paused: false,
         ui: {
-          mode: "panel",
           position: "bottom-right",
-          width: 860,
-          height: 520,
           maxRows: 350,
           autoScroll: true,
           active: true,
-          settingsOpen: false,
+          alertOnly: false,
         },
       };
 
@@ -454,15 +378,12 @@
         const loggerTitle = document.getElementById("loggerTitle");
         const openHubBtn = document.getElementById("openHubBtn");
         if (loggerTitle) loggerTitle.textContent = tt("logger.title", "Logger");
-        if (openPanelBtn) openPanelBtn.textContent = tt("logger.openPanel", "Logs");
         if (openHubBtn) openHubBtn.textContent = tt("common.hub", "Hub");
         if (pauseBtn) pauseBtn.textContent = state.paused ? tt("logger.resume", "Resume") : tt("logger.pause", "Pause");
         if (exportJsonBtn) exportJsonBtn.textContent = "Export JSON";
         if (exportCsvBtn) exportCsvBtn.textContent = "Export CSV";
         if (exportTxtBtn) exportTxtBtn.textContent = "Export TXT";
         if (clearBtn) clearBtn.textContent = tt("hub.bus.clear", "Clear");
-        if (settingsBtn) settingsBtn.textContent = "Settings";
-        if (loggerLauncher) loggerLauncher.textContent = tt("logger.title", "Logger");
         if (searchLbl) searchLbl.textContent = "Search";
         if (searchIn) searchIn.placeholder = "type/source/payload...";
         if (sourceLbl) sourceLbl.textContent = "Source";
@@ -487,14 +408,11 @@
       function readUi() {
         const src = safeParse(localStorage.getItem(UI_KEY), {});
         return {
-          mode: String(src.mode || "status") === "panel" ? "panel" : "status",
           position: ["top-left", "top-right", "bottom-left", "bottom-right"].includes(String(src.position || "")) ? String(src.position) : "bottom-right",
-          width: Math.max(320, Math.min(1200, Number(src.width || 860))),
-          height: Math.max(160, Math.min(860, Number(src.height || 520))),
           maxRows: Math.max(50, Math.min(1200, Number(src.maxRows || 350))),
           autoScroll: src.autoScroll !== false,
           active: src.active !== false,
-          settingsOpen: !!src.settingsOpen,
+          alertOnly: src.alertOnly === true,
         };
       }
 
@@ -503,24 +421,12 @@
       }
 
       function applyUi() {
-        dock.dataset.pos = state.ui.position;
-        dock.dataset.mode = state.ui.mode;
-        dock.dataset.active = state.ui.active ? "1" : "0";
-        dock.dataset.settingsOpen = state.ui.settingsOpen ? "1" : "0";
-        dock.style.setProperty("--logger-width", `${state.ui.width}px`);
-        dock.style.setProperty("--logger-height", `${state.ui.height}px`);
-        if (loggerLauncher) loggerLauncher.classList.toggle("hidden", !!state.ui.active);
-        if (activeBtn) activeBtn.textContent = state.ui.active ? tt("common.hide", "Hide") : tt("common.show", "Show");
-        if (settingsBtn) settingsBtn.textContent = state.ui.settingsOpen ? "Close" : "Settings";
+        if (activeChk) activeChk.checked = !!state.ui.active;
         posSel.value = state.ui.position;
-        modeSel.value = state.ui.mode;
-        widthRange.value = String(state.ui.width);
-        widthVal.textContent = `${state.ui.width}px`;
-        heightRange.value = String(state.ui.height);
-        heightVal.textContent = `${state.ui.height}px`;
         rowsRange.value = String(state.ui.maxRows);
         rowsVal.textContent = String(state.ui.maxRows);
         autoScrollChk.checked = !!state.ui.autoScroll;
+        if (alertOnlyChk) alertOnlyChk.checked = !!state.ui.alertOnly;
       }
 
       function readLogs() {
@@ -613,7 +519,7 @@
             `;
           }).join("");
         }
-        if (state.ui.autoScroll && !state.paused && logWrap && state.ui.mode !== "status") {
+        if (state.ui.autoScroll && !state.paused && logWrap) {
           logWrap.scrollTop = 0;
         }
       }
@@ -668,14 +574,6 @@
           pauseBtn.textContent = state.paused ? tt("logger.resume", "Resume") : tt("logger.pause", "Pause");
         });
 
-        openPanelBtn?.addEventListener("click", () => {
-          state.ui.mode = "panel";
-          state.ui.settingsOpen = false;
-          writeUi();
-          applyUi();
-          render();
-        });
-
         clearBtn?.addEventListener("click", () => {
           if (!confirm(tt("logger.clearConfirm", "Clear log history?"))) return;
           if (window.CANBus?.clearLogs) window.CANBus.clearLogs();
@@ -699,30 +597,15 @@
           download(`vmill_logger_${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}.txt`, txt, "text/plain");
         });
 
-        modeSel?.addEventListener("change", () => {
-          state.ui.mode = String(modeSel.value || "panel") === "status" ? "status" : "panel";
-          if (state.ui.mode !== "status") state.ui.settingsOpen = false;
+        activeChk?.addEventListener("change", () => {
+          state.ui.active = !!activeChk.checked;
           writeUi();
           applyUi();
           render();
         });
 
-        settingsBtn?.addEventListener("click", () => {
-          state.ui.settingsOpen = !state.ui.settingsOpen;
-          writeUi();
-          applyUi();
-        });
-
-        activeBtn?.addEventListener("click", () => {
-          state.ui.active = !state.ui.active;
-          if (!state.ui.active) state.ui.settingsOpen = false;
-          writeUi();
-          applyUi();
-        });
-
-        loggerLauncher?.addEventListener("click", () => {
-          state.ui.active = true;
-          state.ui.settingsOpen = false;
+        alertOnlyChk?.addEventListener("change", () => {
+          state.ui.alertOnly = !!alertOnlyChk.checked;
           writeUi();
           applyUi();
           render();
@@ -730,18 +613,6 @@
 
         posSel?.addEventListener("change", () => {
           state.ui.position = String(posSel.value || "bottom-right");
-          writeUi();
-          applyUi();
-        });
-
-        widthRange?.addEventListener("input", () => {
-          state.ui.width = Math.max(320, Math.min(1200, Number(widthRange.value || 860)));
-          writeUi();
-          applyUi();
-        });
-
-        heightRange?.addEventListener("input", () => {
-          state.ui.height = Math.max(160, Math.min(860, Number(heightRange.value || 520)));
           writeUi();
           applyUi();
         });
@@ -778,21 +649,6 @@
         window.addEventListener("vmill:lang:changed", () => {
           applyI18n();
           render();
-        });
-        window.addEventListener("keydown", (e) => {
-          if (!e || e.key !== "Escape") return;
-          if (!state.ui.active) return;
-          if (state.ui.settingsOpen) {
-            state.ui.settingsOpen = false;
-            writeUi();
-            applyUi();
-            return;
-          }
-          if (state.ui.mode === "status") {
-            state.ui.active = false;
-            writeUi();
-            applyUi();
-          }
         });
       }
 

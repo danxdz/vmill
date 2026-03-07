@@ -1448,11 +1448,99 @@
     return s || `${prefix}-${Date.now().toString(36)}`;
   }
 
+  function coreRoleDefaultAttributes(role) {
+    const r = String(role || "").trim().toLowerCase();
+    const mk = (name, key, type = "string", required = false) => ({
+      id: `core_${r}_${String(key || name || "").toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
+      name: String(name || ""),
+      key: String(key || name || ""),
+      type: String(type || "string"),
+      required: !!required,
+      enabled: true,
+      order: 0,
+      core: true,
+    });
+    if (r === "product") {
+      return [
+        mk("Code", "code", "string", false),
+        mk("Name", "name", "string", true),
+        mk("Parent Product", "parentProductId", "string", false),
+      ];
+    }
+    if (r === "station") {
+      return [
+        mk("Code", "code", "string", false),
+        mk("Name", "name", "string", true),
+      ];
+    }
+    if (r === "job") {
+      return [
+        mk("Name", "name", "string", true),
+        mk("Station", "stationId", "string", true),
+        mk("Product", "productId", "string", false),
+        mk("Status", "status", "string", false),
+      ];
+    }
+    return [];
+  }
+
+  function canonicalAttributeKey(attr) {
+    return String(attr?.key || attr?.name || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+  }
+
+  function mergeCoreRoleAttributes(rawAttrs, role) {
+    const own = normalizeEntityAttributes(rawAttrs);
+    const defaults = normalizeEntityAttributes(coreRoleDefaultAttributes(role));
+    if (!defaults.length) return own;
+    const existingKeys = new Set(own.map((attr) => canonicalAttributeKey(attr)).filter(Boolean));
+    const merged = own.slice();
+    for (const row of defaults) {
+      const key = canonicalAttributeKey(row);
+      if (!key || existingKeys.has(key)) continue;
+      merged.push({ ...row, order: merged.length });
+      existingKeys.add(key);
+    }
+    return normalizeEntityAttributes(merged);
+  }
+
   function baseEntityTypes() {
     return [
-      { id: "product", code: "CAT001", nameSingular: "Product", namePlural: "Products", moduleRole: "product", base: true, locked: false, allowManualItems: true },
-      { id: "station", code: "CAT002", nameSingular: "Station", namePlural: "Stations", moduleRole: "station", base: true, locked: false, allowManualItems: true },
-      { id: "job", code: "CAT003", nameSingular: "Job", namePlural: "Jobs", moduleRole: "job", base: true, locked: false, allowManualItems: true },
+      {
+        id: "product",
+        code: "CAT001",
+        nameSingular: "Product",
+        namePlural: "Products",
+        moduleRole: "product",
+        attributes: coreRoleDefaultAttributes("product"),
+        base: true,
+        locked: false,
+        allowManualItems: true,
+      },
+      {
+        id: "station",
+        code: "CAT002",
+        nameSingular: "Station",
+        namePlural: "Stations",
+        moduleRole: "station",
+        attributes: coreRoleDefaultAttributes("station"),
+        base: true,
+        locked: false,
+        allowManualItems: true,
+      },
+      {
+        id: "job",
+        code: "CAT003",
+        nameSingular: "Job",
+        namePlural: "Jobs",
+        moduleRole: "job",
+        attributes: coreRoleDefaultAttributes("job"),
+        base: true,
+        locked: false,
+        allowManualItems: true,
+      },
     ];
   }
 
@@ -1493,7 +1581,7 @@
 
   function normalizeEntityAttributes(raw) {
     const rows = Array.isArray(raw) ? raw : [];
-    const allowed = new Set(["string", "number", "boolean", "date", "text"]);
+    const allowed = new Set(["string", "number", "boolean", "date", "timestamp", "text"]);
     const out = rows
       .map((row, idx) => {
         const parsedOrder = Number(row?.order);
@@ -1629,7 +1717,7 @@
           nameSingular: String(typeRows[idx]?.nameSingular || base.nameSingular),
           namePlural: String(typeRows[idx]?.namePlural || base.namePlural),
           description: String(typeRows[idx]?.description || ""),
-          attributes: normalizeEntityAttributes(typeRows[idx]?.attributes),
+          attributes: mergeCoreRoleAttributes(typeRows[idx]?.attributes, base.moduleRole),
           updatedAt: nowIso,
         };
         const changedCore = !shallowEqualKeys(prev, next, ["code", "nameSingular", "namePlural", "moduleRole", "description", "id", "base", "locked", "allowManualItems"]);
@@ -1644,7 +1732,7 @@
     for (let i = 0; i < typeRows.length; i += 1) {
       const row = typeRows[i] || {};
       const nextRole = normalizeModuleRole(row.moduleRole, row.id);
-      const normAttrs = normalizeEntityAttributes(row?.attributes);
+      const normAttrs = mergeCoreRoleAttributes(row?.attributes, nextRole);
       const attrsChanged = JSON.stringify(row?.attributes || []) !== JSON.stringify(normAttrs);
       if (String(row.moduleRole || "") !== nextRole || attrsChanged) {
         typeRows[i] = { ...row, moduleRole: nextRole, attributes: normAttrs, updatedAt: nowIso };

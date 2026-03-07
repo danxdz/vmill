@@ -40,6 +40,14 @@ window.VMillModules = [
     tags: ["shop", "tree", "nodes", "crud"],
   },
   {
+    id: "records",
+    name: "Records Manager",
+    desc: "Dynamic record CRUD forms generated from selected system category fields.",
+    href: "./records_manager.html",
+    status: "ready",
+    tags: ["records", "crud", "forms", "schema"],
+  },
+  {
     id: "theme",
     name: "Theme Studio",
     desc: "Global palette and visual theme controls for all modules.",

@@ -1454,6 +1454,7 @@
       <a class="dockBtn" data-dock-id="chrono-camera" data-module-id="chrono-camera" href="./chrono/chrono_camera.html">Camera</a>
       <a class="dockBtn" data-dock-id="spacial" data-module-id="spacial" href="./SPaCial.html">SPaCial</a>
       <a class="dockBtn" data-dock-id="shop-tree" data-module-id="shop-tree" href="./shop_tree.html">Shop Organizer</a>
+      <a class="dockBtn" data-dock-id="records" data-module-id="records" href="./records_manager.html">Records</a>
       <a class="dockBtn" data-dock-id="can-bus" data-module-id="can-bus" href="./logger.html">Logger</a>
       <a class="dockBtn" data-dock-id="contas" data-module-id="contas" href="./contas_calc.html">Contas</a>
       <a class="dockBtn" data-dock-id="cnc-sim" data-module-id="cnc-sim" href="../index.html">CNC Sim</a>
@@ -1707,6 +1708,7 @@
         { id: "chrono-camera", name: "Chrono Camera", desc: "Camera-assisted capture with sequence marks and bookmark export.", href: "./chrono/chrono_camera.html", status: "ready", tags: ["capture", "camera", "bookmarks"] },
         { id: "spacial", name: "SPaCial", desc: "SPC analytics with control limits, rule flags, and offline backups.", href: "./SPaCial.html", status: "ready", tags: ["spc", "quality", "control-chart", "offline"] },
         { id: "shop-tree", name: "Shop Organizer", desc: "Recursive shop hierarchy with node CRUD, linked jobs, and drag reparenting.", href: "./shop_tree.html", status: "ready", tags: ["shop", "tree", "nodes", "crud"] },
+        { id: "records", name: "Records Manager", desc: "Dynamic record CRUD forms generated from selected system category fields.", href: "./records_manager.html", status: "ready", tags: ["records", "crud", "forms", "schema"] },
         { id: "contas", name: "Contas CNC", desc: "Legacy CNC calculators: thread, milling, turning, and trig helpers.", href: "./contas_calc.html", status: "ready", tags: ["cnc", "calculator", "thread", "milling", "turning"] },
         { id: "theme", name: "Theme Studio", desc: "Global palette and visual theme controls for all modules.", href: "./theme_studio.html", status: "ready", tags: ["theme", "ui", "palette"] },
         { id: "translations", name: "Translations", desc: "Global translation manager for EN/FR/PT strings.", href: "./translation_studio.html", status: "ready", tags: ["i18n", "localization", "strings"] },
@@ -1892,6 +1894,7 @@
           ["chrono-camera", "hub.dock.camera", "Camera"],
           ["spacial", "hub.dock.spacial", "SPaCial"],
           ["shop-tree", "hub.dock.shopTree", "Shop Organizer"],
+          ["records", "hub.dock.records", "Records"],
           ["can-bus", "hub.dock.logger", "Logger"],
           ["contas", "hub.dock.contas", "Contas"],
           ["cnc-sim", "hub.dock.cnc", "CNC Sim"],
@@ -3182,39 +3185,93 @@
           .sort((a, b) => a.label.localeCompare(b.label));
       }
 
+      function scopeToolbarRowsForMode(meta, mode) {
+        const safeMeta = Array.isArray(meta) ? meta : [];
+        const normalizedMode = String(mode || "roots") === "all" ? "all" : "roots";
+        return normalizedMode === "all" ? safeMeta : safeMeta.filter((m) => m.isRoot);
+      }
+
+      function normalizeScopeToolbarLists(rows, prefs) {
+        const safeRows = Array.isArray(rows) ? rows : [];
+        const allowed = new Set(safeRows.map((r) => String(r?.id || "")).filter(Boolean));
+        const asUniqueAllowed = (list) => {
+          const src = Array.isArray(list) ? list : [];
+          const out = [];
+          const seen = new Set();
+          for (const raw of src) {
+            const id = String(raw || "").trim();
+            if (!id || seen.has(id) || !allowed.has(id)) continue;
+            seen.add(id);
+            out.push(id);
+          }
+          return out;
+        };
+        const order = asUniqueAllowed(prefs?.orderTypeIds);
+        for (const row of safeRows) {
+          const id = String(row?.id || "");
+          if (!id || order.includes(id)) continue;
+          order.push(id);
+        }
+        const hiddenList = asUniqueAllowed(prefs?.hiddenTypeIds);
+        const hiddenSet = new Set(hiddenList);
+        return { order, hiddenSet, hiddenList };
+      }
+
+      function sameStringArray(a, b) {
+        const aa = Array.isArray(a) ? a : [];
+        const bb = Array.isArray(b) ? b : [];
+        if (aa.length !== bb.length) return false;
+        for (let i = 0; i < aa.length; i += 1) {
+          if (String(aa[i] || "") !== String(bb[i] || "")) return false;
+        }
+        return true;
+      }
+
+      function renderScopeToolbarSettingsRow(row, opts = {}) {
+        const id = String(row?.id || "");
+        const canUp = !!opts.canUp;
+        const canDown = !!opts.canDown;
+        const mode = String(opts.mode || "visible");
+        const badge = row?.isRoot
+          ? tt("hub.toolbar.badge.root", "root")
+          : tt("hub.toolbar.badge.child", "child");
+        const actions = mode === "visible"
+          ? `
+            <button class="scopeToolbarBtn" type="button" data-scope-toolbar-move="${escHtml(id)}" data-dir="up" ${canUp ? "" : "disabled"} title="${escHtml(tt("hub.toolbar.up", "Move up"))}">↑</button>
+            <button class="scopeToolbarBtn" type="button" data-scope-toolbar-move="${escHtml(id)}" data-dir="down" ${canDown ? "" : "disabled"} title="${escHtml(tt("hub.toolbar.down", "Move down"))}">↓</button>
+            <button class="scopeToolbarBtn warn" type="button" data-scope-toolbar-remove="${escHtml(id)}" title="${escHtml(tt("hub.toolbar.remove", "Remove from toolbar"))}">−</button>
+          `
+          : `
+            <button class="scopeToolbarBtn" type="button" data-scope-toolbar-add="${escHtml(id)}" title="${escHtml(tt("hub.toolbar.add", "Add to toolbar"))}">+</button>
+          `;
+        return `
+          <div class="scopeToolbarRow">
+            <div class="scopeToolbarRowLabel">${escHtml(row?.label || id)} <span class="minor">(${escHtml(badge)})</span></div>
+            <div class="scopeToolbarRowActions">${actions}</div>
+          </div>
+        `;
+      }
+
       function renderScopeToolbarSettings() {
         if (!scopeToolbarModeSel || !scopeToolbarTypeOrderList || !scopeToolbarTypeAvailableList) return;
         scopeToolbarPrefs = readScopeToolbarPrefs();
         scopeToolbarModeSel.value = scopeToolbarPrefs.mode === "all" ? "all" : "roots";
         const model = readDynamicModelSafe();
         const meta = scopeToolbarTypeMeta(model);
-        const rows = scopeToolbarPrefs.mode === "all" ? meta : meta.filter((m) => m.isRoot);
+        const rows = scopeToolbarRowsForMode(meta, scopeToolbarPrefs.mode);
         const rowById = new Map(rows.map((r) => [String(r.id || ""), r]));
-        const allowed = new Set(rows.map((r) => String(r.id || "")));
-        let order = Array.isArray(scopeToolbarPrefs.orderTypeIds)
-          ? [...new Set(scopeToolbarPrefs.orderTypeIds.map((x) => String(x || "").trim()).filter((id) => allowed.has(id)))]
-          : [];
-        for (const row of rows) {
-          const id = String(row.id || "");
-          if (!id || order.includes(id)) continue;
-          order.push(id);
-        }
-        let hidden = new Set(
-          Array.isArray(scopeToolbarPrefs.hiddenTypeIds)
-            ? scopeToolbarPrefs.hiddenTypeIds.map((x) => String(x || "").trim()).filter((id) => allowed.has(id))
-            : []
-        );
+        const lists = normalizeScopeToolbarLists(rows, scopeToolbarPrefs);
+        let order = lists.order.slice();
+        let hidden = new Set(lists.hiddenSet);
         const normalizedPrefs = {
           ...scopeToolbarPrefs,
-          hiddenTypeIds: [...hidden],
+          hiddenTypeIds: lists.hiddenList.slice(),
           orderTypeIds: order.slice(),
         };
-        if (
-          JSON.stringify(scopeToolbarPrefs.hiddenTypeIds || []) !== JSON.stringify(normalizedPrefs.hiddenTypeIds)
-          || JSON.stringify(scopeToolbarPrefs.orderTypeIds || []) !== JSON.stringify(normalizedPrefs.orderTypeIds)
-        ) {
+        if (!sameStringArray(scopeToolbarPrefs.hiddenTypeIds, normalizedPrefs.hiddenTypeIds)
+          || !sameStringArray(scopeToolbarPrefs.orderTypeIds, normalizedPrefs.orderTypeIds)) {
           scopeToolbarPrefs = writeScopeToolbarPrefs(normalizedPrefs);
-          hidden = new Set(scopeToolbarPrefs.hiddenTypeIds || []);
+          hidden = new Set(Array.isArray(scopeToolbarPrefs.hiddenTypeIds) ? scopeToolbarPrefs.hiddenTypeIds.slice() : []);
           order = Array.isArray(scopeToolbarPrefs.orderTypeIds) ? scopeToolbarPrefs.orderTypeIds.slice() : order;
         }
         if (!rows.length) {
@@ -3227,37 +3284,12 @@
         const visibleIds = order.filter((id) => !hidden.has(id));
         const hiddenIds = order.filter((id) => hidden.has(id));
 
-        const renderRow = (row, opts = {}) => {
-          const id = String(row?.id || "");
-          const canUp = !!opts.canUp;
-          const canDown = !!opts.canDown;
-          const mode = String(opts.mode || "visible");
-          const badge = row?.isRoot
-            ? tt("hub.toolbar.badge.root", "root")
-            : tt("hub.toolbar.badge.child", "child");
-          const actions = mode === "visible"
-            ? `
-              <button class="scopeToolbarBtn" type="button" data-scope-toolbar-move="${escHtml(id)}" data-dir="up" ${canUp ? "" : "disabled"} title="${escHtml(tt("hub.toolbar.up", "Move up"))}">↑</button>
-              <button class="scopeToolbarBtn" type="button" data-scope-toolbar-move="${escHtml(id)}" data-dir="down" ${canDown ? "" : "disabled"} title="${escHtml(tt("hub.toolbar.down", "Move down"))}">↓</button>
-              <button class="scopeToolbarBtn warn" type="button" data-scope-toolbar-remove="${escHtml(id)}" title="${escHtml(tt("hub.toolbar.remove", "Remove from toolbar"))}">−</button>
-            `
-            : `
-              <button class="scopeToolbarBtn" type="button" data-scope-toolbar-add="${escHtml(id)}" title="${escHtml(tt("hub.toolbar.add", "Add to toolbar"))}">+</button>
-            `;
-          return `
-            <div class="scopeToolbarRow">
-              <div class="scopeToolbarRowLabel">${escHtml(row?.label || id)} <span class="minor">(${escHtml(badge)})</span></div>
-              <div class="scopeToolbarRowActions">${actions}</div>
-            </div>
-          `;
-        };
-
         scopeToolbarTypeOrderList.innerHTML = visibleIds.length
-          ? visibleIds.map((id, idx) => renderRow(rowById.get(id), { mode: "visible", canUp: idx > 0, canDown: idx < (visibleIds.length - 1) })).join("")
+          ? visibleIds.map((id, idx) => renderScopeToolbarSettingsRow(rowById.get(id), { mode: "visible", canUp: idx > 0, canDown: idx < (visibleIds.length - 1) })).join("")
           : `<div class="minor">${escHtml(tt("hub.toolbar.noneShown", "No sets shown in toolbar."))}</div>`;
 
         scopeToolbarTypeAvailableList.innerHTML = hiddenIds.length
-          ? hiddenIds.map((id) => renderRow(rowById.get(id), { mode: "hidden" })).join("")
+          ? hiddenIds.map((id) => renderScopeToolbarSettingsRow(rowById.get(id), { mode: "hidden" })).join("")
           : `<div class="minor">${escHtml(tt("hub.toolbar.noneAvailable", "No hidden sets."))}</div>`;
 
         const writeAndRerender = (nextOrder, nextHidden) => {

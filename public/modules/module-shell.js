@@ -603,6 +603,9 @@
   let rightRailCollapsed = true;
   let scopeDock = null;
   let loggerOverlay = null;
+  let scopeDockRenderTimer = 0;
+  let scopeDockLastRenderAt = 0;
+  const SCOPE_DOCK_RENDER_MIN_GAP_MS = 90;
 
   function applyTopDockPadding(enabled) {
     const isHub = currentModuleId() === "hub";
@@ -644,10 +647,10 @@
     const src = safeParse(localStorage.getItem(LOGGER_UI_KEY), {});
     const pos = String(src.position || "");
     return {
-      mode: String(src.mode || "status") === "panel" ? "panel" : "status",
       position: ["top-left", "top-right", "bottom-left", "bottom-right"].includes(pos) ? pos : "bottom-right",
       maxRows: Math.max(50, Math.min(1200, Number(src.maxRows || 350))),
       active: src.active !== false,
+      alertOnly: src.alertOnly === true,
     };
   }
 
@@ -714,7 +717,16 @@
           display:flex;
           align-items:center;
           gap:8px;
+          cursor:pointer;
         }
+        #vmillLoggerOverlay .loggerBar.issueOnly{
+          min-width:auto;
+          max-width:none;
+          width:auto;
+          padding:4px 6px;
+          gap:6px;
+        }
+        #vmillLoggerOverlay .loggerBar.issueOnly .loggerText{ display:none; }
         #vmillLoggerOverlay .loggerDot{
           width:8px;height:8px;border-radius:999px;flex:0 0 auto;
           background:var(--logger-muted);
@@ -752,6 +764,11 @@
           text-decoration:none;
           flex:0 0 auto;
         }
+        #vmillLoggerOverlay .loggerBtn.hideBtn{
+          padding:2px 6px;
+          min-width:24px;
+          text-align:center;
+        }
         #vmillLoggerOverlay .loggerBtn:hover{
           border-color:color-mix(in srgb, var(--logger-accent) 54%, var(--logger-border));
           background:color-mix(in srgb, var(--logger-accent) 14%, transparent);
@@ -779,20 +796,33 @@
         <span class="loggerDot" id="vmillLoggerDot"></span>
         <div class="loggerText" id="vmillLoggerText"></div>
         <div class="loggerCounts" id="vmillLoggerCounts"></div>
-        <button class="loggerBtn" id="vmillLoggerOpen" type="button">Logs</button>
-        <button class="loggerBtn" id="vmillLoggerHide" type="button">Hide</button>
+        <button class="loggerBtn hideBtn" id="vmillLoggerHide" type="button">×</button>
       </div>
     `;
     document.body.appendChild(node);
     loggerOverlay = node;
-    const openBtn = node.querySelector("#vmillLoggerOpen");
+    const bar = node.querySelector("#vmillLoggerBar");
     const hideBtn = node.querySelector("#vmillLoggerHide");
-    openBtn?.addEventListener("click", () => {
+    if (bar) {
+      bar.setAttribute("role", "button");
+      bar.setAttribute("tabindex", "0");
+      bar.setAttribute("aria-label", tt("logger.openPanel", "Open logs panel"));
+    }
+    const openLoggerPanel = () => {
+      writeLoggerUi({ active: true });
       const ctx = getCtxFromState();
-      const handoff = "";
-      location.href = makeUrlWithCtx(loggerRoute(), { jobId: ctx.jobId, stationId: ctx.stationId, handoff });
+      location.href = makeUrlWithCtx(loggerRoute(), { jobId: ctx.jobId, stationId: ctx.stationId });
+    };
+    bar?.addEventListener("click", () => {
+      openLoggerPanel();
     });
-    hideBtn?.addEventListener("click", () => {
+    bar?.addEventListener("keydown", (e) => {
+      if (!e || (e.key !== "Enter" && e.key !== " ")) return;
+      e.preventDefault();
+      openLoggerPanel();
+    });
+    hideBtn?.addEventListener("click", (e) => {
+      e?.stopPropagation?.();
       writeLoggerUi({ active: false });
       renderLoggerOverlay();
     });
@@ -809,21 +839,22 @@
     ensureLoggerOverlay();
     if (!loggerOverlay) return;
     const ui = readLoggerUi();
-    const show = !!ui.active && ui.mode === "status";
-    loggerOverlay.classList.toggle("hidden", !show);
-    loggerOverlay.setAttribute("data-pos", String(ui.position || "bottom-right"));
     const textEl = loggerOverlay.querySelector("#vmillLoggerText");
     const dotEl = loggerOverlay.querySelector("#vmillLoggerDot");
     const countsEl = loggerOverlay.querySelector("#vmillLoggerCounts");
-    const openBtn = loggerOverlay.querySelector("#vmillLoggerOpen");
+    const barEl = loggerOverlay.querySelector("#vmillLoggerBar");
     const hideBtn = loggerOverlay.querySelector("#vmillLoggerHide");
-    if (openBtn) openBtn.textContent = tt("logger.openPanel", "Logs");
-    if (hideBtn) hideBtn.textContent = tt("common.hide", "Hide");
-    if (!show) return;
     const all = readLoggerEntries().slice(-Math.max(1, Number(ui.maxRows || 350)));
     const infoCount = all.filter((r) => String(r?.level || "info") === "info").length;
     const warnCount = all.filter((r) => String(r?.level || "info") === "warn").length;
     const errCount = all.filter((r) => String(r?.level || "info") === "error").length;
+    const hasIssues = warnCount > 0 || errCount > 0;
+    const show = !!ui.active && (!ui.alertOnly || hasIssues);
+    loggerOverlay.classList.toggle("hidden", !show);
+    loggerOverlay.setAttribute("data-pos", String(ui.position || "bottom-right"));
+    if (barEl) barEl.classList.toggle("issueOnly", !!ui.alertOnly);
+    if (hideBtn) hideBtn.title = tt("common.hide", "Hide");
+    if (!show) return;
     const latest = all.length ? all[all.length - 1] : null;
     const syncLatest = [...all].reverse().find((r) => String(r?.type || "") === "data:sync:status");
     const online = !!(syncLatest?.payload && typeof syncLatest.payload === "object" && syncLatest.payload.online);
@@ -1195,7 +1226,7 @@
           left:50%;
           top:var(--vm-shell-scope-top, 4px);
           transform:translateX(-50%);
-          z-index:99997;
+          z-index:var(--z-hub-scope, 100150);
           font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
           --scope-bg: color-mix(in srgb, var(--vm-theme-panel, #111a2a) 90%, transparent);
           --scope-border: var(--vm-theme-border, rgba(230,237,248,.24));
@@ -1203,6 +1234,9 @@
           --scope-muted: var(--vm-theme-muted, rgba(230,237,248,.66));
           --scope-accent: var(--vm-theme-accent, #57b4ff);
           --scope-accent-rgb: var(--vm-theme-accent-rgb, 87,180,255);
+          --scope-fs-xs: 10px;
+          --scope-fs-sm: 11px;
+          --scope-fs-md: 12px;
         }
         body.hubHeaderMinimal #vmillScopeDock{
           opacity:1 !important;
@@ -1234,7 +1268,7 @@
           background:rgba(255,255,255,.03);
           color:var(--scope-text);
           padding:3px 7px;
-          font-size:10px;
+          font-size:var(--scope-fs-sm);
           font-weight:700;
           letter-spacing:.01em;
           text-align:left;
@@ -1258,7 +1292,7 @@
           color:transparent;
           caret-color:var(--scope-text);
           padding:6px 8px 6px 8px;
-          font-size:11px;
+          font-size:var(--scope-fs-sm);
           line-height:1.2;
           transition:
             width .18s ease,
@@ -1300,7 +1334,7 @@
           color:var(--scope-text);
           border-radius:999px;
           padding:2px 6px;
-          font-size:8px;
+          font-size:var(--scope-fs-sm);
           font-weight:700;
           cursor:pointer;
           text-decoration:none;
@@ -1343,7 +1377,7 @@
         }
         #vmillScopeDock .scopeSelLabel{
           color:var(--scope-muted);
-          font-size:7px;
+          font-size:var(--scope-fs-xs);
           font-weight:700;
           letter-spacing:.03em;
           text-transform:uppercase;
@@ -1362,7 +1396,7 @@
             );
           color:var(--scope-text);
           padding:2px 5px;
-          font-size:8px;
+          font-size:var(--scope-fs-sm);
           min-width:0;
           width:100%;
         }
@@ -1401,7 +1435,7 @@
           flex-wrap:wrap;
         }
         #vmillScopeDock .scopePickerHead strong{
-              font-size:11px;
+              font-size:var(--scope-fs-md);
         }
         #vmillScopeDock .scopeSearch{
           flex:1 1 180px;
@@ -1411,7 +1445,7 @@
           background:rgba(255,255,255,.04);
           color:var(--scope-text);
           padding:5px 8px;
-          font-size:11px;
+          font-size:var(--scope-fs-sm);
         }
         #vmillScopeDock .scopeList{
           max-height:min(45vh, 320px);
@@ -1431,7 +1465,7 @@
           justify-content:space-between;
           gap:8px;
           cursor:pointer;
-          font-size:11px;
+          font-size:var(--scope-fs-sm);
         }
         #vmillScopeDock .scopePick:hover{
           border-color:color-mix(in srgb, var(--scope-accent) 54%, var(--scope-border));
@@ -1443,7 +1477,7 @@
         }
         #vmillScopeDock .scopePickMeta{
           color:var(--scope-muted);
-          font-size:9px;
+          font-size:var(--scope-fs-xs);
           flex:0 0 auto;
         }
         @media (max-width:1200px){
@@ -1496,7 +1530,7 @@
             order:initial;
             min-width:32px;
             padding:6px 8px;
-            font-size:11px;
+            font-size:var(--scope-fs-sm);
             align-self:flex-start;
           }
           #vmillScopeDock .scopeSearchInline:focus,
@@ -1567,9 +1601,14 @@
     let openTypeId = "";
     let pickerQuery = "";
     let scopeQueryInputTimer = 0;
+    let scopeLeaveCloseTimer = 0;
+    let lastScopeInsidePointerDownAt = 0;
+    const SCOPE_LEAVE_CLOSE_DELAY_MS = 2000;
+    const SCOPE_OUTSIDE_IGNORE_AFTER_INSIDE_MS = 360;
     let currentModel = { types: [], items: [], links: [], rules: [] };
-    const initialScopeDockUi = readScopeDockUi();
-    let scopeCollapsed = false;
+    let lastModelLoadAt = 0;
+    let cachedModelStoreRaw = "";
+    let cachedModelStore = { types: [], items: [], links: [], rules: [] };
     const mobileScopeMq = window.matchMedia
       ? window.matchMedia("(max-width:760px), (hover:none) and (pointer:coarse)")
       : null;
@@ -1585,11 +1624,35 @@
       node.classList.remove("compact");
     }
 
-    function setScopeCollapsed(nextCollapsed, persist = true) {
+    function setScopeCollapsed(_nextCollapsed, persist = true) {
       // Scope toolbar is always expanded now to keep selectors visible.
-      scopeCollapsed = false;
       if (persist) writeScopeDockUi({ collapsed: false });
       syncScopeDockCompactState();
+    }
+    function clearScopeLeaveCloseTimer() {
+      if (!scopeLeaveCloseTimer) return;
+      clearTimeout(scopeLeaveCloseTimer);
+      scopeLeaveCloseTimer = 0;
+    }
+    function holdScopeOpen() {
+      clearScopeLeaveCloseTimer();
+      node.classList.add("is-open");
+    }
+    function scheduleScopeLeaveClose() {
+      clearScopeLeaveCloseTimer();
+      scopeLeaveCloseTimer = setTimeout(() => {
+        if (!scopeDock || !node.isConnected) return;
+        const hovered = node.matches(":hover");
+        const active = document.activeElement;
+        const focusWithin = !!(active instanceof Node && node.contains(active));
+        if (hovered || focusWithin) {
+          scheduleScopeLeaveClose();
+          return;
+        }
+        closePicker();
+        node.classList.remove("is-open");
+        render();
+      }, SCOPE_LEAVE_CLOSE_DELAY_MS);
     }
 
     function typeLabel(t) {
@@ -1623,39 +1686,123 @@
       const byId = [...typeById.values()].find((t) => String(t?.id || "").trim().toLowerCase() === wanted);
       return byId ? String(byId.id || "") : "";
     }
-    function loadModel() {
-      typeById.clear();
-      itemsByType.clear();
-      let model = window.VMillData?.readStructureModel
-        ? window.VMillData.readStructureModel({ persist: false })
-        : { types: [], items: [], links: [], rules: [] };
-      let types = Array.isArray(model?.types) ? model.types.slice() : [];
-      let items = Array.isArray(model?.items) ? model.items.slice() : [];
-      const links = Array.isArray(model?.links) ? model.links.slice() : [];
-      const rules = Array.isArray(model?.rules) ? model.rules.slice() : [];
-
-      // Relink/fallback path: when structure model is temporarily empty,
-      // use the same dynamic source used by Hub settings.
-      if (!types.length && window.VMillData?.listEntityTypes) {
-        const typeRows = window.VMillData.listEntityTypes() || [];
-        types = Array.isArray(typeRows) ? typeRows.slice() : [];
-        items = [];
-        if (window.VMillData?.listEntities) {
-          for (const t of types) {
-            const tid = String(t?.id || "");
-            if (!tid) continue;
-            const rows = window.VMillData.listEntities(tid) || [];
-            if (!Array.isArray(rows)) continue;
-            for (const row of rows) {
-              items.push({
-                ...(row || {}),
-                typeId: tid,
-              });
-            }
+    function emptyModel() {
+      return { types: [], items: [], links: [], rules: [] };
+    }
+    function normalizeStructureModel(raw) {
+      const src = raw && typeof raw === "object" ? raw : {};
+      return {
+        types: Array.isArray(src.types) ? src.types.slice() : [],
+        items: Array.isArray(src.items) ? src.items.slice() : [],
+        links: Array.isArray(src.links) ? src.links.slice() : [],
+        rules: Array.isArray(src.rules) ? src.rules.slice() : [],
+      };
+    }
+    function readStructureModelFromLocalStore() {
+      const rawText = String(localStorage.getItem("vmill:module-data:v1") || "");
+      if (rawText && rawText === cachedModelStoreRaw) {
+        return cachedModelStore;
+      }
+      cachedModelStoreRaw = rawText;
+      const rawModule = safeParse(rawText, null);
+      const store = rawModule && typeof rawModule === "object"
+        ? (rawModule.store && typeof rawModule.store === "object" ? rawModule.store : rawModule)
+        : null;
+      if (!store || typeof store !== "object") {
+        cachedModelStore = emptyModel();
+        return cachedModelStore;
+      }
+      cachedModelStore = {
+        types: Array.isArray(store.global_entity_types) ? store.global_entity_types.slice() : [],
+        items: Array.isArray(store.global_entity_items) ? store.global_entity_items.slice() : [],
+        links: Array.isArray(store.global_entity_links) ? store.global_entity_links.slice() : [],
+        rules: Array.isArray(store.global_structure_rules) ? store.global_structure_rules.slice() : [],
+      };
+      return cachedModelStore;
+    }
+    function readStructureModelFromEntityApi() {
+      if (!window.VMillData?.listEntityTypes) return emptyModel();
+      const typeRows = window.VMillData.listEntityTypes();
+      const types = Array.isArray(typeRows) ? typeRows.slice() : [];
+      if (!types.length) return emptyModel();
+      const items = [];
+      if (window.VMillData?.listEntities) {
+        for (const t of types) {
+          const tid = String(t?.id || "");
+          if (!tid) continue;
+          const rows = window.VMillData.listEntities(tid) || [];
+          if (!Array.isArray(rows)) continue;
+          for (const row of rows) {
+            items.push({
+              ...(row || {}),
+              typeId: tid,
+            });
           }
         }
-        model = { types, items, links, rules };
       }
+      return { types, items, links: [], rules: [] };
+    }
+    function synthesizeRoleModelFromAppState() {
+      const app = readAppState() || {};
+      const types = [
+        { id: "product", nameSingular: "Product", namePlural: "Products", moduleRole: "product" },
+        { id: "station", nameSingular: "Station", namePlural: "Stations", moduleRole: "station" },
+        { id: "job", nameSingular: "Job", namePlural: "Jobs", moduleRole: "job" },
+      ];
+      const mapRows = (rows, typeId) =>
+        (Array.isArray(rows) ? rows : [])
+          .map((row) => {
+            const id = String(row?.id || "");
+            if (!id) return null;
+            return {
+              id,
+              typeId,
+              source: "app",
+              sourceId: id,
+              code: String(row?.code || ""),
+              name: String(row?.name || id),
+              meta: {},
+            };
+          })
+          .filter(Boolean);
+      const items = [
+        ...mapRows(app?.products, "product"),
+        ...mapRows(app?.stations, "station"),
+        ...mapRows(app?.jobs, "job"),
+      ];
+      return { types, items, links: [], rules: [] };
+    }
+    function loadModel() {
+      const nowTs = Date.now();
+      if (currentModel.types.length && (nowTs - lastModelLoadAt) < 180) return;
+      lastModelLoadAt = nowTs;
+      typeById.clear();
+      itemsByType.clear();
+      // Fast path: local module snapshot (already normalized by module-data).
+      let model = normalizeStructureModel(readStructureModelFromLocalStore());
+
+      // Fallback to API abstraction only when local store is not ready.
+      if (!model.types.length) {
+        model = normalizeStructureModel(
+          window.VMillData?.readStructureModel
+            ? window.VMillData.readStructureModel({ persist: false })
+            : emptyModel()
+        );
+      }
+
+      // Early-shell fallback: module-shell can boot before module-data is ready.
+      if (!model.types.length) model = normalizeStructureModel(readStructureModelFromLocalStore());
+
+      // Secondary fallback: use entity APIs used by Hub settings.
+      if (!model.types.length) model = normalizeStructureModel(readStructureModelFromEntityApi());
+
+      // Last fallback: synthesize base role categories from app state.
+      if (!model.types.length) model = normalizeStructureModel(synthesizeRoleModelFromAppState());
+
+      const types = model.types.slice();
+      const items = model.items.slice();
+      const links = model.links.slice();
+      const rules = model.rules.slice();
 
       currentModel = { types, items, links, rules };
       types.sort((a, b) => typeLabel(a).localeCompare(typeLabel(b)));
@@ -1730,6 +1877,50 @@
         jobTypeId: roleTypeId("job"),
       };
     }
+    function fastRoleScopedSet(ctx, targetTypeId, entries) {
+      const targetTid = String(targetTypeId || "");
+      const roleIds = ctx?.roleIds || roleTypeIds();
+      const jobTid = String(roleIds.jobTypeId || "");
+      const stationTid = String(roleIds.stationTypeId || "");
+      const productTid = String(roleIds.productTypeId || "");
+      if (!targetTid || !jobTid || !stationTid || !productTid) return null;
+      if (!(targetTid === jobTid || targetTid === stationTid || targetTid === productTid)) return null;
+      const jobs = Array.isArray(ctx?.appState?.jobs) ? ctx.appState.jobs : [];
+      if (!jobs.length) return new Set();
+      let active = null;
+      let applied = 0;
+      for (const [typeId, itemId] of entries) {
+        const tid = String(typeId || "");
+        const iid = String(itemId || "");
+        if (!tid || !iid) continue;
+        let next = null;
+        if (targetTid === jobTid) {
+          if (tid === jobTid) next = new Set([iid]);
+          else if (tid === stationTid) next = new Set(jobs.filter((j) => String(j?.stationId || "") === iid).map((j) => String(j?.id || "")).filter(Boolean));
+          else if (tid === productTid) next = new Set(jobs.filter((j) => String(j?.productId || "") === iid).map((j) => String(j?.id || "")).filter(Boolean));
+        } else if (targetTid === stationTid) {
+          if (tid === stationTid) next = new Set([iid]);
+          else if (tid === jobTid) {
+            const job = jobs.find((j) => String(j?.id || "") === iid);
+            next = new Set(job && String(job?.stationId || "") ? [String(job.stationId || "")] : []);
+          } else if (tid === productTid) {
+            next = new Set(jobs.filter((j) => String(j?.productId || "") === iid).map((j) => String(j?.stationId || "")).filter(Boolean));
+          }
+        } else if (targetTid === productTid) {
+          if (tid === productTid) next = new Set([iid]);
+          else if (tid === jobTid) {
+            const job = jobs.find((j) => String(j?.id || "") === iid);
+            next = new Set(job && String(job?.productId || "") ? [String(job.productId || "")] : []);
+          } else if (tid === stationTid) {
+            next = new Set(jobs.filter((j) => String(j?.stationId || "") === iid).map((j) => String(j?.productId || "")).filter(Boolean));
+          }
+        }
+        if (!(next instanceof Set)) continue;
+        applied += 1;
+        active = active == null ? next : new Set([...active].filter((id) => next.has(id)));
+      }
+      return applied > 0 ? (active || new Set()) : null;
+    }
     function buildScopeGraph() {
       const items = Array.isArray(currentModel?.items) ? currentModel.items : [];
       const links = Array.isArray(currentModel?.links) ? currentModel.links : [];
@@ -1744,6 +1935,8 @@
         const fromKey = keyOf(ln?.fromTypeId, ln?.fromId);
         const toKey = keyOf(ln?.toTypeId, ln?.toId);
         if (!itemByKey.has(fromKey) || !itemByKey.has(toKey)) continue;
+        // Keep directional graph to avoid over-expanding through shared nodes
+        // (e.g. product -> job -> station -> other jobs).
         if (!edgeForward.has(fromKey)) edgeForward.set(fromKey, new Set());
         edgeForward.get(fromKey).add(toKey);
       }
@@ -1754,6 +1947,9 @@
       const iid = String(itemId || "");
       const targetTid = String(targetTypeId || "");
       if (!tid || !iid || !targetTid) return new Set();
+      const reachCache = ctx?.reachableCache instanceof Map ? ctx.reachableCache : null;
+      const reachKey = `${tid}|${iid}|${targetTid}`;
+      if (reachCache && reachCache.has(reachKey)) return reachCache.get(reachKey);
       const roleIds = ctx?.roleIds || roleTypeIds();
       const graph = ctx?.graph || buildScopeGraph();
       const app = ctx?.appState || readAppState() || {};
@@ -1822,6 +2018,7 @@
         if (tid === targetTid) out.add(iid);
         addFromSource(tid, iid);
       }
+      if (reachCache) reachCache.set(reachKey, out);
       return out;
     }
     function computeScopeTypeSet(ctx, targetTypeId, excludeTypeId = "") {
@@ -1829,14 +2026,25 @@
       if (!targetTid) return null;
       const entries = selectedScopeEntries(ctx?.scopeSelected || {}, excludeTypeId);
       if (!entries.length) return null;
+      const setCache = ctx?.typeSetCache instanceof Map ? ctx.typeSetCache : null;
+      const cacheKey = `${targetTid}|${String(excludeTypeId || "")}|${entries.map(([a, b]) => `${a}:${b}`).join(";")}`;
+      if (setCache && setCache.has(cacheKey)) return setCache.get(cacheKey);
+      const roleFast = fastRoleScopedSet(ctx, targetTid, entries);
+      if (roleFast instanceof Set) {
+        if (setCache) setCache.set(cacheKey, roleFast);
+        return roleFast;
+      }
       let active = null;
       for (const [typeId, itemId] of entries) {
         const nextSet = reachableItemIdsFromNode(ctx, typeId, itemId, targetTid);
+        const normalizedSet = nextSet instanceof Set ? nextSet : new Set();
         active = active == null
-          ? nextSet
-          : new Set([...active].filter((id) => nextSet.has(id)));
+          ? normalizedSet
+          : new Set([...active].filter((id) => normalizedSet.has(id)));
       }
-      return active || null;
+      const result = active || null;
+      if (setCache) setCache.set(cacheKey, result);
+      return result;
     }
     function rowIdMatchesScopedSet(row, scopedSet) {
       if (!scopedSet || !(scopedSet instanceof Set)) return true;
@@ -1882,6 +2090,8 @@
         appState: readAppState() || {},
         roleIds: roleTypeIds(),
         graph: buildScopeGraph(),
+        reachableCache: new Map(),
+        typeSetCache: new Map(),
       };
     }
     function applyScopeToAppContext(scope) {
@@ -1974,6 +2184,7 @@
       }).join("");
       kpisEl.querySelectorAll("[data-scope-select]").forEach((sel) => {
         sel.addEventListener("change", () => {
+          holdScopeOpen();
           const tid = String(sel.getAttribute("data-scope-select") || "");
           if (!tid) return;
           const nextValue = String(sel.value || "all");
@@ -2023,8 +2234,8 @@
           return `${labelA}: ${labelB}`;
         });
       const txt = selectedRows.length
-        ? `${tt("hub.overview.scopeTitle", "Scope")}: ${selectedRows.join(" · ")}`
-        : `${tt("hub.overview.scopeTitle", "Scope")}: ${tt("hub.scope.allScope", "All scope")}`;
+        ? selectedRows.join(" · ")
+        : `${tt("hub.scope.allScope", "All scope")}`;
       infoBarEl.textContent = txt;
       infoBarEl.removeAttribute("title");
     }
@@ -2108,6 +2319,7 @@
     }
     function openScopePicker(typeId = "") {
       setScopeCollapsed(false);
+      holdScopeOpen();
       closePicker();
       render();
       const wanted = String(typeId || "").trim();
@@ -2121,31 +2333,46 @@
       if (targetSel instanceof HTMLElement) targetSel.focus();
     }
     resetBtn?.addEventListener("click", () => {
+      holdScopeOpen();
       clearSelection();
       closePicker();
       render();
     });
     infoBarEl?.addEventListener("click", () => {
-      node.classList.add("is-open");
+      holdScopeOpen();
       setScopeCollapsed(false);
       render();
       const firstSel = kpisEl?.querySelector("[data-scope-select]");
       if (firstSel instanceof HTMLElement) firstSel.focus();
     });
     panelEl?.addEventListener("pointerdown", (e) => {
+      lastScopeInsidePointerDownAt = Date.now();
+      holdScopeOpen();
       const target = e.target;
       if (!(target instanceof Element)) return;
       if (target.closest(".scopeInfoBar")) return;
     });
+    panelEl?.addEventListener("focusin", () => {
+      holdScopeOpen();
+    });
+    node.addEventListener("pointerenter", () => {
+      holdScopeOpen();
+    });
+    node.addEventListener("pointerleave", () => {
+      scheduleScopeLeaveClose();
+    });
     pickerCloseEl?.addEventListener("click", () => {
+      holdScopeOpen();
       closePicker();
       render();
     });
     pickerSearchEl?.addEventListener("input", () => {
+      holdScopeOpen();
       pickerQuery = String(pickerSearchEl.value || "");
       renderPicker(readHubScope());
     });
     filterSearchEl?.addEventListener("input", () => {
+      holdScopeOpen();
       syncSearchInlineState();
       if (scopeQueryInputTimer) clearTimeout(scopeQueryInputTimer);
       scopeQueryInputTimer = setTimeout(() => {
@@ -2167,6 +2394,8 @@
       if (!(target instanceof Node)) return;
       if (!scopeDock) return;
       if (scopeDock.contains(target)) return;
+      if ((Date.now() - lastScopeInsidePointerDownAt) < SCOPE_OUTSIDE_IGNORE_AFTER_INSIDE_MS) return;
+      clearScopeLeaveCloseTimer();
       let changed = false;
       if (pickerEl && !pickerEl.classList.contains("hidden")) {
         closePicker();
@@ -2195,7 +2424,7 @@
     render();
   }
 
-  function renderScopeDock() {
+  function renderScopeDockNow() {
     if (!shouldOwnScopeDock()) {
       if (scopeDock) {
         scopeDock.remove();
@@ -2210,6 +2439,26 @@
     if (scopeDock && typeof scopeDock.render === "function") {
       scopeDock.render();
     }
+  }
+
+  function renderScopeDock(force = false) {
+    if (force) {
+      if (scopeDockRenderTimer) {
+        clearTimeout(scopeDockRenderTimer);
+        scopeDockRenderTimer = 0;
+      }
+      scopeDockLastRenderAt = Date.now();
+      renderScopeDockNow();
+      return;
+    }
+    if (scopeDockRenderTimer) return;
+    const elapsed = Date.now() - scopeDockLastRenderAt;
+    const wait = Math.max(0, SCOPE_DOCK_RENDER_MIN_GAP_MS - elapsed);
+    scopeDockRenderTimer = window.setTimeout(() => {
+      scopeDockRenderTimer = 0;
+      scopeDockLastRenderAt = Date.now();
+      renderScopeDockNow();
+    }, wait);
   }
 
   function openAt(x, y) {
@@ -2320,7 +2569,7 @@
       scopeDock.openScopePicker(typeId);
       return;
     }
-    renderScopeDock();
+    renderScopeDock(true);
   });
   window.addEventListener("vmill:logger:new", () => {
     renderLoggerOverlay();
@@ -2333,12 +2582,12 @@
     if (host.classList.contains("open")) renderAll();
     else applyI18n();
     renderRightRail();
-    renderScopeDock();
+    renderScopeDock(true);
     renderLoggerOverlay();
   });
   applyModuleViewportFix();
   applyI18n();
   renderRightRail();
-  renderScopeDock();
+  renderScopeDock(true);
   renderLoggerOverlay();
 })();

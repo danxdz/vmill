@@ -1,0 +1,1255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Records Manager</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #121b2b;
+      --panel2: #0f1726;
+      --border: #243048;
+      --text: #e6edf8;
+      --muted: #9db0cc;
+      --accent: #3c8dff;
+      --ok: #25b36a;
+      --warn: #d26a83;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background:
+        radial-gradient(900px 420px at 10% -20%, rgba(52, 130, 255, .18), transparent 60%),
+        radial-gradient(900px 420px at 110% -40%, rgba(33, 150, 99, .13), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      font: 500 15px/1.45 "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100%;
+    }
+    .page {
+      width: min(1680px, calc(100vw - 16px));
+      margin: 76px auto 14px;
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 10px;
+      min-height: calc(100vh - 90px);
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(6px);
+      overflow: hidden;
+      min-height: 0;
+    }
+    .cardHead {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .cardHead h2 {
+      margin: 0;
+      font-size: 26px;
+      letter-spacing: .01em;
+    }
+    .tiny { color: var(--muted); font-size: 12px; }
+    .left {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .leftBody {
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+      min-height: 0;
+      overflow: auto;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    input, select, textarea, button {
+      font: inherit;
+      color: var(--text);
+    }
+    input, select, textarea {
+      width: 100%;
+      background: color-mix(in srgb, var(--panel2) 92%, transparent);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      min-height: 36px;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 24%, transparent);
+    }
+    input[type="checkbox"] {
+      width: auto;
+      min-height: 0;
+      padding: 0;
+      margin: 0;
+      accent-color: var(--accent);
+    }
+    button {
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--panel2) 88%, transparent);
+      border-radius: 10px;
+      padding: 7px 11px;
+      cursor: pointer;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    button:hover {
+      border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+    }
+    .btnPrimary {
+      border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+    .btnWarn {
+      border-color: color-mix(in srgb, var(--warn) 72%, var(--border));
+      color: #ffd6e0;
+      background: color-mix(in srgb, var(--warn) 14%, transparent);
+    }
+    .typeList {
+      display: grid;
+      gap: 7px;
+    }
+    .typeRow {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.015);
+      border-radius: 10px;
+      padding: 8px 10px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .typeRow:hover {
+      border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+    }
+    .typeRow.active {
+      border-color: color-mix(in srgb, var(--accent) 68%, var(--border));
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+    }
+    .main {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 0;
+    }
+    .toolbar {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      gap: 8px;
+    }
+    .toolbarGrid {
+      display: grid;
+      grid-template-columns: minmax(220px, 350px) minmax(220px, 1fr) auto;
+      gap: 8px;
+      align-items: end;
+    }
+    .split {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      min-height: 0;
+      padding: 10px;
+    }
+    .section {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255,255,255,.013);
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sectionHead {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .sectionHead h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+    .sectionBody {
+      padding: 10px;
+      overflow: auto;
+      min-height: 0;
+    }
+    .formGrid {
+      display: grid;
+      gap: 8px;
+    }
+    .field {
+      display: grid;
+      gap: 4px;
+    }
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      font-weight: 700;
+    }
+    .fieldBoolean {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 36px;
+      padding: 0 2px;
+    }
+    .actionsBar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .flash {
+      opacity: 0;
+      color: #7fdca7;
+      font-weight: 700;
+      transition: opacity .2s ease;
+      min-height: 1em;
+    }
+    .flash.show { opacity: 1; }
+    .tableWrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(0,0,0,.12);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 620px;
+    }
+    th, td {
+      padding: 7px 8px;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      position: sticky;
+      top: 0;
+      background: color-mix(in srgb, var(--panel2) 92%, transparent);
+      z-index: 1;
+    }
+    .rowActions {
+      display: flex;
+      gap: 6px;
+    }
+    .empty {
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .pill {
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: rgba(255,255,255,.02);
+    }
+    @media (max-width: 1160px) {
+      .page {
+        width: calc(100vw - 12px);
+        grid-template-columns: 1fr;
+        margin-top: 74px;
+      }
+      .split {
+        grid-template-columns: 1fr;
+      }
+      .toolbarGrid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <aside class="card left">
+      <div class="cardHead">
+        <h2 id="titleEl">Records Manager</h2>
+      </div>
+      <div class="leftBody">
+        <div class="row">
+          <button id="refreshBtn" type="button">Refresh</button>
+          <button id="openHubBtn" type="button">Hub</button>
+        </div>
+        <div class="field">
+          <label id="searchLabelEl">Search folders</label>
+          <input id="typeSearchIn" type="text" placeholder="Search folders..." />
+        </div>
+        <div class="typeList" id="typeList"></div>
+      </div>
+    </aside>
+
+    <main class="card main">
+      <div class="toolbar">
+        <div class="toolbarGrid">
+          <div class="field">
+            <label id="catLabelEl">System category</label>
+            <select id="typeSel"></select>
+          </div>
+          <div class="field">
+            <label id="recSearchLabelEl">Search records</label>
+            <input id="recordSearchIn" type="text" placeholder="Search code/name..." />
+          </div>
+          <div class="row" style="justify-content:flex-end;">
+            <button id="addRecordBtn" class="btnPrimary" type="button">+ Record</button>
+            <span class="pill" id="recordCountPill">0 records</span>
+          </div>
+        </div>
+        <div class="tiny" id="toolbarMeta"></div>
+      </div>
+
+      <div class="split">
+        <section class="section">
+          <div class="sectionHead">
+            <h3 id="listTitleEl">Records (inline)</h3>
+            <span class="tiny" id="listMetaEl"></span>
+          </div>
+          <div class="sectionBody">
+            <div class="tableWrap">
+              <table>
+                <thead id="recordsHead"></thead>
+                <tbody id="recordsBody"></tbody>
+              </table>
+            </div>
+            <div class="flash" id="flashEl">Saved ✓</div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="./modules/module-shell.js"></script>
+  <script src="./modules/module-registry.js"></script>
+  <script src="./modules/module-io.js"></script>
+  <script src="./modules/module-auth.js"></script>
+  <script src="./modules/module-data.js"></script>
+  <script src="./modules/module-lang.js"></script>
+  <script src="./modules/module-theme.js"></script>
+  <script>
+    (function initRecordsManager() {
+      const state = {
+        model: { types: [], items: [], links: [], rules: [] },
+        app: { products: [], stations: [], jobs: [] },
+        typeSearch: "",
+        recordSearch: "",
+        selectedTypeId: "",
+        inlineNewRow: false,
+        flashTimer: 0,
+      };
+
+      const el = {
+        titleEl: document.getElementById("titleEl"),
+        searchLabelEl: document.getElementById("searchLabelEl"),
+        catLabelEl: document.getElementById("catLabelEl"),
+        recSearchLabelEl: document.getElementById("recSearchLabelEl"),
+        refreshBtn: document.getElementById("refreshBtn"),
+        openHubBtn: document.getElementById("openHubBtn"),
+        typeSearchIn: document.getElementById("typeSearchIn"),
+        typeList: document.getElementById("typeList"),
+        typeSel: document.getElementById("typeSel"),
+        addRecordBtn: document.getElementById("addRecordBtn"),
+        recordSearchIn: document.getElementById("recordSearchIn"),
+        recordCountPill: document.getElementById("recordCountPill"),
+        toolbarMeta: document.getElementById("toolbarMeta"),
+        flashEl: document.getElementById("flashEl"),
+        listTitleEl: document.getElementById("listTitleEl"),
+        listMetaEl: document.getElementById("listMetaEl"),
+        recordsHead: document.getElementById("recordsHead"),
+        recordsBody: document.getElementById("recordsBody"),
+      };
+
+      const tt = (key, fallback = "", vars) =>
+        window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
+
+      function makeId(prefix = "id") {
+        return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      }
+
+      function esc(v) {
+        return String(v ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;");
+      }
+
+      function canonicalFieldKey(v) {
+        return String(v || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+      }
+
+      function normalizeTypeAttributes(raw) {
+        const rows = Array.isArray(raw) ? raw : [];
+        const allowed = new Set(["string", "number", "boolean", "date", "timestamp", "text"]);
+        const out = [];
+        for (let i = 0; i < rows.length; i += 1) {
+          const r = rows[i] || {};
+          const name = String(r.name || "").trim();
+          if (!name) continue;
+          const parsedOrder = Number(r.order);
+          out.push({
+            id: String(r.id || makeId("attr")),
+            key: String(r.key || name),
+            name,
+            type: allowed.has(String(r.type || "string").toLowerCase()) ? String(r.type || "string").toLowerCase() : "string",
+            required: !!r.required,
+            enabled: r.enabled !== false,
+            order: Number.isFinite(parsedOrder) ? parsedOrder : out.length,
+          });
+        }
+        out.sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+        return out;
+      }
+
+      function normalizeRole(rawRole = "", fallbackId = "") {
+        const src = String(rawRole || "").trim().toLowerCase();
+        if (src) return src;
+        const fb = String(fallbackId || "").trim().toLowerCase();
+        if (["product", "station", "job"].includes(fb)) return fb;
+        return "custom";
+      }
+
+      function parseLooseNumberValue(rawValue) {
+        const src = String(rawValue == null ? "" : rawValue).trim();
+        if (!src) return { ok: true, value: "" };
+        let norm = src.replace(/\s+/g, "");
+        const hasComma = norm.includes(",");
+        const hasDot = norm.includes(".");
+        if (hasComma && hasDot) {
+          if (norm.lastIndexOf(",") > norm.lastIndexOf(".")) norm = norm.replace(/\./g, "").replace(/,/g, ".");
+          else norm = norm.replace(/,/g, "");
+        } else if (hasComma) {
+          norm = norm.replace(/,/g, ".");
+        }
+        const n = Number(norm);
+        if (!Number.isFinite(n)) return { ok: false, value: src };
+        return { ok: true, value: n };
+      }
+
+      function toLocalDateTimeInput(rawValue) {
+        const src = String(rawValue == null ? "" : rawValue).trim();
+        if (!src) return "";
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(src)) return src;
+        const d = new Date(src);
+        if (!Number.isFinite(d.getTime())) return "";
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mm = String(d.getMinutes()).padStart(2, "0");
+        return `${y}-${m}-${day}T${hh}:${mm}`;
+      }
+
+      function normalizeTimestampInput(rawValue) {
+        const src = String(rawValue == null ? "" : rawValue).trim();
+        if (!src) return "";
+        const d = new Date(src);
+        if (!Number.isFinite(d.getTime())) return src;
+        return d.toISOString();
+      }
+
+      function itemLabel(item) {
+        const code = String(item?.code || "").trim();
+        const name = String(item?.name || "").trim();
+        if (code && name) return `${code} - ${name}`;
+        return name || code || String(item?.id || "");
+      }
+
+      function nextCode(prefix, rows) {
+        const p = String(prefix || "").toUpperCase();
+        let max = 0;
+        for (const row of (Array.isArray(rows) ? rows : [])) {
+          const raw = String(row?.code || "").trim().toUpperCase();
+          const m = raw.match(new RegExp(`^${p}(\\d+)$`));
+          if (!m) continue;
+          const n = Number(m[1] || "0");
+          if (Number.isFinite(n) && n > max) max = n;
+        }
+        return `${p}${String(max + 1).padStart(3, "0")}`;
+      }
+
+      function findType(typeId) {
+        const id = String(typeId || "");
+        if (!id) return null;
+        return (state.model.types || []).find((t) => String(t?.id || "") === id) || null;
+      }
+
+      function sortedTypes() {
+        return (state.model.types || [])
+          .slice()
+          .sort((a, b) => String(a?.nameSingular || a?.id || "").localeCompare(String(b?.nameSingular || b?.id || "")));
+      }
+
+      function incomingRule(typeId) {
+        const id = String(typeId || "");
+        return (state.model.rules || []).find((r) => String(r?.childTypeId || "") === id) || null;
+      }
+
+      function parentTypeChain(typeId) {
+        const out = [];
+        const seen = new Set([String(typeId || "")]);
+        let cur = String(typeId || "");
+        while (cur) {
+          const rule = incomingRule(cur);
+          const parentId = String(rule?.parentTypeId || "");
+          if (!parentId || seen.has(parentId)) break;
+          out.push(parentId);
+          seen.add(parentId);
+          cur = parentId;
+        }
+        return out;
+      }
+
+      function mergedTypeAttributes(type) {
+        if (!type) return [];
+        const own = normalizeTypeAttributes(type.attributes);
+        const ownKeys = new Set(own.map((a) => canonicalFieldKey(a.key || a.name)).filter(Boolean));
+        const inherited = new Map();
+        const orderedParents = parentTypeChain(String(type.id || "")).reverse();
+        for (const parentId of orderedParents) {
+          const parentType = findType(parentId);
+          if (!parentType) continue;
+          const attrs = normalizeTypeAttributes(parentType.attributes);
+          for (const attr of attrs) {
+            const key = canonicalFieldKey(attr.key || attr.name);
+            if (!key) continue;
+            inherited.set(key, {
+              ...attr,
+              origin: "inherited",
+            });
+          }
+        }
+        const ownRows = own.map((a) => ({ ...a, origin: "own" }));
+        const inheritedRows = [];
+        for (const [key, row] of inherited.entries()) {
+          if (ownKeys.has(key)) continue;
+          inheritedRows.push(row);
+        }
+        return [...ownRows, ...inheritedRows].filter((a) => a.enabled !== false);
+      }
+
+      function reservedFieldKeys(role) {
+        const r = normalizeRole(role);
+        const out = new Set();
+        if (r === "product") {
+          out.add("code");
+          out.add("name");
+          out.add("parentproductid");
+          return out;
+        }
+        if (r === "station") {
+          out.add("code");
+          out.add("name");
+          return out;
+        }
+        if (r === "job") {
+          out.add("name");
+          out.add("stationid");
+          out.add("productid");
+          out.add("status");
+          out.add("nodeid");
+          return out;
+        }
+        out.add("code");
+        out.add("name");
+        return out;
+      }
+
+      function recordsForType(type) {
+        if (!type) return [];
+        const role = normalizeRole(type.moduleRole, type.id);
+        if (role === "product") return (state.app.products || []).slice();
+        if (role === "station") return (state.app.stations || []).slice();
+        if (role === "job") return (state.app.jobs || []).slice();
+        return (window.VMillData?.listEntities ? window.VMillData.listEntities(String(type.id || "")) : []).slice();
+      }
+
+      function rolePrefix(role) {
+        const r = normalizeRole(role);
+        if (r === "product") return "P";
+        if (r === "station") return "S";
+        if (r === "job") return "J";
+        return "R";
+      }
+
+      function coreArrayKey(role) {
+        const r = normalizeRole(role);
+        if (r === "product") return "products";
+        if (r === "station") return "stations";
+        if (r === "job") return "jobs";
+        return "";
+      }
+
+      function getParentOptions(type) {
+        const rule = incomingRule(String(type?.id || ""));
+        const parentTypeId = String(rule?.parentTypeId || "");
+        if (!parentTypeId) return { typeId: "", rows: [] };
+        const parentType = findType(parentTypeId);
+        if (!parentType) return { typeId: "", rows: [] };
+        return {
+          typeId: parentTypeId,
+          rows: recordsForType(parentType),
+        };
+      }
+
+      function buildFieldDefs(type, editingRow = null) {
+        const role = normalizeRole(type?.moduleRole, type?.id);
+        const defs = [];
+        const row = editingRow && typeof editingRow === "object" ? editingRow : {};
+        if (role === "product") {
+          defs.push({ key: "code", label: "Code", type: "string", required: false });
+          defs.push({ key: "name", label: "Name", type: "string", required: true });
+          defs.push({ key: "parentProductId", label: "Parent product", type: "select-product", required: false });
+        } else if (role === "station") {
+          defs.push({ key: "code", label: "Code", type: "string", required: false });
+          defs.push({ key: "name", label: "Name", type: "string", required: true });
+        } else if (role === "job") {
+          defs.push({ key: "name", label: "Name", type: "string", required: true });
+          defs.push({ key: "stationId", label: "Station", type: "select-station", required: true });
+          defs.push({ key: "productId", label: "Product", type: "select-product", required: false });
+          defs.push({ key: "status", label: "Status", type: "select-status", required: false });
+        } else {
+          defs.push({ key: "code", label: "Code", type: "string", required: false });
+          defs.push({ key: "name", label: "Name", type: "string", required: true });
+        }
+
+        const reserved = reservedFieldKeys(role);
+        const attrs = mergedTypeAttributes(type);
+        for (const attr of attrs) {
+          const keyNorm = canonicalFieldKey(attr?.key || attr?.name || "");
+          if (!keyNorm || reserved.has(keyNorm)) continue;
+          defs.push({
+            key: `attr:${String(attr.id || "")}`,
+            attrId: String(attr.id || ""),
+            label: String(attr.name || "Field"),
+            type: String(attr.type || "string").toLowerCase(),
+            required: !!attr.required,
+            source: String(attr.origin || "own"),
+          });
+        }
+
+        const parentRule = incomingRule(String(type?.id || ""));
+        if (parentRule?.parentTypeId) {
+          defs.push({ key: "__parentAssign", label: "Parent folder", type: "select-parent", required: false });
+        }
+
+        // Ensure timestamp defaults on new record.
+        if (!row || !row.id) {
+          for (const def of defs) {
+            if (def.type !== "timestamp") continue;
+            def.defaultValue = new Date().toISOString();
+          }
+        }
+        return defs;
+      }
+
+      function getRecordParentAssigned(type, recordId) {
+        const typeId = String(type?.id || "");
+        const rid = String(recordId || "");
+        if (!typeId || !rid || !window.VMillData?.listEntityLinks) return "";
+        const rule = incomingRule(typeId);
+        const parentTypeId = String(rule?.parentTypeId || "");
+        if (!parentTypeId) return "";
+        const links = window.VMillData.listEntityLinks({ toTypeId: typeId, toId: rid }) || [];
+        const match = links.find((x) => String(x?.fromTypeId || "") === parentTypeId);
+        return String(match?.fromId || "");
+      }
+
+      function renderTypeOptions() {
+        const q = String(state.typeSearch || "").trim().toLowerCase();
+        const rows = sortedTypes().filter((t) => {
+          if (!q) return true;
+          const txt = `${String(t?.nameSingular || "")} ${String(t?.moduleRole || "")} ${String(t?.code || "")}`.toLowerCase();
+          return txt.includes(q);
+        });
+
+        el.typeSel.innerHTML = rows
+          .map((t) => `<option value="${esc(String(t.id || ""))}" ${String(t.id || "") === String(state.selectedTypeId || "") ? "selected" : ""}>${esc(String(t.nameSingular || t.id || ""))}</option>`)
+          .join("");
+
+        el.typeList.innerHTML = rows.length
+          ? rows.map((t) => {
+            const id = String(t.id || "");
+            const role = normalizeRole(t.moduleRole, id);
+            const count = recordsForType(t).length;
+            return `<div class="typeRow ${id === String(state.selectedTypeId || "") ? "active" : ""}" data-type-id="${esc(id)}">
+              <div>
+                <div>${esc(String(t.nameSingular || id))}</div>
+                <div class="tiny">${esc(role)}${t.base ? " · base" : ""}</div>
+              </div>
+              <div class="pill">${count}</div>
+            </div>`;
+          }).join("")
+          : `<div class="empty">${esc(tt("shop.empty.searchNone", "No results for current search."))}</div>`;
+      }
+
+      function fieldValueForRow(def, type, row, isNew) {
+        const role = normalizeRole(type?.moduleRole, type?.id);
+        const key = String(def?.key || "");
+        const meta = (row?.meta && typeof row.meta === "object") ? row.meta : {};
+        if (isNew) {
+          if (key === "code") return nextCode(rolePrefix(role), recordsForType(type));
+          if (key === "status") return "active";
+          if (key.startsWith("attr:") && String(def?.type || "") === "timestamp") return new Date().toISOString();
+        }
+        if (key.startsWith("attr:")) {
+          const attrId = String(def?.attrId || key.slice(5));
+          return Object.prototype.hasOwnProperty.call(meta, attrId) ? meta[attrId] : "";
+        }
+        if (key === "__parentAssign") {
+          return row?.id ? getRecordParentAssigned(type, row.id) : "";
+        }
+        return row?.[key] == null ? "" : row?.[key];
+      }
+
+      function renderFieldEditor(def, type, row, isNew = false) {
+        const key = String(def?.key || "");
+        const defType = String(def?.type || "string");
+        const req = def?.required ? "required" : "";
+        const value = fieldValueForRow(def, type, row, isNew);
+        const productRows = state.app.products || [];
+        const stationRows = state.app.stations || [];
+        const parentOptions = getParentOptions(type);
+        const rid = String(row?.id || "");
+
+        if (defType === "boolean") {
+          const checked = value === true || value === 1 || String(value).toLowerCase() === "true";
+          return `<input data-field-key="${esc(key)}" type="checkbox" ${checked ? "checked" : ""} />`;
+        }
+        if (defType === "number") {
+          return `<input data-field-key="${esc(key)}" type="text" inputmode="decimal" value="${esc(value == null ? "" : String(value))}" ${req} />`;
+        }
+        if (defType === "date") {
+          return `<input data-field-key="${esc(key)}" type="date" value="${esc(value == null ? "" : String(value))}" ${req} />`;
+        }
+        if (defType === "timestamp") {
+          return `<input data-field-key="${esc(key)}" type="datetime-local" value="${esc(toLocalDateTimeInput(value))}" ${req} />`;
+        }
+        if (defType === "select-product") {
+          const opts = [`<option value="">(none)</option>`, ...productRows
+            .filter((p) => !(key === "parentProductId" && rid && String(p?.id || "") === rid))
+            .map((p) => {
+              const pid = String(p?.id || "");
+              const selected = pid === String(value || "") ? "selected" : "";
+              return `<option value="${esc(pid)}" ${selected}>${esc(itemLabel(p))}</option>`;
+            })].join("");
+          return `<select data-field-key="${esc(key)}">${opts}</select>`;
+        }
+        if (defType === "select-station") {
+          const opts = [`<option value="">(none)</option>`, ...stationRows.map((s) => {
+            const sid = String(s?.id || "");
+            const selected = sid === String(value || "") ? "selected" : "";
+            return `<option value="${esc(sid)}" ${selected}>${esc(itemLabel(s))}</option>`;
+          })].join("");
+          return `<select data-field-key="${esc(key)}">${opts}</select>`;
+        }
+        if (defType === "select-status") {
+          const status = String(value || "active");
+          const opts = ["active", "paused", "archived"]
+            .map((s) => `<option value="${s}" ${status === s ? "selected" : ""}>${s}</option>`)
+            .join("");
+          return `<select data-field-key="${esc(key)}">${opts}</select>`;
+        }
+        if (defType === "select-parent") {
+          const opts = [`<option value="">(none)</option>`, ...parentOptions.rows.map((r) => {
+            const pid = String(r?.id || "");
+            const selected = pid === String(value || "") ? "selected" : "";
+            return `<option value="${esc(pid)}" ${selected}>${esc(itemLabel(r))}</option>`;
+          })].join("");
+          return `<select data-field-key="${esc(key)}">${opts}</select>`;
+        }
+        return `<input data-field-key="${esc(key)}" type="text" value="${esc(value == null ? "" : String(value))}" ${req} />`;
+      }
+
+      function readInlineRowValues(rowEl) {
+        const out = {};
+        if (!(rowEl instanceof HTMLElement)) return out;
+        const nodes = rowEl.querySelectorAll("[data-field-key]");
+        for (const node of nodes) {
+          if (!(node instanceof HTMLElement)) continue;
+          const key = String(node.getAttribute("data-field-key") || "");
+          if (!key) continue;
+          if (node instanceof HTMLInputElement && node.type === "checkbox") out[key] = !!node.checked;
+          else if (node instanceof HTMLInputElement || node instanceof HTMLSelectElement || node instanceof HTMLTextAreaElement) out[key] = String(node.value || "");
+        }
+        return out;
+      }
+
+      function renderRecordsTable() {
+        const type = findType(state.selectedTypeId);
+        if (!type) {
+          el.recordsHead.innerHTML = "";
+          el.recordsBody.innerHTML = `<tr><td><div class="empty">No category selected.</div></td></tr>`;
+          el.recordCountPill.textContent = "0 records";
+          return;
+        }
+        const q = String(state.recordSearch || "").trim().toLowerCase();
+        const baseRows = recordsForType(type);
+        const rows = baseRows.filter((r) => {
+          if (!q) return true;
+          const txt = `${String(r?.code || "")} ${String(r?.name || "")} ${String(r?.id || "")}`.toLowerCase();
+          return txt.includes(q);
+        });
+        const defs = buildFieldDefs(type, null);
+        const cols = defs.map((d) => `<th>${esc(String(d?.label || d?.key || ""))}</th>`).join("");
+        el.recordsHead.innerHTML = `<tr>${cols}<th>${esc(tt("common.actions", "Actions"))}</th></tr>`;
+
+        const renderRow = (row, isNew = false) => {
+          const rid = isNew ? "__new__" : String(row?.id || "");
+          const cells = defs.map((d) => `<td>${renderFieldEditor(d, type, row, isNew)}</td>`).join("");
+          return `<tr data-record-id="${esc(rid)}" ${isNew ? 'data-row-new="1"' : ""}>
+            ${cells}
+            <td>
+              <div class="rowActions">
+                <button type="button" class="btnPrimary" data-action="save-row" data-record-id="${esc(rid)}">${esc(tt("common.save", "Save"))}</button>
+                <button type="button" class="btnWarn" data-action="${isNew ? "cancel-new" : "delete-row"}" data-record-id="${esc(rid)}">${esc(isNew ? tt("common.cancel", "Cancel") : tt("common.delete", "Delete"))}</button>
+              </div>
+            </td>
+          </tr>`;
+        };
+
+        const newRow = state.inlineNewRow ? renderRow({ id: "", code: "", name: "", meta: {} }, true) : "";
+        const bodyRows = rows.map((r) => renderRow(r, false)).join("");
+        const hasAny = !!newRow || !!bodyRows;
+        el.recordsBody.innerHTML = hasAny
+          ? `${newRow}${bodyRows}`
+          : `<tr><td colspan="${defs.length + 1}"><div class="empty">No records.</div></td></tr>`;
+
+        el.recordCountPill.textContent = `${rows.length} ${rows.length === 1 ? "record" : "records"}`;
+        el.listMetaEl.textContent = `Type: ${String(type.nameSingular || type.id || "")} · Inline edit`;
+      }
+
+      function showFlash(msg = "Saved ✓") {
+        el.flashEl.textContent = msg;
+        el.flashEl.classList.add("show");
+        if (state.flashTimer) clearTimeout(state.flashTimer);
+        state.flashTimer = window.setTimeout(() => {
+          el.flashEl.classList.remove("show");
+        }, 1400);
+      }
+
+      function applyParentAssignment(type, itemId, parentIdRaw) {
+        if (!window.VMillData?.listEntityLinks || !window.VMillData?.deleteEntityLink || !window.VMillData?.upsertEntityLink) return;
+        const typeId = String(type?.id || "");
+        const rid = String(itemId || "");
+        if (!typeId || !rid) return;
+        const rule = incomingRule(typeId);
+        const parentTypeId = String(rule?.parentTypeId || "");
+        if (!parentTypeId) return;
+        const parentId = String(parentIdRaw || "");
+        const relation = String(rule?.relation || "contains");
+        const links = window.VMillData.listEntityLinks({ toTypeId: typeId, toId: rid }) || [];
+        for (const ln of links) {
+          if (String(ln?.fromTypeId || "") !== parentTypeId) continue;
+          window.VMillData.deleteEntityLink(String(ln?.id || ""));
+        }
+        if (!parentId) return;
+        window.VMillData.upsertEntityLink({
+          fromTypeId: parentTypeId,
+          fromId: parentId,
+          toTypeId: typeId,
+          toId: rid,
+          relation,
+        });
+      }
+
+      function deleteLinksForRecord(type, recordId) {
+        if (!window.VMillData?.listEntityLinks || !window.VMillData?.deleteEntityLink) return;
+        const typeId = String(type?.id || "");
+        const rid = String(recordId || "");
+        if (!typeId || !rid) return;
+        const a = window.VMillData.listEntityLinks({ fromTypeId: typeId, fromId: rid }) || [];
+        const b = window.VMillData.listEntityLinks({ toTypeId: typeId, toId: rid }) || [];
+        for (const ln of [...a, ...b]) {
+          const id = String(ln?.id || "");
+          if (!id) continue;
+          window.VMillData.deleteEntityLink(id);
+        }
+      }
+
+      function saveCoreRecord(role, type, existingId, form, customDefs) {
+        const app = window.VMillData?.readAppState
+          ? (window.VMillData.readAppState({ seedIfMissing: true }) || { products: [], stations: [], jobs: [] })
+          : { products: [], stations: [], jobs: [] };
+        if (!Array.isArray(app.products)) app.products = [];
+        if (!Array.isArray(app.stations)) app.stations = [];
+        if (!Array.isArray(app.jobs)) app.jobs = [];
+        const arrKey = coreArrayKey(role);
+        const rows = arrKey ? app[arrKey] : [];
+        const rid = String(existingId || makeId(role));
+        const idx = rows.findIndex((r) => String(r?.id || "") === rid);
+        const prev = idx >= 0 ? rows[idx] : {};
+        const nextMeta = (prev?.meta && typeof prev.meta === "object") ? { ...prev.meta } : {};
+        const isCreate = idx < 0;
+
+        for (const def of customDefs) {
+          const raw = form[String(def.key || "")];
+          const attrId = String(def.attrId || "");
+          const defType = String(def.type || "string");
+          let value = raw;
+          if (defType === "number") {
+            const parsed = parseLooseNumberValue(raw);
+            value = parsed.ok ? parsed.value : raw;
+          } else if (defType === "boolean") {
+            value = !!raw;
+          } else if (defType === "timestamp") {
+            value = normalizeTimestampInput(raw);
+            if (!String(value || "").trim() && isCreate) value = new Date().toISOString();
+          } else if (defType === "date") {
+            value = String(raw || "");
+          } else {
+            value = String(raw || "");
+          }
+          if (attrId) nextMeta[attrId] = value;
+        }
+
+        if (role === "product") {
+          const next = {
+            ...prev,
+            id: rid,
+            code: String(form.code || prev.code || nextCode("P", rows)),
+            name: String(form.name || prev.name || "Product"),
+            parentProductId: String(form.parentProductId || prev.parentProductId || ""),
+            imageUrl: String(prev.imageUrl || ""),
+            meta: nextMeta,
+          };
+          if (idx >= 0) rows[idx] = next;
+          else rows.push(next);
+          if (!app.activeProductId) app.activeProductId = rid;
+        } else if (role === "station") {
+          const next = {
+            ...prev,
+            id: rid,
+            code: String(form.code || prev.code || nextCode("S", rows)),
+            name: String(form.name || prev.name || "Station"),
+            imageUrl: String(prev.imageUrl || ""),
+            meta: nextMeta,
+          };
+          if (idx >= 0) rows[idx] = next;
+          else rows.push(next);
+          if (!app.activeStationId) app.activeStationId = rid;
+        } else if (role === "job") {
+          const stationId = String(form.stationId || prev.stationId || app.stations?.[0]?.id || "");
+          const productId = String(form.productId || prev.productId || app.products?.[0]?.id || "");
+          const next = {
+            ...prev,
+            id: rid,
+            name: String(form.name || prev.name || `Job ${rows.length + 1}`),
+            stationId,
+            nodeId: stationId,
+            productId,
+            status: String(form.status || prev.status || "active"),
+            cycles: Array.isArray(prev?.cycles) ? prev.cycles : [],
+            elements: Array.isArray(prev?.elements) ? prev.elements : [],
+            imageUrl: String(prev.imageUrl || ""),
+            meta: nextMeta,
+          };
+          if (idx >= 0) rows[idx] = next;
+          else rows.push(next);
+          if (!app.activeJobId) app.activeJobId = rid;
+        }
+
+        window.VMillData?.writeAppState?.(app);
+        applyParentAssignment(type, rid, form.__parentAssign || "");
+        return rid;
+      }
+
+      function deleteCoreRecord(role, recordId) {
+        const rid = String(recordId || "");
+        if (!rid) return false;
+        const app = window.VMillData?.readAppState
+          ? (window.VMillData.readAppState({ seedIfMissing: true }) || { products: [], stations: [], jobs: [] })
+          : { products: [], stations: [], jobs: [] };
+        if (!Array.isArray(app.products)) app.products = [];
+        if (!Array.isArray(app.stations)) app.stations = [];
+        if (!Array.isArray(app.jobs)) app.jobs = [];
+        const r = normalizeRole(role);
+        if (r === "product") {
+          const before = app.products.length;
+          app.products = app.products.filter((x) => String(x?.id || "") !== rid);
+          for (const j of app.jobs) if (String(j?.productId || "") === rid) j.productId = "";
+          if (String(app.activeProductId || "") === rid) app.activeProductId = app.products[0]?.id || null;
+          if (before === app.products.length) return false;
+        } else if (r === "station") {
+          const before = app.stations.length;
+          app.stations = app.stations.filter((x) => String(x?.id || "") !== rid);
+          for (const j of app.jobs) {
+            if (String(j?.stationId || "") === rid) j.stationId = "";
+            if (String(j?.nodeId || "") === rid) j.nodeId = "";
+          }
+          if (String(app.activeStationId || "") === rid) app.activeStationId = app.stations[0]?.id || null;
+          if (before === app.stations.length) return false;
+        } else if (r === "job") {
+          const before = app.jobs.length;
+          app.jobs = app.jobs.filter((x) => String(x?.id || "") !== rid);
+          if (String(app.activeJobId || "") === rid) app.activeJobId = app.jobs[0]?.id || null;
+          if (before === app.jobs.length) return false;
+        } else {
+          return false;
+        }
+        window.VMillData?.writeAppState?.(app);
+        return true;
+      }
+
+      function renderMetaText() {
+        const type = findType(state.selectedTypeId);
+        if (!type) {
+          el.toolbarMeta.textContent = "";
+          return;
+        }
+        const role = normalizeRole(type.moduleRole, type.id);
+        const rule = incomingRule(String(type.id || ""));
+        const parentType = rule?.parentTypeId ? findType(String(rule.parentTypeId || "")) : null;
+        const parentLabel = parentType ? String(parentType.nameSingular || parentType.id || "") : "(root)";
+        el.toolbarMeta.textContent = `Role: ${role} · Parent: ${parentLabel} · Fields: ${mergedTypeAttributes(type).length}`;
+      }
+
+      function renderAll() {
+        renderTypeOptions();
+        renderMetaText();
+        renderRecordsTable();
+      }
+
+      function selectType(typeId) {
+        const id = String(typeId || "");
+        if (!id) return;
+        state.selectedTypeId = id;
+        state.inlineNewRow = false;
+        renderAll();
+      }
+
+      async function loadAll() {
+        const model = window.VMillData?.readStructureModel
+          ? window.VMillData.readStructureModel({ persist: false })
+          : { types: [], items: [], links: [], rules: [] };
+        const app = window.VMillData?.readAppState
+          ? (window.VMillData.readAppState({ seedIfMissing: true }) || { products: [], stations: [], jobs: [] })
+          : { products: [], stations: [], jobs: [] };
+        state.model = {
+          types: Array.isArray(model?.types) ? model.types.slice() : [],
+          items: Array.isArray(model?.items) ? model.items.slice() : [],
+          links: Array.isArray(model?.links) ? model.links.slice() : [],
+          rules: Array.isArray(model?.rules) ? model.rules.slice() : [],
+        };
+        state.app = {
+          products: Array.isArray(app?.products) ? app.products.slice() : [],
+          stations: Array.isArray(app?.stations) ? app.stations.slice() : [],
+          jobs: Array.isArray(app?.jobs) ? app.jobs.slice() : [],
+        };
+        if (!state.selectedTypeId || !findType(state.selectedTypeId)) {
+          const productTypeId = String(window.VMillData?.resolveEntityTypeIdByRole?.("product") || "");
+          state.selectedTypeId = productTypeId || String(state.model.types?.[0]?.id || "");
+          state.inlineNewRow = false;
+        }
+        renderAll();
+      }
+      async function saveInlineRow(recordId, rowEl, isNew = false) {
+        const type = findType(state.selectedTypeId);
+        if (!type || !(rowEl instanceof HTMLElement)) return;
+        const role = normalizeRole(type.moduleRole, type.id);
+        const defs = buildFieldDefs(type, isNew ? null : (recordsForType(type).find((x) => String(x?.id || "") === String(recordId || "")) || null));
+        const customDefs = defs.filter((d) => String(d?.key || "").startsWith("attr:"));
+        const form = readInlineRowValues(rowEl);
+        let id = "";
+        if (role === "product" || role === "station" || role === "job") {
+          id = saveCoreRecord(role, type, isNew ? "" : String(recordId || ""), form, customDefs);
+        } else {
+          const existing = isNew ? null : (recordsForType(type).find((x) => String(x?.id || "") === String(recordId || "")) || null);
+          const baseMeta = (existing?.meta && typeof existing.meta === "object") ? { ...existing.meta } : {};
+          for (const def of customDefs) {
+            const raw = form[String(def.key || "")];
+            const attrId = String(def.attrId || "");
+            const defType = String(def.type || "string");
+            let value = raw;
+            if (defType === "number") {
+              const parsed = parseLooseNumberValue(raw);
+              value = parsed.ok ? parsed.value : raw;
+            } else if (defType === "boolean") {
+              value = !!raw;
+            } else if (defType === "timestamp") {
+              value = normalizeTimestampInput(raw);
+              if (!String(value || "").trim() && isNew) value = new Date().toISOString();
+            } else {
+              value = String(raw || "");
+            }
+            if (attrId) baseMeta[attrId] = value;
+          }
+          const out = window.VMillData?.upsertEntityItem?.({
+            typeId: String(type.id || ""),
+            id: isNew ? "" : String(recordId || ""),
+            code: String(form.code || ""),
+            name: String(form.name || "Record"),
+            meta: baseMeta,
+          });
+          if (!out?.id) return;
+          id = String(out.id || "");
+          applyParentAssignment(type, id, form.__parentAssign || "");
+        }
+        if (!id) return;
+        state.inlineNewRow = false;
+        window.CANBus?.emit("shop:tree:changed", { reason: "records-manager-save", typeId: String(type.id || ""), id }, "records-manager");
+        await loadAll();
+        showFlash("Saved ✓");
+      }
+
+      async function deleteInlineRow(recordId, isNew = false) {
+        if (isNew) {
+          state.inlineNewRow = false;
+          renderRecordsTable();
+          return;
+        }
+        const type = findType(state.selectedTypeId);
+        const rid = String(recordId || "");
+        if (!type || !rid) return;
+        if (!confirm(`Delete record "${rid}"?`)) return;
+        const role = normalizeRole(type.moduleRole, type.id);
+        let ok = false;
+        if (role === "product" || role === "station" || role === "job") {
+          ok = deleteCoreRecord(role, rid);
+          if (ok) deleteLinksForRecord(type, rid);
+        } else {
+          ok = !!window.VMillData?.deleteEntityItem?.(String(type.id || ""), rid);
+        }
+        if (!ok) return;
+        state.inlineNewRow = false;
+        window.CANBus?.emit("shop:tree:changed", { reason: "records-manager-delete", typeId: String(type.id || ""), id: rid }, "records-manager");
+        await loadAll();
+        showFlash("Deleted ✓");
+      }
+
+      function applyTexts() {
+        document.title = tt("records.title", "Records Manager");
+        el.titleEl.textContent = tt("records.title", "Records Manager");
+        el.searchLabelEl.textContent = tt("records.search.folders", "Search folders");
+        el.catLabelEl.textContent = tt("records.form.category", "System category");
+        el.recSearchLabelEl.textContent = tt("records.search.records", "Search records");
+        el.listTitleEl.textContent = tt("records.list.title", "Records");
+        el.refreshBtn.textContent = tt("common.refresh", "Refresh");
+        el.openHubBtn.textContent = tt("common.hub", "Hub");
+        if (el.addRecordBtn) el.addRecordBtn.textContent = tt("records.action.addRecord", "+ Record");
+        el.typeSearchIn.placeholder = tt("shop.search.placeholder", "Search folders...");
+        el.recordSearchIn.placeholder = tt("records.search.records.placeholder", "Search code/name...");
+      }
+
+      function applyTheme(event) {
+        if (!window.VMillTheme?.applyTheme) return;
+        window.VMillTheme.applyTheme(document, "generic", event?.detail?.theme || null);
+      }
+
+      function wireEvents() {
+        el.refreshBtn?.addEventListener("click", () => { void loadAll(); });
+        el.openHubBtn?.addEventListener("click", () => { location.href = "./vmill_hub.html"; });
+        el.typeSel?.addEventListener("change", () => {
+          selectType(el.typeSel.value);
+        });
+        el.typeSearchIn?.addEventListener("input", () => {
+          state.typeSearch = String(el.typeSearchIn.value || "");
+          renderTypeOptions();
+        });
+        el.addRecordBtn?.addEventListener("click", () => {
+          state.inlineNewRow = true;
+          renderRecordsTable();
+        });
+        el.recordSearchIn?.addEventListener("input", () => {
+          state.recordSearch = String(el.recordSearchIn.value || "");
+          renderRecordsTable();
+        });
+        el.typeList?.addEventListener("click", (e) => {
+          const target = e.target;
+          if (!(target instanceof HTMLElement)) return;
+          const row = target.closest("[data-type-id]");
+          if (!(row instanceof HTMLElement)) return;
+          selectType(String(row.getAttribute("data-type-id") || ""));
+        });
+        el.recordsBody?.addEventListener("click", (e) => {
+          const target = e.target;
+          if (!(target instanceof HTMLElement)) return;
+          const action = String(target.getAttribute("data-action") || target.closest("[data-action]")?.getAttribute("data-action") || "");
+          const rid = String(target.getAttribute("data-record-id") || target.closest("[data-record-id]")?.getAttribute("data-record-id") || "");
+          if (!action) return;
+          if (action === "save-row") {
+            const rowEl = target.closest("tr[data-record-id]");
+            if (!(rowEl instanceof HTMLElement)) return;
+            const isNew = rowEl.getAttribute("data-row-new") === "1" || rid === "__new__";
+            void saveInlineRow(rid, rowEl, isNew);
+            return;
+          }
+          if (action === "delete-row" || action === "cancel-new") {
+            const isNew = action === "cancel-new" || rid === "__new__";
+            void deleteInlineRow(rid, isNew);
+          }
+        });
+
+        window.CANBus?.onMessage((msg) => {
+          const t = String(msg?.type || "");
+          if (t === "data:sync:status") return;
+          if (t === "data:module:updated" || t === "data:app:updated" || t === "shop:tree:changed") {
+            void loadAll();
+          }
+        });
+
+        window.addEventListener("storage", (e) => {
+          const k = String(e.key || "");
+          if (k === "vmill:auth:token" && !window.VMillAuth?.isLoggedIn?.()) {
+            location.replace("./login.html");
+            return;
+          }
+          if (k === "vmill:module-data:v1" || k === "vmill:app-state:v1") {
+            void loadAll();
+          }
+        });
+
+        window.addEventListener("vmill:theme:changed", applyTheme);
+        window.addEventListener("vmill:lang:changed", () => {
+          applyTexts();
+          renderAll();
+        });
+      }
+
+      window.addEventListener("DOMContentLoaded", async () => {
+        if (typeof window.VMillAuth === "undefined" || !window.VMillAuth.isLoggedIn()) {
+          location.replace("./login.html");
+          return;
+        }
+        try {
+          const serverUrl = String(localStorage.getItem("vmill:server:url") || "");
+          if (window.VMillData?.init) await window.VMillData.init(serverUrl || "");
+        } catch {}
+        applyTheme();
+        applyTexts();
+        wireEvents();
+        await loadAll();
+      });
+    })();
+  </script>
+</body>
+</html>

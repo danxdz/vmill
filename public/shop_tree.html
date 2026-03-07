@@ -514,7 +514,7 @@
 
       function normalizeTypeAttributes(raw) {
         const list = Array.isArray(raw) ? raw : [];
-        const allowed = new Set(["string", "number", "boolean", "date", "text"]);
+        const allowed = new Set(["string", "number", "boolean", "date", "timestamp", "text"]);
         const out = [];
         let fallbackOrder = 0;
         for (const row of list) {
@@ -539,8 +539,56 @@
         return out.map((row, idx) => ({ ...row, order: idx }));
       }
 
+      function coreRoleDefaultAttributes(type) {
+        const role = String(type?.moduleRole || "").trim().toLowerCase();
+        const mk = (name, key, typeName = "string", required = false) => ({
+          id: `core_${role}_${canonicalFieldKey(key || name)}`,
+          name: String(name || ""),
+          key: String(key || name || ""),
+          type: String(typeName || "string"),
+          required: !!required,
+          enabled: true,
+          order: 0,
+          core: true,
+        });
+        if (role === "product") {
+          return [
+            mk("Code", "code", "string", false),
+            mk("Name", "name", "string", true),
+            mk("Parent Product", "parentProductId", "string", false),
+          ];
+        }
+        if (role === "station") {
+          return [
+            mk("Code", "code", "string", false),
+            mk("Name", "name", "string", true),
+          ];
+        }
+        if (role === "job") {
+          return [
+            mk("Name", "name", "string", true),
+            mk("Station", "stationId", "string", true),
+            mk("Product", "productId", "string", false),
+            mk("Status", "status", "string", false),
+          ];
+        }
+        return [];
+      }
+
       function withCoreTypeAttributes(type) {
-        return normalizeTypeAttributes(type?.attributes);
+        const own = normalizeTypeAttributes(type?.attributes);
+        const defaults = normalizeTypeAttributes(coreRoleDefaultAttributes(type));
+        if (!defaults.length) return own;
+        const byKey = new Map(
+          own.map((attr) => [canonicalFieldKey(attr?.key || attr?.name || ""), attr]).filter(([k]) => !!k),
+        );
+        const merged = own.slice();
+        for (const row of defaults) {
+          const key = canonicalFieldKey(row?.key || row?.name || "");
+          if (!key || byKey.has(key)) continue;
+          merged.push({ ...row, order: merged.length });
+        }
+        return normalizeTypeAttributes(merged);
       }
 
       function makeId(prefix = "id") {
@@ -763,6 +811,52 @@
         return String(v || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
       }
 
+      function parseLooseNumberValue(rawValue) {
+        const src = String(rawValue == null ? "" : rawValue).trim();
+        if (!src) return { empty: true, valid: true, value: "" };
+        let norm = src.replace(/\s+/g, "");
+        const hasComma = norm.includes(",");
+        const hasDot = norm.includes(".");
+        if (hasComma && hasDot) {
+          if (norm.lastIndexOf(",") > norm.lastIndexOf(".")) {
+            norm = norm.replace(/\./g, "").replace(/,/g, ".");
+          } else {
+            norm = norm.replace(/,/g, "");
+          }
+        } else if (hasComma) {
+          norm = norm.replace(/,/g, ".");
+        }
+        const parsed = Number(norm);
+        if (!Number.isFinite(parsed)) return { empty: false, valid: false, value: src };
+        return { empty: false, valid: true, value: parsed };
+      }
+
+      function timestampNowIso() {
+        return new Date().toISOString();
+      }
+
+      function toDateTimeLocalInputValue(rawValue) {
+        const src = String(rawValue == null ? "" : rawValue).trim();
+        if (!src) return "";
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(src)) return src;
+        const d = new Date(src);
+        if (!Number.isFinite(d.getTime())) return "";
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mm = String(d.getMinutes()).padStart(2, "0");
+        return `${y}-${m}-${day}T${hh}:${mm}`;
+      }
+
+      function normalizeTimestampInputValue(rawValue) {
+        const src = String(rawValue == null ? "" : rawValue).trim();
+        if (!src) return "";
+        const d = new Date(src);
+        if (!Number.isFinite(d.getTime())) return src;
+        return d.toISOString();
+      }
+
       function recordAttributesForType(type) {
         if (!type) return [];
         const role = String(type.moduleRole || "custom").toLowerCase();
@@ -773,6 +867,18 @@
             const name = canonicalFieldKey(attr?.name);
             return !!name && !reserved.has(name);
           });
+      }
+
+      function defaultRecordMetaForType(type) {
+        const out = {};
+        for (const attr of recordAttributesForType(type)) {
+          if (!attr || attr.enabled === false) continue;
+          if (String(attr.type || "").toLowerCase() !== "timestamp") continue;
+          const id = String(attr.id || "");
+          if (!id) continue;
+          out[id] = timestampNowIso();
+        }
+        return out;
       }
 
       function displayRecordFieldsForType(type) {
@@ -806,9 +912,11 @@
             const raw = (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement)
               ? String(el.value || "").trim()
               : "";
-            if (type === "number" && raw) {
-              const n = Number(raw);
-              value = Number.isFinite(n) ? n : raw;
+            if (type === "number") {
+              const parsed = parseLooseNumberValue(raw);
+              value = parsed.valid ? parsed.value : raw;
+            } else if (type === "timestamp") {
+              value = normalizeTimestampInputValue(raw);
             } else {
               value = raw;
             }
@@ -1164,7 +1272,7 @@
                 <td><input data-attr-field="name" type="text" value="${esc(displayName)}" ${isOwn ? "" : "readonly"} /></td>
                 <td>
                   <select data-attr-field="type" ${isOwn ? "" : "disabled"}>
-                    ${["string", "number", "boolean", "date", "text"].map((k) => `<option value="${esc(k)}" ${String(attr.type || "string") === k ? "selected" : ""}>${esc(k)}</option>`).join("")}
+                    ${["string", "number", "boolean", "date", "timestamp", "text"].map((k) => `<option value="${esc(k)}" ${String(attr.type || "string") === k ? "selected" : ""}>${esc(k)}</option>`).join("")}
                   </select>
                 </td>
                 <td><input data-attr-field="required" type="checkbox" ${attr.required ? "checked" : ""} style="width:auto;" ${isOwn ? "" : "disabled"} /></td>
@@ -1241,10 +1349,13 @@
               return `<input data-record-field="attr:${esc(attrId)}" data-attr-type="${esc(attrType)}" type="checkbox" style="width:auto;" ${checked ? "checked" : ""} />`;
             }
             if (attrType === "number") {
-              return `<input data-record-field="attr:${esc(attrId)}" data-attr-type="${esc(attrType)}" type="number" step="any" value="${esc(value == null ? "" : String(value))}" />`;
+              return `<input data-record-field="attr:${esc(attrId)}" data-attr-type="${esc(attrType)}" type="text" inputmode="decimal" value="${esc(value == null ? "" : String(value))}" />`;
             }
             if (attrType === "date") {
               return `<input data-record-field="attr:${esc(attrId)}" data-attr-type="${esc(attrType)}" type="date" value="${esc(value == null ? "" : String(value))}" />`;
+            }
+            if (attrType === "timestamp") {
+              return `<input data-record-field="attr:${esc(attrId)}" data-attr-type="${esc(attrType)}" type="datetime-local" value="${esc(toDateTimeLocalInputValue(value))}" />`;
             }
             return `<input data-record-field="attr:${esc(attrId)}" data-attr-type="${esc(attrType)}" type="text" value="${esc(value == null ? "" : String(value))}" />`;
           };
@@ -1513,8 +1624,9 @@
         const type = selectedType();
         if (!type) return;
         const role = String(type.moduleRole || "custom").toLowerCase();
+        const defaultMeta = defaultRecordMetaForType(type);
         if (role === "product" || role === "station" || role === "job") {
-          const id = upsertAppRow(role, {});
+          const id = upsertAppRow(role, { meta: defaultMeta });
           if (id) state.selectedItemByType[String(type.id || "")] = id;
           emitTreeChanged("record-create");
           await loadAll({ silent: true });
@@ -1525,6 +1637,7 @@
           typeId: String(type.id || ""),
           code: "",
           name: tt("shop.item.defaultName", "New Record"),
+          meta: defaultMeta,
         });
         if (!out?.id) return;
         state.selectedItemByType[String(type.id || "")] = String(out.id || "");
@@ -1846,6 +1959,7 @@
                   <option value="number">number</option>
                   <option value="boolean">boolean</option>
                   <option value="date">date</option>
+                  <option value="timestamp">timestamp</option>
                   <option value="text">text</option>
                 </select>
               </td>
