@@ -1513,14 +1513,20 @@
         @media (max-width:760px){
           #vmillScopeDock{
             top:var(--vm-shell-scope-top-mobile, var(--vm-shell-scope-top, 4px));
+            left:58px;
+            right:58px;
+            transform:none;
+            width:auto;
+            max-width:none;
           }
-        #vmillScopeDock .scopePanel{
-          width:var(--vm-shell-scope-width-mobile, calc(100vw - 16px));
-          gap:6px;
-          padding:6px;
-          grid-template-columns:1fr;
-          align-items:stretch;
-        }
+          #vmillScopeDock .scopePanel{
+            width:100%;
+            min-width:0;
+            gap:5px;
+            padding:4px 5px;
+            grid-template-columns:1fr;
+            align-items:stretch;
+          }
           #vmillScopeDock .scopeHead{
             grid-column:1;
             order:initial;
@@ -1552,10 +1558,14 @@
             max-width:calc(50% - 3px);
             min-width:0;
           }
-          #vmillScopeDock .scopePicker{ width:var(--vm-shell-scope-width-mobile, calc(100vw - 16px)); }
+          #vmillScopeDock .scopePicker{ width:100%; }
           #vmillScopeDock .scopeSummary{ display:none; }
         }
         @media (max-width:520px){
+          #vmillScopeDock{
+            left:54px;
+            right:54px;
+          }
           #vmillScopeDock .scopeSelWrap{ flex-basis:100%; max-width:100%; }
         }
       </style>
