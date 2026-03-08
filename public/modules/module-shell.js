@@ -56,13 +56,14 @@
   function normalizeScopeToolbarPrefs(raw) {
     const src = raw && typeof raw === "object" ? raw : {};
     const mode = String(src.mode || "").toLowerCase() === "all" ? "all" : "roots";
+    const showIcons = src.showIcons !== false;
     const hiddenTypeIds = Array.isArray(src.hiddenTypeIds)
       ? [...new Set(src.hiddenTypeIds.map((x) => String(x || "").trim()).filter(Boolean))]
       : [];
     const orderTypeIds = Array.isArray(src.orderTypeIds)
       ? [...new Set(src.orderTypeIds.map((x) => String(x || "").trim()).filter(Boolean))]
       : [];
-    return { mode, hiddenTypeIds, orderTypeIds };
+    return { mode, showIcons, hiddenTypeIds, orderTypeIds };
   }
 
   function readScopeToolbarPrefs() {
@@ -1225,7 +1226,8 @@
           position:fixed;
           left:50%;
           top:var(--vm-shell-scope-top, 4px);
-          transform:translateX(-50%);
+          --vm-shell-scope-shift-x:-50%;
+          transform:translateX(var(--vm-shell-scope-shift-x));
           z-index:var(--z-hub-scope, 100150);
           font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
           --scope-bg: color-mix(in srgb, var(--vm-theme-panel, #111a2a) 90%, transparent);
@@ -1241,7 +1243,7 @@
         body.hubHeaderMinimal #vmillScopeDock{
           opacity:1 !important;
           pointer-events:auto !important;
-          transform:translateX(-50%) translateY(0) !important;
+          transform:translateX(var(--vm-shell-scope-shift-x)) translateY(0) !important;
         }
         #vmillScopeDock .scopePanel{
           width:var(--vm-shell-scope-width, min(var(--vm-shell-scope-max-width, 1480px), calc(100vw - var(--vm-shell-scope-side-gap, 112px))));
@@ -1385,6 +1387,35 @@
           overflow:hidden;
           text-overflow:ellipsis;
         }
+        #vmillScopeDock .scopeSelLabelRow{
+          display:flex;
+          align-items:center;
+          gap:5px;
+          min-width:0;
+        }
+        #vmillScopeDock .scopeTypeIcon{
+          width:16px;
+          height:16px;
+          border-radius:5px;
+          border:1px solid var(--scope-border);
+          background:rgba(255,255,255,.04);
+          color:var(--scope-text);
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          overflow:hidden;
+          flex:0 0 auto;
+        }
+        #vmillScopeDock .scopeTypeIcon img{
+          width:100%;
+          height:100%;
+          object-fit:cover;
+        }
+        #vmillScopeDock .scopeTypeIcon svg{
+          width:11px;
+          height:11px;
+          stroke:currentColor;
+        }
         #vmillScopeDock .scopeSel{
           color-scheme: light dark;
           border:1px solid var(--scope-border);
@@ -1513,11 +1544,11 @@
         @media (max-width:760px){
           #vmillScopeDock{
             top:var(--vm-shell-scope-top-mobile, var(--vm-shell-scope-top, 4px));
-            left:58px;
-            right:58px;
-            transform:none;
-            width:auto;
-            max-width:none;
+            left:50%;
+            right:auto;
+            width:min(calc(100vw - 124px), 560px);
+            max-width:min(calc(100vw - 124px), 560px);
+            --vm-shell-scope-shift-x:-50%;
           }
           #vmillScopeDock .scopePanel{
             width:100%;
@@ -1563,8 +1594,8 @@
         }
         @media (max-width:520px){
           #vmillScopeDock{
-            left:54px;
-            right:54px;
+            width:min(calc(100vw - 112px), 520px);
+            max-width:min(calc(100vw - 112px), 520px);
           }
           #vmillScopeDock .scopeSelWrap{ flex-basis:100%; max-width:100%; }
         }
@@ -1685,6 +1716,23 @@
       const code = String(it?.code || "").trim();
       const name = String(it?.name || it?.id || "");
       return code ? `${code} - ${name}` : name;
+    }
+    function scopeTypeIconSvg(iconId) {
+      const id = String(iconId || "").trim().toLowerCase();
+      if (id === "box") return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z" stroke-width="1.8"/><path d="M12 21v-9.5M4.5 7.8 12 12l7.5-4.2" stroke-width="1.8"/></svg>';
+      if (id === "factory") return '<svg viewBox="0 0 24 24" fill="none"><path d="M3 21V9l6 3V9l6 3V5l6 3v13H3Z" stroke-width="1.8"/></svg>';
+      if (id === "clipboard") return '<svg viewBox="0 0 24 24" fill="none"><path d="M9 4h6l1 2h3v14H5V6h3l1-2Z" stroke-width="1.8"/><path d="M9 11h6M9 15h6" stroke-width="1.8"/></svg>';
+      if (id === "folder") return '<svg viewBox="0 0 24 24" fill="none"><path d="M3 7h6l2 2h10v8.5A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5V7Z" stroke-width="1.8"/></svg>';
+      if (id === "camera") return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 8h4l2-2h4l2 2h4v10H4V8Z" stroke-width="1.8"/><circle cx="12" cy="13" r="3.2" stroke-width="1.8"/></svg>';
+      if (id === "chart") return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 20V6m5 14v-8m5 8V4m5 16v-5" stroke-width="1.8"/></svg>';
+      return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4z" stroke-width="1.8"/></svg>';
+    }
+    function scopeTypeIconHtml(type) {
+      const imageUrl = String(type?.imageUrl || "").trim();
+      const icon = String(type?.icon || "").trim();
+      if (imageUrl) return `<span class="scopeTypeIcon"><img src="${escHtml(imageUrl)}" alt="" /></span>`;
+      if (icon) return `<span class="scopeTypeIcon" title="${escHtml(icon)}">${scopeTypeIconSvg(icon)}</span>`;
+      return "";
     }
     function roleTypeId(role) {
       const wanted = String(role || "").trim().toLowerCase();
@@ -2164,6 +2212,7 @@
     function renderKpis(scope) {
       if (!kpisEl) return;
       const ctx = buildScopeContext(scope);
+      const prefs = readScopeToolbarPrefs();
       let types = visibleTypeIds
         .map((id) => typeByIdSafe(id))
         .filter(Boolean);
@@ -2188,7 +2237,7 @@
           }),
         ].join("");
         return `<label class="scopeSelWrap">
-          <span class="scopeSelLabel">${escHtml(typeLabel(t))}</span>
+          <span class="scopeSelLabel"><span class="scopeSelLabelRow">${prefs.showIcons !== false ? scopeTypeIconHtml(t) : ""}<span>${escHtml(typeLabel(t))}</span></span></span>
           <select class="scopeSel" data-scope-select="${escHtml(tid)}">${opts}</select>
         </label>`;
       }).join("");

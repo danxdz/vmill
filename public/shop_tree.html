@@ -172,6 +172,34 @@
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc) 50%, transparent);
       flex: 0 0 auto;
     }
+    .typeVisual {
+      width: 20px;
+      height: 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      flex: 0 0 auto;
+      overflow: hidden;
+    }
+    .typeVisual svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+    }
+    .typeVisual img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .typeVisual.preview {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+    }
     .dot.base { background: var(--dot-base); }
     .dot.custom { background: var(--dot-custom); }
     .nodeText { min-width: 0; display: grid; gap: 2px; }
@@ -229,6 +257,11 @@
     }
     .field { display: grid; gap: 5px; }
     .field label { font-size: 11px; color: var(--muted); }
+    .fieldInline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
     input, select {
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -374,8 +407,8 @@
       flex-wrap: nowrap;
     }
     .attrMoveBtn {
-      border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
-      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      border: 1px solid color-mix(in srgb, var(--acc) 55%, transparent);
+      background: color-mix(in srgb, var(--acc) 14%, transparent);
       color: var(--text);
       border-radius: 8px;
       font-size: 11px;
@@ -484,6 +517,66 @@
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;")
           .replace(/\"/g, "&quot;");
+      }
+
+      const TYPE_ICON_SET = [
+        { id: "", key: "shop.icon.none", fallback: "None" },
+        { id: "folder", key: "shop.icon.folder", fallback: "Folder" },
+        { id: "box", key: "shop.icon.box", fallback: "Box" },
+        { id: "factory", key: "shop.icon.factory", fallback: "Factory" },
+        { id: "clipboard", key: "shop.icon.clipboard", fallback: "Clipboard" },
+        { id: "route", key: "shop.icon.route", fallback: "Route" },
+        { id: "camera", key: "shop.icon.camera", fallback: "Camera" },
+        { id: "check", key: "shop.icon.check", fallback: "Check" },
+        { id: "chart", key: "shop.icon.chart", fallback: "Chart" },
+        { id: "gear", key: "shop.icon.gear", fallback: "Gear" },
+        { id: "layers", key: "shop.icon.layers", fallback: "Layers" },
+        { id: "tool", key: "shop.icon.tool", fallback: "Tool" },
+      ];
+
+      function iconSvg(iconId) {
+        const id = String(iconId || "").trim().toLowerCase();
+        if (id === "box") return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z" stroke-width="1.8"/><path d="M12 21v-9.5M4.5 7.8 12 12l7.5-4.2" stroke-width="1.8"/></svg>';
+        if (id === "factory") return '<svg viewBox="0 0 24 24" fill="none"><path d="M3 21V9l6 3V9l6 3V5l6 3v13H3Z" stroke-width="1.8"/><path d="M7 21v-4m4 4v-4m4 4v-4" stroke-width="1.8"/></svg>';
+        if (id === "clipboard") return '<svg viewBox="0 0 24 24" fill="none"><path d="M9 4h6l1 2h3v14H5V6h3l1-2Z" stroke-width="1.8"/><path d="M9 11h6M9 15h6" stroke-width="1.8"/></svg>';
+        if (id === "route") return '<svg viewBox="0 0 24 24" fill="none"><path d="M7 7h10M7 17h10M7 7v10m10-10v10" stroke-width="1.8"/><circle cx="7" cy="7" r="2" stroke-width="1.8"/><circle cx="17" cy="17" r="2" stroke-width="1.8"/></svg>';
+        if (id === "camera") return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 8h4l2-2h4l2 2h4v10H4V8Z" stroke-width="1.8"/><circle cx="12" cy="13" r="3.2" stroke-width="1.8"/></svg>';
+        if (id === "check") return '<svg viewBox="0 0 24 24" fill="none"><path d="m5 12 4.2 4.2L19 6.5" stroke-width="2"/></svg>';
+        if (id === "chart") return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 20V6m5 14v-8m5 8V4m5 16v-5" stroke-width="1.8"/></svg>';
+        if (id === "gear") return '<svg viewBox="0 0 24 24" fill="none"><path d="M12 8.5A3.5 3.5 0 1 1 8.5 12 3.5 3.5 0 0 1 12 8.5Z" stroke-width="1.8"/><path d="M19 12a7.4 7.4 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a7.2 7.2 0 0 0-1.7-1L14.5 3h-5L9.2 6a7.2 7.2 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a7.4 7.4 0 0 0 0 2l-2 1.5 2 3.5 2.4-1a7.2 7.2 0 0 0 1.7 1l.3 3h5l.3-3a7.2 7.2 0 0 0 1.7-1l2.4 1 2-3.5-2-1.5c.1-.3.1-.7.1-1Z" stroke-width="1.3"/></svg>';
+        if (id === "layers") return '<svg viewBox="0 0 24 24" fill="none"><path d="m12 4 8 4-8 4-8-4 8-4Zm-8 8 8 4 8-4M4 16l8 4 8-4" stroke-width="1.8"/></svg>';
+        if (id === "tool") return '<svg viewBox="0 0 24 24" fill="none"><path d="m14 7 3-3 3 3-3 3M4 20l8.5-8.5" stroke-width="1.8"/><path d="m9 7 8 8" stroke-width="1.8"/></svg>';
+        return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4z" stroke-width="1.8"/><path d="M4 10h16" stroke-width="1.8"/></svg>';
+      }
+
+      function typeVisualHtml(type, extraClass = "") {
+        const imageUrl = String(type?.imageUrl || "").trim();
+        const icon = String(type?.icon || "").trim();
+        const klass = extraClass ? `typeVisual ${extraClass}` : "typeVisual";
+        if (imageUrl) {
+          return `<span class="${klass}"><img src="${esc(imageUrl)}" alt="" /></span>`;
+        }
+        if (icon) {
+          return `<span class="${klass}" title="${esc(icon)}">${iconSvg(icon)}</span>`;
+        }
+        const dotClass = type?.base ? "base" : "custom";
+        return `<span class="dot ${dotClass}"></span>`;
+      }
+
+      function updateTypeVisualPreview() {
+        const iconSel = document.getElementById("typeIconSel");
+        const imageUrlIn = document.getElementById("typeImageUrlIn");
+        const iconPreview = document.getElementById("typeIconPreview");
+        const visualPreview = document.getElementById("typeVisualPreview");
+        const row = findType(state.selectedTypeId);
+        const icon = String(iconSel?.value || row?.icon || "").trim();
+        const imageUrl = String(imageUrlIn?.value || row?.imageUrl || "").trim();
+        if (iconPreview instanceof HTMLElement) {
+          iconPreview.innerHTML = typeVisualHtml({ icon, imageUrl: "" });
+        }
+        if (visualPreview instanceof HTMLElement) {
+          visualPreview.innerHTML = typeVisualHtml({ ...(row || {}), icon, imageUrl }, "preview");
+        }
       }
 
       function autoPluralName(name) {
@@ -1118,13 +1211,12 @@
             const selected = id === String(state.selectedTypeId || "") ? " selected" : "";
             const childHtml = hasChild && open ? renderBranch(id) : "";
             const role = roleLabel(String(t.moduleRole || "custom"));
-            const dotClass = t.base ? "base" : "custom";
             return `
               <li>
                 <div class="treeNode${selected}" data-select-type="${esc(id)}" draggable="true" data-drag-type="${esc(id)}" data-drop-type="${esc(id)}">
                   <div class="treeNodeMain">
                     <button class="twisty" type="button" data-toggle-type="${esc(id)}">${hasChild ? (open ? "-" : "+") : "·"}</button>
-                    <span class="dot ${dotClass}"></span>
+                    ${typeVisualHtml(t)}
                     <div class="nodeText">
                       <div class="nodeName">${esc(typeLabel(t))}</div>
                       <div class="tiny">${esc(role)}${t.base ? ` · ${esc(tt("shop.tag.base", "base"))}` : ""}</div>
@@ -1155,13 +1247,12 @@
           const selected = id === String(state.selectedTypeId || "") ? " selected" : "";
           const role = roleLabel(String(t.moduleRole || "custom"));
           const childHtml = hasChild && open ? renderBranch(id) : "";
-          const dotClass = t.base ? "base" : "custom";
           return `
             <li>
               <div class="treeNode${selected}" data-select-type="${esc(id)}" draggable="true" data-drag-type="${esc(id)}" data-drop-type="${esc(id)}">
                 <div class="treeNodeMain">
                   <button class="twisty" type="button" data-toggle-type="${esc(id)}">${hasChild ? (open ? "-" : "+") : "·"}</button>
-                  <span class="dot ${dotClass}"></span>
+                  ${typeVisualHtml(t)}
                   <div class="nodeText">
                     <div class="nodeName">${esc(typeLabel(t))}</div>
                     <div class="tiny">${esc(role)}${t.base ? ` · ${esc(tt("shop.tag.base", "base"))}` : ""}</div>
@@ -1321,9 +1412,9 @@
               const statusVal = String(raw?.status || "active");
               return `
                 <select data-record-field="status">
-                  <option value="active" ${statusVal === "active" ? "selected" : ""}>active</option>
-                  <option value="paused" ${statusVal === "paused" ? "selected" : ""}>paused</option>
-                  <option value="archived" ${statusVal === "archived" ? "selected" : ""}>archived</option>
+                  <option value="active" ${statusVal === "active" ? "selected" : ""}>${esc(tt("shop.status.active", "Active"))}</option>
+                  <option value="paused" ${statusVal === "paused" ? "selected" : ""}>${esc(tt("shop.status.paused", "Paused"))}</option>
+                  <option value="archived" ${statusVal === "archived" ? "selected" : ""}>${esc(tt("shop.status.archived", "Archived"))}</option>
                 </select>
               `;
             }
@@ -1400,7 +1491,7 @@
         detailWrap.innerHTML = `
           <section class="section">
             <div class="sectionHead">
-              <div class="sectionTitle">${esc(tt("shop.form.systemCategory", "Folder"))}</div>
+              <div></div>
               <div class="tag">${type.base ? esc(tt("shop.tag.base", "base")) : esc(tt("shop.role.custom", "custom"))}</div>
             </div>
             <div class="grid2">
@@ -1413,15 +1504,32 @@
                 <select id="typeParentSel">${parentOptions}</select>
               </div>
             </div>
+            <div class="grid2">
+              <div class="field">
+                <label>${esc(tt("shop.form.icon", "Icon"))}</label>
+                <div class="fieldInline">
+                  <span id="typeIconPreview">${typeVisualHtml({ icon: String(type.icon || ""), imageUrl: "" })}</span>
+                  <select id="typeIconSel">${TYPE_ICON_SET.map((opt) => `<option value="${esc(opt.id)}" ${String(type.icon || "") === String(opt.id || "") ? "selected" : ""}>${esc(tt(opt.key, opt.fallback))}</option>`).join("")}</select>
+                </div>
+              </div>
+              <div class="field">
+                <label>${esc(tt("shop.form.image", "Image"))}</label>
+                <input id="typeImageUrlIn" type="text" value="${esc(String(type.imageUrl || ""))}" placeholder="${esc(tt("shop.form.imagePlaceholder", "Image URL or uploaded file"))}" />
+              </div>
+            </div>
+            <div class="row" style="align-items:center;">
+              <div id="typeVisualPreview">${typeVisualHtml(type, "preview")}</div>
+              <button class="btn ghost" id="typeImageUploadBtn" type="button">${esc(tt("shop.action.uploadImage", "Upload image"))}</button>
+              <button class="btn ghost" id="typeImageClearBtn" type="button">${esc(tt("shop.action.clearImage", "Clear image"))}</button>
+              <input id="typeImageFileIn" type="file" accept="image/*" hidden />
+            </div>
             <div class="row">
-              <button class="btn ghost" id="newTypeBtn" type="button">${esc(tt("shop.action.addCategory", "+ Folder"))}</button>
               <button class="btn ghost" id="newChildTypeBtn" type="button">${esc(tt("shop.action.addChild", "+ Subfolder"))}</button>
-              <button class="btn ghost" type="button" id="addAttrBtn">${esc(tt("shop.action.addField", "+ Field"))}</button>
-              <button class="btn ghost" type="button" id="newItemBtn">${esc(tt("shop.action.addRecord", "+ Record"))}</button>
               <button class="btn warn" id="deleteTypeBtn" type="button">${esc(tt("common.delete", "Delete"))}</button>
             </div>
             <div class="sectionHead">
               <div class="sectionTitle">${esc(tt("shop.form.attributes", "Fields"))}</div>
+              <button class="btn ghost" type="button" id="addAttrBtn">${esc(tt("shop.action.addField", "+ Field"))}</button>
             </div>
             <div class="tiny">${esc(tt("shop.form.fieldsCategoryHint", "Fields are defined on this folder schema (not per record row). Parent folder fields are inherited automatically."))}</div>
             <div class="tableWrap">
@@ -1443,6 +1551,7 @@
             </div>
             <div class="sectionHead" style="margin-top:14px;">
               <div class="sectionTitle">${esc(tt("shop.form.records", "Records"))}</div>
+              <button class="btn ghost" type="button" id="newItemBtn">${esc(tt("shop.action.addRecord", "+ Record"))}</button>
             </div>
             ${parentTypeId ? "" : `<div class="tiny">${esc(tt("shop.empty.noParentRule", "No parent folder configured for this one. Set parent folder above first."))}</div>`}
             ${parentDropTargets}
@@ -1456,6 +1565,7 @@
             </div>
           </section>
         `;
+        updateTypeVisualPreview();
       }
 
       function syncParentRule(typeId, parentTypeId, relation) {
@@ -1524,6 +1634,7 @@
           nameSingular: name,
           namePlural: autoPluralName(name),
           moduleRole: "custom",
+          icon: "folder",
         });
         const typeId = String(out?.id || "");
         if (!typeId) return;
@@ -1582,6 +1693,8 @@
         const name = String(document.getElementById("typeNameIn")?.value || row.nameSingular || "").trim();
         if (!name) return;
         const parentTypeId = String(document.getElementById("typeParentSel")?.value || "");
+        const icon = String(document.getElementById("typeIconSel")?.value || row.icon || "").trim();
+        const imageUrl = String(document.getElementById("typeImageUrlIn")?.value || row.imageUrl || "").trim();
         const relation = "contains";
         const rowRole = String(row.moduleRole || "custom").trim().toLowerCase() || "custom";
         const role = rowRole;
@@ -1593,6 +1706,8 @@
           nameSingular: name,
           namePlural: autoPluralName(name),
           moduleRole: role,
+          icon,
+          imageUrl,
           attributes,
         });
         if (!out?.id) return;
@@ -2157,7 +2272,13 @@
       detailWrap.addEventListener("change", async (e) => {
         const target = e.target;
         if (!(target instanceof HTMLElement)) return;
-        if (target.id === "typeNameIn" || target.id === "typeParentSel") {
+        if (
+          target.id === "typeNameIn"
+          || target.id === "typeParentSel"
+          || target.id === "typeIconSel"
+          || target.id === "typeImageUrlIn"
+        ) {
+          updateTypeVisualPreview();
           await saveTypeFromForm();
           return;
         }
@@ -2189,9 +2310,49 @@
         target.blur();
       });
 
+      detailWrap.addEventListener("input", (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (target.id === "typeIconSel" || target.id === "typeImageUrlIn") {
+          updateTypeVisualPreview();
+        }
+      });
+
       addRootBtn?.addEventListener("click", async () => { await createType(""); });
       refreshBtn?.addEventListener("click", async () => { await loadAll(); });
       openHubBtn?.addEventListener("click", () => { location.href = "./vmill_hub.html"; });
+      detailWrap.addEventListener("click", (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (target.id === "typeImageUploadBtn") {
+          detailWrap.querySelector("#typeImageFileIn")?.click();
+          return;
+        }
+        if (target.id === "typeImageClearBtn") {
+          const input = detailWrap.querySelector("#typeImageUrlIn");
+          if (input instanceof HTMLInputElement) {
+            input.value = "";
+            void saveTypeFromForm();
+          }
+        }
+      });
+      detailWrap.addEventListener("change", (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        if (target.id !== "typeImageFileIn") return;
+        const file = target.files && target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const input = detailWrap.querySelector("#typeImageUrlIn");
+          if (input instanceof HTMLInputElement) {
+            input.value = String(reader.result || "");
+            updateTypeVisualPreview();
+            void saveTypeFromForm();
+          }
+        };
+        reader.readAsDataURL(file);
+      });
       searchIn?.addEventListener("input", () => {
         state.search = String(searchIn.value || "");
         renderTree();
