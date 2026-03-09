@@ -321,6 +321,41 @@
               </label>
               <button id="opSaveBtn" class="primary" type="button">Save Operation</button>
             </div>
+            <div class="chartBox" style="margin-top:10px;">
+              <div class="mini" id="opCharHint">Characteristics used in this operation</div>
+              <div id="opCharList" class="tableWrap" style="max-height:180px;min-height:92px;margin-top:8px;"></div>
+              <div class="routeTools" style="margin-top:8px;">
+                <button id="opCharUseAllBtn" type="button">Use All</button>
+                <button id="opCharClearBtn" type="button">Clear</button>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="section">
+          <summary id="sectionCharsSummary">Product Characteristics</summary>
+          <div class="sectionBody">
+            <div class="mini" id="charSectionHint" style="margin-top:2px;">Catalog linked to the selected product.</div>
+            <div class="routeGrid3" style="margin-top:8px;">
+              <select id="charSel"></select>
+              <button id="charNewBtn" class="primary" type="button">+ Characteristic</button>
+              <button id="charDeleteBtn" class="danger" type="button">Delete</button>
+            </div>
+            <div class="routeGrid3" style="margin-top:8px;">
+              <input id="charIdIn" type="text" placeholder="Characteristic ID (e.g. C01)" />
+              <input id="charNameIn" type="text" placeholder="Characteristic name" />
+              <input id="charNomIn" type="number" step="0.001" placeholder="Nominal" />
+              <input id="charLslIn" type="number" step="0.001" placeholder="Lower limit" />
+              <input id="charUslIn" type="number" step="0.001" placeholder="Upper limit" />
+              <input id="charUnitIn" type="text" placeholder="Unit (mm)" />
+              <input id="charMethodIn" type="text" placeholder="Method" />
+              <input id="charInstrumentIn" type="text" placeholder="Instrument" />
+              <input id="charReactionIn" type="text" placeholder="Reaction plan" />
+            </div>
+            <div class="routeTools">
+              <button id="charSaveBtn" class="primary" type="button">Save Characteristic</button>
+              <button id="charClearBtn" type="button">Clear Form</button>
+            </div>
           </div>
         </details>
 
@@ -330,6 +365,7 @@
             <div class="mini" id="bubbleSectionHint" style="margin-top:2px;">Dimensional annotations for selected operation</div>
             <div class="routeGrid3" style="margin-top:8px;">
               <input id="bubbleIdIn" type="text" placeholder="Annotation ID (e.g. A01)" />
+              <select id="bubbleCharSel"></select>
               <input id="bubbleNameIn" type="text" placeholder="Annotation name" />
               <input id="bubbleNomIn" type="number" step="0.001" placeholder="Nominal" />
               <input id="bubbleLslIn" type="number" step="0.001" placeholder="Lower limit" />
@@ -450,6 +486,7 @@
         MODULE_KEY,
       ]));
       const NS_ROUTE = "spacial_routes";
+      const NS_CHAR = "spacial_characteristics";
       const launchParams = new URLSearchParams(window.location.search || "");
       let launchRouteApplied = false;
       let lastStateSig = "";
@@ -462,6 +499,7 @@
       let selectedRouteId = "";
       let selectedOpId = "";
       let selectedOpFileId = "";
+      let selectedCharId = "";
       let editingBubbleId = "";
       let selectedCanvasBubbleId = "";
       let bubbleCanvasImage = null;
@@ -508,6 +546,7 @@
         setTxt("routingTitle", "spacial.routing.title", "Routing and Dimensional Control");
         setTxt("sectionRouteSummary", "spacial.section.route", "Route");
         setTxt("sectionOpsSummary", "spacial.section.operations", "Operations");
+        setTxt("sectionCharsSummary", "spacial.section.characteristics", "Product Characteristics");
         setTxt("sectionBubblesSummary", "spacial.section.annotations", "Annotations");
         setTxt("sectionBlueprintSummary", "spacial.section.blueprint", "Blueprint");
         setTxt("routeSaveBtn", "spacial.saveRoute", "Save Route");
@@ -521,6 +560,14 @@
         setTxt("opDownBtn", "spacial.moveDown", "Move Down");
         setTxt("opCriticalLbl", "spacial.op.critical", "Critical operation");
         setTxt("opSaveBtn", "spacial.op.save", "Save Operation");
+        setTxt("opCharHint", "spacial.op.characteristicsHint", "Characteristics used in this operation");
+        setTxt("opCharUseAllBtn", "spacial.op.characteristicsUseAll", "Use All");
+        setTxt("opCharClearBtn", "spacial.op.characteristicsClear", "Clear");
+        setTxt("charSectionHint", "spacial.characteristics.hint", "Catalog linked to the selected product.");
+        setTxt("charNewBtn", "spacial.characteristics.new", "+ Characteristic");
+        setTxt("charDeleteBtn", "spacial.characteristics.delete", "Delete");
+        setTxt("charSaveBtn", "spacial.characteristics.save", "Save Characteristic");
+        setTxt("charClearBtn", "spacial.characteristics.clear", "Clear Form");
         setTxt("bubbleSectionHint", "spacial.annotations.title", "Dimensional annotations for selected operation");
         setTxt("bubbleSaveBtn", "spacial.annotation.save", "Save Annotation");
         setTxt("bubbleClearBtn", "spacial.annotation.clear", "Clear Annotation Form");
@@ -572,6 +619,15 @@
         setPh("opFrequencyIn", "spacial.op.frequency", "Frequency (e.g. 1/30min)");
         setPh("opControlMethodIn", "spacial.op.method", "Control method");
         setPh("opNotesIn", "spacial.op.notes", "Operation notes");
+        setPh("charIdIn", "spacial.characteristics.id", "Characteristic ID (e.g. C01)");
+        setPh("charNameIn", "spacial.characteristics.name", "Characteristic name");
+        setPh("charNomIn", "spacial.characteristics.nominal", "Nominal");
+        setPh("charLslIn", "spacial.characteristics.lsl", "Lower limit");
+        setPh("charUslIn", "spacial.characteristics.usl", "Upper limit");
+        setPh("charUnitIn", "spacial.characteristics.unit", "Unit");
+        setPh("charMethodIn", "spacial.characteristics.method", "Method");
+        setPh("charInstrumentIn", "spacial.characteristics.instrument", "Instrument");
+        setPh("charReactionIn", "spacial.characteristics.reaction", "Reaction plan");
         setPh("bubbleIdIn", "spacial.annotation.id", "Annotation ID (e.g. A01)");
         setPh("bubbleNameIn", "spacial.annotation.name", "Annotation name");
         setPh("bubbleNomIn", "spacial.annotation.nominal", "Nominal");
@@ -1452,9 +1508,87 @@
           return va - vb;
         });
       }
+      function normalizeIdList(list) {
+        const out = [];
+        const seen = new Set();
+        const src = Array.isArray(list) ? list : [];
+        for (const raw of src) {
+          const id = strOrEmpty(raw?.id || raw);
+          if (!id || seen.has(id)) continue;
+          seen.add(id);
+          out.push(id);
+        }
+        return out;
+      }
+      function currentRouteProductId() {
+        if (routePlan?.productId) return String(routePlan.productId || "");
+        const state = readState();
+        if (selectedProductFilterId) return String(selectedProductFilterId || "");
+        const job = getJob(state, selectedJobFilterId || state?.activeJobId || "");
+        if (job?.productId) return String(job.productId || "");
+        return String(state?.activeProductId || "");
+      }
+      function normalizeCharacteristic(raw, idx = 0, productIdHint = "") {
+        const src = raw && typeof raw === "object" ? raw : {};
+        const pid = strOrEmpty(src.productId || src.product_id || productIdHint);
+        return {
+          id: strOrEmpty(src.id) || `C${String(idx + 1).padStart(3, "0")}`,
+          productId: pid,
+          name: strOrEmpty(src.name) || `Characteristic ${idx + 1}`,
+          nominal: numOrNull(src.nominal),
+          lsl: numOrNull(src.lsl),
+          usl: numOrNull(src.usl),
+          unit: strOrEmpty(src.unit || "mm"),
+          method: strOrEmpty(src.method),
+          instrument: strOrEmpty(src.instrument || src.gauge || src.gage),
+          reactionPlan: strOrEmpty(src.reactionPlan || src.reaction),
+          updatedAt: strOrEmpty(src.updatedAt || new Date().toISOString()),
+          createdAt: strOrEmpty(src.createdAt || new Date().toISOString()),
+        };
+      }
+      function listAllCharacteristics() {
+        const rows = window.VMillData?.listRecords ? window.VMillData.listRecords(NS_CHAR) : [];
+        return Array.isArray(rows) ? rows.slice() : [];
+      }
+      function listProductCharacteristics(productId = "") {
+        const pid = strOrEmpty(productId || currentRouteProductId());
+        const rows = listAllCharacteristics()
+          .map((x, i) => normalizeCharacteristic(x, i, pid))
+          .filter((x) => String(x.productId || "") === pid);
+        rows.sort((a, b) => String(a.id || "").localeCompare(String(b.id || "")) || String(a.name || "").localeCompare(String(b.name || "")));
+        return rows;
+      }
+      function characteristicById(charId, productId = "") {
+        const id = strOrEmpty(charId);
+        if (!id) return null;
+        const rows = listProductCharacteristics(productId);
+        return rows.find((x) => String(x.id || "") === id) || null;
+      }
+      function characteristicNameById(charId, productId = "") {
+        const ch = characteristicById(charId, productId);
+        if (!ch) return "";
+        return `${ch.id}${ch.name ? ` - ${ch.name}` : ""}`;
+      }
+      function ensureOpCharacteristicRefs(op) {
+        if (!op || typeof op !== "object") return [];
+        const base = normalizeIdList(op.characteristicIds);
+        if (base.length) {
+          op.characteristicIds = base;
+          return base;
+        }
+        const fromLegacy = normalizeIdList(op.characteristics);
+        op.characteristicIds = fromLegacy;
+        return op.characteristicIds;
+      }
       function normalizeBubble(raw, idx = 0) {
         const id = strOrEmpty(raw?.id || raw?.bubbleId || raw?.bubble || "");
         const name = strOrEmpty(raw?.name || raw?.feature || raw?.dimension || "");
+        const characteristicId = strOrEmpty(
+          raw?.characteristicId
+          || raw?.characteristic_id
+          || raw?.characteristic?.id
+          || raw?.charId
+        );
         const x1 = Number(raw?.bbox?.x1 ?? raw?.x1);
         const y1 = Number(raw?.bbox?.y1 ?? raw?.y1);
         const x2 = Number(raw?.bbox?.x2 ?? raw?.x2);
@@ -1466,6 +1600,7 @@
         const thumbBbox = normalizeBbox(raw?.thumbnailBBox || raw?.thumbnail?.source_bbox || raw?.thumbnail?.bbox || null);
         return {
           id: id || `B${String(idx + 1).padStart(3, "0")}`,
+          characteristicId,
           name: name || `Dimension ${idx + 1}`,
           nominal: numOrNull(raw?.nominal),
           lsl: numOrNull(raw?.lsl),
@@ -1541,6 +1676,8 @@
         const seqNum = Number(raw?.seq);
         const files = Array.isArray(raw?.files) ? raw.files.map((f, i) => normalizeOperationFile(f, i)) : [];
         const legacyBubbles = Array.isArray(raw?.bubbles) ? raw.bubbles.map((b, i) => normalizeBubble(b, i)) : [];
+        const rawCharIds = normalizeIdList(raw?.characteristicIds);
+        const legacyCharIds = normalizeIdList(raw?.characteristics);
         const op = {
           id: strOrEmpty(raw?.id) || uid("op"),
           seq: Number.isFinite(seqNum) ? seqNum : ((idx + 1) * 10),
@@ -1554,10 +1691,12 @@
           critical: !!raw?.critical,
           notes: strOrEmpty(raw?.notes),
           activeFileId: strOrEmpty(raw?.activeFileId),
+          characteristicIds: rawCharIds.length ? rawCharIds : legacyCharIds,
           files,
           bubbles: legacyBubbles,
         };
         ensureOperationFiles(op);
+        ensureOpCharacteristicRefs(op);
         return op;
       }
       function normalizeRoutePlan(raw, job, station, product) {
@@ -1884,7 +2023,8 @@
           "routeExportJsonBtn","routeExportCsvBtn","routeExportPdfBtn",
           "routeOpSel","opAddBtn","opDeleteBtn","opUpBtn","opDownBtn","opSeqIn","opNameIn",
           "opStationIn","opWorkstationIn","opEstTimeIn","opSampleSizeIn","opFrequencyIn","opControlMethodIn",
-          "opNotesIn","opCriticalChk","opSaveBtn","bubbleIdIn","bubbleNameIn","bubbleNomIn","bubbleLslIn",
+          "opNotesIn","opCriticalChk","opSaveBtn","opCharUseAllBtn","opCharClearBtn",
+          "bubbleIdIn","bubbleCharSel","bubbleNameIn","bubbleNomIn","bubbleLslIn",
           "bubbleUslIn","bubbleUnitIn","bubbleMethodIn","bubbleInstrumentIn","bubbleReactionIn",
           "opFileSel","opFileUploadBtn","opFileRenameBtn","opFileDeleteBtn","opFileInput","opExportFileJpgBtn","opExportPdfBtn",
           "bubbleSaveBtn","bubbleClearBtn","bubbleImportBtn","bubbleDrawingClearBtn",
@@ -1951,10 +2091,273 @@
         $("opNotesIn").value = op?.notes || "";
         $("opCriticalChk").checked = !!op?.critical;
       }
+      function nextCharacteristicId(rows) {
+        const used = new Set(
+          [
+            ...((rows || []).map((x) => String(x?.id || ""))),
+            ...(listAllCharacteristics().map((x) => String(x?.id || ""))),
+          ].filter(Boolean)
+        );
+        let i = 1;
+        while (i < 100000) {
+          const id = `C${String(i).padStart(3, "0")}`;
+          if (!used.has(id)) return id;
+          i += 1;
+        }
+        return uid("char");
+      }
+      function setCharacteristicEditorDisabled(disabled) {
+        const ids = [
+          "charSel","charNewBtn","charDeleteBtn","charIdIn","charNameIn","charNomIn","charLslIn","charUslIn",
+          "charUnitIn","charMethodIn","charInstrumentIn","charReactionIn","charSaveBtn","charClearBtn",
+        ];
+        for (const id of ids) {
+          const el = $(id);
+          if (el) el.disabled = !!disabled;
+        }
+      }
+      function writeCharacteristicToInputs(ch) {
+        $("charIdIn").value = ch?.id || "";
+        $("charNameIn").value = ch?.name || "";
+        $("charNomIn").value = ch?.nominal == null ? "" : String(ch.nominal);
+        $("charLslIn").value = ch?.lsl == null ? "" : String(ch.lsl);
+        $("charUslIn").value = ch?.usl == null ? "" : String(ch.usl);
+        $("charUnitIn").value = ch?.unit || "mm";
+        $("charMethodIn").value = ch?.method || "";
+        $("charInstrumentIn").value = ch?.instrument || "";
+        $("charReactionIn").value = ch?.reactionPlan || "";
+      }
+      function clearCharacteristicForm() {
+        selectedCharId = "";
+        if ($("charSel")) $("charSel").value = "";
+        writeCharacteristicToInputs(null);
+      }
+      function readCharacteristicForm() {
+        const productId = currentRouteProductId();
+        return normalizeCharacteristic({
+          id: $("charIdIn").value,
+          productId,
+          name: $("charNameIn").value,
+          nominal: $("charNomIn").value,
+          lsl: $("charLslIn").value,
+          usl: $("charUslIn").value,
+          unit: $("charUnitIn").value,
+          method: $("charMethodIn").value,
+          instrument: $("charInstrumentIn").value,
+          reactionPlan: $("charReactionIn").value,
+        }, 0, productId);
+      }
+      function removeCharacteristicRefsInRoutes(charId) {
+        const cid = strOrEmpty(charId);
+        if (!cid || !window.VMillData?.listRecords || !window.VMillData?.upsertRecord) return;
+        const rows = window.VMillData.listRecords(NS_ROUTE) || [];
+        const state = readState();
+        for (const row of rows) {
+          const rowJob = getJob(state, row?.jobId) || null;
+          const rowStation = getStation(state, row?.stationId || rowJob?.stationId) || null;
+          const rowProduct = getProduct(state, row?.productId || rowJob?.productId) || null;
+          const route = normalizeRoutePlan(row, rowJob, rowStation, rowProduct, { fallback: false });
+          if (!route) continue;
+          let changed = false;
+          for (const op of (route.operations || [])) {
+            const before = ensureOpCharacteristicRefs(op);
+            const nextIds = before.filter((x) => String(x || "") !== cid);
+            if (nextIds.length !== before.length) {
+              op.characteristicIds = nextIds;
+              changed = true;
+            }
+            const files = ensureOperationFiles(op);
+            for (const f of files) {
+              for (const b of (f.bubbles || [])) {
+                if (String(b?.characteristicId || "") !== cid) continue;
+                b.characteristicId = "";
+                changed = true;
+              }
+            }
+          }
+          if (changed) window.VMillData.upsertRecord(NS_ROUTE, route);
+        }
+      }
+      function renderCharacteristicSelect() {
+        const sel = $("charSel");
+        if (!sel) return;
+        const productId = currentRouteProductId();
+        const rows = listProductCharacteristics(productId);
+        if (!productId) {
+          setCharacteristicEditorDisabled(true);
+          sel.innerHTML = `<option value="">${tt("spacial.characteristics.pickProduct", "Select one product first.")}</option>`;
+          writeCharacteristicToInputs(null);
+          return;
+        }
+        setCharacteristicEditorDisabled(false);
+        sel.innerHTML = "";
+        if (!rows.length) {
+          sel.innerHTML = `<option value="">${tt("spacial.characteristics.none", "No characteristics yet.")}</option>`;
+          selectedCharId = "";
+          writeCharacteristicToInputs(null);
+          return;
+        }
+        for (const ch of rows) {
+          const o = document.createElement("option");
+          o.value = String(ch.id || "");
+          o.textContent = `${ch.id || "--"} - ${ch.name || ""}`;
+          sel.appendChild(o);
+        }
+        if (!rows.some((x) => String(x.id || "") === String(selectedCharId || ""))) {
+          selectedCharId = String(rows[0]?.id || "");
+        }
+        sel.value = selectedCharId;
+        writeCharacteristicToInputs(rows.find((x) => String(x.id || "") === String(selectedCharId || "")) || rows[0] || null);
+      }
+      function saveSelectedCharacteristic() {
+        if (!window.VMillData?.upsertRecord) return;
+        const productId = currentRouteProductId();
+        if (!productId) {
+          alert(tt("spacial.characteristics.pickProduct", "Select one product first."));
+          return;
+        }
+        const rows = listProductCharacteristics(productId);
+        const allRows = listAllCharacteristics().map((x, i) => normalizeCharacteristic(x, i, ""));
+        const rec = readCharacteristicForm();
+        if (!strOrEmpty(rec.name)) {
+          alert(tt("spacial.characteristics.nameRequired", "Characteristic name is required."));
+          return;
+        }
+        if (!strOrEmpty(rec.id)) rec.id = nextCharacteristicId(rows);
+        const externalDup = allRows.find((x) =>
+          String(x.id || "") === String(rec.id || "")
+          && String(x.productId || "") !== String(productId || "")
+        );
+        if (externalDup) {
+          alert(tt("spacial.characteristics.idInUse", "This characteristic ID is already used by another product."));
+          return;
+        }
+        const dup = rows.find((x) => String(x.id || "") === String(rec.id || ""));
+        if (dup) {
+          rec.createdAt = dup.createdAt || rec.createdAt;
+        }
+        rec.updatedAt = new Date().toISOString();
+        window.VMillData.upsertRecord(NS_CHAR, rec);
+        selectedCharId = String(rec.id || "");
+        renderCharacteristicSelect();
+        renderOperationCharacteristicList();
+        renderBubbleCharacteristicSelect();
+        renderBubbleTable();
+      }
+      function deleteSelectedCharacteristic() {
+        if (!window.VMillData?.deleteRecord) return;
+        const id = strOrEmpty(selectedCharId || $("charSel")?.value || $("charIdIn")?.value);
+        if (!id) return;
+        if (!confirm(tt("spacial.characteristics.confirmDelete", "Delete this characteristic?"))) return;
+        window.VMillData.deleteRecord(NS_CHAR, id);
+        removeCharacteristicRefsInRoutes(id);
+        if (String($("bubbleCharSel")?.value || "") === id) $("bubbleCharSel").value = "";
+        selectedCharId = "";
+        renderRoutingPanel();
+      }
+      function operationCharacteristicIdsFromUi() {
+        const wrap = $("opCharList");
+        if (!wrap) return [];
+        const checked = wrap.querySelectorAll("input[data-op-char-id]:checked");
+        return normalizeIdList(Array.from(checked).map((el) => String(el.getAttribute("data-op-char-id") || "")));
+      }
+      function renderOperationCharacteristicList() {
+        const wrap = $("opCharList");
+        if (!wrap) return;
+        const op = operationById(selectedOpId);
+        if (!op) {
+          wrap.innerHTML = `<div class="mini">${tt("spacial.none.operation", "Select or create an operation first.")}</div>`;
+          return;
+        }
+        const productId = currentRouteProductId();
+        const rows = listProductCharacteristics(productId);
+        const validIds = new Set(rows.map((x) => String(x.id || "")));
+        const normalizedIds = ensureOpCharacteristicRefs(op).filter((x) => validIds.has(String(x || "")));
+        op.characteristicIds = normalizedIds;
+        const selectedIds = new Set(normalizedIds);
+        if (!rows.length) {
+          wrap.innerHTML = `<div class="mini">${tt("spacial.characteristics.none", "No characteristics yet.")}</div>`;
+          return;
+        }
+        wrap.innerHTML = rows.map((ch) => {
+          const spec = `N:${ch.nominal == null ? "-" : ch.nominal} | L:${ch.lsl == null ? "-" : ch.lsl} | U:${ch.usl == null ? "-" : ch.usl} ${ch.unit || ""}`;
+          return `
+            <label style="display:flex;gap:8px;align-items:flex-start;padding:6px 4px;border-bottom:1px solid var(--border);">
+              <input type="checkbox" data-op-char-id="${escHtml(ch.id || "")}" ${selectedIds.has(String(ch.id || "")) ? "checked" : ""} style="margin-top:2px;" />
+              <span>
+                <strong>${escHtml(ch.id || "")}</strong> - ${escHtml(ch.name || "")}
+                <div class="mini">${escHtml(spec)}</div>
+              </span>
+            </label>
+          `;
+        }).join("");
+        wrap.querySelectorAll("input[data-op-char-id]").forEach((el) => {
+          el.addEventListener("change", () => {
+            op.characteristicIds = operationCharacteristicIdsFromUi();
+            writeRoutePlan(routePlan);
+            renderRoutingPanel();
+          });
+        });
+      }
+      function renderBubbleCharacteristicSelect(preferredId = "") {
+        const sel = $("bubbleCharSel");
+        if (!sel) return;
+        const op = operationById(selectedOpId);
+        sel.innerHTML = "";
+        if (!op) {
+          sel.innerHTML = `<option value="">${tt("spacial.none.operation", "Select or create an operation first.")}</option>`;
+          sel.disabled = true;
+          return;
+        }
+        const productId = currentRouteProductId();
+        const rows = listProductCharacteristics(productId);
+        const allowed = new Set(ensureOpCharacteristicRefs(op));
+        const allowedRows = rows.filter((x) => allowed.has(String(x.id || "")));
+        const first = document.createElement("option");
+        first.value = "";
+        first.textContent = tt("spacial.annotation.noCharacteristic", "No linked characteristic");
+        sel.appendChild(first);
+        for (const ch of allowedRows) {
+          const o = document.createElement("option");
+          o.value = String(ch.id || "");
+          o.textContent = `${ch.id || "--"} - ${ch.name || ""}`;
+          sel.appendChild(o);
+        }
+        let wanted = strOrEmpty(preferredId || sel.value);
+        if (wanted && !allowedRows.some((x) => String(x.id || "") === wanted)) {
+          const fallback = rows.find((x) => String(x.id || "") === wanted);
+          if (fallback) {
+            const o = document.createElement("option");
+            o.value = String(fallback.id || "");
+            o.textContent = `${fallback.id || "--"} - ${fallback.name || ""} (${tt("spacial.annotation.legacy", "legacy")})`;
+            sel.appendChild(o);
+          } else {
+            wanted = "";
+          }
+        }
+        const hasLinkedOptions = allowedRows.length > 0 || (wanted && Array.from(sel.options).some((o) => String(o.value || "") === wanted));
+        sel.disabled = !hasLinkedOptions;
+        sel.value = wanted || "";
+      }
+      function applyCharacteristicToBubbleForm(charId, force = false) {
+        const cid = strOrEmpty(charId);
+        if (!cid) return;
+        const ch = characteristicById(cid, currentRouteProductId());
+        if (!ch) return;
+        if (force || !strOrEmpty($("bubbleNameIn").value)) $("bubbleNameIn").value = ch.name || $("bubbleNameIn").value;
+        if (force || !strOrEmpty($("bubbleNomIn").value)) $("bubbleNomIn").value = ch.nominal == null ? "" : String(ch.nominal);
+        if (force || !strOrEmpty($("bubbleLslIn").value)) $("bubbleLslIn").value = ch.lsl == null ? "" : String(ch.lsl);
+        if (force || !strOrEmpty($("bubbleUslIn").value)) $("bubbleUslIn").value = ch.usl == null ? "" : String(ch.usl);
+        if (force || !strOrEmpty($("bubbleUnitIn").value)) $("bubbleUnitIn").value = ch.unit || "mm";
+        if (force || !strOrEmpty($("bubbleMethodIn").value)) $("bubbleMethodIn").value = ch.method || "";
+        if (force || !strOrEmpty($("bubbleInstrumentIn").value)) $("bubbleInstrumentIn").value = ch.instrument || "";
+        if (force || !strOrEmpty($("bubbleReactionIn").value)) $("bubbleReactionIn").value = ch.reactionPlan || "";
+      }
       function clearBubbleForm() {
         editingBubbleId = "";
         selectedCanvasBubbleId = "";
         $("bubbleIdIn").value = "";
+        if ($("bubbleCharSel")) $("bubbleCharSel").value = "";
         $("bubbleNameIn").value = "";
         $("bubbleNomIn").value = "";
         $("bubbleLslIn").value = "";
@@ -1967,6 +2370,7 @@
       function readBubbleForm() {
         return normalizeBubble({
           id: $("bubbleIdIn").value,
+          characteristicId: $("bubbleCharSel")?.value || "",
           name: $("bubbleNameIn").value,
           nominal: $("bubbleNomIn").value,
           lsl: $("bubbleLslIn").value,
@@ -1985,6 +2389,8 @@
           body.innerHTML = `<tr><td colspan="4" class="mini">${tt("spacial.none.operation", "Select or create an operation first.")}</td></tr>`;
           return;
         }
+        renderBubbleCharacteristicSelect();
+        const productId = currentRouteProductId();
         const bubbles = selectedFileBubbles(op);
         if (!bubbles.length) {
           body.innerHTML = `<tr><td colspan="4" class="mini">${tt("spacial.none.annotations", "No annotations yet for this operation.")}</td></tr>`;
@@ -1998,7 +2404,10 @@
                 <span>${escHtml(b.id || "")}</span>
               </div>
             </td>
-            <td>${escHtml(b.name || "")}</td>
+            <td>
+              ${escHtml(b.name || "")}
+              ${strOrEmpty(b.characteristicId) ? `<div class="mini">${escHtml(characteristicNameById(b.characteristicId, productId) || b.characteristicId)}</div>` : ""}
+            </td>
             <td class="specCell">N:${b.nominal == null ? "-" : escHtml(b.nominal)} | L:${b.lsl == null ? "-" : escHtml(b.lsl)} | U:${b.usl == null ? "-" : escHtml(b.usl)} ${escHtml(b.unit || "")}</td>
             <td>
               <div class="actions">
@@ -2017,6 +2426,8 @@
             editingBubbleId = String(src.id || "");
             selectedCanvasBubbleId = String(src.id || "");
             $("bubbleIdIn").value = src.id || "";
+            renderBubbleCharacteristicSelect(src.characteristicId || "");
+            if ($("bubbleCharSel")) $("bubbleCharSel").value = src.characteristicId || "";
             $("bubbleNameIn").value = src.name || "";
             $("bubbleNomIn").value = src.nominal == null ? "" : String(src.nominal);
             $("bubbleLslIn").value = src.lsl == null ? "" : String(src.lsl);
@@ -2577,8 +2988,11 @@
           $("routeNameIn").value = "";
           $("routeRevisionIn").value = "";
           $("routeProductRefIn").value = "";
+          renderCharacteristicSelect();
+          $("opCharList").innerHTML = `<div class="mini">${tt("spacial.none.operation", "Select or create an operation first.")}</div>`;
           $("routeOpSel").innerHTML = `<option value="">${tt("spacial.none.operations", "No operations")}</option>`;
           $("opFileSel").innerHTML = `<option value="">${tt("spacial.none.file", "No files")}</option>`;
+          $("bubbleCharSel").innerHTML = `<option value="">${tt("spacial.annotation.noCharacteristic", "No linked characteristic")}</option>`;
           $("bubbleTableBody").innerHTML = `<tr><td colspan="4" class="mini">${tt("spacial.none.routeSelected", "Select or create a route.")}</td></tr>`;
           writeOperationToInputs(null);
           clearBubbleForm();
@@ -2601,12 +3015,15 @@
         $("routeNameIn").value = routePlan.routeName || "";
         $("routeRevisionIn").value = routePlan.revision || "";
         $("routeProductRefIn").value = routePlan.productRef || "";
+        renderCharacteristicSelect();
         renderOperationSelect();
         renderOperationFileSelect();
         writeOperationToInputs(operationById(selectedOpId));
+        renderOperationCharacteristicList();
         if (!routePlan.operations.some((op) => ensureOperationFiles(op).some((f) => (f.bubbles || []).some((b) => String(b.id || "") === String(selectedCanvasBubbleId || ""))))) {
           selectedCanvasBubbleId = "";
         }
+        renderBubbleCharacteristicSelect();
         renderBubbleTable();
         syncCanvasFromRoute();
         refreshRouteInfo();
@@ -2991,6 +3408,7 @@
           controlMethod: "",
           critical: false,
           notes: "",
+          characteristicIds: [],
           files: [{ name: `${tt("spacial.file.default", "File")} 1`, bubbles: [] }],
         }, ops.length);
         routePlan.operations.push(op);
@@ -3015,6 +3433,7 @@
         op.controlMethod = strOrEmpty($("opControlMethodIn").value);
         op.notes = strOrEmpty($("opNotesIn").value);
         op.critical = !!$("opCriticalChk").checked;
+        op.characteristicIds = operationCharacteristicIdsFromUi();
         routePlan.operations = sortOpsBySeq(routePlan.operations);
         writeRoutePlan(routePlan);
         renderRoutingPanel();
@@ -3047,10 +3466,22 @@
         if (!op) return;
         const bubbles = selectedFileBubbles(op);
         const b = readBubbleForm();
+        if (!strOrEmpty(b.name) && strOrEmpty(b.characteristicId)) {
+          const ch = characteristicById(b.characteristicId, currentRouteProductId());
+          if (ch?.name) b.name = ch.name;
+        }
         if (!strOrEmpty(b.id)) b.id = `B${String(bubbles.length + 1).padStart(3, "0")}`;
         if (!strOrEmpty(b.name)) {
           alert(tt("spacial.alert.annotationNameRequired", "Annotation name is required."));
           return;
+        }
+        const linkedCharId = strOrEmpty(b.characteristicId);
+        if (linkedCharId) {
+          const nextOpChars = new Set(ensureOpCharacteristicRefs(op));
+          if (!nextOpChars.has(linkedCharId)) {
+            nextOpChars.add(linkedCharId);
+            op.characteristicIds = Array.from(nextOpChars);
+          }
         }
         const editIdx = bubbles.findIndex((x) => String(x.id || "") === String(editingBubbleId || ""));
         const idIdx = bubbles.findIndex((x) => String(x.id || "") === String(b.id || ""));
@@ -3141,10 +3572,20 @@
           try {
             const rows = parseCsvRows(String(fr.result || ""));
             if (!rows.length) throw new Error(tt("spacial.import.noRows", "No rows found."));
+            const productChars = listProductCharacteristics(currentRouteProductId());
             const imported = [];
             for (const row of rows) {
               const id = fromAlias(row, ["bubble", "bubbleid", "id", "num", "number", "char"]);
               const name = fromAlias(row, ["name", "dimension", "feature", "characteristic"]);
+              let characteristicId = fromAlias(row, ["characteristicid", "charid", "controlid", "featureid", "characteristic"]);
+              if (characteristicId) {
+                const byId = productChars.find((x) => String(x.id || "") === characteristicId);
+                if (!byId) {
+                  const byName = productChars.find((x) => String(x.name || "").toLowerCase() === String(characteristicId || "").toLowerCase());
+                  if (byName) characteristicId = String(byName.id || "");
+                  else characteristicId = "";
+                }
+              }
               const nominal = fromAlias(row, ["nominal", "target", "nom"]);
               const lsl = fromAlias(row, ["lsl", "min", "lower", "specmin"]);
               const usl = fromAlias(row, ["usl", "max", "upper", "specmax"]);
@@ -3165,6 +3606,7 @@
               if (!id && !name) continue;
               imported.push(normalizeBubble({
                 id: id || "",
+                characteristicId,
                 name: name || "",
                 nominal,
                 lsl,
@@ -3178,11 +3620,14 @@
               }, bubbles.length + imported.length));
             }
             if (!imported.length) throw new Error(tt("spacial.import.noValid.annotations", "No valid annotations found."));
+            const nextOpChars = new Set(ensureOpCharacteristicRefs(op));
             for (const b of imported) {
+              if (strOrEmpty(b.characteristicId)) nextOpChars.add(String(b.characteristicId || ""));
               const idx = bubbles.findIndex((x) => String(x.id || "") === String(b.id || ""));
               if (idx >= 0) bubbles[idx] = b;
               else bubbles.push(b);
             }
+            op.characteristicIds = Array.from(nextOpChars);
             writeRoutePlan(routePlan);
             renderRoutingPanel();
             alert(tt("spacial.import.done.annotations", "Imported {count} annotation(s).", { count: imported.length }));
@@ -3195,8 +3640,13 @@
       function routeRowsForExport(plan) {
         const rows = [];
         if (!plan) return rows;
+        const charsById = new Map(
+          listProductCharacteristics(strOrEmpty(plan.productId))
+            .map((x) => [String(x.id || ""), x])
+        );
         const ops = Array.isArray(plan.operations) ? plan.operations : [];
         for (const op of ops) {
+          const opChars = normalizeIdList(op?.characteristicIds || []);
           const files = ensureOperationFiles(op);
           if (!files.length) continue;
           for (const f of files) {
@@ -3218,10 +3668,13 @@
                 opControl: op.controlMethod,
                 opCritical: op.critical ? "YES" : "NO",
                 opNotes: op.notes,
+                opCharacteristics: opChars.join("|"),
                 opFileId: f.id || "",
                 opFileName: f.name || "",
                 opFileType: f.mime || "",
                 bubbleId: "",
+                characteristicId: "",
+                characteristicName: "",
                 bubbleName: "",
                 nominal: "",
                 lsl: "",
@@ -3246,6 +3699,7 @@
               const off = (b?.bubbleOffset && Number.isFinite(Number(b.bubbleOffset.x)) && Number.isFinite(Number(b.bubbleOffset.y)))
                 ? { x: Number(b.bubbleOffset.x), y: Number(b.bubbleOffset.y) }
                 : null;
+              const linkedChar = charsById.get(String(b?.characteristicId || ""));
               rows.push({
                 routeName: plan.routeName,
                 revision: plan.revision,
@@ -3262,10 +3716,13 @@
                 opControl: op.controlMethod,
                 opCritical: op.critical ? "YES" : "NO",
                 opNotes: op.notes,
+                opCharacteristics: opChars.join("|"),
                 opFileId: f.id || "",
                 opFileName: f.name || "",
                 opFileType: f.mime || "",
                 bubbleId: b.id,
+                characteristicId: b.characteristicId || "",
+                characteristicName: linkedChar?.name || "",
                 bubbleName: b.name,
                 nominal: b.nominal ?? "",
                 lsl: b.lsl ?? "",
@@ -3291,7 +3748,7 @@
       function exportRouteCsv() {
         if (!routePlan) return;
         const rows = routeRowsForExport(routePlan);
-        const headers = ["routeName","revision","productRef","jobName","station","opSeq","opName","opStation","opWorkstation","opEstMin","opSampleSize","opFrequency","opControl","opCritical","opNotes","opFileId","opFileName","opFileType","bubbleId","bubbleName","nominal","lsl","usl","unit","method","instrument","reaction","bubbleX1","bubbleY1","bubbleX2","bubbleY2","bubbleWidth","bubbleHeight","bubbleLabelX","bubbleLabelY"];
+        const headers = ["routeName","revision","productRef","jobName","station","opSeq","opName","opStation","opWorkstation","opEstMin","opSampleSize","opFrequency","opControl","opCritical","opNotes","opCharacteristics","opFileId","opFileName","opFileType","bubbleId","characteristicId","characteristicName","bubbleName","nominal","lsl","usl","unit","method","instrument","reaction","bubbleX1","bubbleY1","bubbleX2","bubbleY2","bubbleWidth","bubbleHeight","bubbleLabelX","bubbleLabelY"];
         const lines = [headers.join(",")];
         for (const row of rows) lines.push(headers.map((h) => csvCell(row[h])).join(","));
         exportTextFile(`Route_${routePlan.jobName || "job"}_${new Date().toISOString().slice(0, 10)}.csv`, lines.join("\n"), "text/csv");
@@ -3316,7 +3773,10 @@
             <td>${escHtml(r.opStation)}</td>
             <td>${escHtml(r.opWorkstation)}</td>
             <td>${escHtml(r.opControl)}</td>
+            <td>${escHtml(r.opCharacteristics)}</td>
             <td>${escHtml(r.bubbleId)}</td>
+            <td>${escHtml(r.characteristicId)}</td>
+            <td>${escHtml(r.characteristicName)}</td>
             <td>${escHtml(r.bubbleName)}</td>
             <td>${escHtml(r.nominal)}</td>
             <td>${escHtml(r.lsl)}</td>
@@ -3351,7 +3811,8 @@
             <table>
               <thead>
                 <tr>
-                  <th>${escHtml(tt("spacial.op.seq", "Seq"))}</th><th>${escHtml(tt("spacial.section.operations", "Operations"))}</th><th>${escHtml(tt("spacial.file.label", "File"))}</th><th>${escHtml(tt("spacial.stationDefault", "Station"))}</th><th>${escHtml(tt("spacial.op.workstation", "Workstation"))}</th><th>${escHtml(tt("spacial.op.method", "Control method"))}</th>
+                  <th>${escHtml(tt("spacial.op.seq", "Seq"))}</th><th>${escHtml(tt("spacial.section.operations", "Operations"))}</th><th>${escHtml(tt("spacial.file.label", "File"))}</th><th>${escHtml(tt("spacial.stationDefault", "Station"))}</th><th>${escHtml(tt("spacial.op.workstation", "Workstation"))}</th><th>${escHtml(tt("spacial.op.method", "Control method"))}</th><th>${escHtml(tt("spacial.op.characteristics", "Operation characteristics"))}</th>
+                  <th>${escHtml(tt("spacial.characteristics.id", "Characteristic ID"))}</th><th>${escHtml(tt("spacial.characteristics.name", "Characteristic"))}</th>
                   <th>${escHtml(tt("spacial.table.annotation", "Annotation"))}</th><th>${escHtml(tt("spacial.table.name", "Name"))}</th><th>${escHtml(tt("spacial.annotation.nominal", "Nominal"))}</th><th>${escHtml(tt("spacial.annotation.lsl", "Lower limit"))}</th><th>${escHtml(tt("spacial.annotation.usl", "Upper limit"))}</th><th>${escHtml(tt("spacial.annotation.unit", "Unit"))}</th><th>${escHtml(tt("spacial.annotation.method", "Method"))}</th><th>${escHtml(tt("spacial.annotation.instrument", "Instrument"))}</th><th>${escHtml(tt("spacial.annotation.x1", "X1"))}</th><th>${escHtml(tt("spacial.annotation.y1", "Y1"))}</th><th>${escHtml(tt("spacial.annotation.x2", "X2"))}</th><th>${escHtml(tt("spacial.annotation.y2", "Y2"))}</th>
                 </tr>
               </thead>
@@ -3647,13 +4108,16 @@
       function operationFileRowsForPdf(op, file) {
         const bubbles = Array.isArray(file?.bubbles) ? file.bubbles : [];
         if (!bubbles.length) {
-          return `<tr><td colspan="11" style="padding:6px;">${escHtml(tt("spacial.none.annotations", "No annotations yet for this operation."))}</td></tr>`;
+          return `<tr><td colspan="13" style="padding:6px;">${escHtml(tt("spacial.none.annotations", "No annotations yet for this operation."))}</td></tr>`;
         }
+        const productId = currentRouteProductId();
         return bubbles.map((b) => {
           const bb = normalizeBbox(b?.bbox);
           return `
             <tr>
               <td>${escHtml(b.id || "")}</td>
+              <td>${escHtml(b.characteristicId || "")}</td>
+              <td>${escHtml(characteristicNameById(b.characteristicId, productId))}</td>
               <td>${escHtml(b.name || "")}</td>
               <td>${escHtml(b.nominal ?? "")}</td>
               <td>${escHtml(b.lsl ?? "")}</td>
@@ -3692,6 +4156,8 @@
               <thead>
                 <tr>
                   <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.table.annotation", "Annotation"))}</th>
+                  <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.characteristics.id", "Characteristic ID"))}</th>
+                  <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.characteristics.name", "Characteristic"))}</th>
                   <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.table.name", "Name"))}</th>
                   <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.annotation.nominal", "Nominal"))}</th>
                   <th style="border:1px solid ${popupBorder};padding:4px 6px;text-align:left;">${escHtml(tt("spacial.annotation.lsl", "Lower limit"))}</th>
@@ -3779,7 +4245,9 @@
         selectedOpId = strOrEmpty($("routeOpSel").value);
         selectedOpFileId = "";
         writeOperationToInputs(operationById(selectedOpId));
+        renderOperationCharacteristicList();
         renderOperationFileSelect();
+        renderBubbleCharacteristicSelect();
         clearBubbleForm();
         renderBubbleTable();
         syncCanvasFromRoute();
@@ -3810,8 +4278,39 @@
       $("opDeleteBtn").addEventListener("click", deleteSelectedOperation);
       $("opUpBtn").addEventListener("click", () => moveSelectedOperation(-1));
       $("opDownBtn").addEventListener("click", () => moveSelectedOperation(1));
+      $("opCharUseAllBtn").addEventListener("click", () => {
+        const op = operationById(selectedOpId);
+        if (!op) return;
+        op.characteristicIds = listProductCharacteristics(currentRouteProductId()).map((x) => String(x.id || ""));
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+      });
+      $("opCharClearBtn").addEventListener("click", () => {
+        const op = operationById(selectedOpId);
+        if (!op) return;
+        op.characteristicIds = [];
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+      });
+      $("charSel").addEventListener("change", () => {
+        selectedCharId = strOrEmpty($("charSel").value);
+        const row = characteristicById(selectedCharId, currentRouteProductId());
+        writeCharacteristicToInputs(row);
+      });
+      $("charNewBtn").addEventListener("click", () => {
+        clearCharacteristicForm();
+        const rows = listProductCharacteristics(currentRouteProductId());
+        $("charIdIn").value = nextCharacteristicId(rows);
+      });
+      $("charDeleteBtn").addEventListener("click", deleteSelectedCharacteristic);
+      $("charSaveBtn").addEventListener("click", saveSelectedCharacteristic);
+      $("charClearBtn").addEventListener("click", clearCharacteristicForm);
       $("bubbleSaveBtn").addEventListener("click", saveBubbleFromInputs);
       $("bubbleClearBtn").addEventListener("click", clearBubbleForm);
+      $("bubbleCharSel").addEventListener("change", () => {
+        const charId = strOrEmpty($("bubbleCharSel").value);
+        applyCharacteristicToBubbleForm(charId, false);
+      });
       $("bubbleImportBtn").addEventListener("click", () => $("bubbleImportFile").click());
       $("bubbleImportFile").addEventListener("change", (e) => {
         const f = e.target.files?.[0];
