@@ -4,10 +4,11 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-VENV_OCR="$ROOT_DIR/.venv_ocr"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+VENV_OCR="${VENV_OCR:-$ROOT_DIR/.venv_ocr_linux}"
 if [[ ! -f "$VENV_OCR/bin/activate" ]]; then
-  echo "[pack] .venv_ocr not found. Run: make setup-ocr"
-  exit 1
+  echo "[pack] creating Linux OCR venv at $VENV_OCR with ${PYTHON_BIN}"
+  "$PYTHON_BIN" -m venv "$VENV_OCR"
 fi
 
 # shellcheck disable=SC1091
@@ -19,6 +20,7 @@ SPEC_DIR="$ROOT_DIR/build"
 
 echo "[pack] building OCR portable Linux bundle with ${PYTHON_BIN}"
 "$PYTHON_BIN" -m pip install --upgrade pip pyinstaller
+"$PYTHON_BIN" -m pip install -r "$ROOT_DIR/requirements_ocr.txt"
 
 rm -rf "$DIST_BASE" "$WORK_DIR"
 mkdir -p "$DIST_BASE"

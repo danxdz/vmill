@@ -34,6 +34,17 @@ PUBLIC_DIR = ROOT_DIR / "public"
 DB_PATH = Path(os.environ.get("VMILL_DB_PATH", str(RUNTIME_DIR / "vmill.db"))).expanduser()
 DEFAULT_PORT = int(os.environ.get("PORT", "8080"))
 TOKEN_TTL_HOURS = 24 * 7
+ALLOWED_ROOT_STATIC_FILES = {
+    "index.html",
+    "favicon.ico",
+    "robots.txt",
+}
+ALLOWED_ROOT_STATIC_PREFIXES = (
+    "dist/",
+    "docs/",
+    "machine-core/pkg/",
+    "public/",
+)
 
 ROLE_RANK = {
     "operator": 1,
@@ -1396,6 +1407,15 @@ class VMillHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.safe_write(raw)
 
+    @staticmethod
+    def is_allowed_root_static_path(rel_path: str) -> bool:
+        rel = rel_path.replace("\\", "/").lstrip("/").lower()
+        if not rel:
+            return False
+        if rel in ALLOWED_ROOT_STATIC_FILES:
+            return True
+        return any(rel.startswith(prefix) for prefix in ALLOWED_ROOT_STATIC_PREFIXES)
+
     def serve_static(self, req_path: str) -> None:
         clean = unquote(req_path).split("?", 1)[0].split("#", 1)[0]
         rel = clean.lstrip("/")
@@ -1403,22 +1423,32 @@ class VMillHandler(BaseHTTPRequestHandler):
             self.serve_status_page()
             return
 
-        candidates = [
-            (PUBLIC_DIR / rel),
-            (ROOT_DIR / rel),
+        public_root = PUBLIC_DIR.resolve()
+        repo_root = ROOT_DIR.resolve()
+        candidates: List[Tuple[Path, str]] = [
+            (PUBLIC_DIR / rel, "public"),
+            (ROOT_DIR / rel, "root"),
         ]
 
         target: Optional[Path] = None
-        for cand in candidates:
+        for cand, scope in candidates:
             try:
                 resolved = cand.resolve()
             except Exception:
                 continue
             if not resolved.exists() or not resolved.is_file():
                 continue
-            if str(resolved).startswith(str(PUBLIC_DIR.resolve())) or str(resolved).startswith(str(ROOT_DIR.resolve())):
+            if scope == "public":
+                if not str(resolved).startswith(str(public_root)):
+                    continue
                 target = resolved
                 break
+            if not str(resolved).startswith(str(repo_root)):
+                continue
+            if not self.is_allowed_root_static_path(rel):
+                continue
+            target = resolved
+            break
 
         if target is None:
             self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "file_not_found"})

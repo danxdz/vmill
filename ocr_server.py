@@ -4,11 +4,18 @@ Hugging Face Spaces deployment for SPaCial AI OCR Service
 FastAPI HTTP Server for OCR Service using PaddleOCR
 """
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Query, Body, Request
-from fastapi.responses import JSONResponse, Response
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-import uvicorn
+import sys
+try:
+    from fastapi import FastAPI, File, UploadFile, HTTPException, Query, Body, Request
+    from fastapi.responses import JSONResponse, Response
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.middleware.trustedhost import TrustedHostMiddleware
+    import uvicorn
+except ImportError as import_error:
+    missing_name = getattr(import_error, "name", "unknown")
+    raise SystemExit(
+        f"Missing dependency '{missing_name}'. Activate .venv_ocr and install requirements_ocr.txt."
+    ) from import_error
 from contextlib import asynccontextmanager
 import cv2
 import numpy as np
@@ -32,6 +39,27 @@ import atexit
 import gc
 import shutil
 import json
+
+
+def configure_stdio_utf8() -> None:
+    """Best-effort UTF-8 stdio on Windows consoles to avoid Unicode print crashes."""
+    if os.name != "nt":
+        return
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is None:
+            continue
+        reconfigure = getattr(stream, "reconfigure", None)
+        if not callable(reconfigure):
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
+configure_stdio_utf8()
+
 try:
     import psutil
     PSUTIL_AVAILABLE = True
@@ -152,7 +180,7 @@ PID_FILE = Path(__file__).with_name(".ocr_server.pid")
 # Paddle OCR runtime can crash under concurrent predict calls in some environments.
 # Keep server task execution controlled and serialize predict() calls with a lock.
 OCR_WORKERS = max(1, int(os.getenv("OCR_WORKERS", "1")))
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=OCR_WORKERS)
+executor = None
 ocr_predict_lock = threading.Lock()
 
 
@@ -204,10 +232,36 @@ def _pid_is_running(pid: int) -> bool:
     """Return True when PID exists and is reachable."""
     if pid <= 0:
         return False
+    if PSUTIL_AVAILABLE:
+        try:
+            return bool(psutil.pid_exists(pid))
+        except Exception:
+            pass
     try:
         os.kill(pid, 0)
         return True
-    except OSError:
+    except Exception:
+        return False
+
+
+def _signal_pid(pid: int, sig: int) -> bool:
+    """Send signal to PID with Windows-safe fallback to psutil."""
+    if pid <= 0:
+        return False
+    if os.name == "nt" and PSUTIL_AVAILABLE:
+        try:
+            proc = psutil.Process(pid)
+            if sig == signal.SIGTERM:
+                proc.terminate()
+            else:
+                proc.kill()
+            return True
+        except Exception:
+            return False
+    try:
+        os.kill(pid, sig)
+        return True
+    except Exception:
         return False
 
 
@@ -278,10 +332,8 @@ def ensure_single_ocr_server_instance() -> None:
         if old_pid > 0 and old_pid != os.getpid() and _pid_is_running(old_pid):
             if _pid_looks_like_this_server(old_pid):
                 logger.warning(f"Found running OCR server PID {old_pid}; stopping it before start...")
-                try:
-                    os.kill(old_pid, signal.SIGTERM)
-                except Exception as err:
-                    logger.warning(f"Failed to send SIGTERM to PID {old_pid}: {err}")
+                if not _signal_pid(old_pid, signal.SIGTERM):
+                    logger.warning(f"Failed to send SIGTERM to PID {old_pid}")
 
                 # Wait briefly for graceful exit.
                 for _ in range(20):
@@ -292,10 +344,8 @@ def ensure_single_ocr_server_instance() -> None:
                 # Hard kill if still alive.
                 if _pid_is_running(old_pid):
                     sigkill = getattr(signal, "SIGKILL", signal.SIGTERM)
-                    try:
-                        os.kill(old_pid, sigkill)
-                    except Exception as err:
-                        logger.warning(f"Failed to force-stop PID {old_pid}: {err}")
+                    if not _signal_pid(old_pid, sigkill):
+                        logger.warning(f"Failed to force-stop PID {old_pid}")
             else:
                 logger.warning(
                     f"PID file points to running PID {old_pid}, but command does not look like this OCR server; not killing."
@@ -315,7 +365,6 @@ def periodic_cleanup():
             logger.error(f"Error in periodic cleanup: {e}")
 
 # Start periodic cleanup in background thread
-import threading
 cleanup_thread = threading.Thread(target=periodic_cleanup, daemon=True)
 cleanup_thread.start()
 
@@ -368,9 +417,10 @@ async def lifespan(app: FastAPI):
             lang='en',
             device='cpu',
         )
-        print("="*60)
-        print("✅ PaddleOCR object created!")
-        print("="*60)
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=OCR_WORKERS)
+        logger.info("=" * 60)
+        logger.info("PaddleOCR object created")
+        logger.info("=" * 60)
         logger.info("PaddleOCR object created!")
         logger.info("✅ PaddleOCR initialized successfully!")
         
@@ -383,9 +433,9 @@ async def lifespan(app: FastAPI):
         logger.error("This might be due to missing models or insufficient memory")
         raise HTTPException(status_code=500, detail="OCR service initialization failed")
     
-    print("="*60)
-    print("✅ PaddleOCR startup complete")
-    print("="*60)
+    logger.info("=" * 60)
+    logger.info("PaddleOCR startup complete")
+    logger.info("=" * 60)
     
     yield
     
@@ -398,7 +448,9 @@ async def lifespan(app: FastAPI):
         ocr = None
     
     # Shutdown thread executor
-    executor.shutdown(wait=True)
+    if executor:
+        executor.shutdown(wait=True)
+        executor = None
     
     # Stop background cleanup thread
     if 'cleanup_thread' in globals() and cleanup_thread.is_alive():
@@ -2388,6 +2440,8 @@ def apply_post_processing(zones):
 async def process_image_async(image_path, mode="fast", rotation=0):
     """Async wrapper for process_image function"""
     loop = asyncio.get_event_loop()
+    if executor is None:
+        return process_image(image_path, mode, rotation)
     return await loop.run_in_executor(executor, process_image, image_path, mode, rotation)
 
 
