@@ -225,7 +225,7 @@
       if (inChrono) {
         return {
           hub: "../vmill_hub.html",
-          cnc: "../../index.html",
+          cnc: "../cnc_sim.html",
           chrono: "./chrono.html",
           camera: "./chrono_camera.html",
           spacial: "../SPaCial.html",
@@ -239,7 +239,7 @@
       if (inPublicRoot) {
         return {
           hub: "./vmill_hub.html",
-          cnc: "../index.html",
+          cnc: "./cnc_sim.html",
           chrono: "./chrono/chrono.html",
           camera: "./chrono/chrono_camera.html",
           spacial: "./SPaCial.html",
@@ -252,7 +252,7 @@
       }
       return {
         hub: "./public/vmill_hub.html",
-        cnc: "./index.html",
+        cnc: "./public/cnc_sim.html",
         chrono: "./public/chrono/chrono.html",
         camera: "./public/chrono/chrono_camera.html",
         spacial: "./public/SPaCial.html",
@@ -266,7 +266,7 @@
     if (kind === "chrono") {
       return {
         hub: "../vmill_hub.html",
-        cnc: "/",
+        cnc: "/cnc_sim.html",
         chrono: "./chrono.html",
         camera: "./chrono_camera.html",
         spacial: "../SPaCial.html",
@@ -279,7 +279,7 @@
     }
     return {
       hub: "/vmill_hub.html",
-      cnc: "/",
+      cnc: "/cnc_sim.html",
       chrono: "/chrono/chrono.html",
       camera: "/chrono/chrono_camera.html",
       spacial: "/SPaCial.html",

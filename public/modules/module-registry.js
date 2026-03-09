@@ -66,8 +66,8 @@ window.VMillModules = [
   {
     id: "cnc-sim",
     name: "CNC Simulator",
-    desc: "Launches the main CNC simulation workspace directly.",
-    href: "../index.html",
+    desc: "Opens the CNC simulator launcher.",
+    href: "./cnc_sim.html",
     status: "ready",
     tags: ["cnc", "simulation"],
   },
