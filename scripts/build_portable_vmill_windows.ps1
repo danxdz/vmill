@@ -27,6 +27,7 @@ New-Item -ItemType Directory -Path $DistBase | Out-Null
   --workpath $WorkDir `
   --specpath $SpecDir `
   --add-data "$RootDir\public;public" `
+  --add-data "$RootDir\dist;dist" `
   --add-data "$RootDir\docs;docs" `
   "$RootDir\vmill_server.py"
 

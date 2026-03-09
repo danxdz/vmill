@@ -24,6 +24,7 @@ mkdir -p "$DIST_BASE"
   --workpath "$WORK_DIR" \
   --specpath "$SPEC_DIR" \
   --add-data "$ROOT_DIR/public:public" \
+  --add-data "$ROOT_DIR/dist:dist" \
   --add-data "$ROOT_DIR/docs:docs" \
   "$ROOT_DIR/vmill_server.py"
 
