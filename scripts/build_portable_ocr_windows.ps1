@@ -46,30 +46,65 @@ Write-Host "[pack] building OCR portable Windows bundle with $PythonBin"
 & $PythonBin -m pip install --upgrade pip pyinstaller
 & $PythonBin -m pip install -r "$RootDir\requirements_ocr.txt"
 
-if (Test-Path $DistBase) { Remove-Item $DistBase -Recurse -Force }
-if (Test-Path $WorkDir) { Remove-Item $WorkDir -Recurse -Force }
-New-Item -ItemType Directory -Path $DistBase | Out-Null
+# Some wheels (e.g. chardet/charset-normalizer) expose hashed mypyc module names.
+# PyInstaller can miss them unless we add explicit hidden imports.
+$sitePackages = Join-Path $VenvOcr "Lib\site-packages"
+$mypycModules = @()
+if (Test-Path $sitePackages) {
+  $mypycModules = Get-ChildItem -Path $sitePackages -File -Filter "*__mypyc*.pyd" |
+    ForEach-Object { ($_.BaseName -split '\.')[0] } |
+    Sort-Object -Unique
+}
+if ($mypycModules.Count -gt 0) {
+  Write-Host "[pack] detected mypyc modules: $($mypycModules -join ', ')"
+}
 
-& $PythonBin -m PyInstaller `
-  --noconfirm `
-  --clean `
-  --onedir `
-  --name ocr_server `
-  --distpath $DistBase `
-  --workpath $WorkDir `
-  --specpath $SpecDir `
-  --collect-all fastapi `
-  --collect-all starlette `
-  --collect-all uvicorn `
-  --collect-all paddleocr `
-  --collect-all paddlex `
-  --collect-all paddle `
-  --collect-all cv2 `
-  --collect-all numpy `
-  --collect-all openpyxl `
-  --collect-all PIL `
-  --hidden-import python_multipart `
-  "$RootDir\ocr_server.py"
+if (Test-Path $DistBase) {
+  Get-ChildItem -Path $DistBase -Force | ForEach-Object {
+    Remove-Item $_.FullName -Recurse -Force
+  }
+} else {
+  New-Item -ItemType Directory -Path $DistBase | Out-Null
+}
+if (Test-Path $WorkDir) { Remove-Item $WorkDir -Recurse -Force }
+
+$pyiArgs = @(
+  "--noconfirm",
+  "--clean",
+  "--onedir",
+  "--name", "ocr_server",
+  "--distpath", $DistBase,
+  "--workpath", $WorkDir,
+  "--specpath", $SpecDir,
+  "--collect-all", "fastapi",
+  "--collect-all", "starlette",
+  "--collect-all", "uvicorn",
+  "--collect-all", "paddleocr",
+  "--collect-all", "paddlex",
+  "--collect-all", "paddle",
+  "--collect-all", "cv2",
+  "--collect-all", "numpy",
+  "--collect-all", "openpyxl",
+  "--collect-all", "PIL",
+  "--collect-all", "imagesize",
+  "--collect-all", "pyclipper",
+  "--collect-all", "pypdfium2",
+  "--collect-all", "shapely",
+  "--recursive-copy-metadata", "paddlex",
+  "--recursive-copy-metadata", "paddleocr",
+  "--recursive-copy-metadata", "requests",
+  "--copy-metadata", "imagesize",
+  "--copy-metadata", "pyclipper",
+  "--copy-metadata", "pypdfium2",
+  "--copy-metadata", "shapely",
+  "--hidden-import", "python_multipart"
+)
+foreach ($mod in $mypycModules) {
+  $pyiArgs += @("--hidden-import", $mod)
+}
+$pyiArgs += "$RootDir\ocr_server.py"
+
+& $PythonBin -m PyInstaller @pyiArgs
 
 $runner = @"
 @echo off
@@ -82,6 +117,26 @@ echo [ocr-portable] starting on :%PORT%
 
 $runnerPath = Join-Path $DistBase "run_ocr_portable.cmd"
 Set-Content -Path $runnerPath -Value $runner -Encoding ASCII
+
+$paddlexTarget = Join-Path $DistBase ".paddlex\official_models"
+$candidateModelDirs = @(
+  (Join-Path $RootDir ".paddlex\official_models"),
+  (Join-Path $env:USERPROFILE ".paddlex\official_models")
+)
+$modelSource = $null
+foreach ($candidate in $candidateModelDirs) {
+  if (Test-Path $candidate) {
+    $modelSource = $candidate
+    break
+  }
+}
+if ($modelSource) {
+  New-Item -ItemType Directory -Path $paddlexTarget -Force | Out-Null
+  Copy-Item -Path (Join-Path $modelSource "*") -Destination $paddlexTarget -Recurse -Force
+  Write-Host "[pack] copied local PaddleX models from $modelSource"
+} else {
+  Write-Host "[pack] no local PaddleX model cache found; first portable startup may require internet."
+}
 
 Write-Host ""
 Write-Host "Built OCR portable bundle:"

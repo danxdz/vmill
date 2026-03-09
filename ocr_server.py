@@ -80,6 +80,35 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def configure_paddlex_offline_cache_mode() -> None:
+    """
+    Allow PaddleX to use local cached models even when host health checks fail.
+    This is important for frozen/portable builds where HEAD checks can fail.
+    """
+    try:
+        from paddlex.inference.utils import official_models as paddlex_official_models
+    except Exception as error:
+        logger.warning(f"Could not import PaddleX official_models module: {error}")
+        return
+
+    try:
+        def _always_available(_cls):
+            return True
+
+        paddlex_official_models._BaseModelHoster.is_available = classmethod(_always_available)
+        new_model_manager = paddlex_official_models._ModelManager()
+        paddlex_official_models.official_models = new_model_manager
+        try:
+            from paddlex.inference import models as paddlex_models
+            paddlex_models.official_models = new_model_manager
+        except Exception:
+            pass
+        logger.info("PaddleX model host health checks disabled; local cache mode enabled")
+    except Exception as error:
+        logger.warning(f"Could not configure PaddleX offline cache mode: {error}")
+
+
 # Reduce known third-party startup noise (non-fatal warnings).
 warnings.filterwarnings(
     "ignore",
@@ -395,6 +424,8 @@ async def lifespan(app: FastAPI):
     
     # Single OCR instance (auto GPU detection for newer PaddleOCR)
     try:
+        configure_paddlex_offline_cache_mode()
+
         # Force safe CPU flags at runtime (best effort).
         try:
             paddle.set_device('cpu')
