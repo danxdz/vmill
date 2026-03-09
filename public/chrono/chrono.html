@@ -710,8 +710,8 @@
     <div class="hLogoWrap">
       <span class="hLogoIcon">⏱</span>
       <div class="hLogoText">
-        <span class="hTitle">Chrono Study</span>
-        <span class="hJobLabel" id="hJobLabel">—</span>
+        <span class="hTitle" id="hScopeTitle">Product / Operation</span>
+        <span class="hJobLabel" id="hJobLabel">Select a job</span>
       </div>
     </div>
   </div>
@@ -731,8 +731,6 @@
     <button id="openDrawerBtn" class="primary hBtn hBtnConfig" title="Open configuration">
       <span class="hBtnIcon">⚙</span><span id="hConfigLabel">Config</span>
     </button>
-    <select id="langSelect" class="miniSelect hLangSel" title="Language"></select>
-    <span class="hVersion">v5</span>
   </div>
 </header>
 
@@ -837,21 +835,24 @@
             <video id="videoEl" controls style="width:100%; border:1px solid var(--border); border-radius:12px; background:var(--bg);"></video>
           </div>
           <div style="margin-top:8px;">
-            <label>Video timeline</label>
-            <input id="videoTimeline" type="range" min="0" max="0" step="0.001" value="0" />
-            <div class="small muted mono" id="videoTimelineLabel">00:00.000 / 00:00.000</div>
+            <div class="videoMetaRow">
+              <span class="pill mono" id="videoCurrentTime">00:00.000 / 00:00.000</span>
+              <span class="small muted" id="videoNativeHint">Use the native video bar to seek, then mark/split actions.</span>
+            </div>
             <div id="videoLaneBars" class="videoLaneBars"></div>
             <div id="videoActionBtns" class="videoActionBtns"></div>
           </div>
           <div class="videoCmdRow">
             <button id="videoSeqBtn" class="primary" type="button">Play + Next</button>
+            <div class="pill mono" id="videoActionText">-</div>
+            <button id="videoManualStartBtn" type="button">Mark start</button>
+            <button id="videoManualEndBtn" type="button">Mark end</button>
+            <button id="videoSplitBtn" type="button">Split selected</button>
+            <button id="videoDeleteSelBtn" class="danger" type="button">Delete selected</button>
+          </div>
+          <div class="videoCmdRow">
             <button id="videoApplyBtn" type="button">Create cycle from markers</button>
             <button id="videoClearBtn" class="danger" type="button">Clear markers</button>
-          </div>
-          <div class="videoCmdRow videoManualRow">
-            <button id="videoManualStartBtn" type="button">Mark start</button>
-            <div class="pill mono" id="videoActionText">-</div>
-            <button id="videoManualEndBtn" type="button">Mark end</button>
           </div>
           <div class="videoMetaRow">
             <label class="chip"><input class="checkbox" id="videoStackRulesChk" type="checkbox" checked /> Auto stack by rules</label>
@@ -967,11 +968,15 @@
 
         <!-- Row 3: Tag filters -->
         <div class="toolbarGroup">
-          <span class="toolbarLabel">Tags</span>
-          <label class="chip" title="Include Normal cycles"><input class="checkbox" id="tagNormal" type="checkbox" checked /> Normal</label>
-          <label class="chip" title="Include Rework cycles"><input class="checkbox" id="tagRework" type="checkbox" checked /> Rework</label>
-          <label class="chip" title="Include Training cycles"><input class="checkbox" id="tagTraining" type="checkbox" checked /> Training</label>
-          <label class="chip" title="Include Disturbance cycles"><input class="checkbox" id="tagDisturbance" type="checkbox" checked /> Disturbance</label>
+          <span class="toolbarLabel" id="timelineTagLabel">Tag</span>
+          <select id="timelineTagSel" class="miniSelect timelineFilterSelect" title="Filter timeline by cycle tag">
+            <option value="ALL">All tags</option>
+            <option value="Normal">Normal</option>
+            <option value="Rework">Rework</option>
+            <option value="Training">Training</option>
+            <option value="Disturbance">Disturbance</option>
+          </select>
+          <button id="timelineShowAllBtn" type="button" title="Reset filters and display all cycles">Show all records</button>
         </div>
 
         <!-- Row 4: Cycle selection (only relevant in Selected mode) -->
@@ -1042,7 +1047,7 @@
       <div class="panelHdrBody">
       
       <div class="card" style="padding:12px; border-radius:14px;">
-        <div class="small muted">Checkbox selects line (Selected mode). Tag editable per cycle.</div>
+        <div class="small muted">Select cycles to compare in Selected mode. Tag is editable per cycle.</div>
 
         <div class="scrollBox noScroll" style="margin-top:10px;">
           <table>
@@ -1083,7 +1088,7 @@
       <button id="closeDrawerBtn" style="font-size:16px; line-height:1; padding:8px 12px;">×</button>
     </div>
     <div class="drawerBody" id="drawerBody">
-      <section class="drawerSection" data-drawer-sec="job">
+      <section class="drawerSection" data-drawer-sec="job" style="display:none;">
         <button class="drawerSecBtn" type="button" data-drawer-sec-btn="job">
           <span class="drawerBurgerIcon">☰</span>
           <span class="title" id="drawerSecTitleJob">Job</span>
@@ -1284,7 +1289,7 @@
       <section class="drawerSection" data-drawer-sec="view">
         <button class="drawerSecBtn" type="button" data-drawer-sec-btn="view">
           <span class="drawerBurgerIcon">☰</span>
-          <span class="title" id="drawerSecTitleView">View & Layout</span>
+          <span class="title" id="drawerSecTitleView">Resolution & Display</span>
           <span class="drawerSecChevron">▾</span>
         </button>
         <div class="drawerSecBody">
@@ -1301,6 +1306,8 @@
                 <label id="uiTimeResolutionLabel">Resolution (s)</label>
                 <select id="uiTimeResolutionSel">
                   <option value="0.1">0.1</option>
+                  <option value="0.01">0.01</option>
+                  <option value="0.001">0.001</option>
                 </select>
               </div>
             </div>
@@ -1321,8 +1328,10 @@
               <button id="importJsonBtn">Import JSON</button>
               <input id="importFile" type="file" accept=".json" style="display:none" />
               <button id="exportCsvBtn">Export CSV</button>
+              <button id="exportXlsxBtn">Export XLSX</button>
+              <button id="exportGraphBtn">Export Graph PNG</button>
             </div>
-            <div class="small muted">CSV includes tags. Notes are JSON-only. Use Global Data Explorer for demo datasets/reset.</div>
+            <div class="small muted">JSON is full backup. CSV/XLSX are cycle sheets. Graph export saves current timeline view.</div>
           </div>
         </div>
       </section>
@@ -1350,7 +1359,6 @@
       return window.self !== window.top;
     }
   })();
-  const LANG_STORAGE_KEY = "chrono_ui_lang_v1";
   const I18N_INDEX_URL = "./i18n/index.json";
   const $ = (id) => document.getElementById(id);
   const wallIso = () => new Date().toISOString();
@@ -1412,6 +1420,7 @@
     "videoAction": "Video action",
     "selectedAction": "Selected action",
     "videoTimeline": "Video timeline",
+    "videoNativeHint": "Use the native video bar to seek, then mark/split actions.",
     "scalePct": "Cycle scale %",
     "scaleHelp": "Applies when creating cycle from markers.",
     "autoStackRules": "Auto stack by rules",
@@ -1422,6 +1431,8 @@
     "markStartEnd": "Mark start/end",
     "markStart": "Mark start",
     "markEnd": "Mark end",
+    "splitSelected": "Split selected",
+    "deleteSelected": "Delete selected",
     "playStart": "Play + start",
     "playNext": "Play + next",
     "markNext": "Mark next",
@@ -1461,14 +1472,14 @@
     "all": "All",
     "outliers": "Outliers",
     "avgMarkers": "Avg markers",
-    "tags": "Tags",
+    "tags": "Tag",
     "selectLast3": "Select last 3",
     "clearSelection": "Clear selection",
     "notesOptional": "Notes (optional)",
     "notesPh": "e.g., paused, missing part, machine jam...",
     "notesHint": "Notes stored locally + JSON.",
     "configTitle": "Config",
-    "jobSetupSub": "Job scope - Elements - Backup",
+    "jobSetupSub": "Elements - Resolution - Backup",
     "job": "Job",
     "station": "Station",
     "jobName": "Job name",
@@ -1491,7 +1502,7 @@
     "down": "Down",
     "clickElementHint": "Click an element row to select it.",
     "actionTypes": "Action Types",
-    "viewLayout": "View & Layout",
+    "viewLayout": "Resolution & Display",
     "uiScale": "UI Scale",
     "uiScaleValue": "UI Scale x",
     "uiLayoutMode": "Layout mode",
@@ -1521,6 +1532,9 @@
     "exportJson": "Export JSON",
     "importJson": "Import JSON",
     "exportCsv": "Export CSV",
+    "exportXlsx": "Export XLSX",
+    "exportGraph": "Export Graph PNG",
+    "showAllRecords": "Show all records",
     "jobsCount": "job(s)",
     "edit": "Edit",
     "cfg": "Cfg",
@@ -1606,6 +1620,7 @@
     "videoAction": "Action video",
     "selectedAction": "Action selectionnee",
     "videoTimeline": "Timeline video",
+    "videoNativeHint": "Utilisez la barre video native pour vous placer puis marquer/couper.",
     "scalePct": "Echelle cycle %",
     "scaleHelp": "Applique lors de la creation du cycle depuis les marqueurs.",
     "autoStackRules": "Empilement auto par regles",
@@ -1616,6 +1631,8 @@
     "markStartEnd": "Marquer debut/fin",
     "markStart": "Marquer debut",
     "markEnd": "Marquer fin",
+    "splitSelected": "Couper selection",
+    "deleteSelected": "Supprimer selection",
     "playStart": "Lire + debut",
     "playNext": "Lire + suivant",
     "markNext": "Marquer suivant",
@@ -1655,14 +1672,14 @@
     "all": "Tout",
     "outliers": "Valeurs anormales",
     "avgMarkers": "Reperes moy.",
-    "tags": "Tags",
+    "tags": "Tag",
     "selectLast3": "3 derniers",
     "clearSelection": "Effacer selection",
     "notesOptional": "Notes (optionnel)",
     "notesPh": "ex: pause, piece manquante, blocage machine...",
     "notesHint": "Notes stockees en local + JSON.",
     "configTitle": "Config",
-    "jobSetupSub": "Perimetre job - Elements - Sauvegarde",
+    "jobSetupSub": "Elements - Resolution - Sauvegarde",
     "job": "Job",
     "station": "Poste",
     "jobName": "Nom du job",
@@ -1685,7 +1702,7 @@
     "down": "Descendre",
     "clickElementHint": "Cliquez une ligne element pour selectionner.",
     "actionTypes": "Types action",
-    "viewLayout": "Vue & Layout",
+    "viewLayout": "Resolution & Affichage",
     "uiScale": "Echelle UI",
     "uiScaleValue": "Echelle UI x",
     "uiLayoutMode": "Mode layout",
@@ -1715,6 +1732,9 @@
     "exportJson": "Exporter JSON",
     "importJson": "Importer JSON",
     "exportCsv": "Exporter CSV",
+    "exportXlsx": "Exporter XLSX",
+    "exportGraph": "Exporter graphe PNG",
+    "showAllRecords": "Afficher tous les enregistrements",
     "jobsCount": "job(s)",
     "edit": "Editer",
     "cfg": "Cfg",
@@ -1816,11 +1836,9 @@
       const el = document.querySelector(selector);
       if (el) el.placeholder = t(key, fallback);
     };
-    const h1 = document.querySelector("header h1");
-    if (h1) h1.textContent = t("title", "Chrono Study");
     const names = appEntityNames();
-    const hdrSub = document.querySelector("header .sub");
-    if (hdrSub) hdrSub.textContent = "";
+    const scopeTitle = $("hScopeTitle");
+    if (scopeTitle) scopeTitle.textContent = `${names.product.singular} / ${t("job", "Job")}`;
     const savePill = $("savePill");
     if (savePill) { /* flash-based, no static text */ }
     const cfgBtn = $("openDrawerBtn");
@@ -1859,13 +1877,14 @@
     setText("#videoLibLoadBtn", "videoLoadBookmarks", "Load bookmarks");
     setText("#videoLibDeleteBtn", "videoDeleteEntry", "Delete entry");
     setText("#videoLibRefreshBtn", "videoRefreshList", "Refresh list");
-    const videoTimelineLbl = $("videoTimeline")?.parentElement?.querySelector("label");
-    if (videoTimelineLbl) videoTimelineLbl.textContent = t("videoTimeline", "Video timeline");
+    setText("#videoNativeHint", "videoNativeHint", "Use the native video bar to seek, then mark/split actions.");
     const actionText = $("videoActionText");
     if (actionText && (!actionText.textContent || actionText.textContent === "-")) actionText.textContent = t("selectedAction", "Selected action");
     setText("#videoSeqBtn", "playNext", "Play + next");
     setText("#videoManualStartBtn", "markStart", "Mark start");
     setText("#videoManualEndBtn", "markEnd", "Mark end");
+    setText("#videoSplitBtn", "splitSelected", "Split selected");
+    setText("#videoDeleteSelBtn", "deleteSelected", "Delete selected");
     setText("#videoApplyBtn", "createCycleFromMarkers", "Create cycle from markers");
     setText("#videoClearBtn", "clearMarkers", "Clear markers");
     setText("#videoAutoStackBtn", "applyStack", "Apply stack");
@@ -1913,8 +1932,16 @@
     if (showOutInput?.parentElement) showOutInput.parentElement.lastChild.textContent = ` ${t("outliers", "Outliers")}`;
     const showAvgInput = $("showAvgLineChk");
     if (showAvgInput?.parentElement) showAvgInput.parentElement.lastChild.textContent = ` ${t("avgMarkers", "Avg markers")}`;
-    const tagsPill = document.querySelector(".toolbar .pill");
-    if (tagsPill) tagsPill.textContent = t("tags", "Tags");
+    setText("#timelineTagLabel", "tags", "Tag");
+    const tagSel = $("timelineTagSel");
+    if (tagSel && tagSel.options.length >= 5) {
+      tagSel.options[0].textContent = t("all", "All");
+      tagSel.options[1].textContent = "Normal";
+      tagSel.options[2].textContent = "Rework";
+      tagSel.options[3].textContent = "Training";
+      tagSel.options[4].textContent = "Disturbance";
+    }
+    setText("#timelineShowAllBtn", "showAllRecords", "Show all records");
     const bSelLast = $("selectLast3Btn"); if (bSelLast) bSelLast.textContent = t("selectLast3", "Select last 3");
     const bClrSel = $("clearSelectionBtn"); if (bClrSel) bClrSel.textContent = t("clearSelection", "Clear selection");
     setText("#kpiExportCsvBtn", "exportActionsCsv", "Export CSV");
@@ -1934,11 +1961,11 @@
     });
 
     setText("#drawer .drawerTitle", "configTitle", "Config");
-    setText("#drawer .drawerHeader .small.muted", "jobSetupSub", "Job scope - Elements - Backup");
+    setText("#drawer .drawerHeader .small.muted", "jobSetupSub", "Elements - Resolution - Backup");
     setText("#drawerSecTitleJob", "job", "Job");
     setText("#drawerSecTitleElements", "elements", "Elements");
     setText("#drawerSecTitleActionTypes", "actionTypes", "Action Types");
-    setText("#drawerSecTitleView", "viewLayout", "View & Layout");
+    setText("#drawerSecTitleView", "viewLayout", "Resolution & Display");
     setText("#drawerSecTitleBackup", "backup", "Backup");
     // Job section labels — use id-based selectors to be robust
     setText("#lblActiveJob", "activeJob", "Active job");
@@ -1968,26 +1995,26 @@
     setText("#exportJsonBtn", "exportJson", "Export JSON");
     setText("#importJsonBtn", "importJson", "Import JSON");
     setText("#exportCsvBtn", "exportCsv", "Export CSV");
+    setText("#exportXlsxBtn", "exportXlsx", "Export XLSX");
+    setText("#exportGraphBtn", "exportGraph", "Export Graph PNG");
   }
   async function initI18n() {
     await loadLanguageCatalogs();
-    const sel = $("langSelect");
-    if (!sel) return;
-    sel.innerHTML = "";
-    Object.values(i18nCatalogs).sort((a,b) => a.name.localeCompare(b.name)).forEach((lang) => {
-      const opt = document.createElement("option");
-      opt.value = lang.code;
-      opt.textContent = lang.name;
-      sel.appendChild(opt);
-    });
-    const browserLang = String(navigator.language || "en").slice(0,2).toLowerCase();
-    const saved = localStorage.getItem(LANG_STORAGE_KEY) || "";
-    activeLanguage = i18nCatalogs[saved] ? saved : (i18nCatalogs[browserLang] ? browserLang : "en");
-    sel.value = activeLanguage;
+    const resolveActiveLang = () => {
+      const globalLang = String(window.VMillLang?.getLanguage?.() || "").toLowerCase();
+      if (i18nCatalogs[globalLang]) return globalLang;
+      const browserLang = String(navigator.language || "en").slice(0,2).toLowerCase();
+      if (i18nCatalogs[browserLang]) return browserLang;
+      return "en";
+    };
+    activeLanguage = resolveActiveLang();
     applyI18nStatic();
-    sel.addEventListener("change", () => {
-      activeLanguage = i18nCatalogs[sel.value] ? sel.value : "en";
-      localStorage.setItem(LANG_STORAGE_KEY, activeLanguage);
+    window.addEventListener("vmill:lang:changed", () => {
+      activeLanguage = resolveActiveLang();
+      applyI18nStatic();
+      renderAll();
+    });
+    window.addEventListener("vmill:lang:catalog:changed", () => {
       applyI18nStatic();
       renderAll();
     });
@@ -2012,7 +2039,9 @@
     return `${sign}${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}.${String(mm).padStart(3,"0")}`;
   }
   function timeResolutionSec() {
-    return 0.1;
+    const raw = Number(state?.ui?.timeResolutionSec ?? 0.1);
+    const allowed = [0.1, 0.01, 0.001];
+    return allowed.includes(raw) ? raw : 0.1;
   }
   function timeUnit() {
     return String(state?.ui?.timeDisplayUnit || "s") === "min" ? "min" : "s";
@@ -2105,6 +2134,10 @@
   }
   function downloadText(filename, text, mime="text/plain") {
     const blob = new Blob([text], {type: mime});
+    downloadBlob(filename, blob);
+  }
+  function downloadBlob(filename, blob) {
+    if (!blob) return;
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -2120,6 +2153,218 @@
       if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
       return s;
     }).join(",");
+  }
+  function xmlEsc(v) {
+    return String(v ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+  function excelColName(idx1) {
+    let n = Math.max(1, Number(idx1) || 1);
+    let out = "";
+    while (n > 0) {
+      const rem = (n - 1) % 26;
+      out = String.fromCharCode(65 + rem) + out;
+      n = Math.floor((n - 1) / 26);
+    }
+    return out;
+  }
+  function buildSheetXml(rows) {
+    const rowXml = (rows || []).map((row, ridx) => {
+      const r = ridx + 1;
+      const cells = (row || []).map((value, cidx) => {
+        const ref = `${excelColName(cidx + 1)}${r}`;
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return `<c r="${ref}"><v>${String(value)}</v></c>`;
+        }
+        const text = String(value ?? "");
+        const preserve = /^\s|\s$|\n/.test(text) ? ' xml:space="preserve"' : "";
+        return `<c r="${ref}" t="inlineStr"><is><t${preserve}>${xmlEsc(text)}</t></is></c>`;
+      }).join("");
+      return `<row r="${r}">${cells}</row>`;
+    }).join("");
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>${rowXml}</sheetData>
+</worksheet>`;
+  }
+  function concatBytes(chunks) {
+    const total = chunks.reduce((sum, c) => sum + (c?.length || 0), 0);
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      if (!chunk?.length) continue;
+      out.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return out;
+  }
+  let _crcTable = null;
+  function crc32(bytes) {
+    if (!_crcTable) {
+      _crcTable = new Uint32Array(256);
+      for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        _crcTable[n] = c >>> 0;
+      }
+    }
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) c = _crcTable[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  function writeU16(view, offset, value) {
+    view.setUint16(offset, Number(value) & 0xFFFF, true);
+  }
+  function writeU32(view, offset, value) {
+    view.setUint32(offset, Number(value) >>> 0, true);
+  }
+  function createZipBlob(fileEntries) {
+    const enc = new TextEncoder();
+    const localChunks = [];
+    const centralChunks = [];
+    let offset = 0;
+    for (const entry of fileEntries) {
+      const nameBytes = enc.encode(String(entry.name || ""));
+      const dataBytes = entry.bytes instanceof Uint8Array ? entry.bytes : enc.encode(String(entry.bytes || ""));
+      const crc = crc32(dataBytes);
+      const local = new Uint8Array(30 + nameBytes.length + dataBytes.length);
+      const lv = new DataView(local.buffer);
+      writeU32(lv, 0, 0x04034b50);
+      writeU16(lv, 4, 20);
+      writeU16(lv, 6, 0);
+      writeU16(lv, 8, 0);
+      writeU16(lv, 10, 0);
+      writeU16(lv, 12, 0);
+      writeU32(lv, 14, crc);
+      writeU32(lv, 18, dataBytes.length);
+      writeU32(lv, 22, dataBytes.length);
+      writeU16(lv, 26, nameBytes.length);
+      writeU16(lv, 28, 0);
+      local.set(nameBytes, 30);
+      local.set(dataBytes, 30 + nameBytes.length);
+      localChunks.push(local);
+
+      const central = new Uint8Array(46 + nameBytes.length);
+      const cv = new DataView(central.buffer);
+      writeU32(cv, 0, 0x02014b50);
+      writeU16(cv, 4, 20);
+      writeU16(cv, 6, 20);
+      writeU16(cv, 8, 0);
+      writeU16(cv, 10, 0);
+      writeU16(cv, 12, 0);
+      writeU16(cv, 14, 0);
+      writeU32(cv, 16, crc);
+      writeU32(cv, 20, dataBytes.length);
+      writeU32(cv, 24, dataBytes.length);
+      writeU16(cv, 28, nameBytes.length);
+      writeU16(cv, 30, 0);
+      writeU16(cv, 32, 0);
+      writeU16(cv, 34, 0);
+      writeU16(cv, 36, 0);
+      writeU32(cv, 38, 0);
+      writeU32(cv, 42, offset);
+      central.set(nameBytes, 46);
+      centralChunks.push(central);
+      offset += local.length;
+    }
+    const centralData = concatBytes(centralChunks);
+    const end = new Uint8Array(22);
+    const ev = new DataView(end.buffer);
+    writeU32(ev, 0, 0x06054b50);
+    writeU16(ev, 4, 0);
+    writeU16(ev, 6, 0);
+    writeU16(ev, 8, fileEntries.length);
+    writeU16(ev, 10, fileEntries.length);
+    writeU32(ev, 12, centralData.length);
+    writeU32(ev, 16, offset);
+    writeU16(ev, 20, 0);
+    const zipBytes = concatBytes([...localChunks, centralData, end]);
+    return new Blob([zipBytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  }
+  function buildSimpleXlsxBlob(sheets) {
+    const cleanSheets = (sheets || [])
+      .filter((s) => s && Array.isArray(s.rows))
+      .map((s, idx) => ({
+        name: String(s.name || `Sheet${idx + 1}`).slice(0, 31) || `Sheet${idx + 1}`,
+        rows: s.rows,
+      }));
+    if (!cleanSheets.length) return null;
+    const enc = new TextEncoder();
+    const sheetOverrides = cleanSheets.map((_, i) =>
+      `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`
+    ).join("");
+    const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+  ${sheetOverrides}
+</Types>`;
+    const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`;
+    const nowIso = new Date().toISOString();
+    const appXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>VMill Chrono</Application>
+</Properties>`;
+    const coreXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:creator>VMill Chrono</dc:creator>
+  <cp:lastModifiedBy>VMill Chrono</cp:lastModifiedBy>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${xmlEsc(nowIso)}</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">${xmlEsc(nowIso)}</dcterms:modified>
+</cp:coreProperties>`;
+    const workbookSheets = cleanSheets.map((s, i) =>
+      `<sheet name="${xmlEsc(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`
+    ).join("");
+    const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>${workbookSheets}</sheets>
+</workbook>`;
+    const workbookRelsSheets = cleanSheets.map((_, i) =>
+      `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`
+    ).join("");
+    const workbookRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  ${workbookRelsSheets}
+  <Relationship Id="rId${cleanSheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+    const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
+  <fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+    const entries = [
+      { name: "[Content_Types].xml", bytes: enc.encode(contentTypes) },
+      { name: "_rels/.rels", bytes: enc.encode(rootRels) },
+      { name: "docProps/app.xml", bytes: enc.encode(appXml) },
+      { name: "docProps/core.xml", bytes: enc.encode(coreXml) },
+      { name: "xl/workbook.xml", bytes: enc.encode(workbookXml) },
+      { name: "xl/_rels/workbook.xml.rels", bytes: enc.encode(workbookRels) },
+      { name: "xl/styles.xml", bytes: enc.encode(stylesXml) },
+    ];
+    cleanSheets.forEach((sheet, idx) => {
+      entries.push({
+        name: `xl/worksheets/sheet${idx + 1}.xml`,
+        bytes: enc.encode(buildSheetXml(sheet.rows)),
+      });
+    });
+    return createZipBlob(entries);
   }
 
   function defaultActionTypes() {
@@ -2215,7 +2460,9 @@
     st.ui.layoutMode = (st.ui.layoutMode === "vertical") ? "vertical" : "horizontal";
     st.ui.jobsPanelWidth = clamp(st.ui.jobsPanelWidth ?? d.jobsPanelWidth, 240, 640, d.jobsPanelWidth);
     st.ui.timeDisplayUnit = (String(st.ui.timeDisplayUnit || d.timeDisplayUnit) === "min") ? "min" : "s";
-    st.ui.timeResolutionSec = 0.1;
+    const allowedRes = new Set([0.1, 0.01, 0.001]);
+    const nextRes = Number(st.ui.timeResolutionSec ?? d.timeResolutionSec);
+    st.ui.timeResolutionSec = allowedRes.has(nextRes) ? nextRes : d.timeResolutionSec;
     st.ui.drawerPrefVersion = Number.isFinite(Number(st.ui.drawerPrefVersion))
       ? Number(st.ui.drawerPrefVersion)
       : 0;
@@ -2686,7 +2933,16 @@
     }
     if (videoText) {
       const activeEl = elements.find((el) => el.id === videoCapture.selectedElementId);
-      videoText.textContent = activeEl ? `${activeEl.name} (${activeEl.type})` : "-";
+      const selectedMarker = videoCapture.markers.find((m) => m.id === videoCapture.editMarkerId);
+      if (selectedMarker) {
+        const markerEl = elements.find((el) => el.id === selectedMarker.elementId);
+        const markerName = markerEl ? `${markerEl.name} (${markerEl.type})` : String(selectedMarker.elementId || "-");
+        const s = fmtSec(selectedMarker.startSec || 0);
+        const e = selectedMarker.endSec == null ? "..." : fmtSec(selectedMarker.endSec);
+        videoText.textContent = `${markerName} ${s} - ${e}`;
+      } else {
+        videoText.textContent = activeEl ? `${activeEl.name} (${activeEl.type})` : "-";
+      }
     }
     if (videoBtns) {
       const active = String(videoCapture.selectedElementId || "");
@@ -2781,7 +3037,6 @@
 
       selectedCycleId = cycle.id;
       selectedCycleIdsForLine.add(cycle.id);
-      boundLineSelection(job, 6);
 
       saveState();
       stopCycle();
@@ -2915,14 +3170,10 @@
 
   function syncVideoTimeline() {
     const video = $("videoEl");
-    const range = $("videoTimeline");
-    const lbl = $("videoTimelineLabel");
-    if (!video || !range || !lbl) return;
+    const lbl = $("videoCurrentTime");
+    if (!video || !lbl) return;
     const dur = Number.isFinite(video.duration) ? Math.max(0, video.duration) : 0;
     const cur = Math.max(0, Math.min(dur || Number(video.currentTime || 0), Number(video.currentTime || 0)));
-    range.max = String(dur);
-    range.value = String(cur);
-    range.disabled = dur <= 0;
     lbl.textContent = `${fmtSec(cur)} / ${fmtSec(dur)}`;
     renderVideoLaneBars();
   }
@@ -3026,32 +3277,41 @@
     updateVideoWaitInfo(resolved);
     const video = $("videoEl");
     const dur = Number.isFinite(video?.duration) ? Math.max(0, video.duration) : 0;
+    if (videoCapture.editMarkerId && !videoCapture.markers.some((m) => m.id === videoCapture.editMarkerId)) {
+      videoCapture.editMarkerId = "";
+    }
+    if (!videoCapture.editMarkerId && videoCapture.markers.length) {
+      const ordered = sortedVideoMarkers();
+      videoCapture.editMarkerId = ordered[0]?.id || "";
+    }
+    const actionOptions = (job?.elements || []).map((el) => {
+      const tId = String(el.type || "");
+      return `<option value="${esc(el.id)}">${esc(`${el.name} (${tId})`)}</option>`;
+    }).join("");
     const rows = sortedVideoMarkers().map((m, i) => {
       const el = byId.get(m.elementId);
-      const name = el ? `${el.name} (${el.type})` : m.elementId;
       const rx = resolvedById.get(m.id);
       const s = Number(m.startSec || 0);
       const e = m.endSec == null ? null : Number(m.endSec);
       const durTxt = e == null ? "--" : fmtQtySec(Math.max(0, e - s));
-      const waitTxt = Number(rx?.waitSec || 0) > 0 ? fmtQtySec(Number(rx.waitSec || 0)) : "-";
+      const waitTxt = Number(rx?.waitSec || 0) > 0 ? fmtQtySec(Number(rx.waitSec || 0)) : "";
       const qStep = timeResolutionSec();
       const secDec = timeDecimals("s");
       const maxAttr = dur > 0 ? `max="${dur.toFixed(secDec)}"` : "";
+      const selectedClass = videoCapture.editMarkerId === m.id ? " style=\"background:rgba(56,189,248,.12);\"" : "";
       return `
-        <tr>
+        <tr data-vsel="${esc(m.id)}"${selectedClass}>
           <td class="mono">${i + 1}</td>
-          <td>${esc(name)}</td>
+          <td>
+            <select data-vact="${esc(m.id)}" style="min-width:180px;">
+              ${actionOptions.replace(`value="${esc(m.elementId)}"`, `value="${esc(m.elementId)}" selected`)}
+            </select>
+          </td>
           <td><input class="videoNum mono" type="number" step="${qStep}" min="0" ${maxAttr} value="${s.toFixed(secDec)}" data-vs="${esc(m.id)}" inputmode="decimal" enterkeyhint="done" /></td>
           <td><input class="videoNum mono" type="number" step="${qStep}" min="0" ${maxAttr} value="${e == null ? "" : e.toFixed(secDec)}" data-ve="${esc(m.id)}" inputmode="decimal" enterkeyhint="done" placeholder="${esc(t("endS", "End s"))}" /></td>
           <td class="mono">${durTxt}</td>
-          <td class="mono">${waitTxt}</td>
-          <td>
-            <div class="videoAdjustBtns">
-              <button class="videoMiniBtn mono" type="button" data-vns="${esc(m.id)}">${esc(t("startS", "Start s"))}<-Now</button>
-              <button class="videoMiniBtn mono" type="button" data-vne="${esc(m.id)}">${esc(t("endS", "End s"))}<-Now</button>
-              <button class="videoMiniBtn danger mono" type="button" data-vdel="${esc(m.id)}">${esc(t("delete", "Delete"))}</button>
-            </div>
-          </td>
+          <td class="mono">${waitTxt || "-"}</td>
+          <td class="right"><button class="danger" type="button" data-vdel="${esc(m.id)}">${esc(t("delete", "Delete"))}</button></td>
         </tr>
       `;
     }).join("");
@@ -3066,7 +3326,7 @@
               <th style="width:98px;">${esc(t("endS", "End s"))}</th>
               <th style="width:92px;">${esc(t("durS", "Dur s"))}</th>
               <th style="width:92px;">${esc(t("wait", "Wait"))}</th>
-              <th style="width:210px;">${esc(t("edit", "Edit"))}</th>
+              <th style="width:90px;">${esc(t("delete", "Delete"))}</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -3174,11 +3434,13 @@
       if (mk) {
         mk.startSec = quantizeSec(nowSec);
         mk.endSec = null;
+        videoCapture.editMarkerId = mk.id;
       }
     } else {
       const id = uuid();
       videoCapture.markers.push({ id, elementId: actionId, startSec: quantizeSec(nowSec), endSec: null });
       videoCapture.openByElementId[actionId] = id;
+      videoCapture.editMarkerId = id;
     }
     renderVideoMarkersList();
   }
@@ -3202,9 +3464,49 @@
         mk.startSec = mk.endSec;
         mk.endSec = tmp;
       }
+      videoCapture.editMarkerId = mk.id;
     }
     delete videoCapture.openByElementId[actionId];
     renderVideoMarkersList();
+  }
+  function getSelectedVideoMarker() {
+    if (!videoCapture.editMarkerId) return null;
+    return videoCapture.markers.find((m) => m.id === videoCapture.editMarkerId) || null;
+  }
+  function videoSplitSelectedMarker() {
+    const marker = getSelectedVideoMarker();
+    if (!marker) return alert(t("noMarkers", "No markers."));
+    const video = $("videoEl");
+    if (!video?.src) return alert(t("videoFile", "Load a video file first."));
+    if (marker.endSec == null) return alert(t("markEnd", "Mark end"));
+    const now = quantizeSec(Number(video.currentTime || 0));
+    const minSpan = Math.max(0.001, timeResolutionSec());
+    const start = Number(marker.startSec || 0);
+    const end = Number(marker.endSec || start);
+    if (now <= start + minSpan || now >= end - minSpan) return;
+    const next = {
+      id: uuid(),
+      elementId: marker.elementId,
+      startSec: now,
+      endSec: end,
+    };
+    marker.endSec = now;
+    videoCapture.markers.push(next);
+    videoCapture.editMarkerId = next.id;
+    renderVideoMarkersList();
+    syncVideoTimeline();
+  }
+  function videoDeleteSelectedMarker() {
+    const marker = getSelectedVideoMarker();
+    if (!marker) return alert(t("noMarkers", "No markers."));
+    const id = marker.id;
+    videoCapture.markers = videoCapture.markers.filter((m) => m.id !== id);
+    if (videoCapture.editMarkerId === id) videoCapture.editMarkerId = "";
+    for (const key of Object.keys(videoCapture.openByElementId)) {
+      if (videoCapture.openByElementId[key] === id) delete videoCapture.openByElementId[key];
+    }
+    renderVideoMarkersList();
+    syncVideoTimeline();
   }
 
   function videoSequenceStep() {
@@ -3256,12 +3558,18 @@
   function bindVideoBarInteractions() {
     const wrap = $("videoLaneBars");
     if (!wrap) return;
-    wrap.addEventListener("dblclick", (e) => {
+    wrap.addEventListener("click", (e) => {
       const seg = e.target?.closest?.("[data-mid]");
       if (!seg) return;
       const id = String(seg.dataset.mid || "");
-      videoCapture.editMarkerId = (videoCapture.editMarkerId === id) ? "" : id;
-      renderVideoLaneBars();
+      videoCapture.editMarkerId = id;
+      const marker = videoCapture.markers.find((m) => m.id === id);
+      const video = $("videoEl");
+      if (marker && video && Number.isFinite(Number(marker.startSec))) {
+        video.currentTime = Math.max(0, Number(marker.startSec || 0));
+      }
+      renderVideoMarkersList();
+      syncVideoTimeline();
     });
     wrap.addEventListener("pointerdown", (e) => {
       const target = e.target;
@@ -3276,10 +3584,10 @@
       const video = $("videoEl");
       const dur = Number.isFinite(video?.duration) ? Math.max(0, Number(video.duration)) : 0;
       if (!mk || dur <= 0) return;
+      videoCapture.editMarkerId = markerId;
       const mode = (target?.dataset?.handle === "start" || target?.dataset?.handle === "end")
         ? String(target.dataset.handle)
         : "move";
-      if ((mode === "start" || mode === "end") && videoCapture.editMarkerId !== markerId) return;
       const s0 = Number(mk.startSec || 0);
       const e0 = mk.endSec == null ? s0 : Number(mk.endSec || s0);
       videoDrag = { markerId, mode, x0: Number(e.clientX || 0), s0, e0, dur };
@@ -3351,7 +3659,6 @@
     job.cycles.push(cycle);
     selectedCycleId = cycle.id;
     selectedCycleIdsForLine.add(cycle.id);
-    boundLineSelection(job, 6);
     saveState();
     renderAll();
   }
@@ -3442,12 +3749,9 @@
   }
 
   function selectedTagsSet() {
-    const s = new Set();
-    if ($("tagNormal").checked) s.add("Normal");
-    if ($("tagRework").checked) s.add("Rework");
-    if ($("tagTraining").checked) s.add("Training");
-    if ($("tagDisturbance").checked) s.add("Disturbance");
-    return s;
+    const selected = String($("timelineTagSel")?.value || "ALL");
+    if (selected === "ALL") return new Set(TAGS);
+    return new Set(TAGS.includes(selected) ? [selected] : TAGS);
   }
 
   function perElementValues(job, cycles) {
@@ -3664,8 +3968,7 @@
     const job = getActiveJob(); if (!job) return;
     const tagSet = selectedTagsSet();
     const filtered = job.cycles.filter(c => tagSet.has(c.tag || "Normal"));
-    for (const c of filtered) selectedCycleIdsForLine.add(c.id);
-    // No cap — user explicitly asked for all
+    selectedCycleIdsForLine = new Set(filtered.map((c) => c.id));
     renderAll();
   }
   function invertVisibleCyclesSelection() {
@@ -3676,30 +3979,18 @@
       if (selectedCycleIdsForLine.has(c.id)) selectedCycleIdsForLine.delete(c.id);
       else selectedCycleIdsForLine.add(c.id);
     }
-    boundLineSelection(job, 6);
     renderAll();
   }
   function toggleLineSelection(cycleId, checked) {
     if (checked) selectedCycleIdsForLine.add(cycleId);
     else selectedCycleIdsForLine.delete(cycleId);
-    const job = getActiveJob();
-    if (job) boundLineSelection(job, 6);
     renderAll();
-  }
-  function boundLineSelection(job, maxLines) {
-    if (selectedCycleIdsForLine.size <= maxLines) return;
-    const recency = job.cycles.slice().reverse().map(c => c.id);
-    const kept = new Set();
-    for (const id of recency) {
-      if (selectedCycleIdsForLine.has(id)) kept.add(id);
-      if (kept.size >= maxLines) break;
-    }
-    selectedCycleIdsForLine = kept;
   }
   function selectLastN(n) {
     const job = getActiveJob(); if (!job) return;
-    selectedCycleIdsForLine = new Set(job.cycles.slice(-n).map(c => c.id));
-    if (job.cycles.length > 0) selectedCycleId = job.cycles[job.cycles.length - 1].id;
+    const visible = getFilteredCyclesForJob(job);
+    selectedCycleIdsForLine = new Set(visible.slice(-n).map(c => c.id));
+    if (visible.length > 0) selectedCycleId = visible[visible.length - 1].id;
     renderAll();
   }
   function clearLineSelection() {
@@ -3781,6 +4072,234 @@
     }
     const safe = (st?.code || "ST") + "_" + job.name.replace(/[^\w\-]+/g, "_");
     downloadText(`${safe}.csv`, rows.join("\n"), "text/csv");
+  }
+  function roundNumber(value, digits = 3) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 0;
+    const factor = Math.pow(10, Math.max(0, Number(digits) || 0));
+    return Math.round(n * factor) / factor;
+  }
+  function buildChronoTemplateSheetRows({ job, station, product, cycles, pageIndex, totalPages }) {
+    const rows = Array.from({ length: 31 }, () => Array(24).fill(""));
+    const cycleRows = Array.isArray(cycles) ? cycles.filter(Boolean) : [];
+    const pageCount = Math.max(1, Number(totalPages) || 1);
+    const pageNo = Math.max(1, (Number(pageIndex) || 0) + 1);
+
+    const firstIso = String(cycleRows[0]?.atIso || "").trim();
+    const lastIso = String(cycleRows[cycleRows.length - 1]?.atIso || "").trim();
+    const firstDate = firstIso ? new Date(firstIso) : new Date();
+    const lastDate = lastIso ? new Date(lastIso) : firstDate;
+    const dateTxt = Number.isFinite(firstDate.getTime()) ? firstDate.toLocaleDateString() : "";
+    const fromTxt = Number.isFinite(firstDate.getTime()) ? firstDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
+    const toTxt = Number.isFinite(lastDate.getTime()) ? lastDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
+    const studyId = String(job?.id || "").trim().slice(0, 8);
+
+    rows[0][0] = "FEUILLE DE CHRONOMETRAGE (travaux repetitifs)";
+    rows[0][6] = `Feuille N°: ${pageNo}/${pageCount}`;
+    rows[0][9] = `Etude N°: ${studyId}`;
+    rows[0][12] = `Nom: ${String(product?.name || "").trim()}`;
+    rows[0][15] = `Poste: ${String(station?.code || "").trim()} ${String(station?.name || "").trim()}`.trim();
+    rows[0][18] = `Date: ${dateTxt}`;
+    rows[0][21] = `Horaires: ${fromTxt} - ${toTxt}`.trim();
+
+    rows[1][0] = "Fractions chronometrees";
+    for (let i = 0; i < 16; i++) rows[1][2 + i] = i + 1;
+    rows[1][18] = "IRREGULARITES";
+    rows[1][23] = "Observations";
+    rows[2][18] = "IRL liees au travail";
+    rows[2][21] = "IRE exterieures";
+    rows[4][0] = "Effort";
+    rows[5][0] = "Position";
+
+    const elementRows = Array.isArray(job?.elements) ? job.elements.slice(0, 22) : [];
+    const cycleByElement = new Map();
+    for (const c of cycleRows) {
+      const sums = new Map();
+      const laps = Array.isArray(c?.laps) ? c.laps : [];
+      for (const lap of laps) {
+        const elId = String(lap?.elementId || "");
+        if (!elId) continue;
+        const nextMs = (sums.get(elId) || 0) + quantizeMs(Number(lap?.ms || 0));
+        sums.set(elId, nextMs);
+      }
+      cycleByElement.set(c, sums);
+    }
+
+    let irregularMs = 0;
+    let totalMs = 0;
+    const cycleTotalsSec = Array(16).fill("");
+    for (let cidx = 0; cidx < Math.min(16, cycleRows.length); cidx++) {
+      const c = cycleRows[cidx];
+      const cMs = quantizeMs(Number(c?.totalMs || 0));
+      totalMs += cMs;
+      cycleTotalsSec[cidx] = roundNumber(cMs / 1000, 3);
+      const tag = String(c?.tag || "NORMAL").trim().toUpperCase();
+      if (tag !== "NORMAL") irregularMs += cMs;
+    }
+
+    for (let ridx = 0; ridx < 22; ridx++) {
+      const row = 6 + ridx;
+      const el = elementRows[ridx];
+      rows[row][0] = ridx + 1;
+      if (!el) continue;
+      rows[row][1] = String(el.name || "");
+      rows[row][23] = String(getActionType(el.type).name || "");
+
+      let irlMs = 0;
+      let ireMs = 0;
+      for (let cidx = 0; cidx < Math.min(16, cycleRows.length); cidx++) {
+        const c = cycleRows[cidx];
+        const sums = cycleByElement.get(c);
+        const elMs = quantizeMs(Number(sums?.get(el.id) || 0));
+        if (elMs > 0) rows[row][2 + cidx] = roundNumber(elMs / 1000, 3);
+        const tag = String(c?.tag || "NORMAL").trim().toUpperCase();
+        if (tag === "IRL") irlMs += elMs;
+        else if (tag === "IRE") ireMs += elMs;
+      }
+      if (irlMs > 0) rows[row][18] = roundNumber(irlMs / 1000, 3);
+      if (ireMs > 0) rows[row][21] = roundNumber(ireMs / 1000, 3);
+    }
+
+    rows[28][0] = "Somme";
+    rows[28][17] = `Cycles: ${cycleRows.length}`;
+    for (let cidx = 0; cidx < 16; cidx++) rows[28][2 + cidx] = cycleTotalsSec[cidx] === "" ? "" : cycleTotalsSec[cidx];
+
+    const observedTotalsSec = cycleTotalsSec.filter((v) => typeof v === "number");
+    const avgSec = observedTotalsSec.length
+      ? observedTotalsSec.reduce((a, b) => a + b, 0) / observedTotalsSec.length
+      : 0;
+    const aleaRate = totalMs > 0 ? (irregularMs / totalMs) * 100 : 0;
+    rows[29][0] = "Moyenne";
+    rows[29][2] = observedTotalsSec.length ? roundNumber(avgSec, 3) : "";
+    rows[30][0] = "Taux d'aleas";
+    rows[30][2] = observedTotalsSec.length ? roundNumber(aleaRate, 2) : "";
+    rows[30][3] = observedTotalsSec.length ? "%" : "";
+    return rows;
+  }
+  function exportXlsx() {
+    const job = getActiveJob();
+    if (!job) return alert(t("selectJob", "Select a job first."));
+    const st = getStationById(job.stationId);
+    const product = getProductById(job.productId);
+    const filtered = getFilteredCyclesForJob(job);
+    const stats = computeCycleStats(job, filtered);
+    const actionRows = stats ? computeActionStats(job, filtered, stats.avgMs) : [];
+
+    const summaryRows = [
+      ["Field", "Value"],
+      ["Product", product?.name || ""],
+      ["Station code", st?.code || ""],
+      ["Station name", st?.name || ""],
+      ["Job", job.name || ""],
+      ["Filtered cycles", filtered.length],
+      ["Time unit", timeUnit()],
+      ["Resolution (s)", timeResolutionSec()],
+      ["Generated at", new Date().toISOString()],
+    ];
+    if (stats) {
+      summaryRows.push(["Average cycle (ms)", quantizeMs(stats.avgMs)]);
+      summaryRows.push(["Median cycle (ms)", quantizeMs(stats.medianMs)]);
+      summaryRows.push(["P90 cycle (ms)", quantizeMs(stats.p90Ms)]);
+      summaryRows.push(["Best cycle (ms)", quantizeMs(stats.bestMs)]);
+      summaryRows.push(["Worst cycle (ms)", quantizeMs(stats.worstMs)]);
+      summaryRows.push(["CV", Number((stats.cv || 0).toFixed(6))]);
+    }
+
+    const cyclesRows = [[
+      "cycleNumber","cycleId","cycleAtIso","cycleTag","cycleTotalMs","lapIndex","elementId","elementName","elementType","lapMs","note",
+    ]];
+    filtered.forEach((c, idx) => {
+      const laps = Array.isArray(c?.laps) ? c.laps : [];
+      if (!laps.length) {
+        cyclesRows.push([
+          idx + 1, c.id || "", c.atIso || "", c.tag || "Normal", quantizeMs(c.totalMs || 0), "", "", "", "", "", c.note || "",
+        ]);
+        return;
+      }
+      laps.forEach((lap, lapIdx) => {
+        cyclesRows.push([
+          idx + 1,
+          c.id || "",
+          c.atIso || "",
+          c.tag || "Normal",
+          quantizeMs(c.totalMs || 0),
+          lapIdx + 1,
+          lap.elementId || "",
+          lap.name || "",
+          lap.type || "",
+          quantizeMs(lap.ms || 0),
+          lapIdx === 0 ? (c.note || "") : "",
+        ]);
+      });
+    });
+
+    const actionSheetRows = [[
+      "actionId","actionName","actionType","avgMs","minMs","maxMs","sharePct","avgDisplay","minDisplay","maxDisplay",
+    ]];
+    actionRows.forEach((r) => {
+      actionSheetRows.push([
+        r.id || "",
+        r.name || "",
+        getActionType(r.type).id,
+        quantizeMs(r.avgMs || 0),
+        quantizeMs(r.minMs || 0),
+        quantizeMs(r.maxMs || 0),
+        Number(r.sharePct || 0),
+        fmtQtyMs(r.avgMs || 0),
+        fmtQtyMs(r.minMs || 0),
+        fmtQtyMs(r.maxMs || 0),
+      ]);
+    });
+
+    const cycleChunks = [];
+    const pageSize = 16;
+    if (filtered.length) {
+      for (let i = 0; i < filtered.length; i += pageSize) cycleChunks.push(filtered.slice(i, i + pageSize));
+    } else {
+      cycleChunks.push([]);
+    }
+    const formSheets = cycleChunks.map((chunk, idx) => ({
+      name: `Feuil${idx + 1}`,
+      rows: buildChronoTemplateSheetRows({
+        job,
+        station: st,
+        product,
+        cycles: chunk,
+        pageIndex: idx,
+        totalPages: cycleChunks.length,
+      }),
+    }));
+
+    const blob = buildSimpleXlsxBlob([
+      ...formSheets,
+      { name: "Summary", rows: summaryRows },
+      { name: "Cycles", rows: cyclesRows },
+      { name: "Actions", rows: actionSheetRows },
+    ]);
+    if (!blob) return alert("Unable to build XLSX.");
+    const safe = `${(st?.code || "ST")}_${String(job.name || "job").replace(/[^\w\-]+/g, "_")}`;
+    downloadBlob(`${safe}.xlsx`, blob);
+  }
+  function exportTimelineGraph() {
+    const canvas = $("timelineChart");
+    if (!canvas) return;
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    const finish = (blob) => {
+      if (!blob) return alert("Unable to export graph image.");
+      downloadBlob(`chrono_timeline_${stamp}.png`, blob);
+    };
+    if (canvas.toBlob) {
+      canvas.toBlob((blob) => finish(blob), "image/png");
+      return;
+    }
+    try {
+      const dataUrl = canvas.toDataURL("image/png");
+      const base64 = String(dataUrl.split(",")[1] || "");
+      const bytes = Uint8Array.from(atob(base64), (ch) => ch.charCodeAt(0));
+      finish(new Blob([bytes], { type: "image/png" }));
+    } catch {
+      alert("Unable to export graph image.");
+    }
   }
 
   function getFilteredCyclesForJob(job) {
@@ -4089,14 +4608,10 @@
 
     // which cycles to draw as rows:
     // In ALL mode => rows = baseCycles (can be many)
-    // In SELECTED => rows = selectedCycles (max 6)
+    // In SELECTED => rows = selectedCycles
     const rows = (graphMode === "ALL") ? baseCycles : selectedCycles;
     if (!rows.length) return drawEmpty(ctx,w,h,"Select cycles (or switch to All)");
-
-    const maxRowsToDraw = 80; // keep performance ok in-browser
-    const drawRows = (graphMode === "ALL" && rows.length > maxRowsToDraw)
-      ? rows.slice(-maxRowsToDraw)
-      : rows;
+    const drawRows = rows;
 
     // compute row schedules + x range (stacked view may extend beyond cycle.totalMs)
     const rowSchedules = new Map();
@@ -4863,6 +5378,8 @@
     // header
     if (!job) {
       $("jobHeader").textContent = t("selectJob", "Select a job");
+      const hst = $("hScopeTitle");
+      if (hst) hst.textContent = `${t("product", "Product")} / ${t("job", "Job")}`;
       const hjl = $("hJobLabel"); if (hjl) hjl.textContent = t("selectJob", "Select a job");
       $("cyclesCount").textContent = "0";
       $("stdTotal").textContent = "-";
@@ -4879,9 +5396,13 @@
       $("finishCycleBtn").disabled = true;
     } else {
       const st = getStationById(job.stationId);
+      const product = getProductById(job.productId);
       $("jobHeader").innerHTML =
-        `<span class="pill">Station</span> <strong>${esc(st?.code||"")} - ${esc(st?.name||"")}</strong>
-         <span class="pill">Job</span> <strong>${esc(job.name)}</strong>`;
+        `<span class="pill">${esc(t("product", "Product"))}</span> <strong>${esc(product?.name || "-")}</strong>
+         <span class="pill">${esc(t("station", "Station"))}</span> <strong>${esc(st?.code||"")} - ${esc(st?.name||"")}</strong>
+         <span class="pill">${esc(t("job", "Job"))}</span> <strong>${esc(job.name)}</strong>`;
+      const hst = $("hScopeTitle");
+      if (hst) hst.textContent = product?.name ? String(product.name) : `${t("product", "Product")} -`;
       const hjl = $("hJobLabel");
       if (hjl) hjl.textContent = `${st?.code ? st.code + " · " : ""}${job.name}`;
       const filteredCycles = (job.cycles || []).filter((c) => tagSet.has(c.tag || "Normal"));
@@ -5021,23 +5542,32 @@
     if (chipEl) chipEl.textContent = filteredCycles.length === job.cycles.length
       ? `${filteredCycles.length} cycle${filteredCycles.length===1?"":"s"}`
       : `${filteredCycles.length} / ${job.cycles.length} cycles`;
+    if (!filteredCycles.length) {
+      closeTimelineEditor();
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="6" class="muted">${esc(t("allCyclesFiltered", "All cycles"))} ${esc(t("filtered", "filtered"))}</td>`;
+      cyclesBody.appendChild(tr);
+      drawEmpty(canvas.getContext("2d"), canvas.width, canvas.height, t("allCyclesFiltered", "All cycles filtered"));
+      return;
+    }
     const selChip = $("selCountChip");
     if (selChip) selChip.textContent = `${selectedCycleIdsForLine.size} sel.`;
 
-    if (!selectedCycleId || !job.cycles.some(c => c.id === selectedCycleId)) {
-      selectedCycleId = job.cycles[job.cycles.length-1].id;
+    if (!selectedCycleId || !filteredCycles.some(c => c.id === selectedCycleId)) {
+      selectedCycleId = filteredCycles[filteredCycles.length-1].id;
     }
     if (selectedCycleIdsForLine.size === 0) {
-      const base = filteredCycles.length ? filteredCycles : job.cycles;
-      selectedCycleIdsForLine = new Set(base.slice(-3).map(c => c.id));
+      selectedCycleIdsForLine = new Set(filteredCycles.slice(-3).map(c => c.id));
     }
-    boundLineSelection(job, 6);
+    for (const id of [...selectedCycleIdsForLine]) {
+      if (!filteredCycles.some((c) => c.id === id)) selectedCycleIdsForLine.delete(id);
+    }
 
     // cycles table (most recent first) + inline detail row
-    const reversed = job.cycles.slice().reverse();
+    const reversed = filteredCycles.slice().reverse();
     for (let idxFromEnd=0; idxFromEnd<reversed.length; idxFromEnd++){
       const c = reversed[idxFromEnd];
-      const number = job.cycles.length - idxFromEnd;
+      const number = filteredCycles.length - idxFromEnd;
       const isActive = c.id === selectedCycleId;
       const checked = selectedCycleIdsForLine.has(c.id);
       const tagVal = c.tag || "Normal";
@@ -5046,8 +5576,6 @@
       const tr = document.createElement("tr");
       tr.style.cursor="pointer";
       tr.style.background = isActive ? accentRgba(0.10) : "transparent";
-      if (!tagSet.has(tagVal)) tr.style.opacity = "0.55";
-
       tr.innerHTML = `
         <td class="right"><input class="checkbox" type="checkbox" ${checked?"checked":""} data-check="1" /></td>
         <td class="mono">${number}</td>
@@ -5187,8 +5715,8 @@
       }
     }
 
-    // graph model base cycles = filtered (pro behavior)
-    const baseCycles = filteredCycles.length ? filteredCycles : job.cycles;
+    // graph model base cycles = filtered
+    const baseCycles = filteredCycles;
     const perElVals = perElementValues(job, baseCycles);
     const avgByElSec = new Map();
     for (const el of job.elements) {
@@ -5200,11 +5728,12 @@
     const selectedCycles = job.cycles
       .filter(c => selectedCycleIdsForLine.has(c.id))
       .filter(c => tagSet.has(c.tag || "Normal"))
-      .slice(-6);
+      .sort((a, b) => new Date(a.atIso).getTime() - new Date(b.atIso).getTime());
 
-    const rowsForHeight = (graphMode === "ALL")
-      ? Math.max(1, Math.min(16, baseCycles.length))
-      : Math.max(1, selectedCycles.length);
+    const rowsForHeightRaw = (graphMode === "ALL")
+      ? Math.max(1, baseCycles.length)
+      : Math.max(1, selectedCycles.length || Math.min(3, baseCycles.length));
+    const rowsForHeight = Math.max(1, Math.min(320, rowsForHeightRaw));
     const laneCount = Math.max(1, new Set((job.elements || []).map((el) => String(getActionType(el.type).lane || "lane"))).size);
     const sameBase = !!state.ui?.timelineSameBase;
     const maxCfgHeight = Math.max(6, ...((job.elements || []).map((el) => Math.max(2, Number(getActionType(el.type).heightPx || 6)))));
@@ -5561,8 +6090,10 @@
   const uiTimeResolutionSel = $("uiTimeResolutionSel");
   if (uiTimeResolutionSel) {
     uiTimeResolutionSel.addEventListener("change", () => {
-      state.ui.timeResolutionSec = 0.1;
-      uiTimeResolutionSel.value = "0.1";
+      const allowed = new Set(["0.1", "0.01", "0.001"]);
+      const next = allowed.has(String(uiTimeResolutionSel.value)) ? Number(uiTimeResolutionSel.value) : 0.1;
+      state.ui.timeResolutionSec = next;
+      uiTimeResolutionSel.value = String(next);
       saveState();
       renderAll();
     });
@@ -5815,6 +6346,8 @@
   $("videoSeqBtn").addEventListener("click", videoSequenceStep);
   $("videoManualStartBtn").addEventListener("click", videoMarkStart);
   $("videoManualEndBtn").addEventListener("click", videoMarkEnd);
+  $("videoSplitBtn")?.addEventListener("click", videoSplitSelectedMarker);
+  $("videoDeleteSelBtn")?.addEventListener("click", videoDeleteSelectedMarker);
   $("videoStackRulesChk").addEventListener("change", () => {
     renderVideoMarkersList();
     syncVideoTimeline();
@@ -5824,45 +6357,52 @@
   $("videoApplyBtn").addEventListener("click", applyVideoMarkersToCycle);
   $("videoEl").addEventListener("loadedmetadata", syncVideoTimeline);
   $("videoEl").addEventListener("timeupdate", syncVideoTimeline);
-  $("videoTimeline").addEventListener("input", () => {
-    const video = $("videoEl");
-    if (!video) return;
-    video.currentTime = Number($("videoTimeline").value || 0);
-    syncVideoTimeline();
-  });
   $("videoMarkersList").addEventListener("click", (e) => {
     const t = e.target;
-    const id = t?.dataset?.vdel || t?.dataset?.vns || t?.dataset?.vne;
+    const interactive = t?.closest?.("input,select,textarea,button");
+    if (interactive && !t?.dataset?.vdel) return;
+    const row = t?.closest?.("[data-vsel]");
+    if (row?.dataset?.vsel) {
+      const markerId = String(row.dataset.vsel || "");
+      if (markerId) {
+        videoCapture.editMarkerId = markerId;
+        const marker = videoCapture.markers.find((m) => m.id === markerId);
+        const video = $("videoEl");
+        if (marker && video) video.currentTime = Math.max(0, Number(marker.startSec || 0));
+      }
+      if (!t?.dataset?.vdel) {
+        renderVideoMarkersList();
+        syncVideoTimeline();
+      }
+    }
+    const id = t?.dataset?.vdel;
     if (!id) return;
     const marker = videoCapture.markers.find((m) => m.id === id);
     if (!marker) return;
-    if (t.dataset.vdel) {
-      videoCapture.markers = videoCapture.markers.filter((m) => m.id !== id);
-      if (videoCapture.editMarkerId === id) videoCapture.editMarkerId = "";
-      for (const key of Object.keys(videoCapture.openByElementId)) {
-        if (videoCapture.openByElementId[key] === id) delete videoCapture.openByElementId[key];
-      }
-      renderVideoMarkersList();
-      return;
-    }
-    const video = $("videoEl");
-    if (!video) return;
-    const now = quantizeSec(Number(video.currentTime || 0));
-    if (t.dataset.vns) marker.startSec = now;
-    if (t.dataset.vne) marker.endSec = now;
-    if (marker.endSec != null && Number(marker.endSec) < Number(marker.startSec)) {
-      const tmp = marker.startSec;
-      marker.startSec = marker.endSec;
-      marker.endSec = tmp;
+    videoCapture.markers = videoCapture.markers.filter((m) => m.id !== id);
+    if (videoCapture.editMarkerId === id) videoCapture.editMarkerId = "";
+    for (const key of Object.keys(videoCapture.openByElementId)) {
+      if (videoCapture.openByElementId[key] === id) delete videoCapture.openByElementId[key];
     }
     renderVideoMarkersList();
   });
   function commitVideoMarkerInput(target) {
     const t = target;
-    const id = t?.dataset?.vs || t?.dataset?.ve;
+    const id = t?.dataset?.vs || t?.dataset?.ve || t?.dataset?.vact;
     if (!id) return;
     const marker = videoCapture.markers.find((m) => m.id === id);
     if (!marker) return;
+    if (t?.dataset?.vact) {
+      const nextActionId = String(t.value || "");
+      const job = getActiveJob();
+      if (!job || !job.elements.some((el) => el.id === nextActionId)) {
+        renderVideoMarkersList();
+        return;
+      }
+      marker.elementId = nextActionId;
+      renderVideoMarkersList();
+      return;
+    }
     const isEmptyEnd = !!t.dataset.ve && String(t.value || "").trim() === "";
     const parsed = parseLooseNumber(t.value);
     if (!isEmptyEnd && (!Number.isFinite(parsed) || parsed < 0)) {
@@ -5881,7 +6421,7 @@
   }
   $("videoMarkersList").addEventListener("input", (e) => {
     const t = e.target;
-    if (!(t?.dataset?.vs || t?.dataset?.ve)) return;
+    if (!(t?.dataset?.vs || t?.dataset?.ve || t?.dataset?.vact)) return;
     if (String(t.value || "").includes(",")) {
       t.value = String(t.value || "").replace(",", ".");
     }
@@ -6054,10 +6594,23 @@
   $("showAvgLineChk").addEventListener("change", rerender);
   $("showOutliersChk").addEventListener("change", rerender);
   $("outlierModeSel").addEventListener("change", rerender);
-  $("tagNormal").addEventListener("change", rerender);
-  $("tagRework").addEventListener("change", rerender);
-  $("tagTraining").addEventListener("change", rerender);
-  $("tagDisturbance").addEventListener("change", rerender);
+  $("timelineTagSel")?.addEventListener("change", () => {
+    const tagSet = selectedTagsSet();
+    const job = getActiveJob();
+    if (job) {
+      for (const id of [...selectedCycleIdsForLine]) {
+        const cyc = job.cycles.find((c) => c.id === id);
+        if (!cyc || !tagSet.has(cyc.tag || "Normal")) selectedCycleIdsForLine.delete(id);
+      }
+    }
+    rerender();
+  });
+  $("timelineShowAllBtn")?.addEventListener("click", () => {
+    const sel = $("timelineTagSel");
+    if (sel) sel.value = "ALL";
+    setMode("ALL");
+    selectAllVisibleCyclesNoCap();
+  });
 
   $("selectLast3Btn").addEventListener("click", () => selectLastN(3));
   $("clearSelectionBtn").addEventListener("click", clearLineSelection);
@@ -6115,6 +6668,8 @@
     e.target.value = "";
   });
   $("exportCsvBtn").addEventListener("click", exportCsv);
+  $("exportXlsxBtn")?.addEventListener("click", exportXlsx);
+  $("exportGraphBtn")?.addEventListener("click", exportTimelineGraph);
 
   window.addEventListener("keydown", (e) => {
     const t = e.target;
