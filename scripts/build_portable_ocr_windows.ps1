@@ -111,13 +111,13 @@ $runner = @"
 setlocal
 set "APP_DIR=%~dp0"
 if "%PORT%"=="" set "PORT=8081"
-set "VMILL_OCR_BASE_DIR=%APP_DIR%"
-set "PADDLE_HOME=%APP_DIR%.paddlex"
-set "PADDLEX_HOME=%APP_DIR%.paddlex"
-set "PADDLE_PDX_CACHE_HOME=%APP_DIR%.paddlex"
-set "PADDLEOCR_HOME=%APP_DIR%.paddleocr"
-set "TEMP=%APP_DIR%temp"
-set "TMP=%APP_DIR%temp"
+set "VMILL_OCR_BASE_DIR=%APP_DIR%ocr_server"
+set "PADDLE_HOME=%APP_DIR%ocr_server\.paddlex"
+set "PADDLEX_HOME=%APP_DIR%ocr_server\.paddlex"
+set "PADDLE_PDX_CACHE_HOME=%APP_DIR%ocr_server\.paddlex"
+set "PADDLEOCR_HOME=%APP_DIR%ocr_server\.paddleocr"
+set "TEMP=%APP_DIR%ocr_server\temp"
+set "TMP=%APP_DIR%ocr_server\temp"
 if not exist "%PADDLE_PDX_CACHE_HOME%" mkdir "%PADDLE_PDX_CACHE_HOME%"
 if not exist "%PADDLEOCR_HOME%" mkdir "%PADDLEOCR_HOME%"
 if not exist "%TEMP%" mkdir "%TEMP%"
@@ -128,7 +128,7 @@ echo [ocr-portable] starting on :%PORT%
 $runnerPath = Join-Path $DistBase "run_ocr_portable.cmd"
 Set-Content -Path $runnerPath -Value $runner -Encoding ASCII
 
-$paddlexTarget = Join-Path $DistBase ".paddlex\official_models"
+$paddlexTarget = Join-Path $DistBase "ocr_server\.paddlex\official_models"
 $candidateModelDirs = @(
   (Join-Path $RootDir ".paddlex\official_models"),
   (Join-Path $env:USERPROFILE ".paddlex\official_models")

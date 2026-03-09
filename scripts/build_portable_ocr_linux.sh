@@ -52,13 +52,13 @@ set -euo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT="${PORT:-8081}"
 export PORT
-export VMILL_OCR_BASE_DIR="${APP_DIR}"
-export PADDLE_HOME="${APP_DIR}/.paddlex"
-export PADDLEX_HOME="${APP_DIR}/.paddlex"
-export PADDLE_PDX_CACHE_HOME="${APP_DIR}/.paddlex"
-export PADDLEOCR_HOME="${APP_DIR}/.paddleocr"
-export TEMP="${APP_DIR}/temp"
-export TMP="${APP_DIR}/temp"
+export VMILL_OCR_BASE_DIR="${APP_DIR}/ocr_server"
+export PADDLE_HOME="${APP_DIR}/ocr_server/.paddlex"
+export PADDLEX_HOME="${APP_DIR}/ocr_server/.paddlex"
+export PADDLE_PDX_CACHE_HOME="${APP_DIR}/ocr_server/.paddlex"
+export PADDLEOCR_HOME="${APP_DIR}/ocr_server/.paddleocr"
+export TEMP="${APP_DIR}/ocr_server/temp"
+export TMP="${APP_DIR}/ocr_server/temp"
 mkdir -p "$PADDLE_PDX_CACHE_HOME" "$PADDLEOCR_HOME" "$TEMP"
 echo "[ocr-portable] starting on :${PORT}"
 "$APP_DIR/ocr_server/ocr_server"
@@ -66,7 +66,7 @@ EOF
 
 chmod +x "$DIST_BASE/run_ocr_portable.sh"
 
-paddlex_target="$DIST_BASE/.paddlex/official_models"
+paddlex_target="$DIST_BASE/ocr_server/.paddlex/official_models"
 candidate_model_dirs=(
   "$ROOT_DIR/.paddlex/official_models"
   "$HOME/.paddlex/official_models"
