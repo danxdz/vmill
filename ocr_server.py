@@ -131,11 +131,19 @@ os.environ.setdefault('FLAGS_enable_pir_api', '0')
 os.environ.setdefault('FLAGS_enable_pir_in_executor', '0')
 os.environ.setdefault('FLAGS_prim_all', 'false')
 
-# Determine base directory (works for both local and HF Spaces)
-base_dir = os.getcwd()  # Always use current directory for simplicity
-home_dir = os.getenv('HOME')
-if home_dir and os.path.exists(home_dir) and os.access(home_dir, os.W_OK):
-    base_dir = home_dir
+def resolve_base_dir() -> str:
+    """
+    Resolve a writable runtime base directory.
+    - PyInstaller one-dir/one-file: folder containing executable
+    - Source run: folder containing this script
+    """
+    if getattr(sys, "frozen", False):
+        return str(Path(sys.executable).resolve().parent)
+    return str(Path(__file__).resolve().parent)
+
+
+# Determine base directory once and pin all runtime caches inside it.
+base_dir = resolve_base_dir()
 
 # Set paths relative to base directory
 paddle_home = os.path.join(base_dir, '.paddlex')
@@ -145,6 +153,7 @@ temp_dir = os.path.join(base_dir, 'temp')
 # Set environment variables
 os.environ['PADDLE_HOME'] = paddle_home
 os.environ['PADDLEX_HOME'] = paddle_home
+os.environ['PADDLE_PDX_CACHE_HOME'] = paddle_home
 os.environ['PADDLEOCR_HOME'] = paddleocr_home
 os.environ['TEMP'] = temp_dir
 os.environ['TMP'] = temp_dir
@@ -161,6 +170,7 @@ def create_directories():
     """Create necessary directories for PaddleOCR"""
     directories_to_create = [
         paddle_home,
+        os.path.join(paddle_home, 'official_models'),
         paddleocr_home,
         os.path.join(paddleocr_home, 'whl'),
         os.path.join(paddleocr_home, 'whl', 'det', 'en', 'en_PP-OCRv3_det_infer'),

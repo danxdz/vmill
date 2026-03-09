@@ -52,11 +52,38 @@ set -euo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT="${PORT:-8081}"
 export PORT
+export PADDLE_HOME="${APP_DIR}/.paddlex"
+export PADDLEX_HOME="${APP_DIR}/.paddlex"
+export PADDLE_PDX_CACHE_HOME="${APP_DIR}/.paddlex"
+export PADDLEOCR_HOME="${APP_DIR}/.paddleocr"
+export TEMP="${APP_DIR}/temp"
+export TMP="${APP_DIR}/temp"
+mkdir -p "$PADDLE_PDX_CACHE_HOME" "$PADDLEOCR_HOME" "$TEMP"
 echo "[ocr-portable] starting on :${PORT}"
 "$APP_DIR/ocr_server/ocr_server"
 EOF
 
 chmod +x "$DIST_BASE/run_ocr_portable.sh"
+
+paddlex_target="$DIST_BASE/.paddlex/official_models"
+candidate_model_dirs=(
+  "$ROOT_DIR/.paddlex/official_models"
+  "$HOME/.paddlex/official_models"
+)
+model_source=""
+for candidate in "${candidate_model_dirs[@]}"; do
+  if [[ -d "$candidate" ]]; then
+    model_source="$candidate"
+    break
+  fi
+done
+if [[ -n "$model_source" ]]; then
+  mkdir -p "$paddlex_target"
+  cp -a "$model_source"/. "$paddlex_target"/
+  echo "[pack] copied local PaddleX models from $model_source"
+else
+  echo "[pack] no local PaddleX model cache found; first portable startup may require internet."
+fi
 
 echo
 echo "Built OCR portable bundle:"
