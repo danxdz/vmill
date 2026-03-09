@@ -23,8 +23,37 @@ import hashlib
 import socket
 import sys
 
+def resolve_frozen_root_dir() -> Path:
+    """
+    Resolve bundle root for PyInstaller runtime.
+    Prefer locations that actually contain the packaged `public/` directory.
+    """
+    candidates: List[Path] = []
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(Path(meipass))
+    exe_dir = Path(sys.executable).resolve().parent
+    candidates.extend(
+        [
+            exe_dir / "_internal",
+            exe_dir,
+            Path.cwd() / "_internal",
+            Path.cwd(),
+        ]
+    )
+    for candidate in candidates:
+        try:
+            if (candidate / "public").is_dir():
+                return candidate
+        except Exception:
+            continue
+    if meipass:
+        return Path(meipass)
+    return exe_dir
+
+
 if getattr(sys, "frozen", False):
-    ROOT_DIR = Path(getattr(sys, "_MEIPASS", Path.cwd()))
+    ROOT_DIR = resolve_frozen_root_dir()
     RUNTIME_DIR = Path.cwd()
 else:
     ROOT_DIR = Path(__file__).resolve().parent
@@ -1425,13 +1454,26 @@ class VMillHandler(BaseHTTPRequestHandler):
 
         public_root = PUBLIC_DIR.resolve()
         repo_root = ROOT_DIR.resolve()
-        candidates: List[Tuple[Path, str]] = [
-            (PUBLIC_DIR / rel, "public"),
-            (ROOT_DIR / rel, "root"),
+        dist_roots: List[Path] = []
+        for base in (ROOT_DIR / "dist", RUNTIME_DIR / "dist"):
+            try:
+                resolved_base = base.resolve()
+            except Exception:
+                continue
+            if resolved_base in dist_roots:
+                continue
+            if resolved_base.exists() and resolved_base.is_dir():
+                dist_roots.append(resolved_base)
+
+        candidates: List[Tuple[Path, str, Path]] = [
+            (PUBLIC_DIR / rel, "public", public_root),
+            (ROOT_DIR / rel, "root", repo_root),
         ]
+        for dist_root in dist_roots:
+            candidates.append((dist_root / rel, "dist", dist_root))
 
         target: Optional[Path] = None
-        for cand, scope in candidates:
+        for cand, scope, scope_root in candidates:
             try:
                 resolved = cand.resolve()
             except Exception:
@@ -1440,6 +1482,11 @@ class VMillHandler(BaseHTTPRequestHandler):
                 continue
             if scope == "public":
                 if not str(resolved).startswith(str(public_root)):
+                    continue
+                target = resolved
+                break
+            if scope == "dist":
+                if not str(resolved).startswith(str(scope_root)):
                     continue
                 target = resolved
                 break

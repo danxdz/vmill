@@ -34,6 +34,7 @@ $runner = @"
 @echo off
 setlocal
 set "APP_DIR=%~dp0"
+cd /d "%APP_DIR%"
 if "%PORT%"=="" set "PORT=8080"
 if "%VMILL_DB_PATH%"=="" set "VMILL_DB_PATH=%APP_DIR%vmill.db"
 echo [vmill-portable] starting on :%PORT% with DB %VMILL_DB_PATH%

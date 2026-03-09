@@ -31,6 +31,7 @@ cat >"$DIST_BASE/run_vmill_portable.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$APP_DIR"
 PORT="${PORT:-8080}"
 export VMILL_DB_PATH="${VMILL_DB_PATH:-$APP_DIR/vmill.db}"
 export PORT
