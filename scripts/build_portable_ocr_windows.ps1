@@ -111,6 +111,7 @@ $runner = @"
 setlocal
 set "APP_DIR=%~dp0"
 if "%PORT%"=="" set "PORT=8081"
+set "VMILL_OCR_BASE_DIR=%APP_DIR%"
 set "PADDLE_HOME=%APP_DIR%.paddlex"
 set "PADDLEX_HOME=%APP_DIR%.paddlex"
 set "PADDLE_PDX_CACHE_HOME=%APP_DIR%.paddlex"

@@ -52,6 +52,7 @@ set -euo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT="${PORT:-8081}"
 export PORT
+export VMILL_OCR_BASE_DIR="${APP_DIR}"
 export PADDLE_HOME="${APP_DIR}/.paddlex"
 export PADDLEX_HOME="${APP_DIR}/.paddlex"
 export PADDLE_PDX_CACHE_HOME="${APP_DIR}/.paddlex"

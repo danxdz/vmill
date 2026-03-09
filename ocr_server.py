@@ -134,23 +134,52 @@ os.environ.setdefault('FLAGS_prim_all', 'false')
 def resolve_base_dir() -> str:
     """
     Resolve a writable runtime base directory.
-    - PyInstaller one-dir/one-file: folder containing executable
+    - Explicit override via OCR_BASE_DIR / VMILL_OCR_BASE_DIR
+    - PyInstaller one-dir: bundle root (parent of executable folder)
     - Source run: folder containing this script
     """
+    explicit = os.getenv("VMILL_OCR_BASE_DIR") or os.getenv("OCR_BASE_DIR")
+    if explicit:
+        try:
+            return str(Path(explicit).resolve())
+        except Exception:
+            return str(Path(explicit))
     if getattr(sys, "frozen", False):
-        return str(Path(sys.executable).resolve().parent)
+        exe_dir = Path(sys.executable).resolve().parent
+        parent = exe_dir.parent
+        if parent != exe_dir:
+            return str(parent)
+        return str(exe_dir)
     return str(Path(__file__).resolve().parent)
 
 
 # Determine base directory once and pin all runtime caches inside it.
 base_dir = resolve_base_dir()
 
-# Set paths relative to base directory
-paddle_home = os.path.join(base_dir, '.paddlex')
-paddleocr_home = os.path.join(base_dir, '.paddleocr')
-temp_dir = os.path.join(base_dir, 'temp')
+# Resolve paths, honoring launcher-provided env vars first.
+paddle_home = str(
+    Path(
+        os.environ.get('PADDLE_PDX_CACHE_HOME')
+        or os.environ.get('PADDLEX_HOME')
+        or os.path.join(base_dir, '.paddlex')
+    ).resolve()
+)
+paddleocr_home = str(
+    Path(
+        os.environ.get('PADDLEOCR_HOME')
+        or os.path.join(base_dir, '.paddleocr')
+    ).resolve()
+)
+temp_dir = str(
+    Path(
+        os.environ.get('TMPDIR')
+        or os.environ.get('TMP')
+        or os.environ.get('TEMP')
+        or os.path.join(base_dir, 'temp')
+    ).resolve()
+)
 
-# Set environment variables
+# Set environment variables for downstream libraries.
 os.environ['PADDLE_HOME'] = paddle_home
 os.environ['PADDLEX_HOME'] = paddle_home
 os.environ['PADDLE_PDX_CACHE_HOME'] = paddle_home
