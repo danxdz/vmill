@@ -3524,20 +3524,38 @@ from fastapi import Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-# Mount static files with error handling
-static_dir = os.path.join(os.path.dirname(__file__), "static")
-if os.path.exists(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    logger.info(f"Static files mounted from: {static_dir}")
-else:
-    logger.warning(f"Static directory not found: {static_dir}")
-    # Create static directory if it doesn't exist
-    try:
-        os.makedirs(static_dir, exist_ok=True)
-        app.mount("/static", StaticFiles(directory=static_dir), name="static")
-        logger.info(f"Created and mounted static directory: {static_dir}")
-    except Exception as e:
-        logger.error(f"Failed to create static directory: {e}")
+def resolve_static_dir() -> str:
+    """Resolve static assets directory for source and frozen runtimes."""
+    candidates = []
+    env_static = os.getenv("OCR_STATIC_DIR")
+    if env_static:
+        candidates.append(Path(env_static))
+    runtime_file_dir = Path(__file__).resolve().parent
+    exe_dir = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else runtime_file_dir
+    candidates.extend(
+        [
+            Path(base_dir) / "static",
+            runtime_file_dir / "static",
+            exe_dir / "_internal" / "static",
+            exe_dir / "static",
+        ]
+    )
+    seen = set()
+    for candidate in candidates:
+        key = str(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        if candidate.exists() and candidate.is_dir():
+            return str(candidate)
+    fallback = Path(base_dir) / "static"
+    fallback.mkdir(parents=True, exist_ok=True)
+    return str(fallback)
+
+
+static_dir = resolve_static_dir()
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+logger.info(f"Static files mounted from: {static_dir}")
 
 def send_telegram_message(message, chat_id=None):
     """Send message to Telegram"""
