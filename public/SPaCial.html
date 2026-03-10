@@ -322,9 +322,9 @@
               <button id="opSaveBtn" class="primary" type="button">Save Operation</button>
             </div>
             <div class="chartBox" style="margin-top:10px;">
-              <div class="mini" id="opCharHint">Characteristics used in this operation</div>
+              <div class="mini" id="opCharHint">Characteristics are linked automatically from annotations for this operation.</div>
               <div id="opCharList" class="tableWrap" style="max-height:180px;min-height:92px;margin-top:8px;"></div>
-              <div class="routeTools" style="margin-top:8px;">
+              <div class="routeTools" id="opCharActions" style="margin-top:8px;display:none;">
                 <button id="opCharUseAllBtn" type="button">Use All</button>
                 <button id="opCharClearBtn" type="button">Clear</button>
               </div>
@@ -359,7 +359,7 @@
           </div>
         </details>
 
-        <details class="section">
+        <details class="section" open>
           <summary id="sectionBubblesSummary">Annotations</summary>
           <div class="sectionBody">
             <div class="mini" id="bubbleSectionHint" style="margin-top:2px;">Dimensional annotations for selected operation</div>
@@ -560,7 +560,7 @@
         setTxt("opDownBtn", "spacial.moveDown", "Move Down");
         setTxt("opCriticalLbl", "spacial.op.critical", "Critical operation");
         setTxt("opSaveBtn", "spacial.op.save", "Save Operation");
-        setTxt("opCharHint", "spacial.op.characteristicsHint", "Characteristics used in this operation");
+        setTxt("opCharHint", "spacial.op.characteristicsAutoHint", "Characteristics are linked automatically from annotations for this operation.");
         setTxt("opCharUseAllBtn", "spacial.op.characteristicsUseAll", "Use All");
         setTxt("opCharClearBtn", "spacial.op.characteristicsClear", "Clear");
         setTxt("charSectionHint", "spacial.characteristics.hint", "Catalog linked to the selected product.");
@@ -1564,10 +1564,65 @@
         const rows = listProductCharacteristics(productId);
         return rows.find((x) => String(x.id || "") === id) || null;
       }
+      function characteristicByName(name, productId = "") {
+        const wanted = strOrEmpty(name).toLowerCase();
+        if (!wanted) return null;
+        const rows = listProductCharacteristics(productId);
+        return rows.find((x) => String(x.name || "").trim().toLowerCase() === wanted) || null;
+      }
       function characteristicNameById(charId, productId = "") {
         const ch = characteristicById(charId, productId);
         if (!ch) return "";
         return `${ch.id}${ch.name ? ` - ${ch.name}` : ""}`;
+      }
+      function upsertCharacteristicFromAnnotation(bubble, productId = "") {
+        if (!window.VMillData?.upsertRecord) return "";
+        const pid = strOrEmpty(productId || currentRouteProductId());
+        if (!pid) return "";
+        const rows = listProductCharacteristics(pid);
+        const fromId = strOrEmpty(bubble?.characteristicId);
+        const fromName = strOrEmpty(bubble?.name);
+        const existing = characteristicById(fromId, pid) || characteristicByName(fromName, pid);
+        const charId = strOrEmpty(existing?.id) || strOrEmpty(fromId) || nextCharacteristicId(rows);
+        const now = new Date().toISOString();
+        const rec = normalizeCharacteristic({
+          id: charId,
+          productId: pid,
+          name: fromName || existing?.name || "",
+          nominal: bubble?.nominal ?? existing?.nominal,
+          lsl: bubble?.lsl ?? existing?.lsl,
+          usl: bubble?.usl ?? existing?.usl,
+          unit: strOrEmpty(bubble?.unit || existing?.unit || "mm"),
+          method: strOrEmpty(bubble?.method || existing?.method),
+          instrument: strOrEmpty(bubble?.instrument || existing?.instrument),
+          reactionPlan: strOrEmpty(bubble?.reactionPlan || existing?.reactionPlan),
+          createdAt: existing?.createdAt || now,
+          updatedAt: now,
+        }, rows.length, pid);
+        if (!strOrEmpty(rec.name)) return "";
+        window.VMillData.upsertRecord(NS_CHAR, rec);
+        return String(rec.id || "");
+      }
+      function deriveOperationCharacteristicIdsFromBubbles(op) {
+        if (!op || typeof op !== "object") return [];
+        const out = [];
+        const seen = new Set();
+        const files = ensureOperationFiles(op);
+        for (const file of files) {
+          for (const b of (file?.bubbles || [])) {
+            const cid = strOrEmpty(b?.characteristicId);
+            if (!cid || seen.has(cid)) continue;
+            seen.add(cid);
+            out.push(cid);
+          }
+        }
+        return out;
+      }
+      function syncOperationCharacteristicIdsFromBubbles(op) {
+        if (!op || typeof op !== "object") return [];
+        const nextIds = deriveOperationCharacteristicIdsFromBubbles(op);
+        op.characteristicIds = normalizeIdList(nextIds);
+        return op.characteristicIds;
       }
       function ensureOpCharacteristicRefs(op) {
         if (!op || typeof op !== "object") return [];
@@ -2271,33 +2326,19 @@
         }
         const productId = currentRouteProductId();
         const rows = listProductCharacteristics(productId);
-        const validIds = new Set(rows.map((x) => String(x.id || "")));
-        const normalizedIds = ensureOpCharacteristicRefs(op).filter((x) => validIds.has(String(x || "")));
-        op.characteristicIds = normalizedIds;
-        const selectedIds = new Set(normalizedIds);
-        if (!rows.length) {
-          wrap.innerHTML = `<div class="mini">${tt("spacial.characteristics.none", "No characteristics yet.")}</div>`;
+        const byId = new Map(rows.map((x) => [String(x.id || ""), x]));
+        const linkedIds = deriveOperationCharacteristicIdsFromBubbles(op);
+        op.characteristicIds = linkedIds.slice();
+        if (!linkedIds.length) {
+          wrap.innerHTML = `<div class="mini">${tt("spacial.op.noLinkedCharacteristics", "No linked characteristics yet. Save/import annotations first.")}</div>`;
           return;
         }
-        wrap.innerHTML = rows.map((ch) => {
+        wrap.innerHTML = linkedIds.map((cid) => {
+          const ch = byId.get(String(cid || ""));
+          if (!ch) return `<div class="mini" style="padding:6px 4px;border-bottom:1px solid var(--border);"><strong>${escHtml(cid)}</strong> (${tt("spacial.annotation.legacy", "legacy")})</div>`;
           const spec = `N:${ch.nominal == null ? "-" : ch.nominal} | L:${ch.lsl == null ? "-" : ch.lsl} | U:${ch.usl == null ? "-" : ch.usl} ${ch.unit || ""}`;
-          return `
-            <label style="display:flex;gap:8px;align-items:flex-start;padding:6px 4px;border-bottom:1px solid var(--border);">
-              <input type="checkbox" data-op-char-id="${escHtml(ch.id || "")}" ${selectedIds.has(String(ch.id || "")) ? "checked" : ""} style="margin-top:2px;" />
-              <span>
-                <strong>${escHtml(ch.id || "")}</strong> - ${escHtml(ch.name || "")}
-                <div class="mini">${escHtml(spec)}</div>
-              </span>
-            </label>
-          `;
+          return `<div style="padding:6px 4px;border-bottom:1px solid var(--border);"><strong>${escHtml(ch.id || "")}</strong> - ${escHtml(ch.name || "")}<div class="mini">${escHtml(spec)}</div></div>`;
         }).join("");
-        wrap.querySelectorAll("input[data-op-char-id]").forEach((el) => {
-          el.addEventListener("change", () => {
-            op.characteristicIds = operationCharacteristicIdsFromUi();
-            writeRoutePlan(routePlan);
-            renderRoutingPanel();
-          });
-        });
       }
       function renderBubbleCharacteristicSelect(preferredId = "") {
         const sel = $("bubbleCharSel");
@@ -2311,20 +2352,18 @@
         }
         const productId = currentRouteProductId();
         const rows = listProductCharacteristics(productId);
-        const allowed = new Set(ensureOpCharacteristicRefs(op));
-        const allowedRows = rows.filter((x) => allowed.has(String(x.id || "")));
         const first = document.createElement("option");
         first.value = "";
         first.textContent = tt("spacial.annotation.noCharacteristic", "No linked characteristic");
         sel.appendChild(first);
-        for (const ch of allowedRows) {
+        for (const ch of rows) {
           const o = document.createElement("option");
           o.value = String(ch.id || "");
           o.textContent = `${ch.id || "--"} - ${ch.name || ""}`;
           sel.appendChild(o);
         }
         let wanted = strOrEmpty(preferredId || sel.value);
-        if (wanted && !allowedRows.some((x) => String(x.id || "") === wanted)) {
+        if (wanted && !rows.some((x) => String(x.id || "") === wanted)) {
           const fallback = rows.find((x) => String(x.id || "") === wanted);
           if (fallback) {
             const o = document.createElement("option");
@@ -2335,7 +2374,7 @@
             wanted = "";
           }
         }
-        const hasLinkedOptions = allowedRows.length > 0 || (wanted && Array.from(sel.options).some((o) => String(o.value || "") === wanted));
+        const hasLinkedOptions = rows.length > 0 || (wanted && Array.from(sel.options).some((o) => String(o.value || "") === wanted));
         sel.disabled = !hasLinkedOptions;
         sel.value = wanted || "";
       }
@@ -2468,6 +2507,7 @@
             const file = selectedOperationFile(op);
             if (!file) return;
             file.bubbles = bubbles.filter((_, idx) => idx !== i);
+            syncOperationCharacteristicIdsFromBubbles(op);
             if (!file.bubbles.some((x) => String(x.id || "") === String(selectedCanvasBubbleId || ""))) {
               selectedCanvasBubbleId = file.bubbles[0]?.id || "";
             }
@@ -2877,6 +2917,7 @@
             const opFile = selectedOperationFile(op);
             if (opFile) {
               opFile.bubbles = (opFile.bubbles || []).filter((x) => String(x.id || "") !== String(hit.bubble.id || ""));
+              syncOperationCharacteristicIdsFromBubbles(op);
               selectedCanvasBubbleId = opFile.bubbles[0]?.id || "";
               writeRoutePlan(routePlan);
               renderRoutingPanel();
@@ -3433,7 +3474,7 @@
         op.controlMethod = strOrEmpty($("opControlMethodIn").value);
         op.notes = strOrEmpty($("opNotesIn").value);
         op.critical = !!$("opCriticalChk").checked;
-        op.characteristicIds = operationCharacteristicIdsFromUi();
+        syncOperationCharacteristicIdsFromBubbles(op);
         routePlan.operations = sortOpsBySeq(routePlan.operations);
         writeRoutePlan(routePlan);
         renderRoutingPanel();
@@ -3475,14 +3516,8 @@
           alert(tt("spacial.alert.annotationNameRequired", "Annotation name is required."));
           return;
         }
-        const linkedCharId = strOrEmpty(b.characteristicId);
-        if (linkedCharId) {
-          const nextOpChars = new Set(ensureOpCharacteristicRefs(op));
-          if (!nextOpChars.has(linkedCharId)) {
-            nextOpChars.add(linkedCharId);
-            op.characteristicIds = Array.from(nextOpChars);
-          }
-        }
+        const linkedCharId = upsertCharacteristicFromAnnotation(b, currentRouteProductId());
+        if (linkedCharId) b.characteristicId = linkedCharId;
         const editIdx = bubbles.findIndex((x) => String(x.id || "") === String(editingBubbleId || ""));
         const idIdx = bubbles.findIndex((x) => String(x.id || "") === String(b.id || ""));
         const prev = editIdx >= 0 ? bubbles[editIdx] : (idIdx >= 0 ? bubbles[idIdx] : null);
@@ -3493,6 +3528,7 @@
         if (editIdx >= 0) bubbles[editIdx] = b;
         else if (idIdx >= 0) bubbles[idIdx] = b;
         else bubbles.push(b);
+        syncOperationCharacteristicIdsFromBubbles(op);
         selectedCanvasBubbleId = b.id;
         clearBubbleForm();
         selectedCanvasBubbleId = b.id;
@@ -3620,14 +3656,14 @@
               }, bubbles.length + imported.length));
             }
             if (!imported.length) throw new Error(tt("spacial.import.noValid.annotations", "No valid annotations found."));
-            const nextOpChars = new Set(ensureOpCharacteristicRefs(op));
             for (const b of imported) {
-              if (strOrEmpty(b.characteristicId)) nextOpChars.add(String(b.characteristicId || ""));
+              const linkedCharId = upsertCharacteristicFromAnnotation(b, currentRouteProductId());
+              if (linkedCharId) b.characteristicId = linkedCharId;
               const idx = bubbles.findIndex((x) => String(x.id || "") === String(b.id || ""));
               if (idx >= 0) bubbles[idx] = b;
               else bubbles.push(b);
             }
-            op.characteristicIds = Array.from(nextOpChars);
+            syncOperationCharacteristicIdsFromBubbles(op);
             writeRoutePlan(routePlan);
             renderRoutingPanel();
             alert(tt("spacial.import.done.annotations", "Imported {count} annotation(s).", { count: imported.length }));
@@ -4015,6 +4051,7 @@
         if (!confirm(tt("spacial.confirm.deleteFile", "Delete selected file and its annotations?"))) return;
         const files = ensureOperationFiles(op).filter((f) => String(f.id || "") !== String(file.id || ""));
         op.files = files.length ? files : [normalizeOperationFile({ name: `${tt("spacial.file.default", "File")} 1`, bubbles: [] }, 0)];
+        syncOperationCharacteristicIdsFromBubbles(op);
         op.activeFileId = op.files[0].id;
         selectedOpFileId = op.activeFileId;
         selectedCanvasBubbleId = "";
@@ -4281,14 +4318,14 @@
       $("opCharUseAllBtn").addEventListener("click", () => {
         const op = operationById(selectedOpId);
         if (!op) return;
-        op.characteristicIds = listProductCharacteristics(currentRouteProductId()).map((x) => String(x.id || ""));
+        syncOperationCharacteristicIdsFromBubbles(op);
         writeRoutePlan(routePlan);
         renderRoutingPanel();
       });
       $("opCharClearBtn").addEventListener("click", () => {
         const op = operationById(selectedOpId);
         if (!op) return;
-        op.characteristicIds = [];
+        syncOperationCharacteristicIdsFromBubbles(op);
         writeRoutePlan(routePlan);
         renderRoutingPanel();
       });
@@ -4332,6 +4369,7 @@
         if (!op || !opFile || !selectedCanvasBubbleId) return;
         if (!confirm(tt("spacial.confirm.deleteSelectedAnnotation", "Delete selected annotation?"))) return;
         opFile.bubbles = (opFile.bubbles || []).filter((x) => String(x.id || "") !== String(selectedCanvasBubbleId || ""));
+        syncOperationCharacteristicIdsFromBubbles(op);
         selectedCanvasBubbleId = opFile.bubbles[0]?.id || "";
         writeRoutePlan(routePlan);
         renderRoutingPanel();
