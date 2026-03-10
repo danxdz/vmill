@@ -134,10 +134,19 @@
   <script src="./modules/module-shell.js"></script>
   <script src="./modules/module-io.js"></script>
   <script src="./modules/module-data.js"></script>
+  <script src="./modules/module-auth.js"></script>
   <script src="./modules/module-lang.js"></script>
   <script src="./modules/module-theme.js"></script>
   <script>
     (function(){
+      if (typeof window.VMillAuth === "undefined" || !window.VMillAuth.isLoggedIn()) {
+        location.replace("./login.html");
+        return;
+      }
+      if (!window.VMillAuth.isAdmin()) {
+        location.replace("./vmill_hub.html");
+        return;
+      }
       const $ = (id) => document.getElementById(id);
       const FIELDS = ["bg", "text", "accent", "headerBg", "headerText"];
       const PRESETS = {

@@ -1373,6 +1373,47 @@
       padding: 8px;
       font-size: 12px;
     }
+    .adminUsersList {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .adminUserRow {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--panel3) 76%, transparent);
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+    }
+    .adminUserHead {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    .adminUserGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+    }
+    .adminUserGrid input,
+    .adminUserGrid select {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel3);
+      color: var(--text);
+      padding: 6px 8px;
+      font-size: 12px;
+    }
+    .adminUserActions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
     body.hubPanelStackVertical .desktop {
       grid-template-columns: 1fr;
     }
@@ -1487,8 +1528,8 @@
             <span class="pill mono" id="hubOnlineStatus">● Offline</span>
             <span class="pill mono" id="hubUserLabel">guest</span>
             <button class="btn ghost" id="hubLogoutBtn" type="button">Logout</button>
-            <button class="btn ghost" id="openThemeSettingsBtn" type="button">Theme</button>
-            <button class="btn ghost" id="openTranslationSettingsBtn" type="button">Translations</button>
+            <button class="btn ghost" id="openThemeSettingsBtn" type="button" data-admin-only="1">Theme</button>
+            <button class="btn ghost" id="openTranslationSettingsBtn" type="button" data-admin-only="1">Translations</button>
             <select id="globalLangSel" style="padding:6px 8px;border-radius:9px;border:1px solid var(--border);background:var(--panel3);color:var(--text);font-size:11px;">
               <option value="en">English</option>
               <option value="fr">Francais</option>
@@ -1571,7 +1612,7 @@
               <button class="btn ghost" id="scopeDockStyleResetBtn" type="button">Reset style</button>
             </div>
           </div>
-          <div class="settingsCard">
+          <div class="settingsCard" data-admin-only="1">
             <div class="settingsTitle" id="settingsModulesTitle">Modules</div>
             <div class="widgetToggles" id="moduleToggles"></div>
           </div>
@@ -1664,6 +1705,8 @@
             <div class="controlRow" style="margin-top:10px;">
               <button class="btn ghost" id="importAllBtn" type="button">Import JSON</button>
               <button class="btn" id="exportAllBtn" type="button">Export All JSON</button>
+            </div>
+            <div class="controlRow" style="margin-top:10px;" data-admin-only="1">
               <label class="minor" id="seedDemoPresetLbl" for="seedDemoPresetSel">Demo preset</label>
               <select id="seedDemoPresetSel" style="max-width:170px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;">
                 <option value="small">Small</option>
@@ -1674,14 +1717,31 @@
               <button class="btn warn" id="removeDemoBtn" type="button">Remove Demo</button>
               <button class="btn warn" id="resetDataBtn" type="button">Reset Data</button>
               <button class="btn ghost" id="clearSettingsBtn" type="button">Clear Local Settings</button>
-              <input id="importFile" type="file" accept=".json,application/json" style="display:none" />
             </div>
+            <input id="importFile" type="file" accept=".json,application/json" style="display:none" />
             <details class="fold">
               <summary id="advancedToolsSummary">Advanced Tools</summary>
               <div class="controlRow" style="margin-top:8px;">
                 <button class="btn" id="exportCsvBtn" type="button">Export Cycles CSV</button>
                 <button class="btn" id="exportTxtBtn" type="button">Export Summary TXT</button>
               </div>
+            </details>
+            <details class="fold" id="adminUsersSection" data-admin-only="1">
+              <summary>Users & Access</summary>
+              <div class="controlRow" style="margin-top:8px;">
+                <input id="adminCreateUsername" type="text" placeholder="username" style="max-width:180px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;" />
+                <input id="adminCreateEmail" type="email" placeholder="email" style="max-width:240px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;" />
+                <input id="adminCreatePassword" type="password" placeholder="password" style="max-width:180px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;" />
+                <select id="adminCreateRole" style="max-width:150px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;">
+                  <option value="operator">operator</option>
+                  <option value="manager">manager</option>
+                  <option value="admin">admin</option>
+                </select>
+                <button class="btn" id="adminCreateUserBtn" type="button">Add user</button>
+                <button class="btn ghost" id="adminRefreshUsersBtn" type="button">Refresh</button>
+              </div>
+              <div id="adminUsersList" class="adminUsersList"></div>
+              <div id="adminUsersMsg" class="minor" style="margin-top:6px;"></div>
             </details>
           </div>
         </article>
@@ -1741,6 +1801,12 @@
         { id: "cnc-sim", name: "CNC Simulator", desc: "Opens the CNC simulator launcher.", href: "./cnc_sim.html", status: "ready", tags: ["cnc", "simulation"] },
         { id: "can-bus", name: "Logger", desc: "Real-time event logger for sync/auth/data changes with filters and export.", href: "./logger.html", status: "ready", tags: ["logger", "can", "diagnostics", "audit"] },
       ];
+      const MODULE_MIN_ROLE = {
+        "shop-tree": "admin",
+        "records": "admin",
+        "theme": "admin",
+        "translations": "admin",
+      };
       const hubLayout = document.getElementById("hubLayout");
       const headerHoverZone = document.getElementById("headerHoverZone");
       const menuToggleBtn = document.getElementById("menuToggleBtn");
@@ -1790,9 +1856,12 @@
       if (USE_SINGLE_GLOBAL_SCOPE && overviewWidget) {
         overviewWidget.remove();
       }
-      const mods = (Array.isArray(window.VMillModules) && window.VMillModules.length)
+      const mods = ((Array.isArray(window.VMillModules) && window.VMillModules.length)
         ? window.VMillModules
-        : FALLBACK_MODULES;
+        : FALLBACK_MODULES).map((m) => ({
+          ...m,
+          minRole: String(m?.minRole || MODULE_MIN_ROLE[String(m?.id || "")] || "operator").toLowerCase(),
+        }));
       const moduleById = new Map(mods.map((m) => [String(m.id || ""), m]));
       const allWidgets = Array.from(desktop.querySelectorAll(".widget"));
       const defaultOrder = allWidgets.map((w) => String(w.dataset.widget || ""));
@@ -1805,6 +1874,14 @@
       const jobsOverlayTextChk = document.getElementById("jobsOverlayTextChk");
       const seedDemoPresetSel = document.getElementById("seedDemoPresetSel");
       const imageUploadFile = document.getElementById("imageUploadFile");
+      const adminUsersList = document.getElementById("adminUsersList");
+      const adminUsersMsg = document.getElementById("adminUsersMsg");
+      const adminCreateUsername = document.getElementById("adminCreateUsername");
+      const adminCreateEmail = document.getElementById("adminCreateEmail");
+      const adminCreatePassword = document.getElementById("adminCreatePassword");
+      const adminCreateRole = document.getElementById("adminCreateRole");
+      const adminCreateUserBtn = document.getElementById("adminCreateUserBtn");
+      const adminRefreshUsersBtn = document.getElementById("adminRefreshUsersBtn");
       let jobsViewMode = "cards";
       let jobsEntityMode = "jobs";
       let jobsCardPrefs = { compact: true, overlayText: true };
@@ -1832,6 +1909,7 @@
       let hubUiPrefs = { autoScale: true, scalePct: 100, compact: false, reduceMotion: false, panelStack: "vertical" };
       let scopeToolbarPrefs = { mode: "roots", hiddenTypeIds: [] };
       let scopeDockStylePrefs = { widthPct: 92, selectPct: 14, searchPct: 17 };
+      let adminUsersCache = [];
       function requestHubRender(opts = {}) {
         hubRenderNeedOverview = hubRenderNeedOverview || !!opts.overview;
         hubRenderNeedJobs = hubRenderNeedJobs || !!opts.jobs;
@@ -1873,6 +1951,42 @@
           .replace(/"/g, "&quot;");
       }
 
+      function roleRank(role) {
+        const r = String(role || "").toLowerCase();
+        if (r === "admin") return 3;
+        if (r === "manager") return 2;
+        if (r === "operator") return 1;
+        return 0;
+      }
+
+      function currentUserRole() {
+        return String(window.VMillAuth?.getUser?.()?.role || "").toLowerCase();
+      }
+
+      function hasRole(minRole = "operator") {
+        return roleRank(currentUserRole()) >= roleRank(String(minRole || "operator").toLowerCase());
+      }
+
+      function moduleMinRole(moduleId) {
+        const id = String(moduleId || "");
+        const mod = moduleById.get(id);
+        return String(mod?.minRole || MODULE_MIN_ROLE[id] || "operator").toLowerCase();
+      }
+
+      function canAccessModule(moduleId) {
+        const id = String(moduleId || "");
+        if (!id || id === "hub") return true;
+        return hasRole(moduleMinRole(id));
+      }
+
+      function applyAdminVisibility() {
+        const isAdmin = hasRole("admin");
+        document.querySelectorAll("[data-admin-only]").forEach((el) => {
+          if (!(el instanceof HTMLElement)) return;
+          el.style.display = isAdmin ? "" : "none";
+        });
+      }
+
       function updateOnlineStatus(status) {
         if (!hubOnlineStatus) return;
         const online = !!status?.online;
@@ -1890,6 +2004,13 @@
         const logged = !!window.VMillAuth?.isLoggedIn?.();
         if (hubUserLabel) hubUserLabel.textContent = logged ? String(user?.username || "user") : "guest";
         if (hubLogoutBtn) hubLogoutBtn.style.display = logged ? "inline-block" : "none";
+        applyAdminVisibility();
+        updateDockButtons();
+        renderModules();
+        ensureWorkspaceModuleAllowed();
+        if (hasRole("admin")) {
+          void refreshAdminUsers(false);
+        }
       }
 
       function applyHubI18nStatic() {
@@ -2874,6 +2995,7 @@
       function isModuleEnabled(moduleId) {
         if (!moduleId) return true;
         const id = String(moduleId || "");
+        if (!canAccessModule(id)) return false;
         if (id === "can-bus" || id === "theme" || id === "translations") return true;
         return !readModulePrefs().disabled.includes(id);
       }
@@ -2992,7 +3114,7 @@
       function openModuleInWorkspace(rawHref, moduleId) {
         const id = String(moduleId || "");
         if (!id || id === "hub") return closeWorkspace();
-        if (!isModuleEnabled(id)) return;
+        if (!canAccessModule(id) || !isModuleEnabled(id)) return;
         if (id !== activeWorkspaceModuleId && !confirmAnyStudioExit()) return;
         try {
           const url = new URL(rawHref, location.href);
@@ -3066,12 +3188,14 @@
 
         if (openThemeSettingsBtn) {
           openThemeSettingsBtn.addEventListener("click", () => {
+            if (!canAccessModule("theme")) return;
             openModuleInWorkspace("./theme_studio.html", "theme");
             setTopbarCollapsed(true);
           });
         }
         if (openTranslationSettingsBtn) {
           openTranslationSettingsBtn.addEventListener("click", () => {
+            if (!canAccessModule("translations")) return;
             openModuleInWorkspace("./translation_studio.html", "translations");
             setTopbarCollapsed(true);
           });
@@ -3470,9 +3594,105 @@
       function updateDockButtons() {
         for (const btn of dockButtons) {
           const id = String(btn.dataset.dockId || "");
-          const keep = id === "hub" || isModuleEnabled(id);
+          const keep = id === "hub" || (canAccessModule(id) && isModuleEnabled(id));
           btn.style.display = keep ? "" : "none";
         }
+      }
+
+      function setAdminUsersMsg(text, tone = "") {
+        if (!adminUsersMsg) return;
+        adminUsersMsg.textContent = String(text || "");
+        adminUsersMsg.style.color = tone === "err"
+          ? "var(--danger)"
+          : (tone === "ok" ? "var(--ok)" : "var(--muted)");
+      }
+
+      function adminRoleOptions(activeRole = "operator") {
+        const current = String(activeRole || "operator").toLowerCase();
+        const roles = ["operator", "manager", "admin"];
+        return roles.map((role) => `<option value="${role}" ${role === current ? "selected" : ""}>${role}</option>`).join("");
+      }
+
+      async function adminUsersRequest(method, id = "", payload = null) {
+        const base = String(window.VMillAuth?.getServerUrl?.() || "").trim();
+        const token = String(window.VMillAuth?.getToken?.() || "").trim();
+        if (!base || !token) return { ok: false, status: 0, data: { error: "missing_auth" } };
+        const rid = String(id || "").trim();
+        const url = rid ? `${base}/api/users/${encodeURIComponent(rid)}` : `${base}/api/users`;
+        const headers = { Authorization: `Bearer ${token}` };
+        const init = { method: String(method || "GET").toUpperCase(), cache: "no-store", headers };
+        if (payload && init.method !== "GET") {
+          headers["Content-Type"] = "application/json";
+          init.body = JSON.stringify(payload);
+        }
+        try {
+          const res = await fetch(url, init);
+          const data = await res.json().catch(() => ({}));
+          return {
+            ok: !!res.ok,
+            status: Number(res.status || 0),
+            data: data && typeof data === "object" ? data : {},
+          };
+        } catch {
+          return { ok: false, status: 0, data: { error: "network_error" } };
+        }
+      }
+
+      function renderAdminUsers() {
+        if (!adminUsersList) return;
+        if (!hasRole("admin")) {
+          adminUsersList.innerHTML = "";
+          setAdminUsersMsg("");
+          return;
+        }
+        const selfId = String(window.VMillAuth?.getUser?.()?.id || "");
+        const users = Array.isArray(adminUsersCache) ? adminUsersCache.slice() : [];
+        users.sort((a, b) => String(a?.username || "").localeCompare(String(b?.username || "")));
+        if (!users.length) {
+          adminUsersList.innerHTML = `<div class="empty">No users found.</div>`;
+          return;
+        }
+        adminUsersList.innerHTML = users.map((u) => {
+          const uid = String(u?.id || "");
+          const username = String(u?.username || "");
+          const email = String(u?.email || "");
+          const role = String(u?.role || "operator");
+          const createdAt = String(u?.created_at || u?.createdAt || "");
+          const createdLabel = createdAt ? new Date(createdAt).toLocaleString() : "";
+          const isSelf = uid && uid === selfId;
+          return `
+            <div class="adminUserRow" data-admin-user-row="${escHtml(uid)}">
+              <div class="adminUserHead">
+                <strong>${escHtml(username || uid)}</strong>
+                <span class="minor">${escHtml(createdLabel ? `created ${createdLabel}` : "")}</span>
+              </div>
+              <div class="adminUserGrid">
+                <input type="text" value="${escHtml(username)}" data-admin-user-username="${escHtml(uid)}" />
+                <input type="email" value="${escHtml(email)}" data-admin-user-email="${escHtml(uid)}" />
+                <select data-admin-user-role="${escHtml(uid)}">${adminRoleOptions(role)}</select>
+                <input type="password" value="" placeholder="new password (optional)" data-admin-user-password="${escHtml(uid)}" />
+              </div>
+              <div class="adminUserActions">
+                <button class="btn ghost" type="button" data-admin-user-save="${escHtml(uid)}">Save</button>
+                <button class="btn warn" type="button" data-admin-user-delete="${escHtml(uid)}" ${isSelf ? "disabled" : ""}>Delete</button>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      async function refreshAdminUsers(showStatus = true) {
+        if (!hasRole("admin")) return;
+        if (showStatus) setAdminUsersMsg("Loading users...");
+        const out = await adminUsersRequest("GET");
+        if (!out.ok || !Array.isArray(out?.data?.users)) {
+          const err = String(out?.data?.error || out?.status || "load_failed");
+          setAdminUsersMsg(`User load failed: ${err}`, "err");
+          return;
+        }
+        adminUsersCache = out.data.users.slice();
+        renderAdminUsers();
+        if (showStatus) setAdminUsersMsg(`Loaded ${adminUsersCache.length} users.`, "ok");
       }
 
       function renderModules() {
@@ -3480,13 +3700,14 @@
         grid.innerHTML = "";
         for (const m of mods) {
           if (String(m?.id || "") === "theme") continue;
+          if (!canAccessModule(m.id)) continue;
           const mName = tt(`hub.mod.${m.id}.name`, m.name || "Module");
           const mDesc = tt(`hub.mod.${m.id}.desc`, m.desc || "");
           const card = document.createElement("article");
           card.className = "modCard";
           const ready = m.status === "ready";
           const enabled = isModuleEnabled(m.id);
-          const canDisable = m.id !== "can-bus" && m.id !== "translations" && m.id !== "theme";
+          const canDisable = hasRole("admin") && m.id !== "can-bus" && m.id !== "translations" && m.id !== "theme";
           const actionLabel = (ready && enabled)
             ? tt("hub.module.open", "Open")
             : (enabled ? tt("hub.module.planned", "Planned") : tt("hub.module.disabled", "Disabled"));
@@ -3525,9 +3746,11 @@
         const box = document.getElementById("moduleToggles");
         if (!box) return;
         box.innerHTML = "";
+        if (!hasRole("admin")) return;
         for (const m of mods) {
           const id = String(m?.id || "");
           if (!id || id === "hub" || id === "can-bus" || id === "theme" || id === "translations") continue;
+          if (!canAccessModule(id)) continue;
           const enabled = isModuleEnabled(id);
           const row = document.createElement("label");
           row.className = "toggle";
@@ -4775,9 +4998,9 @@
           const camHref = makeShortcut("./chrono/chrono_camera.html", { job: job?.id, station: job?.stationId });
           const spcHref = makeShortcut("./SPaCial.html", { job: job?.id, station: job?.stationId, handoff: buildSpacialHandoff(job, station) });
           return {
-            chrono: isModuleEnabled("chrono") ? `href="${chronoHref}" data-module-id="chrono"` : 'href="#" aria-disabled="true"',
-            cam: isModuleEnabled("chrono-camera") ? `href="${camHref}" data-module-id="chrono-camera"` : 'href="#" aria-disabled="true"',
-            spc: isModuleEnabled("spacial") ? `href="${spcHref}" data-module-id="spacial"` : 'href="#" aria-disabled="true"',
+            chrono: (canAccessModule("chrono") && isModuleEnabled("chrono")) ? `href="${chronoHref}" data-module-id="chrono"` : 'href="#" aria-disabled="true"',
+            cam: (canAccessModule("chrono-camera") && isModuleEnabled("chrono-camera")) ? `href="${camHref}" data-module-id="chrono-camera"` : 'href="#" aria-disabled="true"',
+            spc: (canAccessModule("spacial") && isModuleEnabled("spacial")) ? `href="${spcHref}" data-module-id="spacial"` : 'href="#" aria-disabled="true"',
           };
         };
 
@@ -5331,6 +5554,81 @@
         alert(tt("hub.alert.settingsCleared", "Local settings cleared: {count}. Reloading...", { count: removed }));
         location.reload();
       });
+      if (adminCreateUserBtn) {
+        adminCreateUserBtn.addEventListener("click", async () => {
+          if (!hasRole("admin")) return;
+          const username = String(adminCreateUsername?.value || "").trim();
+          const email = String(adminCreateEmail?.value || "").trim();
+          const password = String(adminCreatePassword?.value || "");
+          const role = String(adminCreateRole?.value || "operator").toLowerCase();
+          if (!username || !password) {
+            setAdminUsersMsg("Username and password are required.", "err");
+            return;
+          }
+          setAdminUsersMsg("Creating user...");
+          const out = await adminUsersRequest("POST", "", { username, email, password, role });
+          if (!out.ok) {
+            setAdminUsersMsg(`Create failed: ${String(out?.data?.error || out?.status || "create_failed")}`, "err");
+            return;
+          }
+          if (adminCreateUsername) adminCreateUsername.value = "";
+          if (adminCreateEmail) adminCreateEmail.value = "";
+          if (adminCreatePassword) adminCreatePassword.value = "";
+          setAdminUsersMsg("User created.", "ok");
+          await refreshAdminUsers(false);
+        });
+      }
+      if (adminRefreshUsersBtn) {
+        adminRefreshUsersBtn.addEventListener("click", () => {
+          void refreshAdminUsers(true);
+        });
+      }
+      if (adminUsersList) {
+        adminUsersList.addEventListener("click", async (e) => {
+          const target = e.target instanceof Element ? e.target : null;
+          if (!target || !hasRole("admin")) return;
+          const saveBtn = target.closest("[data-admin-user-save]");
+          if (saveBtn) {
+            const uid = String(saveBtn.getAttribute("data-admin-user-save") || "");
+            if (!uid) return;
+            const usernameInput = adminUsersList.querySelector(`[data-admin-user-username="${uid}"]`);
+            const emailInput = adminUsersList.querySelector(`[data-admin-user-email="${uid}"]`);
+            const roleInput = adminUsersList.querySelector(`[data-admin-user-role="${uid}"]`);
+            const passInput = adminUsersList.querySelector(`[data-admin-user-password="${uid}"]`);
+            const payload = {
+              username: String(usernameInput?.value || "").trim(),
+              email: String(emailInput?.value || "").trim(),
+              role: String(roleInput?.value || "operator").toLowerCase(),
+            };
+            const nextPassword = String(passInput?.value || "");
+            if (nextPassword) payload.password = nextPassword;
+            setAdminUsersMsg("Saving user...");
+            const out = await adminUsersRequest("PUT", uid, payload);
+            if (!out.ok) {
+              setAdminUsersMsg(`Save failed: ${String(out?.data?.error || out?.status || "save_failed")}`, "err");
+              return;
+            }
+            if (passInput) passInput.value = "";
+            setAdminUsersMsg("User updated.", "ok");
+            await refreshAdminUsers(false);
+            return;
+          }
+          const delBtn = target.closest("[data-admin-user-delete]");
+          if (delBtn) {
+            const uid = String(delBtn.getAttribute("data-admin-user-delete") || "");
+            if (!uid) return;
+            if (!confirm("Delete this user?")) return;
+            setAdminUsersMsg("Deleting user...");
+            const out = await adminUsersRequest("DELETE", uid);
+            if (!out.ok) {
+              setAdminUsersMsg(`Delete failed: ${String(out?.data?.error || out?.status || "delete_failed")}`, "err");
+              return;
+            }
+            setAdminUsersMsg("User deleted.", "ok");
+            await refreshAdminUsers(false);
+          }
+        });
+      }
       if (imageUploadFile) {
         imageUploadFile.addEventListener("change", (e) => {
           const file = e.target?.files?.[0];
@@ -5490,6 +5788,9 @@
         const savedServer = String(localStorage.getItem("vmill:server:url") || "");
         void window.VMillData.init(savedServer).then((status) => {
           updateOnlineStatus(status || {});
+          void window.VMillAuth?.refreshMe?.(savedServer).then(() => {
+            updateAuthUi();
+          }).catch(() => {});
         }).catch(() => {
           updateOnlineStatus({ online: false });
         });

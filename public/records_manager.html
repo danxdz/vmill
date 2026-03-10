@@ -1240,6 +1240,10 @@
           location.replace("./login.html");
           return;
         }
+        if (!window.VMillAuth.isAdmin()) {
+          location.replace("./vmill_hub.html");
+          return;
+        }
         try {
           const serverUrl = String(localStorage.getItem("vmill:server:url") || "");
           if (window.VMillData?.init) await window.VMillData.init(serverUrl || "");

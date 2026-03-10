@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import re
 import secrets
 import sqlite3
 import threading
@@ -21,7 +22,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qs, unquote, urlparse
 import hashlib
 import socket
+import smtplib
 import sys
+from email.message import EmailMessage
 
 def resolve_frozen_root_dir() -> Path:
     """
@@ -63,6 +66,21 @@ PUBLIC_DIR = ROOT_DIR / "public"
 DB_PATH = Path(os.environ.get("VMILL_DB_PATH", str(RUNTIME_DIR / "vmill.db"))).expanduser()
 DEFAULT_PORT = int(os.environ.get("PORT", "8080"))
 TOKEN_TTL_HOURS = 24 * 7
+PASSWORD_RESET_TTL_MINUTES = max(5, int(os.environ.get("VMILL_PASSWORD_RESET_TTL_MIN", "60")))
+PASSWORD_MIN_LENGTH = max(8, int(os.environ.get("VMILL_PASSWORD_MIN_LENGTH", "8")))
+AUTH_PBKDF2_ITERATIONS = max(120_000, int(os.environ.get("VMILL_AUTH_PBKDF2_ITERS", "240000")))
+AUTH_ALLOW_SELF_REGISTER = str(os.environ.get("VMILL_AUTH_ALLOW_REGISTER", "1")).strip().lower() in {"1", "true", "yes", "on"}
+AUTH_DEV_RESET_PREVIEW = str(os.environ.get("VMILL_AUTH_DEV_RESET_PREVIEW", "0")).strip().lower() in {"1", "true", "yes", "on"}
+PASSWORD_RESET_URL = str(os.environ.get("VMILL_PASSWORD_RESET_URL", "")).strip()
+DEFAULT_ADMIN_USER = str(os.environ.get("VMILL_DEFAULT_ADMIN_USER", "admin")).strip() or "admin"
+DEFAULT_ADMIN_PASSWORD = str(os.environ.get("VMILL_DEFAULT_ADMIN_PASSWORD", "vmill2024"))
+SMTP_HOST = str(os.environ.get("VMILL_SMTP_HOST", "")).strip()
+SMTP_PORT = int(os.environ.get("VMILL_SMTP_PORT", "587"))
+SMTP_USER = str(os.environ.get("VMILL_SMTP_USER", "")).strip()
+SMTP_PASS = str(os.environ.get("VMILL_SMTP_PASS", "")).strip()
+SMTP_FROM = str(os.environ.get("VMILL_SMTP_FROM", "")).strip()
+SMTP_USE_SSL = str(os.environ.get("VMILL_SMTP_SSL", "0")).strip().lower() in {"1", "true", "yes", "on"}
+SMTP_USE_TLS = str(os.environ.get("VMILL_SMTP_TLS", "1")).strip().lower() in {"1", "true", "yes", "on"}
 ALLOWED_ROOT_STATIC_FILES = {
     "index.html",
     "favicon.ico",
@@ -80,6 +98,16 @@ ROLE_RANK = {
     "manager": 2,
     "admin": 3,
 }
+USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,64}$")
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+AUTH_RATE_LIMITS = {
+    "login": (12, 300),
+    "register": (8, 300),
+    "forgot": (8, 300),
+    "reset": (16, 300),
+}
+auth_rate_lock = threading.RLock()
+auth_rate_state: Dict[str, List[float]] = {}
 
 
 def now_iso() -> str:
@@ -97,9 +125,88 @@ def parse_iso(ts: str) -> datetime:
         return datetime.fromtimestamp(0, tz=timezone.utc)
 
 
+def normalize_email(raw: Any) -> str:
+    return str(raw or "").strip().lower()
+
+
+def valid_username(raw: Any) -> bool:
+    return bool(USERNAME_RE.fullmatch(str(raw or "").strip()))
+
+
+def valid_email(raw: Any) -> bool:
+    value = normalize_email(raw)
+    if not value:
+        return True
+    return bool(EMAIL_RE.fullmatch(value))
+
+
+def valid_password(raw: Any) -> bool:
+    return len(str(raw or "")) >= PASSWORD_MIN_LENGTH
+
+
+def hash_reset_token(raw_token: str) -> str:
+    return hashlib.sha256(str(raw_token or "").encode("utf-8")).hexdigest()
+
+
+def send_password_reset_email(username: str, email_to: str, token: str, expires_minutes: int) -> bool:
+    if not SMTP_HOST or not SMTP_FROM or not email_to:
+        return False
+    reset_link = ""
+    if PASSWORD_RESET_URL:
+        sep = "&" if "?" in PASSWORD_RESET_URL else "?"
+        reset_link = f"{PASSWORD_RESET_URL}{sep}token={token}"
+    msg = EmailMessage()
+    msg["Subject"] = "VMill password reset"
+    msg["From"] = SMTP_FROM
+    msg["To"] = email_to
+    body_lines = [
+        f"Hello {username or 'user'},",
+        "",
+        "A password reset was requested for your account.",
+        f"This token expires in {int(expires_minutes)} minutes.",
+    ]
+    if reset_link:
+        body_lines.extend(["", f"Reset link: {reset_link}"])
+    else:
+        body_lines.extend(["", f"Reset token: {token}"])
+    body_lines.extend(["", "If you did not request this, you can ignore this email."])
+    msg.set_content("\n".join(body_lines))
+    try:
+        if SMTP_USE_SSL:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+                if SMTP_USER:
+                    smtp.login(SMTP_USER, SMTP_PASS)
+                smtp.send_message(msg)
+                return True
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+            if SMTP_USE_TLS:
+                smtp.starttls()
+            if SMTP_USER:
+                smtp.login(SMTP_USER, SMTP_PASS)
+            smtp.send_message(msg)
+            return True
+    except Exception:
+        return False
+
+
+def auth_rate_limited(kind: str, client_ip: str) -> bool:
+    limit, window_s = AUTH_RATE_LIMITS.get(kind, (10, 300))
+    key = f"{kind}:{client_ip or 'unknown'}"
+    now_ts = time.time()
+    cutoff = now_ts - float(window_s)
+    with auth_rate_lock:
+        history = auth_rate_state.get(key, [])
+        history = [x for x in history if x >= cutoff]
+        limited = len(history) >= int(limit)
+        if not limited:
+            history.append(now_ts)
+        auth_rate_state[key] = history
+    return limited
+
+
 def hash_password(password: str, salt_hex: Optional[str] = None) -> Tuple[str, str]:
     salt = bytes.fromhex(salt_hex) if salt_hex else secrets.token_bytes(16)
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 120_000)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, AUTH_PBKDF2_ITERATIONS)
     return salt.hex(), digest.hex()
 
 
@@ -129,6 +236,7 @@ class DB:
                 CREATE TABLE IF NOT EXISTS users (
                     id TEXT PRIMARY KEY,
                     username TEXT UNIQUE NOT NULL,
+                    email TEXT,
                     password_hash TEXT NOT NULL,
                     password_salt TEXT NOT NULL,
                     role TEXT NOT NULL,
@@ -141,6 +249,19 @@ class DB:
                     user_id TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     expires_at TEXT NOT NULL,
+                    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+                );
+
+                CREATE TABLE IF NOT EXISTS password_resets (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    token_hash TEXT NOT NULL,
+                    email TEXT,
+                    created_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    used_at TEXT,
+                    requested_by_ip TEXT,
+                    requested_by_ua TEXT,
                     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
                 );
 
@@ -253,6 +374,8 @@ class DB:
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_tokens_user ON tokens(user_id);
+                CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
+                CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token_hash);
                 CREATE INDEX IF NOT EXISTS idx_jobs_node ON jobs(node_id);
                 CREATE INDEX IF NOT EXISTS idx_jobs_product ON jobs(product_id);
                 CREATE INDEX IF NOT EXISTS idx_nodes_parent ON nodes(parent_id);
@@ -261,8 +384,20 @@ class DB:
             )
             self.conn.commit()
 
+        self.ensure_auth_schema()
         self.ensure_default_workspace()
         self.ensure_default_admin()
+
+    def ensure_auth_schema(self) -> None:
+        with self.lock:
+            cur = self.conn.cursor()
+            columns = {str(r["name"]) for r in cur.execute("PRAGMA table_info(users)").fetchall()}
+            if "email" not in columns:
+                cur.execute("ALTER TABLE users ADD COLUMN email TEXT")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token_hash)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id)")
+            self.conn.commit()
 
     def ensure_default_workspace(self) -> None:
         with self.lock:
@@ -278,15 +413,15 @@ class DB:
     def ensure_default_admin(self) -> None:
         with self.lock:
             cur = self.conn.cursor()
-            cur.execute("SELECT id FROM users WHERE username=?", ("admin",))
+            cur.execute("SELECT id FROM users WHERE username=?", (DEFAULT_ADMIN_USER,))
             if cur.fetchone() is not None:
                 return
             uid = str(uuid.uuid4())
-            salt, digest = hash_password("vmill2024")
+            salt, digest = hash_password(DEFAULT_ADMIN_PASSWORD)
             ts = now_iso()
             cur.execute(
-                "INSERT INTO users(id,username,password_hash,password_salt,role,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                (uid, "admin", digest, salt, "admin", ts, ts),
+                "INSERT INTO users(id,username,email,password_hash,password_salt,role,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+                (uid, DEFAULT_ADMIN_USER, None, digest, salt, "admin", ts, ts),
             )
             self.conn.commit()
 
@@ -526,6 +661,28 @@ class VMillHandler(BaseHTTPRequestHandler):
         if parts == ["api", "auth", "login"] and method == "POST":
             self.api_login()
             return
+        if parts == ["api", "auth", "register"] and method == "POST":
+            self.api_register()
+            return
+        if parts == ["api", "auth", "forgot-password"] and method == "POST":
+            self.api_forgot_password()
+            return
+        if parts == ["api", "auth", "reset-password"] and method == "POST":
+            self.api_reset_password()
+            return
+        if parts == ["api", "auth", "options"] and method == "GET":
+            self.send_json(
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "allow_register": AUTH_ALLOW_SELF_REGISTER,
+                    "password_min_length": PASSWORD_MIN_LENGTH,
+                    "reset_ttl_minutes": PASSWORD_RESET_TTL_MINUTES,
+                    "reset_email_enabled": bool(SMTP_HOST and SMTP_FROM),
+                    "reset_dev_preview": AUTH_DEV_RESET_PREVIEW,
+                },
+            )
+            return
         if parts == ["api", "auth", "logout"] and method == "POST":
             self.api_logout()
             return
@@ -533,7 +690,9 @@ class VMillHandler(BaseHTTPRequestHandler):
             user = self.require_auth("operator")
             if not user:
                 return
-            self.send_json(HTTPStatus.OK, {"ok": True, "user": {"id": user["id"], "username": user["username"], "role": user["role"]}})
+            row = db.query_one("SELECT id, username, email, role FROM users WHERE id=?", (user["id"],))
+            payload_user = row_to_dict(row) if row else {"id": user["id"], "username": user["username"], "email": "", "role": user["role"]}
+            self.send_json(HTTPStatus.OK, {"ok": True, "user": payload_user})
             return
 
         # Users admin CRUD
@@ -617,6 +776,10 @@ class VMillHandler(BaseHTTPRequestHandler):
         self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "not_found"})
 
     def api_login(self) -> None:
+        client_ip = self.client_address[0] if self.client_address else ""
+        if auth_rate_limited("login", client_ip):
+            self.send_json(HTTPStatus.TOO_MANY_REQUESTS, {"ok": False, "error": "rate_limited"})
+            return
         try:
             body = self.read_json_body()
         except ValueError:
@@ -650,10 +813,183 @@ class VMillHandler(BaseHTTPRequestHandler):
                 "user": {
                     "id": row["id"],
                     "username": row["username"],
+                    "email": row["email"],
                     "role": row["role"],
                 },
             },
         )
+
+    def api_register(self) -> None:
+        client_ip = self.client_address[0] if self.client_address else ""
+        if auth_rate_limited("register", client_ip):
+            self.send_json(HTTPStatus.TOO_MANY_REQUESTS, {"ok": False, "error": "rate_limited"})
+            return
+        if not AUTH_ALLOW_SELF_REGISTER:
+            self.send_json(HTTPStatus.FORBIDDEN, {"ok": False, "error": "registration_disabled"})
+            return
+        try:
+            body = self.read_json_body()
+        except ValueError:
+            return
+        username = str(body.get("username", "")).strip()
+        password = str(body.get("password", ""))
+        email = normalize_email(body.get("email", ""))
+        if not username or not password:
+            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "missing_fields"})
+            return
+        if not valid_username(username):
+            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_username"})
+            return
+        if not valid_email(email):
+            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_email"})
+            return
+        if not valid_password(password):
+            self.send_json(
+                HTTPStatus.BAD_REQUEST,
+                {"ok": False, "error": "weak_password", "min_length": PASSWORD_MIN_LENGTH},
+            )
+            return
+        existing = db.query_one("SELECT id FROM users WHERE username=?", (username,))
+        if existing:
+            self.send_json(HTTPStatus.CONFLICT, {"ok": False, "error": "username_exists"})
+            return
+        if email:
+            existing_email = db.query_one("SELECT id FROM users WHERE lower(email)=lower(?)", (email,))
+            if existing_email:
+                self.send_json(HTTPStatus.CONFLICT, {"ok": False, "error": "email_exists"})
+                return
+        uid = str(uuid.uuid4())
+        salt, digest = hash_password(password)
+        ts = now_iso()
+        db.execute(
+            "INSERT INTO users(id,username,email,password_hash,password_salt,role,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+            (uid, username, email or None, digest, salt, "operator", ts, ts),
+        )
+        token = secrets.token_urlsafe(32)
+        created = datetime.now(timezone.utc)
+        expires = created + timedelta(hours=TOKEN_TTL_HOURS)
+        db.execute(
+            "INSERT INTO tokens(token,user_id,created_at,expires_at) VALUES(?,?,?,?)",
+            (token, uid, created.isoformat(), expires.isoformat()),
+        )
+        self.send_json(
+            HTTPStatus.CREATED,
+            {
+                "ok": True,
+                "token": token,
+                "expires_at": expires.isoformat(),
+                "user": {
+                    "id": uid,
+                    "username": username,
+                    "email": email,
+                    "role": "operator",
+                },
+            },
+        )
+
+    def api_forgot_password(self) -> None:
+        client_ip = self.client_address[0] if self.client_address else ""
+        if auth_rate_limited("forgot", client_ip):
+            self.send_json(HTTPStatus.TOO_MANY_REQUESTS, {"ok": False, "error": "rate_limited"})
+            return
+        try:
+            body = self.read_json_body()
+        except ValueError:
+            return
+        identifier = str(body.get("identifier", body.get("email", body.get("username", "")))).strip()
+        if not identifier:
+            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "missing_identifier"})
+            return
+        if "@" in identifier:
+            row = db.query_one("SELECT id, username, email FROM users WHERE lower(email)=lower(?)", (identifier,))
+        else:
+            row = db.query_one("SELECT id, username, email FROM users WHERE username=?", (identifier,))
+        preview_token = ""
+        email_sent = False
+        if row is not None:
+            raw_token = secrets.token_urlsafe(32)
+            token_hash = hash_reset_token(raw_token)
+            now_dt = datetime.now(timezone.utc)
+            expires = now_dt + timedelta(minutes=PASSWORD_RESET_TTL_MINUTES)
+            db.execute(
+                """
+                INSERT INTO password_resets(
+                    id,user_id,token_hash,email,created_at,expires_at,used_at,requested_by_ip,requested_by_ua
+                ) VALUES(?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    str(uuid.uuid4()),
+                    row["id"],
+                    token_hash,
+                    normalize_email(row["email"]),
+                    now_dt.isoformat(),
+                    expires.isoformat(),
+                    None,
+                    client_ip,
+                    str(self.headers.get("User-Agent", "") or "")[:400],
+                ),
+            )
+            email_sent = send_password_reset_email(
+                str(row["username"] or ""),
+                normalize_email(row["email"]),
+                raw_token,
+                PASSWORD_RESET_TTL_MINUTES,
+            )
+            if AUTH_DEV_RESET_PREVIEW:
+                preview_token = raw_token
+        payload: Dict[str, Any] = {
+            "ok": True,
+            "message": "If an account exists, password reset instructions were generated.",
+            "email_sent": email_sent,
+        }
+        if preview_token:
+            payload["reset_token"] = preview_token
+            payload["dev_preview"] = True
+        self.send_json(HTTPStatus.OK, payload)
+
+    def api_reset_password(self) -> None:
+        client_ip = self.client_address[0] if self.client_address else ""
+        if auth_rate_limited("reset", client_ip):
+            self.send_json(HTTPStatus.TOO_MANY_REQUESTS, {"ok": False, "error": "rate_limited"})
+            return
+        try:
+            body = self.read_json_body()
+        except ValueError:
+            return
+        raw_token = str(body.get("token", "")).strip()
+        new_password = str(body.get("password", body.get("new_password", "")))
+        if not raw_token or not new_password:
+            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "missing_fields"})
+            return
+        if not valid_password(new_password):
+            self.send_json(
+                HTTPStatus.BAD_REQUEST,
+                {"ok": False, "error": "weak_password", "min_length": PASSWORD_MIN_LENGTH},
+            )
+            return
+        row = db.query_one(
+            """
+            SELECT pr.*, u.id AS user_id
+            FROM password_resets pr
+            JOIN users u ON u.id = pr.user_id
+            WHERE pr.token_hash=? AND pr.used_at IS NULL
+            ORDER BY pr.created_at DESC
+            LIMIT 1
+            """,
+            (hash_reset_token(raw_token),),
+        )
+        if row is None or parse_iso(str(row["expires_at"] or "")) <= datetime.now(timezone.utc):
+            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_or_expired_token"})
+            return
+        salt, digest = hash_password(new_password)
+        now_ts = now_iso()
+        db.execute(
+            "UPDATE users SET password_hash=?, password_salt=?, updated_at=? WHERE id=?",
+            (digest, salt, now_ts, row["user_id"]),
+        )
+        db.execute("UPDATE password_resets SET used_at=? WHERE id=?", (now_ts, row["id"]))
+        db.execute("DELETE FROM tokens WHERE user_id=?", (row["user_id"],))
+        self.send_json(HTTPStatus.OK, {"ok": True})
 
     def api_logout(self) -> None:
         user = self.require_auth("operator")
@@ -668,7 +1004,7 @@ class VMillHandler(BaseHTTPRequestHandler):
             return
 
         if len(parts) == 2 and method == "GET":
-            rows = db.query_all("SELECT id, username, role, created_at, updated_at FROM users ORDER BY username ASC")
+            rows = db.query_all("SELECT id, username, email, role, created_at, updated_at FROM users ORDER BY username ASC")
             self.send_json(HTTPStatus.OK, {"ok": True, "users": [row_to_dict(r) for r in rows]})
             return
 
@@ -679,25 +1015,46 @@ class VMillHandler(BaseHTTPRequestHandler):
                 return
             username = str(body.get("username", "")).strip()
             password = str(body.get("password", "")).strip()
+            email = normalize_email(body.get("email", ""))
             role = str(body.get("role", "operator")).strip().lower()
             if role not in ROLE_RANK:
                 role = "operator"
             if not username or not password:
                 self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "missing_fields"})
                 return
+            if not valid_username(username):
+                self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_username"})
+                return
+            if not valid_email(email):
+                self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_email"})
+                return
+            if not valid_password(password):
+                self.send_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"ok": False, "error": "weak_password", "min_length": PASSWORD_MIN_LENGTH},
+                )
+                return
             existing = db.query_one("SELECT id FROM users WHERE username=?", (username,))
             if existing:
                 self.send_json(HTTPStatus.CONFLICT, {"ok": False, "error": "username_exists"})
                 return
+            if email:
+                existing_email = db.query_one("SELECT id FROM users WHERE lower(email)=lower(?)", (email,))
+                if existing_email:
+                    self.send_json(HTTPStatus.CONFLICT, {"ok": False, "error": "email_exists"})
+                    return
             uid = str(uuid.uuid4())
             salt, digest = hash_password(password)
             ts = now_iso()
             db.execute(
-                "INSERT INTO users(id,username,password_hash,password_salt,role,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                (uid, username, digest, salt, role, ts, ts),
+                "INSERT INTO users(id,username,email,password_hash,password_salt,role,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+                (uid, username, email or None, digest, salt, role, ts, ts),
             )
             db.log_sync("users", uid, "create", user["id"])
-            self.send_json(HTTPStatus.CREATED, {"ok": True, "user": {"id": uid, "username": username, "role": role}})
+            self.send_json(
+                HTTPStatus.CREATED,
+                {"ok": True, "user": {"id": uid, "username": username, "email": email, "role": role}},
+            )
             return
 
         if len(parts) >= 3:
@@ -714,23 +1071,65 @@ class VMillHandler(BaseHTTPRequestHandler):
                     return
                 updates: Dict[str, Any] = {}
                 if "username" in body:
-                    updates["username"] = str(body.get("username", "")).strip() or row["username"]
+                    wanted = str(body.get("username", "")).strip() or row["username"]
+                    if not valid_username(wanted):
+                        self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_username"})
+                        return
+                    conflict = db.query_one("SELECT id FROM users WHERE username=?", (wanted,))
+                    if conflict and str(conflict["id"]) != uid:
+                        self.send_json(HTTPStatus.CONFLICT, {"ok": False, "error": "username_exists"})
+                        return
+                    updates["username"] = wanted
+                if "email" in body:
+                    wanted_email = normalize_email(body.get("email", ""))
+                    if not valid_email(wanted_email):
+                        self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_email"})
+                        return
+                    if wanted_email:
+                        conflict_email = db.query_one("SELECT id FROM users WHERE lower(email)=lower(?)", (wanted_email,))
+                        if conflict_email and str(conflict_email["id"]) != uid:
+                            self.send_json(HTTPStatus.CONFLICT, {"ok": False, "error": "email_exists"})
+                            return
+                    updates["email"] = wanted_email or None
                 if "role" in body:
                     role = str(body.get("role", "operator")).strip().lower()
-                    updates["role"] = role if role in ROLE_RANK else row["role"]
+                    next_role = role if role in ROLE_RANK else row["role"]
+                    if uid == user["id"] and next_role != row["role"]:
+                        self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "cannot_change_own_role"})
+                        return
+                    updates["role"] = next_role
                 if "password" in body and str(body.get("password", "")).strip():
+                    if not valid_password(body.get("password", "")):
+                        self.send_json(
+                            HTTPStatus.BAD_REQUEST,
+                            {"ok": False, "error": "weak_password", "min_length": PASSWORD_MIN_LENGTH},
+                        )
+                        return
                     salt, digest = hash_password(str(body["password"]))
                     updates["password_hash"] = digest
                     updates["password_salt"] = salt
                 if not updates:
-                    self.send_json(HTTPStatus.OK, {"ok": True, "user": {"id": uid, "username": row["username"], "role": row["role"]}})
+                    self.send_json(
+                        HTTPStatus.OK,
+                        {
+                            "ok": True,
+                            "user": {
+                                "id": uid,
+                                "username": row["username"],
+                                "email": row["email"],
+                                "role": row["role"],
+                            },
+                        },
+                    )
                     return
                 updates["updated_at"] = now_iso()
                 cols = ", ".join(f"{k}=?" for k in updates.keys())
                 vals = tuple(updates.values()) + (uid,)
                 db.execute(f"UPDATE users SET {cols} WHERE id=?", vals)
+                if "password_hash" in updates:
+                    db.execute("DELETE FROM tokens WHERE user_id=?", (uid,))
                 db.log_sync("users", uid, "update", user["id"])
-                updated = db.query_one("SELECT id, username, role, created_at, updated_at FROM users WHERE id=?", (uid,))
+                updated = db.query_one("SELECT id, username, email, role, created_at, updated_at FROM users WHERE id=?", (uid,))
                 self.send_json(HTTPStatus.OK, {"ok": True, "user": row_to_dict(updated) if updated else {"id": uid}})
                 return
             if method == "DELETE":
@@ -1423,7 +1822,7 @@ class VMillHandler(BaseHTTPRequestHandler):
       <p class=\"ok\">Online</p>
       <p>Address: <code>http://{ip}:{port}</code></p>
       <p>Database: <code>{DB_PATH.name}</code></p>
-      <p>Default user: <code>admin / vmill2024</code></p>
+      <p>Default user: <code>{DEFAULT_ADMIN_USER} / {DEFAULT_ADMIN_PASSWORD}</code></p>
       <p>Open: <a href=\"/login.html\">/login.html</a></p>
     </div>
   </div>
@@ -1524,7 +1923,7 @@ def run() -> None:
     ip = get_local_ip()
     print(f"VMill server ready: http://{ip}:{port} (0.0.0.0:{port})")
     print(f"SQLite: {DB_PATH}")
-    print("Default user: admin / vmill2024")
+    print(f"Default user: {DEFAULT_ADMIN_USER} / {DEFAULT_ADMIN_PASSWORD}")
 
     server = ThreadingHTTPServer((host, port), VMillHandler)
     try:

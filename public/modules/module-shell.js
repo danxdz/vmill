@@ -299,11 +299,34 @@
     { id: "chrono-camera", labelKey: "hub.dock.camera", fallback: "Camera", route: ROUTES.camera },
     { id: "spacial", labelKey: "hub.dock.spacial", fallback: "SPaCial", route: ROUTES.spacial },
     { id: "contas", labelKey: "hub.dock.contas", fallback: "Contas", route: ROUTES.contas },
-    { id: "shop-tree", labelKey: "hub.dock.shopTree", fallback: "Shop", route: ROUTES.shop },
+    { id: "shop-tree", labelKey: "hub.dock.shopTree", fallback: "Shop", route: ROUTES.shop, minRole: "admin" },
     { id: "can-bus", labelKey: "hub.dock.logger", fallback: "Logger", route: ROUTES.logger },
-    { id: "theme", labelKey: "hub.dock.theme", fallback: "Theme", route: ROUTES.theme },
-    { id: "translations", labelKey: "hub.top.translationsSettings", fallback: "i18n", route: ROUTES.translations },
+    { id: "theme", labelKey: "hub.dock.theme", fallback: "Theme", route: ROUTES.theme, minRole: "admin" },
+    { id: "translations", labelKey: "hub.top.translationsSettings", fallback: "i18n", route: ROUTES.translations, minRole: "admin" },
   ];
+  function shellRoleRank(role) {
+    const r = String(role || "").toLowerCase();
+    if (r === "admin") return 3;
+    if (r === "manager") return 2;
+    if (r === "operator") return 1;
+    return 0;
+  }
+
+  function shellCurrentRole() {
+    try {
+      return String(window.VMillAuth?.getUser?.()?.role || "").toLowerCase();
+    } catch {
+      return "";
+    }
+  }
+
+  function shellCanAccessModule(moduleId) {
+    const id = String(moduleId || "");
+    if (!id || id === "hub") return true;
+    const mod = MODULES.find((m) => String(m?.id || "") === id) || null;
+    const minRole = String(mod?.minRole || "operator").toLowerCase();
+    return shellRoleRank(shellCurrentRole()) >= shellRoleRank(minRole);
+  }
   const IS_EMBEDDED_FRAME = (() => {
     try {
       return window.self !== window.top;
@@ -652,6 +675,7 @@
       maxRows: Math.max(50, Math.min(1200, Number(src.maxRows || 350))),
       active: src.active !== false,
       alertOnly: src.alertOnly === true,
+      panelOpen: src.panelOpen === true,
     };
   }
 
@@ -774,6 +798,34 @@
           border-color:color-mix(in srgb, var(--logger-accent) 54%, var(--logger-border));
           background:color-mix(in srgb, var(--logger-accent) 14%, transparent);
         }
+        #vmillLoggerOverlay .loggerPanel{
+          margin-top:6px;
+          width:min(960px, calc(100vw - 20px));
+          height:min(72vh, 720px);
+          border:1px solid var(--logger-border);
+          border-radius:10px;
+          overflow:hidden;
+          background:var(--logger-bg);
+          box-shadow:0 10px 24px rgba(0,0,0,.34);
+          backdrop-filter: blur(8px);
+          display:grid;
+          grid-template-rows:auto 1fr;
+        }
+        #vmillLoggerOverlay .loggerPanel.hidden{ display:none; }
+        #vmillLoggerOverlay .loggerPanelHead{
+          display:flex;
+          justify-content:flex-end;
+          gap:6px;
+          padding:5px 6px;
+          border-bottom:1px solid color-mix(in srgb, var(--logger-border) 72%, transparent);
+          background:color-mix(in srgb, var(--logger-bg) 95%, transparent);
+        }
+        #vmillLoggerOverlay .loggerPanelFrame{
+          width:100%;
+          height:100%;
+          border:0;
+          background:transparent;
+        }
         @media (max-width:760px){
           #vmillLoggerOverlay[data-pos="top-left"],
           #vmillLoggerOverlay[data-pos="top-right"]{
@@ -791,30 +843,57 @@
             gap:6px;
           }
           #vmillLoggerOverlay .loggerCounts{ display:none; }
+          #vmillLoggerOverlay .loggerPanel{
+            width:calc(100vw - 12px);
+            height:min(76vh, 620px);
+          }
         }
       </style>
       <div class="loggerBar" id="vmillLoggerBar">
         <span class="loggerDot" id="vmillLoggerDot"></span>
         <div class="loggerText" id="vmillLoggerText"></div>
         <div class="loggerCounts" id="vmillLoggerCounts"></div>
-        <button class="loggerBtn hideBtn" id="vmillLoggerHide" type="button">×</button>
+        <button class="loggerBtn hideBtn" id="vmillLoggerHide" type="button">x</button>
       </div>
+      <section class="loggerPanel hidden" id="vmillLoggerPanel">
+        <div class="loggerPanelHead">
+          <button class="loggerBtn" id="vmillLoggerMinimize" type="button">Minimize</button>
+        </div>
+        <iframe id="vmillLoggerFrame" class="loggerPanelFrame" title="Logger panel"></iframe>
+      </section>
     `;
     document.body.appendChild(node);
     loggerOverlay = node;
     const bar = node.querySelector("#vmillLoggerBar");
     const hideBtn = node.querySelector("#vmillLoggerHide");
+    const minBtn = node.querySelector("#vmillLoggerMinimize");
+    const panel = node.querySelector("#vmillLoggerPanel");
+    const frame = node.querySelector("#vmillLoggerFrame");
     if (bar) {
       bar.setAttribute("role", "button");
       bar.setAttribute("tabindex", "0");
       bar.setAttribute("aria-label", tt("logger.openPanel", "Open logs panel"));
     }
-    const openLoggerPanel = () => {
-      writeLoggerUi({ active: true });
+    const ensureFrameSrc = () => {
+      if (!frame) return;
       const ctx = getCtxFromState();
-      location.href = makeUrlWithCtx(loggerRoute(), { jobId: ctx.jobId, stationId: ctx.stationId });
+      const next = makeUrlWithCtx(loggerRoute(), { jobId: ctx.jobId, stationId: ctx.stationId });
+      const u = new URL(next, location.href);
+      u.searchParams.set("embed", "1");
+      const href = String(u.href || "");
+      if (!href) return;
+      if (frame.dataset.src === href && frame.getAttribute("src")) return;
+      frame.dataset.src = href;
+      frame.setAttribute("src", href);
     };
-    bar?.addEventListener("click", () => {
+    const openLoggerPanel = () => {
+      writeLoggerUi({ active: true, panelOpen: true });
+      ensureFrameSrc();
+      panel?.classList.remove("hidden");
+      renderLoggerOverlay();
+    };
+    bar?.addEventListener("click", (e) => {
+      if (e?.target?.closest?.("button")) return;
       openLoggerPanel();
     });
     bar?.addEventListener("keydown", (e) => {
@@ -824,7 +903,12 @@
     });
     hideBtn?.addEventListener("click", (e) => {
       e?.stopPropagation?.();
-      writeLoggerUi({ active: false });
+      writeLoggerUi({ active: false, panelOpen: false });
+      renderLoggerOverlay();
+    });
+    minBtn?.addEventListener("click", (e) => {
+      e?.stopPropagation?.();
+      writeLoggerUi({ panelOpen: false });
       renderLoggerOverlay();
     });
   }
@@ -843,8 +927,10 @@
     const textEl = loggerOverlay.querySelector("#vmillLoggerText");
     const dotEl = loggerOverlay.querySelector("#vmillLoggerDot");
     const countsEl = loggerOverlay.querySelector("#vmillLoggerCounts");
-    const barEl = loggerOverlay.querySelector("#vmillLoggerBar");
     const hideBtn = loggerOverlay.querySelector("#vmillLoggerHide");
+    const panelEl = loggerOverlay.querySelector("#vmillLoggerPanel");
+    const minBtn = loggerOverlay.querySelector("#vmillLoggerMinimize");
+    const frame = loggerOverlay.querySelector("#vmillLoggerFrame");
     const all = readLoggerEntries().slice(-Math.max(1, Number(ui.maxRows || 350)));
     const infoCount = all.filter((r) => String(r?.level || "info") === "info").length;
     const warnCount = all.filter((r) => String(r?.level || "info") === "warn").length;
@@ -853,8 +939,8 @@
     const show = !!ui.active && (!ui.alertOnly || hasIssues);
     loggerOverlay.classList.toggle("hidden", !show);
     loggerOverlay.setAttribute("data-pos", String(ui.position || "bottom-right"));
-    if (barEl) barEl.classList.toggle("issueOnly", !!ui.alertOnly);
     if (hideBtn) hideBtn.title = tt("common.hide", "Hide");
+    if (minBtn) minBtn.textContent = tt("common.minimize", "Minimize");
     if (!show) return;
     const latest = all.length ? all[all.length - 1] : null;
     const syncLatest = [...all].reverse().find((r) => String(r?.type || "") === "data:sync:status");
@@ -877,6 +963,18 @@
         const ts = new Date(String(latest.ts || "")).toLocaleTimeString();
         const summary = String(latest.summary || latest.type || "event");
         textEl.textContent = `[${ts}] ${summary}`;
+      }
+    }
+    if (panelEl) panelEl.classList.toggle("hidden", !ui.panelOpen);
+    if (ui.panelOpen && frame) {
+      const ctx = getCtxFromState();
+      const next = makeUrlWithCtx(loggerRoute(), { jobId: ctx.jobId, stationId: ctx.stationId });
+      const u = new URL(next, location.href);
+      u.searchParams.set("embed", "1");
+      const href = String(u.href || "");
+      if (href && frame.dataset.src !== href) {
+        frame.dataset.src = href;
+        frame.setAttribute("src", href);
       }
     }
   }
@@ -915,6 +1013,7 @@
     const currentId = currentModuleId();
     const visibleModules = MODULES.filter((m) => {
       if (IS_EMBEDDED_FRAME && m.id === "hub") return false;
+      if (!shellCanAccessModule(m.id)) return false;
       const disabled = !m.fixed && prefs.disabled.includes(String(m.id || ""));
       return !(disabled && m.id !== currentId);
     });
@@ -934,9 +1033,19 @@
       const m = visibleModules[i];
       const a = document.createElement("a");
       a.className = "item";
+      a.dataset.moduleId = String(m.id || "");
       a.textContent = tt(m.labelKey || "", m.fallback || m.id);
       const handoff = m.id === "spacial" ? buildSpacialHandoff(activeJob, activeStation) : "";
       a.href = makeUrlWithCtx(m.route, { jobId: activeJobId, stationId: activeStationId, handoff });
+      if (m.id === "can-bus") {
+        a.addEventListener("click", (e) => {
+          if (shouldOwnLoggerOverlay()) {
+            e.preventDefault();
+            openLoggerOverlayPanel();
+            closeMenu();
+          }
+        });
+      }
       if (m.id === currentId) a.classList.add("active");
       const angle = (-90 + (360 / n) * i) * (Math.PI / 180);
       const x = cx + Math.cos(angle) * radius;
@@ -1134,11 +1243,21 @@
         const mod = MODULES.find((m) => m.id === id);
         if (!mod) continue;
         if (IS_EMBEDDED_FRAME && id === "hub") continue;
+        if (!shellCanAccessModule(id)) continue;
         const handoff = mod.id === "spacial" ? buildSpacialHandoff(activeJob, activeStation) : "";
         const a = document.createElement("a");
         a.className = "railBtn";
+        a.dataset.moduleId = String(mod.id || "");
         if (String(mod.id || "") === String(currentId)) a.style.borderColor = "color-mix(in srgb, var(--rail-accent) 66%, var(--rail-border))";
         a.href = makeUrlWithCtx(mod.route, { jobId: activeJobId, stationId: activeStationId, handoff });
+        if (mod.id === "can-bus") {
+          a.addEventListener("click", (e) => {
+            if (shouldOwnLoggerOverlay()) {
+              e.preventDefault();
+              openLoggerOverlayPanel();
+            }
+          });
+        }
         a.textContent = tt(mod.labelKey || "", mod.fallback || mod.id);
         railLinks.appendChild(a);
       }
@@ -2557,6 +2676,22 @@
     openAt(e.clientX, e.clientY);
   });
 
+  document.addEventListener("click", (e) => {
+    if (!shouldOwnLoggerOverlay()) return;
+    if (e.defaultPrevented) return;
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target?.closest?.("a[href]");
+    if (!a) return;
+    if (a.hasAttribute("download")) return;
+    if (String(a.target || "").toLowerCase() === "_blank") return;
+    let u = null;
+    try { u = new URL(String(a.getAttribute("href") || ""), location.href); } catch { return; }
+    if (!u || !/\/logger\.html$/i.test(String(u.pathname || ""))) return;
+    e.preventDefault();
+    openLoggerOverlayPanel();
+    closeMenu();
+  });
+
   window.addEventListener("storage", (e) => {
     if ([...APP_KEYS, PREF_KEY, SHELL_JOB_KEY].includes(String(e.key || "")) && host.classList.contains("open")) {
       renderAll();
@@ -2565,6 +2700,10 @@
       writeRightRailCollapsed(readRightRailCollapsed());
     }
     if ([...APP_KEYS, PREF_KEY, SHELL_JOB_KEY].includes(String(e.key || ""))) {
+      renderRightRail();
+    }
+    if (String(e.key || "") === "vmill:auth:user" || String(e.key || "") === "vmill:auth:token") {
+      if (host.classList.contains("open")) renderAll();
       renderRightRail();
     }
     if (String(e.key || "") === HUB_SCOPE_KEY) {
@@ -2591,6 +2730,11 @@
     const type = String(msg?.type || "");
     if (!type) return;
     if (type === "data:sync:status") return;
+    if (type === "auth:changed") {
+      if (host.classList.contains("open")) renderAll();
+      renderRightRail();
+      return;
+    }
     if (type.startsWith("data:") || type === "shop:tree:changed" || type === "vmill:hub-scope:changed") {
       renderScopeDock();
     }

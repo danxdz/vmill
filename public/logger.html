@@ -41,6 +41,25 @@
       grid-template-rows: auto auto auto 1fr;
       overflow: hidden;
     }
+    body.embedMode .dock{
+      width:100vw;
+      height:100dvh;
+      margin:0;
+      border-radius:0;
+      border:0;
+      box-shadow:none;
+    }
+    body.embedMode #openHubBtn,
+    body.embedMode #exportCsvBtn,
+    body.embedMode #exportTxtBtn,
+    body.embedMode #settingsRow,
+    body.embedMode .controls .field:nth-child(2),
+    body.embedMode .controls .field:nth-child(3){
+      display:none !important;
+    }
+    body.embedMode .controls{
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
 
     .head {
       padding: 8px;
@@ -319,6 +338,18 @@
       const OFFLINE_MODE_KEY = "vmill:offline:mode";
       const UI_KEY = "vmill:logger:ui:v1";
       const LOG_KEY = "vmill:logger:entries:v1";
+      const EMBED_MODE = (() => {
+        try {
+          const qp = new URLSearchParams(window.location.search || "");
+          if (qp.get("embed") === "1") return true;
+        } catch {}
+        try {
+          return window.self !== window.top;
+        } catch {
+          return true;
+        }
+      })();
+      if (EMBED_MODE) document.body.classList.add("embedMode");
 
       if (!window.VMillAuth?.isLoggedIn?.()) {
         let offline = false;
@@ -367,6 +398,7 @@
           autoScroll: true,
           active: true,
           alertOnly: false,
+          panelOpen: false,
         },
       };
 
@@ -413,6 +445,7 @@
           autoScroll: src.autoScroll !== false,
           active: src.active !== false,
           alertOnly: src.alertOnly === true,
+          panelOpen: src.panelOpen === true,
         };
       }
 

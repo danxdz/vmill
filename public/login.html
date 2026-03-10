@@ -102,6 +102,30 @@
     }
     .msg.err { color: var(--danger); }
     .msg.ok { color: var(--ok); }
+    .authExtras {
+      margin-top: 6px;
+      display: grid;
+      gap: 8px;
+    }
+    .authFold {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(255,255,255,.02);
+      padding: 6px 8px;
+    }
+    .authFold > summary {
+      cursor: pointer;
+      list-style: none;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .authFold > summary::-webkit-details-marker { display: none; }
+    .authFoldBody {
+      margin-top: 8px;
+      display: grid;
+      gap: 8px;
+    }
   </style>
 </head>
 <body>
@@ -128,6 +152,51 @@
       <button id="loginBtn" type="button">Login</button>
       <button id="offlineBtn" class="alt" type="button">Continue offline</button>
     </div>
+    <div class="authExtras">
+      <details class="authFold" id="registerFold">
+        <summary id="registerSummary">Create account</summary>
+        <div class="authFoldBody">
+          <label>
+            <span id="registerUsernameLabel">Username</span>
+            <input id="registerUsernameInput" type="text" autocomplete="username" />
+          </label>
+          <label>
+            <span id="registerEmailLabel">Email</span>
+            <input id="registerEmailInput" type="email" autocomplete="email" placeholder="name@company.com" />
+          </label>
+          <label>
+            <span id="registerPasswordLabel">New password</span>
+            <input id="registerPasswordInput" type="password" autocomplete="new-password" />
+          </label>
+          <div class="row">
+            <button id="registerBtn" type="button">Register</button>
+          </div>
+        </div>
+      </details>
+      <details class="authFold" id="recoverFold">
+        <summary id="recoverSummary">Forgot password</summary>
+        <div class="authFoldBody">
+          <label>
+            <span id="recoverIdentifierLabel">Email or username</span>
+            <input id="recoverIdentifierInput" type="text" autocomplete="username email" />
+          </label>
+          <div class="row">
+            <button id="recoverBtn" type="button">Send reset</button>
+          </div>
+          <label>
+            <span id="resetTokenLabel">Reset token</span>
+            <input id="resetTokenInput" type="text" autocomplete="off" />
+          </label>
+          <label>
+            <span id="resetPasswordLabel">New password</span>
+            <input id="resetPasswordInput" type="password" autocomplete="new-password" />
+          </label>
+          <div class="row">
+            <button id="resetBtn" type="button">Apply new password</button>
+          </div>
+        </div>
+      </details>
+    </div>
     <div class="msg" id="msg"></div>
   </section>
 
@@ -143,6 +212,17 @@
       const passwordInput = document.getElementById("passwordInput");
       const loginBtn = document.getElementById("loginBtn");
       const offlineBtn = document.getElementById("offlineBtn");
+      const registerFold = document.getElementById("registerFold");
+      const recoverFold = document.getElementById("recoverFold");
+      const registerUsernameInput = document.getElementById("registerUsernameInput");
+      const registerEmailInput = document.getElementById("registerEmailInput");
+      const registerPasswordInput = document.getElementById("registerPasswordInput");
+      const registerBtn = document.getElementById("registerBtn");
+      const recoverIdentifierInput = document.getElementById("recoverIdentifierInput");
+      const recoverBtn = document.getElementById("recoverBtn");
+      const resetTokenInput = document.getElementById("resetTokenInput");
+      const resetPasswordInput = document.getElementById("resetPasswordInput");
+      const resetBtn = document.getElementById("resetBtn");
       const dot = document.getElementById("serverStatusDot");
       const statusText = document.getElementById("serverStatusText");
       const msg = document.getElementById("msg");
@@ -167,6 +247,17 @@
         setTxt("passwordLabel", "login.password", "Password");
         setTxt("loginBtn", "login.action.login", "Login");
         setTxt("offlineBtn", "login.action.offline", "Continue offline");
+        setTxt("registerSummary", "login.action.registerOpen", "Create account");
+        setTxt("registerUsernameLabel", "login.register.username", "Username");
+        setTxt("registerEmailLabel", "login.register.email", "Email");
+        setTxt("registerPasswordLabel", "login.register.password", "New password");
+        setTxt("registerBtn", "login.action.register", "Register");
+        setTxt("recoverSummary", "login.action.recoverOpen", "Forgot password");
+        setTxt("recoverIdentifierLabel", "login.recover.identifier", "Email or username");
+        setTxt("recoverBtn", "login.action.sendReset", "Send reset");
+        setTxt("resetTokenLabel", "login.recover.token", "Reset token");
+        setTxt("resetPasswordLabel", "login.recover.newPassword", "New password");
+        setTxt("resetBtn", "login.action.applyReset", "Apply new password");
         setTxt("serverStatusText", "login.status.checking", "Checking server...");
       }
 
@@ -249,19 +340,114 @@
         location.href = "./vmill_hub.html";
       }
 
+      async function handleRegister() {
+        setMsg("");
+        registerBtn.disabled = true;
+        const out = await window.VMillAuth.register(
+          registerUsernameInput.value,
+          registerPasswordInput.value,
+          registerEmailInput.value,
+          serverUrlInput.value
+        );
+        registerBtn.disabled = false;
+        if (!out.ok) {
+          setMsg(tt("login.msg.registerFailed", "Register failed: {error}", { error: out.error || "unknown" }), "err");
+          return;
+        }
+        clearOfflineModeFlag();
+        setMsg(tt("login.msg.registerOk", "Account created. Connected as {user}", { user: out.user?.username || "user" }), "ok");
+        try {
+          await window.VMillData?.init?.(out.serverUrl);
+        } catch {}
+        location.href = "./vmill_hub.html";
+      }
+
+      async function handleRecover() {
+        setMsg("");
+        recoverBtn.disabled = true;
+        const out = await window.VMillAuth.forgotPassword(
+          recoverIdentifierInput.value,
+          serverUrlInput.value
+        );
+        recoverBtn.disabled = false;
+        if (!out.ok) {
+          setMsg(tt("login.msg.recoverFailed", "Reset request failed: {error}", { error: out.error || "unknown" }), "err");
+          return;
+        }
+        if (out.resetToken) {
+          resetTokenInput.value = out.resetToken;
+          recoverFold.open = true;
+          setMsg(tt("login.msg.recoverToken", "Reset token generated. Use it below to set a new password."), "ok");
+          return;
+        }
+        setMsg(tt("login.msg.recoverSent", "If account exists, reset instructions were sent."), "ok");
+      }
+
+      async function handleResetPassword() {
+        setMsg("");
+        resetBtn.disabled = true;
+        const out = await window.VMillAuth.resetPassword(
+          resetTokenInput.value,
+          resetPasswordInput.value,
+          serverUrlInput.value
+        );
+        resetBtn.disabled = false;
+        if (!out.ok) {
+          setMsg(tt("login.msg.resetFailed", "Password reset failed: {error}", { error: out.error || "unknown" }), "err");
+          return;
+        }
+        resetPasswordInput.value = "";
+        setMsg(tt("login.msg.resetOk", "Password updated. You can now login."), "ok");
+      }
+
+      async function applyAuthOptions() {
+        const out = await window.VMillAuth.getAuthOptions(serverUrlInput.value);
+        if (!out.ok) return;
+        const data = out.data || {};
+        if (registerFold) {
+          const showRegister = data.allow_register !== false;
+          registerFold.style.display = showRegister ? "" : "none";
+          if (!showRegister) registerFold.open = false;
+        }
+        if (recoverFold) {
+          const showRecover = !!(data.reset_email_enabled || data.reset_dev_preview);
+          recoverFold.style.display = showRecover ? "" : "none";
+          if (!showRecover) recoverFold.open = false;
+        }
+      }
+
       serverUrlInput.value = window.VMillAuth.getServerUrl() || "http://localhost:8080";
       loginBtn.addEventListener("click", handleLogin);
       offlineBtn.addEventListener("click", continueOffline);
+      registerBtn?.addEventListener("click", handleRegister);
+      recoverBtn?.addEventListener("click", handleRecover);
+      resetBtn?.addEventListener("click", handleResetPassword);
       serverUrlInput.addEventListener("change", checkServer);
       serverUrlInput.addEventListener("blur", checkServer);
+      serverUrlInput.addEventListener("change", applyAuthOptions);
       usernameInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") passwordInput.focus();
+      });
+      usernameInput.addEventListener("input", () => {
+        if (registerUsernameInput && !registerUsernameInput.value.trim()) {
+          registerUsernameInput.value = usernameInput.value;
+        }
       });
       passwordInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") handleLogin();
       });
+      registerPasswordInput?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") handleRegister();
+      });
+      recoverIdentifierInput?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") handleRecover();
+      });
+      resetPasswordInput?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") handleResetPassword();
+      });
 
       applyTexts();
+      if (registerUsernameInput) registerUsernameInput.value = usernameInput.value;
       applyGlobalTheme();
       window.addEventListener("vmill:theme:changed", applyGlobalTheme);
       window.addEventListener("vmill:lang:changed", () => {
@@ -269,6 +455,7 @@
         checkServer();
       });
       checkServer();
+      applyAuthOptions();
       pingTimer = window.setInterval(checkServer, 2500);
       window.addEventListener("beforeunload", () => {
         if (pingTimer) clearInterval(pingTimer);

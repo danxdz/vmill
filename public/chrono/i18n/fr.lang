@@ -14,7 +14,7 @@
     "all": "Tout",
     "outliers": "Valeurs aberrantes",
     "avgMarkers": "Reperes moy.",
-    "tags": "Tags",
+    "tags": "Tag",
     "selectLast3": "3 derniers",
     "clearSelection": "Effacer selection",
     "uiScale": "Echelle UI",
@@ -34,6 +34,12 @@
     "uiLayoutHint": "Ces reglages layout sont sauvegardes en local et exportes en JSON.",
     "exportActionsCsv": "Exporter actions CSV",
     "printReport": "Imprimer rapport",
-    "exportPdf": "Exporter PDF"
+    "videoNativeHint": "Utilisez la barre video native pour vous placer puis marquer/couper.",
+    "splitSelected": "Couper selection",
+    "deleteSelected": "Supprimer selection",
+    "exportPdf": "Exporter PDF",
+    "exportXlsx": "Exporter XLSX",
+    "exportGraph": "Exporter graphe PNG",
+    "showAllRecords": "Afficher tous les enregistrements"
   }
 }

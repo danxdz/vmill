@@ -14,7 +14,7 @@
     "all": "Todos",
     "outliers": "Outliers",
     "avgMarkers": "Marcadores media",
-    "tags": "Tags",
+    "tags": "Tag",
     "selectLast3": "Ultimos 3",
     "clearSelection": "Limpar selecao",
     "uiScale": "Escala UI",
@@ -34,6 +34,9 @@
     "uiLayoutHint": "Estas configuracoes de layout ficam guardadas localmente e exportadas em JSON.",
     "exportActionsCsv": "Exportar acoes CSV",
     "printReport": "Imprimir relatorio",
+    "videoNativeHint": "Use a barra nativa do video para navegar e depois marcar/dividir.",
+    "splitSelected": "Dividir selecionado",
+    "deleteSelected": "Eliminar selecionado",
     "exportPdf": "Exportar PDF",
     "activeJob": "Job ativo",
     "searchPh": "Pesquisar produto/estacao/job...",
@@ -46,7 +49,10 @@
     "noMatchingJobs": "Sem jobs correspondentes.",
     "noStations": "Sem estacoes",
     "noJobs": "Sem jobs",
-    "jobSetupSub": "Escopo job - Elementos - Backup",
-    "jobScopeHint": "Crie/edite produtos, estacoes e jobs no Hub. O Chrono usa esse escopo global para gravar ciclos."
+    "jobSetupSub": "Elementos - Resolucao - Backup",
+    "jobScopeHint": "Crie/edite produtos, estacoes e jobs no Hub. O Chrono usa esse escopo global para gravar ciclos.",
+    "exportXlsx": "Exportar XLSX",
+    "exportGraph": "Exportar grafico PNG",
+    "showAllRecords": "Mostrar todos os registos"
   }
 }

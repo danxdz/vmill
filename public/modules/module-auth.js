@@ -101,24 +101,20 @@
       password: String(password || ""),
     };
     try {
-      const res = await fetch(`${base}/api/auth/login`, {
+      const out = await requestJson(base, "/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.token) {
+      const data = out?.data || {};
+      if (!out.ok || !data?.token) {
         return {
           ok: false,
           error: String(data?.error || "login_failed"),
-          status: Number(res.status || 0),
+          status: Number(out.status || 0),
           serverUrl: base,
         };
       }
-      writeLs(TOKEN_KEY, String(data.token));
-      writeLs(USER_KEY, JSON.stringify(data.user || null));
-      writeLs(SERVER_KEY, base);
-      window.CANBus?.emit("auth:changed", { loggedIn: true, user: data.user || null, serverUrl: base }, "module-auth");
+      persistAuth(data, base);
       return {
         ok: true,
         token: String(data.token),
@@ -133,6 +129,173 @@
         status: 0,
         serverUrl: base,
       };
+    }
+  }
+
+  function persistAuth(data, base) {
+    if (!data?.token) return;
+    writeLs(TOKEN_KEY, String(data.token));
+    writeLs(USER_KEY, JSON.stringify(data.user || null));
+    writeLs(SERVER_KEY, base);
+    window.CANBus?.emit("auth:changed", { loggedIn: true, user: data.user || null, serverUrl: base }, "module-auth");
+  }
+
+  async function requestJson(base, path, options = {}) {
+    const method = String(options?.method || "GET").toUpperCase();
+    const headers = { ...(options?.headers || {}) };
+    const init = { method, headers, cache: "no-store" };
+    if (options?.body != null) {
+      headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(options.body);
+    }
+    const res = await fetch(`${base}${path}`, init);
+    const data = await res.json().catch(() => ({}));
+    return {
+      ok: !!res.ok,
+      status: Number(res.status || 0),
+      data: data && typeof data === "object" ? data : {},
+    };
+  }
+
+  async function register(username, password, email = "", serverUrl = "") {
+    const base = normalizeServerUrl(serverUrl || getServerUrl());
+    if (!base) {
+      return { ok: false, error: "invalid_server_url", status: 0 };
+    }
+    const body = {
+      username: String(username || "").trim(),
+      password: String(password || ""),
+      email: String(email || "").trim(),
+    };
+    try {
+      const out = await requestJson(base, "/api/auth/register", {
+        method: "POST",
+        body,
+      });
+      const data = out?.data || {};
+      if (!out.ok || !data?.token) {
+        return {
+          ok: false,
+          error: String(data?.error || "register_failed"),
+          status: Number(out.status || 0),
+          serverUrl: base,
+        };
+      }
+      persistAuth(data, base);
+      return {
+        ok: true,
+        token: String(data.token || ""),
+        user: data.user || null,
+        expiresAt: String(data.expires_at || ""),
+        serverUrl: base,
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        error: String(err?.message || "network_error"),
+        status: 0,
+        serverUrl: base,
+      };
+    }
+  }
+
+  async function forgotPassword(identifier, serverUrl = "") {
+    const base = normalizeServerUrl(serverUrl || getServerUrl());
+    if (!base) return { ok: false, error: "invalid_server_url", status: 0 };
+    try {
+      const out = await requestJson(base, "/api/auth/forgot-password", {
+        method: "POST",
+        body: { identifier: String(identifier || "").trim() },
+      });
+      const data = out?.data || {};
+      return {
+        ok: !!out.ok,
+        status: Number(out.status || 0),
+        error: out.ok ? "" : String(data?.error || "request_failed"),
+        message: String(data?.message || ""),
+        emailSent: !!data?.email_sent,
+        resetToken: String(data?.reset_token || ""),
+        serverUrl: base,
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        error: String(err?.message || "network_error"),
+        status: 0,
+        message: "",
+        emailSent: false,
+        resetToken: "",
+        serverUrl: base,
+      };
+    }
+  }
+
+  async function resetPassword(token, password, serverUrl = "") {
+    const base = normalizeServerUrl(serverUrl || getServerUrl());
+    if (!base) return { ok: false, error: "invalid_server_url", status: 0 };
+    try {
+      const out = await requestJson(base, "/api/auth/reset-password", {
+        method: "POST",
+        body: {
+          token: String(token || "").trim(),
+          password: String(password || ""),
+        },
+      });
+      const data = out?.data || {};
+      return {
+        ok: !!out.ok,
+        status: Number(out.status || 0),
+        error: out.ok ? "" : String(data?.error || "reset_failed"),
+        serverUrl: base,
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        error: String(err?.message || "network_error"),
+        status: 0,
+        serverUrl: base,
+      };
+    }
+  }
+
+  async function getAuthOptions(serverUrl = "") {
+    const base = normalizeServerUrl(serverUrl || getServerUrl());
+    if (!base) return { ok: false, error: "invalid_server_url", status: 0, serverUrl: "" };
+    try {
+      const out = await requestJson(base, "/api/auth/options", { method: "GET" });
+      return {
+        ok: !!out.ok,
+        status: Number(out.status || 0),
+        data: out.data || {},
+        error: out.ok ? "" : String(out?.data?.error || "options_failed"),
+        serverUrl: base,
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        status: 0,
+        data: {},
+        error: String(err?.message || "network_error"),
+        serverUrl: base,
+      };
+    }
+  }
+
+  async function refreshMe(serverUrl = "") {
+    const base = normalizeServerUrl(serverUrl || getServerUrl());
+    const token = getToken();
+    if (!base || !token) return { ok: false, error: "missing_auth", status: 0, user: null };
+    try {
+      const out = await requestJson(base, "/api/auth/me", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const user = out?.data?.user || null;
+      if (!out.ok || !user) return { ok: false, error: String(out?.data?.error || "me_failed"), status: Number(out.status || 0), user: null };
+      writeLs(USER_KEY, JSON.stringify(user));
+      return { ok: true, error: "", status: Number(out.status || 0), user };
+    } catch (err) {
+      return { ok: false, error: String(err?.message || "network_error"), status: 0, user: null };
     }
   }
 
@@ -156,6 +319,11 @@
   window.VMillAuth = {
     keys: { TOKEN_KEY, USER_KEY, SERVER_KEY },
     login,
+    register,
+    forgotPassword,
+    resetPassword,
+    getAuthOptions,
+    refreshMe,
     logout,
     ping,
     getUser,

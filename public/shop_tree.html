@@ -461,6 +461,10 @@
         location.replace("./login.html");
         return;
       }
+      if (!window.VMillAuth.isAdmin()) {
+        location.replace("./vmill_hub.html");
+        return;
+      }
 
       const state = {
         types: [],
