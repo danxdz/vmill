@@ -320,6 +320,7 @@
                 <span id="opCriticalLbl">Critical operation</span>
               </label>
               <button id="opSaveBtn" class="primary" type="button">Save Operation</button>
+              <button id="opOpenChronoBtn" type="button">Open Chrono Study</button>
             </div>
             <div class="chartBox" style="margin-top:10px;">
               <div class="mini" id="opCharHint">Characteristics are linked automatically from annotations for this operation.</div>
@@ -560,6 +561,7 @@
         setTxt("opDownBtn", "spacial.moveDown", "Move Down");
         setTxt("opCriticalLbl", "spacial.op.critical", "Critical operation");
         setTxt("opSaveBtn", "spacial.op.save", "Save Operation");
+        setTxt("opOpenChronoBtn", "spacial.op.openChrono", "Open Chrono Study");
         setTxt("opCharHint", "spacial.op.characteristicsAutoHint", "Characteristics are linked automatically from annotations for this operation.");
         setTxt("opCharUseAllBtn", "spacial.op.characteristicsUseAll", "Use All");
         setTxt("opCharClearBtn", "spacial.op.characteristicsClear", "Clear");
@@ -1359,6 +1361,105 @@
         localStorage.setItem(KEY, raw);
         for (const k of LEGACY_KEYS) localStorage.setItem(k, raw);
       }
+      function ensureStudyStation(state, route, op) {
+        if (!state || typeof state !== "object") return "";
+        if (!Array.isArray(state.stations)) state.stations = [];
+        const wantedId = strOrEmpty(route?.stationId);
+        if (wantedId && state.stations.some((s) => String(s?.id || "") === wantedId)) return wantedId;
+        if (state.stations[0]?.id) return String(state.stations[0].id || "");
+        const nextId = uid("st");
+        state.stations.push({
+          id: nextId,
+          code: strOrEmpty(op?.stationCode) || "ST01",
+          name: strOrEmpty(op?.workstation) || tt("spacial.stationDefault", "Station"),
+          categoryIds: [],
+          imageUrl: "",
+        });
+        return nextId;
+      }
+      function buildChronoStudyName(route, op, product) {
+        const productCode = strOrEmpty(product?.code);
+        const routeName = strOrEmpty(route?.routeName);
+        const opName = strOrEmpty(op?.name);
+        return [productCode, routeName, opName].filter(Boolean).join(" - ") || opName || routeName || "Chrono Study";
+      }
+      function openChronoStudyForOperation() {
+        if (!routePlan) return;
+        const op = operationById(selectedOpId);
+        if (!op) return;
+        const state = readState();
+        if (!state || typeof state !== "object") return;
+        if (!Array.isArray(state.jobs)) state.jobs = [];
+        const productId = strOrEmpty(routePlan.productId || currentRouteProductId());
+        const product = getProduct(state, productId);
+        const stationId = ensureStudyStation(state, routePlan, op);
+        const metaMatcher = (job) => {
+          const meta = job?.meta && typeof job.meta === "object" ? job.meta : {};
+          return (
+            String(meta.kind || "") === "chrono_study"
+            && String(meta.routeId || "") === String(routePlan.id || "")
+            && String(meta.operationId || "") === String(op.id || "")
+          );
+        };
+        let study = state.jobs.find((j) => metaMatcher(j)) || null;
+        if (!study) {
+          study = {
+            id: uid("study"),
+            name: buildChronoStudyName(routePlan, op, product),
+            productId,
+            stationId,
+            allowancePct: 12,
+            ratingPct: 100,
+            elements: [
+              {
+                id: uid("el"),
+                name: strOrEmpty(op.name) || "Operation",
+                type: "HUMAN",
+              },
+            ],
+            cycles: [],
+            categoryIds: [],
+            status: "active",
+            meta: {
+              kind: "chrono_study",
+              routeId: String(routePlan.id || ""),
+              routeName: strOrEmpty(routePlan.routeName),
+              operationId: String(op.id || ""),
+              operationName: strOrEmpty(op.name),
+              operationSeq: Number(op.seq || 0) || 0,
+            },
+          };
+          state.jobs.push(study);
+        } else {
+          study.name = buildChronoStudyName(routePlan, op, product);
+          study.productId = productId || study.productId || "";
+          study.stationId = stationId || study.stationId || "";
+          study.meta = {
+            ...(study.meta && typeof study.meta === "object" ? study.meta : {}),
+            kind: "chrono_study",
+            routeId: String(routePlan.id || ""),
+            routeName: strOrEmpty(routePlan.routeName),
+            operationId: String(op.id || ""),
+            operationName: strOrEmpty(op.name),
+            operationSeq: Number(op.seq || 0) || 0,
+          };
+          if (!Array.isArray(study.elements)) study.elements = [];
+          if (!study.elements.length) {
+            study.elements.push({
+              id: uid("el"),
+              name: strOrEmpty(op.name) || "Operation",
+              type: "HUMAN",
+            });
+          }
+        }
+        state.activeProductId = productId || state.activeProductId || "";
+        state.activeJobId = study.id;
+        persistState(state);
+        const url = new URL("./chrono/chrono.html", window.location.href);
+        url.searchParams.set("job", String(study.id || ""));
+        if (stationId) url.searchParams.set("station", stationId);
+        window.location.href = url.toString();
+      }
       function parseLaunchHandoff() {
         const raw = String(launchParams.get("handoff") || "").trim();
         if (!raw) return null;
@@ -2079,6 +2180,7 @@
           "routeOpSel","opAddBtn","opDeleteBtn","opUpBtn","opDownBtn","opSeqIn","opNameIn",
           "opStationIn","opWorkstationIn","opEstTimeIn","opSampleSizeIn","opFrequencyIn","opControlMethodIn",
           "opNotesIn","opCriticalChk","opSaveBtn","opCharUseAllBtn","opCharClearBtn",
+          "opOpenChronoBtn",
           "bubbleIdIn","bubbleCharSel","bubbleNameIn","bubbleNomIn","bubbleLslIn",
           "bubbleUslIn","bubbleUnitIn","bubbleMethodIn","bubbleInstrumentIn","bubbleReactionIn",
           "opFileSel","opFileUploadBtn","opFileRenameBtn","opFileDeleteBtn","opFileInput","opExportFileJpgBtn","opExportPdfBtn",
@@ -4312,6 +4414,7 @@
       $("opExportPdfBtn").addEventListener("click", exportSelectedOperationPdf);
       $("opAddBtn").addEventListener("click", addOperation);
       $("opSaveBtn").addEventListener("click", saveSelectedOperation);
+      $("opOpenChronoBtn").addEventListener("click", openChronoStudyForOperation);
       $("opDeleteBtn").addEventListener("click", deleteSelectedOperation);
       $("opUpBtn").addEventListener("click", () => moveSelectedOperation(-1));
       $("opDownBtn").addEventListener("click", () => moveSelectedOperation(1));

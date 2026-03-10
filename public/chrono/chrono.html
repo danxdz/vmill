@@ -1379,23 +1379,23 @@
     "saved": "Saved locally",
     "config": "Config",
     "menuConfig": "Menu Config",
-    "hideJobs": "Hide Jobs",
-    "showJobs": "Show Jobs",
-    "jobs": "Jobs",
+    "hideJobs": "Hide Studies",
+    "showJobs": "Show Studies",
+    "jobs": "Studies",
     "collapseAll": "Collapse all",
     "expandAll": "Expand all",
-    "stationJob": "Products / Stations / Jobs",
-    "pickJobHint": "Pick a job, then time cycles. Config is in the right drawer.",
-    "searchPh": "Search product/station/job...",
+    "stationJob": "Products / Stations / Studies",
+    "pickJobHint": "Pick a study, then record cycles. Config is in the right drawer.",
+    "searchPh": "Search product/station/study...",
     "clear": "Clear",
     "allProducts": "All products",
     "allStations": "All stations",
-    "allJobs": "All jobs",
+    "allJobs": "All studies",
     "sidebarProduct": "Product",
     "sidebarStation": "Station",
-    "noMatchingJobs": "No matching jobs.",
+    "noMatchingJobs": "No matching studies.",
     "noStations": "No stations",
-    "noJobs": "No jobs",
+    "noJobs": "No studies",
     "timer": "Timer",
     "currentElapsed": "Current elapsed",
     "currentElement": "Current element",
@@ -1414,8 +1414,8 @@
     "videoRecordedTitle": "Recorded video",
     "videoMarksSuffix": "marks",
     "videoEntryNotFound": "Video bookmarks entry not found.",
-    "selectJobWithElements": "Select a job with elements first.",
-    "videoNoCompatibleBookmarks": "No compatible bookmarks for current job.",
+    "selectJobWithElements": "Select a study with elements first.",
+    "videoNoCompatibleBookmarks": "No compatible bookmarks for current study.",
     "videoBookmarksLoaded": "Loaded {count} bookmark(s). Load the matching video file if needed.",
     "videoAction": "Video action",
     "selectedAction": "Selected action",
@@ -1445,7 +1445,7 @@
     "undo": "Undo",
     "clearCycles": "Clear cycles",
     "spaceHint": "Space = Start/Next/Finish - Backspace = Undo",
-    "selectJob": "Select a job",
+    "selectJob": "Select a study",
     "recordCycles": "Record cycles to compute.",
     "noData": "No data",
     "addElementsInConfig": "Add elements in Config",
@@ -1480,17 +1480,17 @@
     "notesHint": "Notes stored locally + JSON.",
     "configTitle": "Config",
     "jobSetupSub": "Elements - Resolution - Backup",
-    "job": "Job",
+    "job": "Study",
     "station": "Station",
-    "jobName": "Job name",
+    "jobName": "Study name",
     "product": "Product",
     "productDefault": "Product",
     "noProducts": "No products",
     "allowancePct": "Allowance %",
     "ratingPct": "Rating %",
     "stationCode": "Station code",
-    "jobScopeHint": "Create/edit products, stations, and jobs in Hub. Chrono uses global scope and records cycle timings.",
-    "newJob": "+ New Job",
+    "jobScopeHint": "Create/edit products, stations, and studies in Hub. Chrono uses global scope and records cycle timings.",
+    "newJob": "+ New Study",
     "duplicate": "Duplicate",
     "delete": "Delete",
     "elements": "Elements",
@@ -1513,7 +1513,7 @@
     "uiPanelLayoutGrid": "Adaptive grid",
     "uiPanelGridCols": "Grid columns",
     "uiPanelGridColsValue": "cols",
-    "uiJobsWidth": "Jobs panel width (px)",
+    "uiJobsWidth": "Studies panel width (px)",
     "uiTimeUnit": "Time unit",
     "uiTimeUnitSec": "Seconds",
     "uiTimeUnitMin": "Minutes",
@@ -1522,9 +1522,9 @@
     "uiLayoutHint": "These layout settings are saved in local state and exported in JSON.",
     "exportActionsCsv": "Export CSV",
     "printReport": "🖨 Print / PDF",
-    "activeJob": "Active job",
+    "activeJob": "Active study",
     "scaleValue": "Scale value",
-    "jobsPanelWidth": "Jobs panel width",
+    "jobsPanelWidth": "Studies panel width",
     "resolutionS": "Resolution (s)",
     "resetDefaults": "↺ Reset defaults",
     "layoutHint": "Layout settings are saved locally and exported in JSON.",
@@ -1535,7 +1535,7 @@
     "exportXlsx": "Export XLSX",
     "exportGraph": "Export Graph PNG",
     "showAllRecords": "Show all records",
-    "jobsCount": "job(s)",
+    "jobsCount": "study(ies)",
     "edit": "Edit",
     "cfg": "Cfg",
     "progress": "Progress",
@@ -1545,7 +1545,7 @@
     "noCyclesRecorded": "No cycles recorded.",
     "allCyclesFiltered": "All cycles",
     "filtered": "filtered",
-    "timerRunningSwitchJob": "Timer running. Switch job and stop current cycle?",
+    "timerRunningSwitchJob": "Timer running. Switch study and stop current cycle?",
     "timerRunningLeaveScope": "Timer running. Leave current scope and stop current cycle?",
     "elementNameRequired": "Element name required.",
     "unknownActionType": "Unknown action type: {type}",
@@ -2502,6 +2502,17 @@
   function getActionType(id) {
     const up = String(id || "").toUpperCase();
     return actionTypeMap().get(up) || state.actionTypes?.[0] || normalizeActionType({ id: "IDLE" });
+  }
+  function chronoStudyMeta(job) {
+    const meta = job?.meta && typeof job.meta === "object" ? job.meta : {};
+    return {
+      kind: String(meta.kind || ""),
+      routeId: String(meta.routeId || ""),
+      routeName: String(meta.routeName || ""),
+      operationId: String(meta.operationId || ""),
+      operationName: String(meta.operationName || ""),
+      operationSeq: Number(meta.operationSeq || 0) || 0,
+    };
   }
 
   // ----- State -----
@@ -5377,10 +5388,10 @@
 
     // header
     if (!job) {
-      $("jobHeader").textContent = t("selectJob", "Select a job");
+      $("jobHeader").textContent = t("selectJob", "Select a study");
       const hst = $("hScopeTitle");
-      if (hst) hst.textContent = `${t("product", "Product")} / ${t("job", "Job")}`;
-      const hjl = $("hJobLabel"); if (hjl) hjl.textContent = t("selectJob", "Select a job");
+      if (hst) hst.textContent = `${t("product", "Product")} / ${t("job", "Study")}`;
+      const hjl = $("hJobLabel"); if (hjl) hjl.textContent = t("selectJob", "Select a study");
       $("cyclesCount").textContent = "0";
       $("stdTotal").textContent = "-";
       $("stdExplain").textContent = t("recordCycles", "Record cycles to compute.");
@@ -5397,10 +5408,17 @@
     } else {
       const st = getStationById(job.stationId);
       const product = getProductById(job.productId);
+      const studyMeta = chronoStudyMeta(job);
+      const routeHtml = studyMeta.routeName
+        ? ` <span class="pill">Route</span> <strong>${esc(studyMeta.routeName)}</strong>`
+        : "";
+      const operationHtml = studyMeta.operationName
+        ? ` <span class="pill">Operation</span> <strong>${esc(`${studyMeta.operationSeq ? `${studyMeta.operationSeq} - ` : ""}${studyMeta.operationName}`)}</strong>`
+        : "";
       $("jobHeader").innerHTML =
         `<span class="pill">${esc(t("product", "Product"))}</span> <strong>${esc(product?.name || "-")}</strong>
          <span class="pill">${esc(t("station", "Station"))}</span> <strong>${esc(st?.code||"")} - ${esc(st?.name||"")}</strong>
-         <span class="pill">${esc(t("job", "Job"))}</span> <strong>${esc(job.name)}</strong>`;
+         <span class="pill">${esc(t("job", "Study"))}</span> <strong>${esc(job.name)}</strong>${routeHtml}${operationHtml}`;
       const hst = $("hScopeTitle");
       if (hst) hst.textContent = product?.name ? String(product.name) : `${t("product", "Product")} -`;
       const hjl = $("hJobLabel");
