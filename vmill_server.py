@@ -69,6 +69,7 @@ TOKEN_TTL_HOURS = 24 * 7
 PASSWORD_RESET_TTL_MINUTES = max(5, int(os.environ.get("VMILL_PASSWORD_RESET_TTL_MIN", "60")))
 PASSWORD_MIN_LENGTH = max(8, int(os.environ.get("VMILL_PASSWORD_MIN_LENGTH", "8")))
 AUTH_PBKDF2_ITERATIONS = max(120_000, int(os.environ.get("VMILL_AUTH_PBKDF2_ITERS", "240000")))
+AUTH_PBKDF2_LEGACY_ITERS_RAW = str(os.environ.get("VMILL_AUTH_PBKDF2_LEGACY_ITERS", "120000")).strip()
 AUTH_ALLOW_SELF_REGISTER = str(os.environ.get("VMILL_AUTH_ALLOW_REGISTER", "1")).strip().lower() in {"1", "true", "yes", "on"}
 AUTH_DEV_RESET_PREVIEW = str(os.environ.get("VMILL_AUTH_DEV_RESET_PREVIEW", "0")).strip().lower() in {"1", "true", "yes", "on"}
 PASSWORD_RESET_URL = str(os.environ.get("VMILL_PASSWORD_RESET_URL", "")).strip()
@@ -108,6 +109,32 @@ AUTH_RATE_LIMITS = {
 }
 auth_rate_lock = threading.RLock()
 auth_rate_state: Dict[str, List[float]] = {}
+
+
+def parse_legacy_pbkdf2_iters(raw: str) -> Tuple[int, ...]:
+    out: List[int] = []
+    for chunk in str(raw or "").replace(";", ",").split(","):
+        token = chunk.strip()
+        if not token:
+            continue
+        try:
+            value = int(token)
+        except Exception:
+            continue
+        if value >= 50_000:
+            out.append(value)
+    # Keep stable order but dedupe.
+    seen: set[int] = set()
+    dedup: List[int] = []
+    for value in out:
+        if value in seen:
+            continue
+        seen.add(value)
+        dedup.append(value)
+    return tuple(dedup)
+
+
+AUTH_PBKDF2_LEGACY_ITERS = parse_legacy_pbkdf2_iters(AUTH_PBKDF2_LEGACY_ITERS_RAW)
 
 
 def now_iso() -> str:
@@ -210,12 +237,22 @@ def hash_password(password: str, salt_hex: Optional[str] = None) -> Tuple[str, s
     return salt.hex(), digest.hex()
 
 
-def verify_password(password: str, salt_hex: str, digest_hex: str) -> bool:
+def verify_password(password: str, salt_hex: str, digest_hex: str) -> Tuple[bool, int]:
     try:
-        _, calc = hash_password(password, salt_hex)
-        return secrets.compare_digest(calc, digest_hex)
+        salt = bytes.fromhex(str(salt_hex or ""))
+        expected = str(digest_hex or "")
+        candidates = [AUTH_PBKDF2_ITERATIONS, *AUTH_PBKDF2_LEGACY_ITERS]
+        seen: set[int] = set()
+        for iterations in candidates:
+            if iterations in seen:
+                continue
+            seen.add(iterations)
+            calc = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, int(iterations)).hex()
+            if secrets.compare_digest(calc, expected):
+                return True, int(iterations)
+        return False, 0
     except Exception:
-        return False
+        return False, 0
 
 
 class DB:
@@ -793,9 +830,18 @@ class VMillHandler(BaseHTTPRequestHandler):
         if row is None:
             self.send_json(HTTPStatus.UNAUTHORIZED, {"ok": False, "error": "invalid_credentials"})
             return
-        if not verify_password(password, row["password_salt"], row["password_hash"]):
+        ok_pwd, used_iters = verify_password(password, row["password_salt"], row["password_hash"])
+        if not ok_pwd:
             self.send_json(HTTPStatus.UNAUTHORIZED, {"ok": False, "error": "invalid_credentials"})
             return
+        if used_iters and used_iters != AUTH_PBKDF2_ITERATIONS:
+            # Transparent hash upgrade on successful login from legacy iteration count.
+            salt, digest = hash_password(password)
+            db.execute(
+                "UPDATE users SET password_hash=?, password_salt=?, updated_at=? WHERE id=?",
+                (digest, salt, now_iso(), row["id"]),
+            )
+            row = db.query_one("SELECT * FROM users WHERE id=?", (row["id"],)) or row
 
         token = secrets.token_urlsafe(32)
         created = datetime.now(timezone.utc)
