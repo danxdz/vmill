@@ -2306,14 +2306,18 @@
       if (!scopedSet) return rows;
       return rows.filter((row) => rowIdMatchesScopedSet(row, scopedSet));
     }
-    function sanitizeScopeSelection(scope, ctx) {
+    function sanitizeScopeSelection(scope, ctx, stickyTypeId = "") {
       const src = normalizeHubScope(scope);
       const selected = { ...(src.selected || {}) };
       let changed = false;
       const keys = Object.keys(selected).filter((tid) => typeById.has(String(tid || "")));
-      for (let pass = 0; pass < Math.max(1, keys.length * 2); pass++) {
+      const stickyTid = String(stickyTypeId || "").trim();
+      const orderedKeys = stickyTid && keys.includes(stickyTid)
+        ? [...keys.filter((tid) => tid !== stickyTid), stickyTid]
+        : keys;
+      for (let pass = 0; pass < Math.max(1, orderedKeys.length * 2); pass++) {
         let mutated = false;
-        for (const tid of keys) {
+        for (const tid of orderedKeys) {
           const sel = String(selected[tid] || "all");
           if (!sel || sel === "all") continue;
           const rows = (itemsByType.get(tid) || []);
@@ -2322,6 +2326,19 @@
           if (!scopedSet) continue;
           const valid = scopedSet.has(sel) || (selectedRow ? rowIdMatchesScopedSet(selectedRow, scopedSet) : false);
           if (!valid) {
+            if (stickyTid && tid === stickyTid) {
+              let clearedOther = false;
+              for (const otherTid of orderedKeys) {
+                if (otherTid === tid) continue;
+                const otherSel = String(selected[otherTid] || "all");
+                if (!otherSel || otherSel === "all") continue;
+                selected[otherTid] = "all";
+                clearedOther = true;
+                mutated = true;
+                changed = true;
+              }
+              if (clearedOther) continue;
+            }
             selected[tid] = "all";
             mutated = true;
             changed = true;
@@ -2348,32 +2365,61 @@
       const jobType = roleTypeId("job");
       const stationType = roleTypeId("station");
       const productType = roleTypeId("product");
-      let nextJobId = "";
+      const jobs = Array.isArray(st.jobs) ? st.jobs : [];
       const selectedJob = jobType ? String(selected[jobType] || "all") : "all";
-      if (selectedJob && selectedJob !== "all" && st.jobs.some((j) => String(j?.id || "") === selectedJob)) {
-        nextJobId = selectedJob;
+      const selectedStation = stationType ? String(selected[stationType] || "all") : "all";
+      const selectedProduct = productType ? String(selected[productType] || "all") : "all";
+      const matchesScope = (job) => {
+        if (!job || typeof job !== "object") return false;
+        if (selectedProduct && selectedProduct !== "all" && String(job.productId || "") !== selectedProduct) return false;
+        if (selectedStation && selectedStation !== "all" && String(job.stationId || "") !== selectedStation) return false;
+        if (selectedJob && selectedJob !== "all" && String(job.id || "") !== selectedJob) return false;
+        return true;
+      };
+      const scopedJobs = jobs.filter((job) => matchesScope(job));
+      let nextJobId = "";
+      if (selectedJob && selectedJob !== "all") {
+        const explicitJob = jobs.find((j) => String(j?.id || "") === selectedJob) || null;
+        if (explicitJob && matchesScope(explicitJob)) nextJobId = String(explicitJob.id || "");
       }
-      if (!nextJobId && stationType) {
-        const sid = String(selected[stationType] || "all");
-        if (sid && sid !== "all") {
-          const match = st.jobs.find((j) => String(j?.stationId || "") === sid);
-          if (match) nextJobId = String(match.id || "");
+      if (!nextJobId && scopedJobs.length) {
+        nextJobId = String(scopedJobs[0]?.id || "");
+      }
+      let nextProductId = String(st.activeProductId || "");
+      let nextStationId = String(st.activeStationId || "");
+      if (selectedProduct && selectedProduct !== "all" && Array.isArray(st.products) && st.products.some((p) => String(p?.id || "") === selectedProduct)) {
+        nextProductId = selectedProduct;
+      }
+      if (selectedStation && selectedStation !== "all" && Array.isArray(st.stations) && st.stations.some((s) => String(s?.id || "") === selectedStation)) {
+        nextStationId = selectedStation;
+      }
+      if (nextJobId) {
+        const active = jobs.find((j) => String(j?.id || "") === nextJobId) || null;
+        if (active) {
+          if (active.productId) nextProductId = String(active.productId || "");
+          if (active.stationId) nextStationId = String(active.stationId || "");
         }
       }
-      if (!nextJobId && productType) {
-        const pid = String(selected[productType] || "all");
-        if (pid && pid !== "all") {
-          const match = st.jobs.find((j) => String(j?.productId || "") === pid);
-          if (match) nextJobId = String(match.id || "");
-        }
+      let changed = false;
+      if (nextJobId && String(st.activeJobId || "") !== nextJobId) {
+        st.activeJobId = nextJobId;
+        changed = true;
       }
-      if (!nextJobId) return;
-      if (String(st.activeJobId || "") === nextJobId) return;
-      st.activeJobId = nextJobId;
+      if (nextProductId && String(st.activeProductId || "") !== nextProductId) {
+        st.activeProductId = nextProductId;
+        changed = true;
+      }
+      if (nextStationId && String(st.activeStationId || "") !== nextStationId) {
+        st.activeStationId = nextStationId;
+        changed = true;
+      }
+      if (!changed) return;
       st.meta = st.meta || {};
       st.meta.updatedAt = new Date().toISOString();
       writeAppState(st);
-      try { localStorage.setItem(SHELL_JOB_KEY, nextJobId); } catch {}
+      if (nextJobId) {
+        try { localStorage.setItem(SHELL_JOB_KEY, nextJobId); } catch {}
+      }
     }
     function updateScope(nextScope) {
       const written = writeHubScope(nextScope);
@@ -2446,7 +2492,7 @@
             openTypeId: "",
           };
           const nextCtx = buildScopeContext(next);
-          updateScope(sanitizeScopeSelection(next, nextCtx));
+          updateScope(sanitizeScopeSelection(next, nextCtx, tid));
           render();
         });
       });
@@ -2529,7 +2575,7 @@
             query: "",
           };
           const nextCtx = buildScopeContext(next);
-          updateScope(sanitizeScopeSelection(next, nextCtx));
+          updateScope(sanitizeScopeSelection(next, nextCtx, openTypeId));
           closePicker();
           render();
         });
