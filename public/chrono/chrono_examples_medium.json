@@ -6,7 +6,6 @@
       "updatedAt": "2026-03-04T00:13:56Z"
     },
     "activeProductId": "2b38cfe6-4c54-4c1e-a145-7906340f8192",
-    "activeJobId": "d0a543b0-9018-45f0-a2da-a073b28a819d",
     "categories": [
       {
         "id": "7a99b0dd-ab43-46ff-8fe9-bb2fe941745e",
@@ -321,7 +320,97 @@
         "imageUrl": ""
       }
     ],
-    "jobs": [
+    "actionTypes": [
+      {
+        "id": "MACHINE",
+        "name": "Tech",
+        "color": "#7f8790",
+        "lane": "1",
+        "laneOrder": 1,
+        "heightPx": 30,
+        "z": 5,
+        "opacity": 0.9,
+        "underlayTypeId": "",
+        "stackFlow": true,
+        "resourceMode": "MACHINE"
+      },
+      {
+        "id": "HUMAN",
+        "name": "Human",
+        "color": "#ffd24a",
+        "lane": "1",
+        "laneOrder": 1,
+        "heightPx": 15,
+        "z": 20,
+        "opacity": 1.0,
+        "underlayTypeId": "",
+        "stackFlow": true,
+        "resourceMode": "HUMAN"
+      },
+      {
+        "id": "HUMAN+MACHINE",
+        "name": "Human+Tech",
+        "color": "#ffd24a",
+        "lane": "1",
+        "laneOrder": 1,
+        "heightPx": 30,
+        "z": 25,
+        "opacity": 1.0,
+        "underlayTypeId": "MACHINE",
+        "stackFlow": true,
+        "resourceMode": "BOTH"
+      },
+      {
+        "id": "IDLE",
+        "name": "Idle",
+        "color": "#4c73ff",
+        "lane": "idle",
+        "laneOrder": 2,
+        "heightPx": 6,
+        "z": 12,
+        "opacity": 0.8,
+        "underlayTypeId": "",
+        "stackFlow": true,
+        "resourceMode": "LANE"
+      }
+    ],
+    "ui": {
+      "uiScale": 1,
+      "leftPanelVisible": true,
+      "jobsPanelCollapsed": false,
+      "collapsedStations": {},
+      "timelineSameBase": true,
+      "layoutMode": "horizontal",
+      "jobsPanelWidth": 360,
+      "themeBg": "#0b0c10",
+      "themeText": "#e8e8e8",
+      "themeAccent": "#4c73ff",
+      "themeHeaderBg": "#101521",
+      "themeHeaderText": "#e8e8e8",
+      "timeDisplayUnit": "s",
+      "timeResolutionSec": 0.001,
+      "drawerPrefVersion": 2,
+      "drawerSections": {
+        "job": false,
+        "elements": false,
+        "actionTypes": false,
+        "view": false,
+        "backup": false
+      },
+      "panels": {
+        "timer": true,
+        "kpi": true,
+        "timeline": true,
+        "cycles": true
+      },
+      "panelOrder": [
+        "timer",
+        "kpi",
+        "timeline",
+        "cycles"
+      ]
+    },
+    "operations": [
       {
         "id": "d0a543b0-9018-45f0-a2da-a073b28a819d",
         "productId": "2b38cfe6-4c54-4c1e-a145-7906340f8192",
@@ -41579,96 +41668,7 @@
         ]
       }
     ],
-    "actionTypes": [
-      {
-        "id": "MACHINE",
-        "name": "Tech",
-        "color": "#7f8790",
-        "lane": "1",
-        "laneOrder": 1,
-        "heightPx": 30,
-        "z": 5,
-        "opacity": 0.9,
-        "underlayTypeId": "",
-        "stackFlow": true,
-        "resourceMode": "MACHINE"
-      },
-      {
-        "id": "HUMAN",
-        "name": "Human",
-        "color": "#ffd24a",
-        "lane": "1",
-        "laneOrder": 1,
-        "heightPx": 15,
-        "z": 20,
-        "opacity": 1.0,
-        "underlayTypeId": "",
-        "stackFlow": true,
-        "resourceMode": "HUMAN"
-      },
-      {
-        "id": "HUMAN+MACHINE",
-        "name": "Human+Tech",
-        "color": "#ffd24a",
-        "lane": "1",
-        "laneOrder": 1,
-        "heightPx": 30,
-        "z": 25,
-        "opacity": 1.0,
-        "underlayTypeId": "MACHINE",
-        "stackFlow": true,
-        "resourceMode": "BOTH"
-      },
-      {
-        "id": "IDLE",
-        "name": "Idle",
-        "color": "#4c73ff",
-        "lane": "idle",
-        "laneOrder": 2,
-        "heightPx": 6,
-        "z": 12,
-        "opacity": 0.8,
-        "underlayTypeId": "",
-        "stackFlow": true,
-        "resourceMode": "LANE"
-      }
-    ],
-    "ui": {
-      "uiScale": 1,
-      "leftPanelVisible": true,
-      "jobsPanelCollapsed": false,
-      "collapsedStations": {},
-      "timelineSameBase": true,
-      "layoutMode": "horizontal",
-      "jobsPanelWidth": 360,
-      "themeBg": "#0b0c10",
-      "themeText": "#e8e8e8",
-      "themeAccent": "#4c73ff",
-      "themeHeaderBg": "#101521",
-      "themeHeaderText": "#e8e8e8",
-      "timeDisplayUnit": "s",
-      "timeResolutionSec": 0.001,
-      "drawerPrefVersion": 2,
-      "drawerSections": {
-        "job": false,
-        "elements": false,
-        "actionTypes": false,
-        "view": false,
-        "backup": false
-      },
-      "panels": {
-        "timer": true,
-        "kpi": true,
-        "timeline": true,
-        "cycles": true
-      },
-      "panelOrder": [
-        "timer",
-        "kpi",
-        "timeline",
-        "cycles"
-      ]
-    }
+    "activeOperationId": "d0a543b0-9018-45f0-a2da-a073b28a819d"
   },
   "modules": {
     "meta": {

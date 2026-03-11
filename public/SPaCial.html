@@ -28,6 +28,7 @@
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       background:radial-gradient(800px 380px at 0 -10%, rgba(var(--accent-rgb),.16), transparent 60%), var(--bg);
       color:var(--text);
+      color-scheme: dark;
       min-height:100dvh;
       overflow-x:hidden;
       overflow-y:auto;
@@ -54,7 +55,7 @@
       display:block;
     }
     .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;}
-    #scopeTypeSel,#scopeItemSel{display:none !important;}
+    #scopeTypeSel,#scopeItemSel,#jobSel{display:none !important;}
     body.hubScopeOnly .controls .moduleLocalScope{display:none !important;}
     @media(max-width:980px){.controls{grid-template-columns:1fr;}}
     select,input,textarea,button{
@@ -63,6 +64,23 @@
       border-radius:10px;
       border:1px solid var(--border);
       background:rgba(255,255,255,.03);
+      color:var(--text);
+    }
+    select{
+      appearance:none;
+      background-image:
+        linear-gradient(45deg, transparent 50%, color-mix(in srgb,var(--text) 72%, transparent) 50%),
+        linear-gradient(135deg, color-mix(in srgb,var(--text) 72%, transparent) 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(50% + 1px),
+        calc(100% - 12px) calc(50% + 1px);
+      background-size:6px 6px,6px 6px;
+      background-repeat:no-repeat;
+      padding-right:30px;
+    }
+    select option,
+    select optgroup{
+      background:var(--panel2);
       color:var(--text);
     }
     button{cursor:pointer;font-weight:600;}
@@ -113,6 +131,63 @@
     .chartBox > .section:last-of-type{flex:0 0 auto;}
     canvas{width:100%;height:auto;display:block;}
     .mini{font-size:11px;color:var(--muted);}
+    .importTreeActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+    .importTreeActions > *{flex:1 1 160px;}
+    .importTree{
+      margin-top:8px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:color-mix(in srgb,var(--panel2) 88%, transparent);
+      max-height:340px;
+      overflow:auto;
+      padding:8px;
+    }
+    .importTree details{
+      border:1px solid color-mix(in srgb,var(--text) 10%, transparent);
+      border-radius:10px;
+      padding:6px 8px;
+      background:color-mix(in srgb,var(--panel) 84%, transparent);
+      margin-bottom:8px;
+    }
+    .importTree details:last-child{margin-bottom:0;}
+    .importTree summary{
+      cursor:pointer;
+      list-style:none;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:12px;
+      font-weight:700;
+    }
+    .importTree summary::-webkit-details-marker{display:none;}
+    .importTreeRow{
+      display:flex;
+      align-items:flex-start;
+      gap:8px;
+      padding:4px 0;
+      font-size:12px;
+    }
+    .importTreeRow input[type="checkbox"]{
+      width:auto;
+      min-height:0;
+      margin-top:2px;
+      accent-color:var(--accent);
+    }
+    .importTreeBody{
+      margin-top:8px;
+      padding-top:8px;
+      border-top:1px solid color-mix(in srgb,var(--text) 10%, transparent);
+      display:grid;
+      gap:8px;
+    }
+    .importTreeGroup{
+      border:1px solid color-mix(in srgb,var(--text) 10%, transparent);
+      border-radius:8px;
+      padding:6px 8px;
+      background:color-mix(in srgb,var(--panel2) 82%, transparent);
+    }
+    .importTreeItems{display:grid;gap:4px;margin-top:6px;}
+    .importTreeMeta{color:var(--muted);font-size:11px;}
     .bad{color:var(--bad);}
     .ok{color:var(--ok);}
     .routeGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
@@ -155,6 +230,57 @@
       z-index:1;
     }
     .tbl tr:last-child td{border-bottom:0;}
+    .tbl td .cellInput{
+      width:100%;
+      min-width:88px;
+      padding:6px 7px;
+      border-radius:8px;
+      font-size:12px;
+      background:color-mix(in srgb,var(--panel2) 84%, transparent);
+    }
+    .tbl td .cellInput[readonly]{
+      opacity:.78;
+      cursor:default;
+    }
+    .tbl td .cellMeta{
+      font-size:10px;
+      color:var(--muted);
+      margin-top:3px;
+      white-space:nowrap;
+    }
+    .tbl td .cellAction{
+      width:auto;
+      min-width:78px;
+      padding:6px 8px;
+      font-size:11px;
+      border-radius:8px;
+    }
+    .tbl td .cellActions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      align-items:flex-start;
+    }
+    .sectionMinor{
+      margin-top:8px;
+      border:1px dashed color-mix(in srgb,var(--text) 16%, transparent);
+      border-radius:10px;
+      background:color-mix(in srgb,var(--panel2) 80%, transparent);
+    }
+    .sectionMinor > summary{
+      list-style:none;
+      cursor:pointer;
+      padding:8px 10px;
+      font-size:11px;
+      color:var(--muted);
+      user-select:none;
+    }
+    .sectionMinor > summary::-webkit-details-marker{display:none;}
+    .sectionMinorBody{
+      padding:0 10px 10px;
+    }
+    #sectionCharsPanel{display:none !important;}
+    #charLegacyEditor{display:none !important;}
     .mono{
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size:11px;
@@ -274,6 +400,32 @@
         <div class="mini" id="routeInfo" style="margin-top:8px;"></div>
 
         <details class="section" open>
+          <summary id="sectionImportSummary">Structured Import</summary>
+          <div class="sectionBody">
+            <div class="mini" id="spcImportHint" style="margin-top:2px;">Load structured export files, pick products, and import products, characteristics, routes, and operation annotations.</div>
+            <div class="routeGrid3" style="margin-top:8px;">
+              <button id="spcImportLoadBtn" class="primary" type="button">Load Export File</button>
+              <input id="spcImportSearchIn" type="text" placeholder="Filter imported products" />
+              <select id="spcImportProductSel"></select>
+              <button id="spcImportProductBtn" type="button">Import Selected Product</button>
+              <button id="spcImportAllBtn" type="button">Import All Products</button>
+              <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;">
+                <input id="spcImportReplaceChk" type="checkbox" style="width:auto;padding:0;" checked />
+                <span id="spcImportReplaceLbl">Replace previous imported route and characteristics</span>
+              </label>
+              <input id="spcImportFile" type="file" accept=".csv,.cap,.txt,.gam" multiple style="display:none;" />
+            </div>
+            <div class="mini" id="spcImportInfo" style="margin-top:8px;"></div>
+            <div class="mini" id="spcImportPreview" style="margin-top:4px;"></div>
+            <div class="importTreeActions">
+              <button id="spcImportSelectVisibleBtn" type="button">Select Visible</button>
+              <button id="spcImportClearVisibleBtn" type="button">Clear Visible</button>
+            </div>
+            <div class="importTree" id="spcImportTree"></div>
+          </div>
+        </details>
+
+        <details class="section" open>
           <summary id="sectionRouteSummary">Route</summary>
           <div class="sectionBody">
             <div class="routeGrid" style="margin-top:2px;">
@@ -323,40 +475,64 @@
               <button id="opOpenChronoBtn" type="button">Open Chrono Study</button>
             </div>
             <div class="chartBox" style="margin-top:10px;">
-              <div class="mini" id="opCharHint">Characteristics are linked automatically from annotations for this operation.</div>
-              <div id="opCharList" class="tableWrap" style="max-height:180px;min-height:92px;margin-top:8px;"></div>
-              <div class="routeTools" id="opCharActions" style="margin-top:8px;display:none;">
-                <button id="opCharUseAllBtn" type="button">Use All</button>
-                <button id="opCharClearBtn" type="button">Clear</button>
-              </div>
+              <div class="mini" id="opCharHint">Operation-linked characteristics (derived from annotations). Edit in Product Characteristics.</div>
+              <div id="opCharList" class="tableWrap" style="max-height:260px;min-height:120px;margin-top:8px;"></div>
             </div>
           </div>
         </details>
 
-        <details class="section">
+        <details class="section" id="sectionCharsPanel">
           <summary id="sectionCharsSummary">Product Characteristics</summary>
           <div class="sectionBody">
             <div class="mini" id="charSectionHint" style="margin-top:2px;">Catalog linked to the selected product.</div>
-            <div class="routeGrid3" style="margin-top:8px;">
-              <select id="charSel"></select>
-              <button id="charNewBtn" class="primary" type="button">+ Characteristic</button>
-              <button id="charDeleteBtn" class="danger" type="button">Delete</button>
-            </div>
-            <div class="routeGrid3" style="margin-top:8px;">
-              <input id="charIdIn" type="text" placeholder="Characteristic ID (e.g. C01)" />
-              <input id="charNameIn" type="text" placeholder="Characteristic name" />
-              <input id="charNomIn" type="number" step="0.001" placeholder="Nominal" />
-              <input id="charLslIn" type="number" step="0.001" placeholder="Lower limit" />
-              <input id="charUslIn" type="number" step="0.001" placeholder="Upper limit" />
-              <input id="charUnitIn" type="text" placeholder="Unit (mm)" />
-              <input id="charMethodIn" type="text" placeholder="Method" />
-              <input id="charInstrumentIn" type="text" placeholder="Instrument" />
-              <input id="charReactionIn" type="text" placeholder="Reaction plan" />
-            </div>
             <div class="routeTools">
-              <button id="charSaveBtn" class="primary" type="button">Save Characteristic</button>
-              <button id="charClearBtn" type="button">Clear Form</button>
+              <button id="charGridAddBtn" class="primary" type="button">+ Characteristic</button>
             </div>
+            <div class="tableWrap" id="charGridWrap" style="max-height:320px;min-height:140px;">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Nominal</th>
+                    <th>LSL</th>
+                    <th>USL</th>
+                    <th>Unit</th>
+                    <th>Method</th>
+                    <th>Instrument</th>
+                    <th>Reaction</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="charGridBody"></tbody>
+              </table>
+            </div>
+            <div class="mini" id="charGridInfo" style="margin-top:8px;"></div>
+            <details class="sectionMinor" id="charLegacyEditor">
+              <summary id="charLegacySummary">Advanced characteristic editor (legacy)</summary>
+              <div class="sectionMinorBody">
+                <div class="routeGrid3" style="margin-top:8px;">
+                  <select id="charSel"></select>
+                  <button id="charNewBtn" class="primary" type="button">+ Characteristic</button>
+                  <button id="charDeleteBtn" class="danger" type="button">Delete</button>
+                </div>
+                <div class="routeGrid3" style="margin-top:8px;">
+                  <input id="charIdIn" type="text" placeholder="Characteristic ID (e.g. C01)" />
+                  <input id="charNameIn" type="text" placeholder="Characteristic name" />
+                  <input id="charNomIn" type="number" step="0.001" placeholder="Nominal" />
+                  <input id="charLslIn" type="number" step="0.001" placeholder="Lower limit" />
+                  <input id="charUslIn" type="number" step="0.001" placeholder="Upper limit" />
+                  <input id="charUnitIn" type="text" placeholder="Unit (mm)" />
+                  <input id="charMethodIn" type="text" placeholder="Method" />
+                  <input id="charInstrumentIn" type="text" placeholder="Instrument" />
+                  <input id="charReactionIn" type="text" placeholder="Reaction plan" />
+                </div>
+                <div class="routeTools">
+                  <button id="charSaveBtn" class="primary" type="button">Save Characteristic</button>
+                  <button id="charClearBtn" type="button">Clear Form</button>
+                </div>
+              </div>
+            </details>
           </div>
         </details>
 
@@ -368,13 +544,6 @@
               <input id="bubbleIdIn" type="text" placeholder="Annotation ID (e.g. A01)" />
               <select id="bubbleCharSel"></select>
               <input id="bubbleNameIn" type="text" placeholder="Annotation name" />
-              <input id="bubbleNomIn" type="number" step="0.001" placeholder="Nominal" />
-              <input id="bubbleLslIn" type="number" step="0.001" placeholder="Lower limit" />
-              <input id="bubbleUslIn" type="number" step="0.001" placeholder="Upper limit" />
-              <input id="bubbleUnitIn" type="text" placeholder="Unit (mm)" />
-              <input id="bubbleMethodIn" type="text" placeholder="Method" />
-              <input id="bubbleInstrumentIn" type="text" placeholder="Instrument" />
-              <input id="bubbleReactionIn" type="text" placeholder="Reaction plan" />
             </div>
             <div class="routeTools">
               <button id="bubbleSaveBtn" class="primary" type="button">Save Annotation</button>
@@ -382,13 +551,34 @@
               <button id="bubbleImportBtn" type="button">Import Annotations CSV</button>
               <input id="bubbleImportFile" type="file" accept=".csv,text/csv" style="display:none;" />
             </div>
+            <details class="sectionMinor">
+              <summary id="bubbleAdvancedSummary">Advanced annotation fields</summary>
+              <div class="sectionMinorBody">
+                <div class="routeGrid3" style="margin-top:8px;">
+                  <input id="bubbleNomIn" type="number" step="0.001" placeholder="Nominal" />
+                  <input id="bubbleLslIn" type="number" step="0.001" placeholder="Lower limit" />
+                  <input id="bubbleUslIn" type="number" step="0.001" placeholder="Upper limit" />
+                  <input id="bubbleUnitIn" type="text" placeholder="Unit (mm)" />
+                  <input id="bubbleMethodIn" type="text" placeholder="Method" />
+                  <input id="bubbleInstrumentIn" type="text" placeholder="Instrument" />
+                  <input id="bubbleReactionIn" type="text" placeholder="Reaction plan" />
+                </div>
+              </div>
+            </details>
             <div class="tableWrap">
               <table class="tbl">
                 <thead>
                   <tr>
                     <th id="bubbleHeadId">Annotation</th>
-                    <th id="bubbleHeadName">Name</th>
-                    <th id="bubbleHeadSpec">Spec</th>
+                    <th id="bubbleHeadName">Characteristic</th>
+                    <th id="bubbleHeadSpec">Name</th>
+                    <th>Nominal</th>
+                    <th>LSL</th>
+                    <th>USL</th>
+                    <th>Unit</th>
+                    <th>Method</th>
+                    <th>Instrument</th>
+                    <th>Reaction</th>
                     <th id="bubbleHeadActions">Actions</th>
                   </tr>
                 </thead>
@@ -488,6 +678,8 @@
       ]));
       const NS_ROUTE = "spacial_routes";
       const NS_CHAR = "spacial_characteristics";
+      const STRUCTURED_IMPORT_SOURCE = "structured_import";
+      const LEGACY_STRUCTURED_IMPORT_SOURCES = new Set(["spc_structured", STRUCTURED_IMPORT_SOURCE]);
       const launchParams = new URLSearchParams(window.location.search || "");
       let launchRouteApplied = false;
       let lastStateSig = "";
@@ -498,6 +690,9 @@
       let selectedStationFilterId = "";
       let selectedJobFilterId = "";
       let selectedRouteId = "";
+      let spcImportState = null;
+      let spcImportQuery = "";
+      let spcImportSelection = { products: new Set(), characteristics: new Set(), operations: new Set() };
       let selectedOpId = "";
       let selectedOpFileId = "";
       let selectedCharId = "";
@@ -515,6 +710,8 @@
       let bubbleClickOcrArmed = false;
       let bubbleCanvasZoom = 1;
       let bubbleCanvasPan = null;
+      const charGridSaveTimers = new WeakMap();
+      const bubbleGridSaveTimers = new WeakMap();
       let refreshRaf = 0;
       function requestRefresh() {
         if (refreshRaf) return;
@@ -545,11 +742,17 @@
         setTxt("routeDupBtn", "spacial.route.duplicate", "Duplicate Route");
         setTxt("routeDeleteBtn", "spacial.route.delete", "Delete Route");
         setTxt("routingTitle", "spacial.routing.title", "Routing and Dimensional Control");
+        setTxt("sectionImportSummary", "spacial.section.import", "Structured Import");
         setTxt("sectionRouteSummary", "spacial.section.route", "Route");
         setTxt("sectionOpsSummary", "spacial.section.operations", "Operations");
         setTxt("sectionCharsSummary", "spacial.section.characteristics", "Product Characteristics");
         setTxt("sectionBubblesSummary", "spacial.section.annotations", "Annotations");
         setTxt("sectionBlueprintSummary", "spacial.section.blueprint", "Blueprint");
+        setTxt("spcImportHint", "spacial.import.structuredHint", "Load structured export files, pick products, and import products, characteristics, routes, and operation annotations.");
+        setTxt("spcImportLoadBtn", "spacial.import.loadFile", "Load Export File");
+        setTxt("spcImportProductBtn", "spacial.import.product", "Import Selected Product");
+        setTxt("spcImportAllBtn", "spacial.import.all", "Import All Products");
+        setTxt("spcImportReplaceLbl", "spacial.import.replace", "Replace previous imported route and characteristics");
         setTxt("routeSaveBtn", "spacial.saveRoute", "Save Route");
         setTxt("routeResetBtn", "spacial.reload", "Reload");
         setTxt("routeExportJsonBtn", "spacial.routeJson", "Route JSON");
@@ -562,21 +765,22 @@
         setTxt("opCriticalLbl", "spacial.op.critical", "Critical operation");
         setTxt("opSaveBtn", "spacial.op.save", "Save Operation");
         setTxt("opOpenChronoBtn", "spacial.op.openChrono", "Open Chrono Study");
-        setTxt("opCharHint", "spacial.op.characteristicsAutoHint", "Characteristics are linked automatically from annotations for this operation.");
-        setTxt("opCharUseAllBtn", "spacial.op.characteristicsUseAll", "Use All");
-        setTxt("opCharClearBtn", "spacial.op.characteristicsClear", "Clear");
+        setTxt("opCharHint", "spacial.op.characteristicsAutoHint", "Operation-linked characteristics (derived from annotations). Edit in Product Characteristics.");
         setTxt("charSectionHint", "spacial.characteristics.hint", "Catalog linked to the selected product.");
+        setTxt("charGridAddBtn", "spacial.characteristics.new", "+ Characteristic");
+        setTxt("charLegacySummary", "spacial.characteristics.advanced", "Advanced characteristic editor (legacy)");
         setTxt("charNewBtn", "spacial.characteristics.new", "+ Characteristic");
         setTxt("charDeleteBtn", "spacial.characteristics.delete", "Delete");
         setTxt("charSaveBtn", "spacial.characteristics.save", "Save Characteristic");
         setTxt("charClearBtn", "spacial.characteristics.clear", "Clear Form");
         setTxt("bubbleSectionHint", "spacial.annotations.title", "Dimensional annotations for selected operation");
+        setTxt("bubbleAdvancedSummary", "spacial.annotations.advanced", "Advanced annotation fields");
         setTxt("bubbleSaveBtn", "spacial.annotation.save", "Save Annotation");
         setTxt("bubbleClearBtn", "spacial.annotation.clear", "Clear Annotation Form");
         setTxt("bubbleImportBtn", "spacial.annotation.importCsv", "Import Annotations CSV");
         setTxt("bubbleHeadId", "spacial.table.annotation", "Annotation");
-        setTxt("bubbleHeadName", "spacial.table.name", "Name");
-        setTxt("bubbleHeadSpec", "spacial.table.spec", "Spec");
+        setTxt("bubbleHeadName", "spacial.characteristics.name", "Characteristic");
+        setTxt("bubbleHeadSpec", "spacial.table.name", "Name");
         setTxt("bubbleHeadActions", "spacial.table.actions", "Actions");
         setTxt("bubbleCanvasTitle", "spacial.canvas.title.annotation", "Annotation Canvas");
         setTxt("opFileUploadBtn", "spacial.file.add", "+ File(s)");
@@ -612,6 +816,7 @@
         setPh("routeNameIn", "spacial.routeName", "Route name");
         setPh("routeRevisionIn", "spacial.routeRev", "Revision (A, B...)");
         setPh("routeProductRefIn", "spacial.routeProductRef", "Product / Drawing ref");
+        setPh("spcImportSearchIn", "spacial.import.search", "Filter imported products");
         setPh("opSeqIn", "spacial.op.seq", "Seq");
         setPh("opNameIn", "spacial.op.name", "Operation name");
         setPh("opStationIn", "spacial.op.station", "Station code");
@@ -1568,6 +1773,17 @@
       function strOrEmpty(v) {
         return String(v == null ? "" : v).trim();
       }
+      function sanitizeStructuredMarker(v) {
+        const raw = strOrEmpty(v);
+        if (!raw) return "";
+        const compact = raw.toLowerCase().replace(/[\s_-]+/g, " ").trim();
+        if (!compact) return "";
+        if (compact === "spc") return "";
+        if (compact.startsWith("spc ")) return "";
+        if (compact.startsWith("spc:")) return "";
+        if (compact === "par produit" || compact === "par product") return "";
+        return raw;
+      }
       function escHtml(v) {
         return String(v || "").replace(/[&<>"']/g, (c) => ({
           "&": "&amp;",
@@ -1599,6 +1815,1275 @@
       }
       function uid(prefix) {
         return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
+      }
+      function safeRecordToken(raw) {
+        const base = strOrEmpty(raw).replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "");
+        return base || "vmill";
+      }
+      function normalizeRouteRevision(raw) {
+        const rev = strOrEmpty(raw || "A");
+        if (!rev) return "A";
+        if (String(rev).toUpperCase() === "IMP") return "A";
+        return rev;
+      }
+      function fileNameOnly(raw) {
+        const parts = strOrEmpty(raw).split(/[\\/]+/).filter(Boolean);
+        return parts.length ? parts[parts.length - 1] : "";
+      }
+      function combineStructuredName(primary, secondary) {
+        const a = strOrEmpty(primary);
+        const b = strOrEmpty(secondary);
+        if (!a) return b;
+        if (!b) return a;
+        if (a.toLowerCase() === b.toLowerCase()) return a;
+        return `${a} ${b}`.trim();
+      }
+      function guessStructuredOperationSeq(name, fallback) {
+        const text = strOrEmpty(name);
+        const match = text.match(/(?:_OP_|[\s_-]OP[\s_-]?)(\d{1,4})/i);
+        if (match) {
+          const parsed = Number(match[1]);
+          if (Number.isFinite(parsed)) return parsed;
+        }
+        return Number(fallback || 0) || 0;
+      }
+      function structuredBboxFromRow(parts, startIdx = 57) {
+        const x = numOrNull(parts?.[startIdx]);
+        const y = numOrNull(parts?.[startIdx + 1]);
+        const w = numOrNull(parts?.[startIdx + 2]);
+        const h = numOrNull(parts?.[startIdx + 3]);
+        if (![x, y, w, h].every((v) => Number.isFinite(v) && v >= 0)) return null;
+        return {
+          x1: Math.round(x * 1000),
+          y1: Math.round(y * 560),
+          x2: Math.round((x + w) * 1000),
+          y2: Math.round((y + h) * 560),
+        };
+      }
+      function createStructuredImportProduct(code, seenAt = 0) {
+        return {
+          code,
+          name: "",
+          client: "",
+          imagePath: "",
+          sourceBlocks: 0,
+          seenAt,
+          characteristics: [],
+          characteristicsByKey: new Map(),
+          operations: [],
+          operationsByKey: new Map(),
+        };
+      }
+      function createStructuredImportState(sourceName = "") {
+        return {
+          sourceName: strOrEmpty(sourceName),
+          sourceFiles: sourceName ? [strOrEmpty(sourceName)] : [],
+          lineCount: 0,
+          products: [],
+        };
+      }
+      function structuredImportCharKey(sourceChar, idx = 0) {
+        const order = Number(sourceChar?.sourceOrder || 0);
+        if (Number.isFinite(order) && order > 0) return `ord:${order}`;
+        const name = strOrEmpty(sourceChar?.name).toLowerCase();
+        return name ? `name:${name}` : `idx:${idx + 1}`;
+      }
+      function structuredImportOpKey(sourceOp, idx = 0) {
+        const name = strOrEmpty(sourceOp?.name).toLowerCase();
+        if (name) return `name:${name}`;
+        const seq = Number(sourceOp?.seq || 0);
+        if (Number.isFinite(seq) && seq > 0) return `seq:${seq}`;
+        return `idx:${idx + 1}`;
+      }
+      function structuredImportSelectionKey(kind, productCode, itemKey = "") {
+        return `${kind}:${strOrEmpty(productCode)}:${strOrEmpty(itemKey)}`;
+      }
+      function resetStructuredImportSelection(selectAll = true) {
+        spcImportSelection = { products: new Set(), characteristics: new Set(), operations: new Set() };
+        if (!selectAll || !Array.isArray(spcImportState?.products)) return;
+        for (const product of spcImportState.products) {
+          const code = strOrEmpty(product?.code);
+          if (!code) continue;
+          spcImportSelection.products.add(code);
+          (product.characteristics || []).forEach((ch, idx) => {
+            spcImportSelection.characteristics.add(structuredImportSelectionKey("char", code, structuredImportCharKey(ch, idx)));
+          });
+          (product.operations || []).forEach((op, idx) => {
+            spcImportSelection.operations.add(structuredImportSelectionKey("op", code, structuredImportOpKey(op, idx)));
+          });
+        }
+      }
+      function inferStructuredProductCodeFromSourceName(sourceName = "") {
+        const base = fileNameOnly(sourceName).toLowerCase();
+        if (!base) return "";
+        const noExt = base.replace(/\.[a-z0-9]+$/i, "");
+        const hit = noExt.match(/([a-z]?\d{5,}[a-z0-9_-]*)/i);
+        return hit ? String(hit[1] || "").toUpperCase() : "";
+      }
+      function parseStructuredProductsTable(text, sourceName = "") {
+        const rows = parseCsvRows(text);
+        const productsByCode = new Map();
+        let lineNo = 0;
+        for (const row of rows) {
+          lineNo += 1;
+          const code = strOrEmpty(fromAlias(row, ["pn", "label", "productcode", "code", "produit", "article"]));
+          if (!code) continue;
+          const product = ensureStructuredImportProduct(productsByCode, code, lineNo);
+          if (!product) continue;
+          product.sourceBlocks += 1;
+          const name = strOrEmpty(fromAlias(row, ["name", "nom", "nome", "designation", "description"]));
+          const client = strOrEmpty(fromAlias(row, ["client", "customer", "cliente"]));
+          const imagePath = strOrEmpty(fromAlias(row, ["image", "imagepath", "drawing", "photo", "picture", "img"]));
+          if (name) product.name = name;
+          if (client && !product.client) product.client = client;
+          if (imagePath && !product.imagePath) product.imagePath = imagePath;
+        }
+        const products = [...productsByCode.values()]
+          .sort((a, b) => Number(a.seenAt || 0) - Number(b.seenAt || 0))
+          .map((product) => ({
+            code: product.code,
+            name: product.name || product.code,
+            client: product.client,
+            imagePath: product.imagePath,
+            sourceBlocks: product.sourceBlocks,
+            characteristics: [],
+            operations: [],
+          }));
+        return {
+          sourceName: strOrEmpty(sourceName),
+          sourceFiles: sourceName ? [strOrEmpty(sourceName)] : [],
+          lineCount: rows.length + 1,
+          products,
+        };
+      }
+      function parseStructuredCharacteristicsTable(text, sourceName = "") {
+        const rows = parseCsvRows(text);
+        const productsByCode = new Map();
+        const defaultCode = inferStructuredProductCodeFromSourceName(sourceName);
+        let lineNo = 0;
+        for (const row of rows) {
+          lineNo += 1;
+          const code = strOrEmpty(fromAlias(row, ["pn", "productcode", "product", "produit", "article", "labelpn", "codeproduit"]) || defaultCode);
+          if (!code) continue;
+          const product = ensureStructuredImportProduct(productsByCode, code, lineNo);
+          if (!product) continue;
+          product.sourceBlocks += 1;
+          const sourceOrder = numFromAlias(row, ["order", "ordre", "position", "rang", "sourceorder"]);
+          const label = strOrEmpty(fromAlias(row, ["characteristic", "characteristicname", "caracteristique", "caractristique", "dimension", "name", "nom", "designation", "label", "id"]));
+          if (!label) continue;
+          const key = sourceOrder != null ? `ord:${sourceOrder}` : `name:${label.toLowerCase()}`;
+          let ch = product.characteristicsByKey.get(key) || null;
+          if (!ch) {
+            ch = {
+              key,
+              sourceOrder: sourceOrder != null ? sourceOrder : (product.characteristics.length + 1),
+              name: label,
+              unit: strOrEmpty(fromAlias(row, ["unit", "unite", "uom"])),
+              typeCode: strOrEmpty(fromAlias(row, ["typecode", "type"])),
+              typeLabel: strOrEmpty(fromAlias(row, ["typelabel", "type", "controle", "category"])),
+              nominal: numFromAlias(row, ["nominal", "target", "nominalvalue", "nom"]),
+              lsl: numFromAlias(row, ["lsl", "lit", "lic", "lia", "min", "lowerlimit"]),
+              usl: numFromAlias(row, ["usl", "lst", "lsc", "lsa", "max", "upperlimit"]),
+              imagePath: "",
+            };
+            product.characteristics.push(ch);
+            product.characteristicsByKey.set(key, ch);
+          } else {
+            if (!ch.name) ch.name = label;
+            if (!ch.unit) ch.unit = strOrEmpty(fromAlias(row, ["unit", "unite", "uom"]));
+            if (!ch.typeCode) ch.typeCode = strOrEmpty(fromAlias(row, ["typecode", "type"]));
+            if (!ch.typeLabel) ch.typeLabel = strOrEmpty(fromAlias(row, ["typelabel", "type", "controle", "category"]));
+            if (ch.nominal == null) ch.nominal = numFromAlias(row, ["nominal", "target", "nominalvalue", "nom"]);
+            if (ch.lsl == null) ch.lsl = numFromAlias(row, ["lsl", "lit", "lic", "lia", "min", "lowerlimit"]);
+            if (ch.usl == null) ch.usl = numFromAlias(row, ["usl", "lst", "lsc", "lsa", "max", "upperlimit"]);
+          }
+        }
+        const products = [...productsByCode.values()]
+          .sort((a, b) => Number(a.seenAt || 0) - Number(b.seenAt || 0))
+          .map((product) => ({
+            code: product.code,
+            name: product.name || product.code,
+            client: product.client,
+            imagePath: product.imagePath,
+            sourceBlocks: product.sourceBlocks,
+            characteristics: product.characteristics
+              .sort((a, b) => Number(a?.sourceOrder || 0) - Number(b?.sourceOrder || 0))
+              .map((ch) => ({
+                sourceOrder: ch.sourceOrder,
+                name: ch.name,
+                unit: ch.unit,
+                typeCode: ch.typeCode,
+                typeLabel: ch.typeLabel,
+                nominal: ch.nominal,
+                lsl: ch.lsl,
+                usl: ch.usl,
+                imagePath: ch.imagePath || "",
+              })),
+            operations: [],
+          }));
+        return {
+          sourceName: strOrEmpty(sourceName),
+          sourceFiles: sourceName ? [strOrEmpty(sourceName)] : [],
+          lineCount: rows.length + 1,
+          products,
+        };
+      }
+      function parseStructuredOperationsTable(text, sourceName = "") {
+        const rows = parseCsvRows(text);
+        const productsByCode = new Map();
+        const defaultCode = inferStructuredProductCodeFromSourceName(sourceName);
+        let lineNo = 0;
+        for (const row of rows) {
+          lineNo += 1;
+          const code = strOrEmpty(fromAlias(row, ["pn", "productcode", "product", "produit", "article", "labelpn", "codeproduit"]) || defaultCode);
+          if (!code) continue;
+          const product = ensureStructuredImportProduct(productsByCode, code, lineNo);
+          if (!product) continue;
+          product.sourceBlocks += 1;
+          const opName = strOrEmpty(fromAlias(row, ["operation", "operationname", "opname", "name", "nomoperation", "gamme", "route", "stationoperation"]));
+          if (!opName) continue;
+          const ctx = {
+            workstation: strOrEmpty(fromAlias(row, ["workstation", "poste", "stationname"])),
+            workgroup: strOrEmpty(fromAlias(row, ["workgroup", "group", "atelier", "ilot"])),
+            workshop: strOrEmpty(fromAlias(row, ["workshop", "ateliername", "shop"])),
+            machine: strOrEmpty(fromAlias(row, ["machine", "equipment"])),
+          };
+          const op = ensureStructuredOperation(product, opName, ctx, []);
+          if (!op) continue;
+          const seq = numFromAlias(row, ["seq", "sequence", "order", "ordre", "position"]);
+          if (seq != null && Number.isFinite(Number(seq))) op.seq = Number(seq);
+          const stationCode = strOrEmpty(fromAlias(row, ["stationcode", "station", "poste", "workstationcode"]));
+          if (stationCode) op.stationCode = stationCode;
+          const workstation = strOrEmpty(fromAlias(row, ["workstation", "stationname", "poste", "atelier", "machine"]));
+          if (workstation) op.workstation = workstation;
+          const controlMethod = sanitizeStructuredMarker(fromAlias(row, ["controlmethod", "method", "controle", "typecontrole"]));
+          if (controlMethod) op.controlMethod = controlMethod;
+          const est = numFromAlias(row, ["estimatedtime", "estimatedtimemin", "time", "cycletime", "temps"]);
+          if (est != null && est > 0 && est < 600) op.estimatedTimeMin = est;
+          const imagePath = strOrEmpty(fromAlias(row, ["image", "imagepath", "drawing", "plan", "photo"]));
+          if (imagePath && !op.imagePath) op.imagePath = imagePath;
+          const description = strOrEmpty(fromAlias(row, ["description", "note", "notes", "comment"]));
+          if (description && !op.description) op.description = description;
+        }
+        const products = [...productsByCode.values()]
+          .sort((a, b) => Number(a.seenAt || 0) - Number(b.seenAt || 0))
+          .map((product) => ({
+            code: product.code,
+            name: product.name || product.code,
+            client: product.client,
+            imagePath: product.imagePath,
+            sourceBlocks: product.sourceBlocks,
+            characteristics: [],
+            operations: product.operations
+              .sort((a, b) => Number(a?.seq || 0) - Number(b?.seq || 0))
+              .map((op) => ({
+                name: op.name,
+                description: op.description,
+                seq: op.seq,
+                stationCode: op.stationCode,
+                workstation: op.workstation,
+                estimatedTimeMin: op.estimatedTimeMin,
+                controlMethod: sanitizeStructuredMarker(op.controlMethod),
+                imagePath: op.imagePath,
+                links: [],
+              })),
+          }));
+        return {
+          sourceName: strOrEmpty(sourceName),
+          sourceFiles: sourceName ? [strOrEmpty(sourceName)] : [],
+          lineCount: rows.length + 1,
+          products,
+        };
+      }
+      function parseStructuredTabularExport(text, sourceName = "") {
+        const rows = parseCsvRows(text);
+        if (!rows.length) return createStructuredImportState(sourceName);
+        const keySet = new Set(Object.keys(rows[0] || {}).map((k) => strOrEmpty(k).toLowerCase()).filter(Boolean));
+        const lower = strOrEmpty(sourceName).toLowerCase();
+        const has = (k) => keySet.has(String(k || "").toLowerCase());
+        let productScore = 0;
+        let characteristicScore = 0;
+        let operationScore = 0;
+        for (const k of ["client", "customer", "famille", "family", "owner", "proprietaire", "label"]) if (has(k)) productScore += 1;
+        for (const k of ["nominal", "lsl", "usl", "lit", "lst", "cp", "cpk", "dimension", "characteristic", "unite", "unit"]) if (has(k)) characteristicScore += 1;
+        for (const k of ["operation", "operationname", "gamme", "seq", "sequence", "ordre", "station", "workstation", "atelier", "machine"]) if (has(k)) operationScore += 1;
+        if (/(^|[\\/])1\.csv$/i.test(lower)) productScore += 3;
+        if (lower.includes("test.csv") || lower.endsWith(".cap.txt")) characteristicScore += 3;
+        if (lower.endsWith(".gam.csv") || lower.includes(".gam.")) operationScore += 3;
+        if (operationScore >= characteristicScore && operationScore >= productScore && operationScore > 0) {
+          return parseStructuredOperationsTable(text, sourceName);
+        }
+        if (characteristicScore >= productScore && characteristicScore > 0) {
+          return parseStructuredCharacteristicsTable(text, sourceName);
+        }
+        if (productScore > 0) return parseStructuredProductsTable(text, sourceName);
+        return createStructuredImportState(sourceName);
+      }
+      function parseStructuredCapExport(text, sourceName = "") {
+        const lines = String(text || "").replace(/^\uFEFF/, "").split(/\r?\n/);
+        const productsByCode = new Map();
+        let lineNo = 0;
+        for (const rawLine of lines) {
+          lineNo += 1;
+          const line = String(rawLine || "").trim();
+          if (!line || /^VERSION\s*=/i.test(line)) continue;
+          const parts = line.split(";");
+          const code = strOrEmpty(parts[2]);
+          const name = combineStructuredName(parts[0], parts[1]);
+          if (!code || !name) continue;
+          const product = ensureStructuredImportProduct(productsByCode, code, lineNo);
+          if (!product) continue;
+          if (!product.name) product.name = code;
+          product.sourceBlocks += 1;
+          const chKey = structuredImportCharKey({ sourceOrder: product.characteristics.length + 1, name }, product.characteristics.length);
+          if (product.characteristicsByKey.has(chKey)) continue;
+          const ch = {
+            key: chKey,
+            sourceOrder: product.characteristics.length + 1,
+            name,
+            unit: strOrEmpty(parts[14]),
+            typeCode: strOrEmpty(parts[10]),
+            typeLabel: strOrEmpty(parts[15]),
+            nominal: numOrNull(parts[22]),
+            lsl: numOrNull(parts[20]),
+            usl: numOrNull(parts[21]),
+            imagePath: "",
+          };
+          product.characteristics.push(ch);
+          product.characteristicsByKey.set(chKey, ch);
+        }
+        const products = [...productsByCode.values()].sort((a, b) => Number(a.seenAt || 0) - Number(b.seenAt || 0)).map((product) => ({
+          code: product.code,
+          name: product.name || product.code,
+          client: product.client,
+          imagePath: product.imagePath,
+          sourceBlocks: product.sourceBlocks,
+          characteristics: product.characteristics.map((ch) => ({
+            sourceOrder: ch.sourceOrder,
+            name: ch.name,
+            unit: ch.unit,
+            typeCode: ch.typeCode,
+            typeLabel: ch.typeLabel,
+            nominal: ch.nominal,
+            lsl: ch.lsl,
+            usl: ch.usl,
+            imagePath: ch.imagePath || "",
+          })),
+          operations: [],
+        }));
+        return {
+          sourceName: strOrEmpty(sourceName),
+          sourceFiles: sourceName ? [strOrEmpty(sourceName)] : [],
+          lineCount: lines.length,
+          products,
+        };
+      }
+      function parseStructuredGamExport(text, sourceName = "") {
+        const lines = String(text || "").replace(/^\uFEFF/, "").split(/\r?\n/);
+        const productsByCode = new Map();
+        let lineNo = 0;
+        for (const rawLine of lines) {
+          lineNo += 1;
+          const line = String(rawLine || "").trim();
+          if (!line || /^VERSION\s*=/i.test(line)) continue;
+          const parts = line.split(";");
+          const productCode = strOrEmpty(parts[3] || parts[0]);
+          const opName = combineStructuredName(parts[0], parts[1]);
+          if (!productCode || !opName) continue;
+          const product = ensureStructuredImportProduct(productsByCode, productCode, lineNo);
+          if (!product) continue;
+          if (!product.name) product.name = productCode;
+          product.sourceBlocks += 1;
+          const op = ensureStructuredOperation(product, opName, { workstation: "", workgroup: "", workshop: "", machine: "" }, parts);
+          if (!op) continue;
+          if (op.seq == null || !Number.isFinite(Number(op.seq)) || Number(op.seq) <= 0) op.seq = (product.operations.length) * 10;
+          if (!op.controlMethod) op.controlMethod = sanitizeStructuredMarker(parts[25]);
+          if (op.estimatedTimeMin == null) op.estimatedTimeMin = numOrNull(parts[26]);
+          if (!op.imagePath) {
+            const pathIdx = findStructuredPathIndex(parts, 0);
+            op.imagePath = strOrEmpty(pathIdx >= 0 ? parts[pathIdx] : "");
+          }
+        }
+        const products = [...productsByCode.values()].sort((a, b) => Number(a.seenAt || 0) - Number(b.seenAt || 0)).map((product) => ({
+          code: product.code,
+          name: product.name || product.code,
+          client: product.client,
+          imagePath: product.imagePath,
+          sourceBlocks: product.sourceBlocks,
+          characteristics: [],
+          operations: product.operations.map((op) => ({
+            name: op.name,
+            description: op.description,
+            seq: op.seq,
+            stationCode: op.stationCode,
+            workstation: op.workstation,
+            estimatedTimeMin: op.estimatedTimeMin,
+            controlMethod: sanitizeStructuredMarker(op.controlMethod),
+            imagePath: op.imagePath,
+            links: [],
+          })),
+        }));
+        return {
+          sourceName: strOrEmpty(sourceName),
+          sourceFiles: sourceName ? [strOrEmpty(sourceName)] : [],
+          lineCount: lines.length,
+          products,
+        };
+      }
+      function findStructuredCodeIndex(parts, codeHint = "") {
+        const wanted = strOrEmpty(codeHint).toLowerCase();
+        if (wanted) {
+          for (let i = 0; i < Math.min(parts.length, 8); i += 1) {
+            if (strOrEmpty(parts[i]).toLowerCase() === wanted) return i;
+          }
+        }
+        for (let i = 0; i < Math.min(parts.length, 8); i += 1) {
+          const token = strOrEmpty(parts[i]);
+          if (/^[A-Za-z0-9_./-]{2,}$/.test(token) && /[A-Za-z]/.test(token) && /\d/.test(token)) return i;
+        }
+        return -1;
+      }
+      function findStructuredPathIndex(parts, startIdx = 0) {
+        for (let i = Math.max(0, startIdx); i < Math.min(parts.length, startIdx + 40); i += 1) {
+          const token = strOrEmpty(parts[i]);
+          if (/[\\/]/.test(token)) return i;
+        }
+        return -1;
+      }
+      function ensureStructuredImportProduct(map, code, seenAt = 0) {
+        const key = strOrEmpty(code);
+        if (!key) return null;
+        if (!map.has(key)) map.set(key, createStructuredImportProduct(key, seenAt));
+        return map.get(key) || null;
+      }
+      function structuredImportedStationCode(ctx, opName = "") {
+        const stationCode = strOrEmpty(ctx?.workstation || "");
+        const groupCode = strOrEmpty(ctx?.workgroup || "");
+        const workshop = strOrEmpty(ctx?.workshop || "");
+        const op = strOrEmpty(opName || "").toLowerCase();
+        if (stationCode && stationCode.toLowerCase() !== op && stationCode.toLowerCase() !== workshop.toLowerCase()) return stationCode;
+        if (groupCode && /^[A-Z0-9_-]{2,12}$/.test(groupCode) && groupCode.toLowerCase() !== op) return groupCode;
+        return "";
+      }
+      function structuredImportedWorkstation(ctx, opName = "") {
+        const parts = [
+          strOrEmpty(ctx?.workgroup || ""),
+          strOrEmpty(ctx?.workstation || ""),
+          strOrEmpty(ctx?.machine || ""),
+        ].filter(Boolean);
+        const joined = parts.join(" · ");
+        const workshop = strOrEmpty(ctx?.workshop || "");
+        const op = strOrEmpty(opName || "");
+        if (joined) return joined;
+        if (workshop && workshop.toLowerCase() !== op.toLowerCase()) return workshop;
+        return "";
+      }
+      function ensureStructuredOperation(product, opName, ctx, rowParts = []) {
+        if (!product) return null;
+        const name = strOrEmpty(opName);
+        if (!name) return null;
+        const key = name.toLowerCase();
+        if (!product.operationsByKey.has(key)) {
+          const nextIndex = product.operations.length;
+          const seq = guessStructuredOperationSeq(name, (nextIndex + 1) * 10) || ((nextIndex + 1) * 10);
+          const op = {
+            key,
+            name,
+            description: strOrEmpty(rowParts?.[1]),
+            seq,
+            stationCode: structuredImportedStationCode(ctx, name),
+            workstation: structuredImportedWorkstation(ctx, name),
+            imagePath: strOrEmpty(rowParts?.[29] || rowParts?.[36]),
+            estimatedTimeMin: (() => {
+              const est = numOrNull(rowParts?.[26]);
+              return est != null && est > 0 && est < 600 ? est : null;
+            })(),
+            controlMethod: sanitizeStructuredMarker(rowParts?.[25]),
+            links: [],
+            linksByKey: new Map(),
+          };
+          product.operations.push(op);
+          product.operationsByKey.set(key, op);
+        }
+        const existing = product.operationsByKey.get(key) || null;
+        if (!existing) return null;
+        if (!existing.description) existing.description = strOrEmpty(rowParts?.[1]);
+        if (!existing.stationCode) existing.stationCode = structuredImportedStationCode(ctx, name);
+        if (!existing.workstation) existing.workstation = structuredImportedWorkstation(ctx, name);
+        if (!existing.imagePath) existing.imagePath = strOrEmpty(rowParts?.[29] || rowParts?.[36]);
+        if (existing.estimatedTimeMin == null) {
+          const est = numOrNull(rowParts?.[26]);
+          if (est != null && est > 0 && est < 600) existing.estimatedTimeMin = est;
+        }
+        if (!existing.controlMethod) existing.controlMethod = sanitizeStructuredMarker(rowParts?.[25]);
+        return existing;
+      }
+      function parseStructuredSpcExport(text, sourceName = "") {
+        const lines = String(text || "").replace(/^\uFEFF/, "").split(/\r?\n/);
+        const productsByCode = new Map();
+        const ctx = {
+          workstation: "",
+          workgroup: "",
+          workshop: "",
+          machine: "",
+          section: "",
+          productCode: "",
+          currentOperationName: "",
+        };
+        let lineNo = 0;
+        for (const rawLine of lines) {
+          lineNo += 1;
+          const line = String(rawLine || "").trim();
+          if (!line) continue;
+          if (line.startsWith("####################")) {
+            ctx.section = "";
+            ctx.currentOperationName = "";
+            continue;
+          }
+          if (line.startsWith("_WORKSTATION_")) {
+            ctx.workstation = strOrEmpty(line.slice("_WORKSTATION_".length));
+            continue;
+          }
+          if (line.startsWith("_WORKGROUP_")) {
+            ctx.workgroup = strOrEmpty(line.slice("_WORKGROUP_".length));
+            continue;
+          }
+          if (line.startsWith("_WORKSHOP_")) {
+            ctx.workshop = strOrEmpty(line.slice("_WORKSHOP_".length));
+            continue;
+          }
+          if (line.startsWith("_MACHINE_")) {
+            ctx.machine = strOrEmpty(line.slice("_MACHINE_".length));
+            continue;
+          }
+          if (line === "_PRODUCT_CHARACTERISTIC_") {
+            ctx.section = "productCharacteristic";
+            continue;
+          }
+          if (line === "_INSPECTION_STANDARD_CHARACTERISTIC_") {
+            ctx.section = "inspectionStandardCharacteristic";
+            continue;
+          }
+          if (line.startsWith("_PRODUCT_")) {
+            ctx.section = "product";
+            ctx.productCode = strOrEmpty(line.slice("_PRODUCT_".length).split(";")[0]);
+            ensureStructuredImportProduct(productsByCode, ctx.productCode, lineNo);
+            continue;
+          }
+          if (line.startsWith("_INSPECTION_STANDARD_")) {
+            ctx.section = "inspectionStandard";
+            ctx.currentOperationName = strOrEmpty(line.slice("_INSPECTION_STANDARD_".length).split(";")[0]);
+            continue;
+          }
+          if (line.startsWith("_")) {
+            ctx.section = "";
+            continue;
+          }
+
+          const parts = line.split(";");
+          if (ctx.section === "product") {
+            const code = strOrEmpty(parts[0] || ctx.productCode);
+            const product = ensureStructuredImportProduct(productsByCode, code, lineNo);
+            if (!product) continue;
+            product.sourceBlocks += 1;
+            product.name = strOrEmpty(product.name || parts[1]);
+            product.client = strOrEmpty(product.client || parts[6]);
+            product.imagePath = strOrEmpty(product.imagePath || parts[17]);
+            ctx.productCode = code;
+            continue;
+          }
+
+          if (ctx.section === "productCharacteristic") {
+            const codeIdx = findStructuredCodeIndex(parts, ctx.productCode);
+            const code = strOrEmpty((codeIdx >= 0 ? parts[codeIdx] : "") || ctx.productCode);
+            const product = ensureStructuredImportProduct(productsByCode, code, lineNo);
+            if (!product) continue;
+            const sourceOrder = numOrNull(parts[codeIdx + 69]);
+            const fullName = combineStructuredName(parts[0], parts[1]);
+            if (!fullName) continue;
+            const key = sourceOrder != null ? `ord:${sourceOrder}` : `name:${fullName.toLowerCase()}`;
+            let ch = product.characteristicsByKey.get(key) || null;
+            if (!ch) {
+              ch = {
+                key,
+                sourceOrder: sourceOrder != null ? sourceOrder : (product.characteristics.length + 1),
+                name: fullName,
+                unit: strOrEmpty(parts[codeIdx + 12]),
+                typeCode: strOrEmpty(parts[codeIdx + 8]),
+                typeLabel: strOrEmpty(parts[codeIdx + 13]),
+                nominal: numOrNull(parts[codeIdx + 20]),
+                lsl: numOrNull(parts[codeIdx + 18]),
+                usl: numOrNull(parts[codeIdx + 19]),
+                imagePath: "",
+              };
+              product.characteristics.push(ch);
+              product.characteristicsByKey.set(key, ch);
+            } else {
+              if (!ch.name) ch.name = fullName;
+              if (!ch.unit) ch.unit = strOrEmpty(parts[codeIdx + 12]);
+              if (!ch.typeCode) ch.typeCode = strOrEmpty(parts[codeIdx + 8]);
+              if (!ch.typeLabel) ch.typeLabel = strOrEmpty(parts[codeIdx + 13]);
+              if (ch.nominal == null) ch.nominal = numOrNull(parts[codeIdx + 20]);
+              if (ch.lsl == null) ch.lsl = numOrNull(parts[codeIdx + 18]);
+              if (ch.usl == null) ch.usl = numOrNull(parts[codeIdx + 19]);
+            }
+            continue;
+          }
+
+          if (ctx.section === "inspectionStandard") {
+            const code = strOrEmpty(parts[3] || ctx.productCode);
+            const product = ensureStructuredImportProduct(productsByCode, code, lineNo);
+            if (!product) continue;
+            const opName = strOrEmpty(parts[0] || ctx.currentOperationName);
+            const op = ensureStructuredOperation(product, opName, ctx, parts);
+            if (op) ctx.currentOperationName = op.name;
+            continue;
+          }
+
+          if (ctx.section === "inspectionStandardCharacteristic") {
+            const codeIdx = findStructuredCodeIndex(parts, ctx.productCode);
+            const code = strOrEmpty((codeIdx >= 0 ? parts[codeIdx] : "") || ctx.productCode);
+            const product = ensureStructuredImportProduct(productsByCode, code, lineNo);
+            if (!product) continue;
+            const opName = strOrEmpty(parts[codeIdx - 2] || ctx.currentOperationName);
+            const op = ensureStructuredOperation(product, opName, ctx, []);
+            if (!op) continue;
+            const imagePathIdx = findStructuredPathIndex(parts, codeIdx + 1);
+            const sourceOrder = numOrNull(parts[codeIdx + 21]);
+            const fullName = combineStructuredName(parts[0], parts[1]);
+            const charKey = sourceOrder != null ? `ord:${sourceOrder}` : `name:${fullName.toLowerCase()}`;
+            let ch = product.characteristicsByKey.get(charKey) || null;
+            if (!ch && fullName) {
+              ch = {
+                key: charKey,
+                sourceOrder: sourceOrder != null ? sourceOrder : (product.characteristics.length + 1),
+                name: fullName,
+                unit: "",
+                typeCode: "",
+                typeLabel: "",
+                nominal: null,
+                lsl: null,
+                usl: null,
+                imagePath: strOrEmpty(imagePathIdx >= 0 ? parts[imagePathIdx] : ""),
+              };
+              product.characteristics.push(ch);
+              product.characteristicsByKey.set(charKey, ch);
+            }
+            if (ch && !ch.imagePath) ch.imagePath = strOrEmpty(imagePathIdx >= 0 ? parts[imagePathIdx] : "");
+            const bubbleKey = sourceOrder != null ? `ord:${sourceOrder}` : `name:${fullName.toLowerCase()}`;
+            if (!op.linksByKey.has(bubbleKey)) {
+              op.links.push({
+                key: bubbleKey,
+                sourceOrder: sourceOrder != null ? sourceOrder : (op.links.length + 1),
+                name: fullName || (ch?.name || ""),
+                charKey,
+                imagePath: strOrEmpty(imagePathIdx >= 0 ? parts[imagePathIdx] : ""),
+                bbox: structuredBboxFromRow(parts, codeIdx + 53),
+              });
+              op.linksByKey.set(bubbleKey, true);
+            }
+          }
+        }
+
+        const products = [...productsByCode.values()]
+          .sort((a, b) => Number(a.seenAt || 0) - Number(b.seenAt || 0))
+          .map((product) => {
+            product.characteristics.sort((a, b) => {
+              const ao = Number(a?.sourceOrder || 0);
+              const bo = Number(b?.sourceOrder || 0);
+              if (ao !== bo) return ao - bo;
+              return String(a?.name || "").localeCompare(String(b?.name || ""));
+            });
+            product.operations.sort((a, b) => Number(a?.seq || 0) - Number(b?.seq || 0));
+            for (const op of product.operations) {
+              op.links.sort((a, b) => Number(a?.sourceOrder || 0) - Number(b?.sourceOrder || 0));
+            }
+            return {
+              code: product.code,
+              name: product.name || product.code,
+              client: product.client,
+              imagePath: product.imagePath,
+              sourceBlocks: product.sourceBlocks,
+              characteristics: product.characteristics.map((ch) => ({
+                sourceOrder: ch.sourceOrder,
+                name: ch.name,
+                unit: ch.unit,
+                typeCode: ch.typeCode,
+                typeLabel: ch.typeLabel,
+                nominal: ch.nominal,
+                lsl: ch.lsl,
+                usl: ch.usl,
+                imagePath: ch.imagePath || "",
+              })),
+              operations: product.operations.map((op) => ({
+                name: op.name,
+                description: op.description,
+                seq: op.seq,
+                stationCode: op.stationCode,
+                workstation: op.workstation,
+                estimatedTimeMin: op.estimatedTimeMin,
+                controlMethod: sanitizeStructuredMarker(op.controlMethod),
+                imagePath: op.imagePath,
+                links: op.links.map((link) => ({
+                  sourceOrder: link.sourceOrder,
+                  name: link.name,
+                  characteristicOrder: Number(String(link.charKey || "").split(":")[1] || 0) || null,
+                  characteristicKey: link.charKey,
+                  imagePath: link.imagePath,
+                  bbox: link.bbox,
+                })),
+              })),
+            };
+          });
+        return {
+          sourceName: strOrEmpty(sourceName),
+          sourceFiles: sourceName ? [strOrEmpty(sourceName)] : [],
+          lineCount: lines.length,
+          products,
+        };
+      }
+      function parseStructuredImportByFileName(text, sourceName = "") {
+        const lower = strOrEmpty(sourceName).toLowerCase();
+        if (lower.endsWith(".cap") || lower.endsWith(".cap.txt")) return parseStructuredCapExport(text, sourceName);
+        if (lower.endsWith(".gam")) return parseStructuredGamExport(text, sourceName);
+        if (/(^|[^a-z0-9])\.?gam\.csv$/i.test(lower) || lower.includes(".gam.")) {
+          const tabGam = parseStructuredOperationsTable(text, sourceName);
+          if (Array.isArray(tabGam?.products) && tabGam.products.length) return tabGam;
+          return parseStructuredGamExport(text, sourceName);
+        }
+        if (/_PRODUCT_|_INSPECTION_STANDARD_|_PRODUCT_CHARACTERISTIC_/i.test(String(text || ""))) {
+          return parseStructuredSpcExport(text, sourceName);
+        }
+        const tabular = parseStructuredTabularExport(text, sourceName);
+        if (Array.isArray(tabular?.products) && tabular.products.length) return tabular;
+        return parseStructuredSpcExport(text, sourceName);
+      }
+      function mergeStructuredImportStates(baseState, incomingState) {
+        const base = baseState && typeof baseState === "object" ? baseState : createStructuredImportState();
+        const incoming = incomingState && typeof incomingState === "object" ? incomingState : createStructuredImportState();
+        const merged = {
+          sourceName: "",
+          sourceFiles: [...new Set([...(Array.isArray(base.sourceFiles) ? base.sourceFiles : []), ...(Array.isArray(incoming.sourceFiles) ? incoming.sourceFiles : [])].filter(Boolean))],
+          lineCount: Number(base.lineCount || 0) + Number(incoming.lineCount || 0),
+          products: [],
+        };
+        const productMap = new Map();
+        const allProducts = [...(Array.isArray(base.products) ? base.products : []), ...(Array.isArray(incoming.products) ? incoming.products : [])];
+        for (const srcProduct of allProducts) {
+          const code = strOrEmpty(srcProduct?.code);
+          if (!code) continue;
+          if (!productMap.has(code)) {
+            productMap.set(code, {
+              code,
+              name: strOrEmpty(srcProduct?.name) || code,
+              client: strOrEmpty(srcProduct?.client),
+              imagePath: strOrEmpty(srcProduct?.imagePath),
+              sourceBlocks: Number(srcProduct?.sourceBlocks || 0),
+              characteristics: [],
+              operations: [],
+            });
+          }
+          const target = productMap.get(code);
+          const incomingName = strOrEmpty(srcProduct?.name);
+          if (!target.name || target.name.toLowerCase() === code.toLowerCase()) {
+            target.name = incomingName || target.name || code;
+          } else if (incomingName && incomingName.toLowerCase() !== code.toLowerCase() && incomingName.length > target.name.length) {
+            target.name = incomingName;
+          }
+          target.client = target.client || strOrEmpty(srcProduct?.client);
+          target.imagePath = target.imagePath || strOrEmpty(srcProduct?.imagePath);
+          target.sourceBlocks += Number(srcProduct?.sourceBlocks || 0);
+          const charSeen = new Set(target.characteristics.map((ch, idx) => structuredImportCharKey(ch, idx)));
+          (srcProduct?.characteristics || []).forEach((sourceChar, idx) => {
+            const key = structuredImportCharKey(sourceChar, idx);
+            if (charSeen.has(key)) return;
+            charSeen.add(key);
+            target.characteristics.push({
+              sourceOrder: sourceChar?.sourceOrder,
+              name: sourceChar?.name,
+              unit: sourceChar?.unit,
+              typeCode: sourceChar?.typeCode,
+              typeLabel: sourceChar?.typeLabel,
+              nominal: sourceChar?.nominal,
+              lsl: sourceChar?.lsl,
+              usl: sourceChar?.usl,
+              imagePath: sourceChar?.imagePath || "",
+            });
+          });
+          const opSeen = new Map(target.operations.map((op, idx) => [structuredImportOpKey(op, idx), op]));
+          (srcProduct?.operations || []).forEach((sourceOp, idx) => {
+            const key = structuredImportOpKey(sourceOp, idx);
+            if (!opSeen.has(key)) {
+              const clone = {
+                name: sourceOp?.name,
+                description: sourceOp?.description,
+                seq: sourceOp?.seq,
+                stationCode: sourceOp?.stationCode || "",
+                workstation: sourceOp?.workstation || "",
+                estimatedTimeMin: sourceOp?.estimatedTimeMin,
+                controlMethod: sanitizeStructuredMarker(sourceOp?.controlMethod || ""),
+                imagePath: sourceOp?.imagePath || "",
+                links: Array.isArray(sourceOp?.links) ? sourceOp.links.map((link) => ({ ...link })) : [],
+              };
+              target.operations.push(clone);
+              opSeen.set(key, clone);
+              return;
+            }
+            const existingOp = opSeen.get(key);
+            if (!existingOp.description) existingOp.description = sourceOp?.description;
+            if (!existingOp.stationCode) existingOp.stationCode = sourceOp?.stationCode || "";
+            if (!existingOp.workstation) existingOp.workstation = sourceOp?.workstation || "";
+            if (existingOp.estimatedTimeMin == null) existingOp.estimatedTimeMin = sourceOp?.estimatedTimeMin;
+            if (!existingOp.controlMethod) existingOp.controlMethod = sanitizeStructuredMarker(sourceOp?.controlMethod || "");
+            if (!existingOp.imagePath) existingOp.imagePath = sourceOp?.imagePath || "";
+            const linkSeen = new Set((existingOp.links || []).map((link) => `${link?.characteristicKey || ""}|${link?.sourceOrder || ""}|${strOrEmpty(link?.name).toLowerCase()}`));
+            (sourceOp?.links || []).forEach((link) => {
+              const linkKey = `${link?.characteristicKey || ""}|${link?.sourceOrder || ""}|${strOrEmpty(link?.name).toLowerCase()}`;
+              if (linkSeen.has(linkKey)) return;
+              linkSeen.add(linkKey);
+              existingOp.links.push({ ...link });
+            });
+          });
+        }
+        merged.products = [...productMap.values()].sort((a, b) => String(a?.code || "").localeCompare(String(b?.code || "")));
+        merged.sourceName = merged.sourceFiles.length ? merged.sourceFiles.join(", ") : (incoming.sourceName || base.sourceName || "");
+        return merged;
+      }
+      function structuredImportProductLabel(product) {
+        if (!product) return "";
+        const code = strOrEmpty(product.code);
+        const name = strOrEmpty(product.name);
+        return `${code || "--"} - ${name || code || "Product"}`;
+      }
+      function structuredImportProductsFiltered() {
+        const rows = Array.isArray(spcImportState?.products) ? spcImportState.products.slice() : [];
+        const query = strOrEmpty(spcImportQuery).toLowerCase();
+        if (!query) return rows;
+        return rows.filter((product) => {
+          const text = [
+            product?.code,
+            product?.name,
+            product?.client,
+            ...(Array.isArray(product?.operations) ? product.operations.map((op) => op?.name) : []),
+          ].join(" ").toLowerCase();
+          return text.includes(query);
+        });
+      }
+      function getSelectedStructuredImportProduct() {
+        const sel = $("spcImportProductSel");
+        const code = strOrEmpty(sel?.value || "");
+        const rows = structuredImportProductsFiltered();
+        return rows.find((product) => String(product?.code || "") === code) || rows[0] || null;
+      }
+      function structuredImportSelectedForProduct(product) {
+        const code = strOrEmpty(product?.code);
+        if (!code) return { product: false, chars: new Set(), ops: new Set() };
+        const chars = new Set((product?.characteristics || []).map((ch, idx) => structuredImportCharKey(ch, idx)).filter((key) =>
+          spcImportSelection.characteristics.has(structuredImportSelectionKey("char", code, key))
+        ));
+        const ops = new Set((product?.operations || []).map((op, idx) => structuredImportOpKey(op, idx)).filter((key) =>
+          spcImportSelection.operations.has(structuredImportSelectionKey("op", code, key))
+        ));
+        return {
+          product: spcImportSelection.products.has(code),
+          chars,
+          ops,
+        };
+      }
+      function buildStructuredImportSubset(product) {
+        if (!product) return null;
+        const code = strOrEmpty(product.code);
+        const selection = structuredImportSelectedForProduct(product);
+        if (!selection.product && selection.chars.size === 0 && selection.ops.size === 0) return null;
+        const selectedOps = (product.operations || []).filter((op, idx) => selection.ops.has(structuredImportOpKey(op, idx)));
+        const wantedCharKeys = new Set(selection.chars);
+        for (const op of selectedOps) {
+          for (const link of (op.links || [])) {
+            const order = Number(link?.characteristicOrder || 0);
+            if (Number.isFinite(order) && order > 0) wantedCharKeys.add(`ord:${order}`);
+            if (strOrEmpty(link?.name)) wantedCharKeys.add(`name:${strOrEmpty(link.name).toLowerCase()}`);
+            if (strOrEmpty(link?.characteristicKey)) wantedCharKeys.add(strOrEmpty(link.characteristicKey));
+          }
+        }
+        const selectedChars = (product.characteristics || []).filter((ch, idx) => wantedCharKeys.has(structuredImportCharKey(ch, idx)));
+        return {
+          ...product,
+          characteristics: selectedChars.map((ch) => ({ ...ch })),
+          operations: selectedOps.map((op) => ({ ...op, links: Array.isArray(op.links) ? op.links.map((link) => ({ ...link })) : [] })),
+        };
+      }
+      function setStructuredImportProductSelection(product, checked) {
+        const code = strOrEmpty(product?.code);
+        if (!code) return;
+        if (checked) spcImportSelection.products.add(code);
+        else spcImportSelection.products.delete(code);
+        (product.characteristics || []).forEach((ch, idx) => {
+          const key = structuredImportSelectionKey("char", code, structuredImportCharKey(ch, idx));
+          if (checked) spcImportSelection.characteristics.add(key);
+          else spcImportSelection.characteristics.delete(key);
+        });
+        (product.operations || []).forEach((op, idx) => {
+          const key = structuredImportSelectionKey("op", code, structuredImportOpKey(op, idx));
+          if (checked) spcImportSelection.operations.add(key);
+          else spcImportSelection.operations.delete(key);
+        });
+      }
+      function findStructuredFilteredProduct(productCode) {
+        return structuredImportProductsFiltered().find((product) => String(product?.code || "") === String(productCode || "")) || null;
+      }
+      function setStructuredImportVisibleSelection(selectAll = true) {
+        const rows = structuredImportProductsFiltered();
+        for (const product of rows) {
+          const code = strOrEmpty(product?.code);
+          if (!code) continue;
+          if (selectAll) spcImportSelection.products.add(code);
+          else spcImportSelection.products.delete(code);
+          (product.characteristics || []).forEach((ch, idx) => {
+            const key = structuredImportSelectionKey("char", code, structuredImportCharKey(ch, idx));
+            if (selectAll) spcImportSelection.characteristics.add(key);
+            else spcImportSelection.characteristics.delete(key);
+          });
+          (product.operations || []).forEach((op, idx) => {
+            const key = structuredImportSelectionKey("op", code, structuredImportOpKey(op, idx));
+            if (selectAll) spcImportSelection.operations.add(key);
+            else spcImportSelection.operations.delete(key);
+          });
+        }
+      }
+      function renderStructuredImportTree(rows) {
+        const host = $("spcImportTree");
+        if (!host) return;
+        if (!rows.length) {
+          host.innerHTML = `<div class="mini">${escHtml(tt("spacial.import.noMatch", "No products match the current filter."))}</div>`;
+          return;
+        }
+        const selectedCode = strOrEmpty($("spcImportProductSel")?.value || "");
+        host.innerHTML = rows.map((product) => {
+          const code = strOrEmpty(product?.code);
+          const selection = structuredImportSelectedForProduct(product);
+          const isOpen = code === selectedCode;
+          const charRows = (product.characteristics || []).map((ch, idx) => {
+            const key = structuredImportCharKey(ch, idx);
+            const checked = selection.chars.has(key) ? "checked" : "";
+            const specs = [ch?.nominal, ch?.lsl, ch?.usl].some((v) => v != null)
+              ? ` | ${tt("spacial.annotation.nominal", "Nominal")}: ${ch?.nominal ?? "-"} | LSL: ${ch?.lsl ?? "-"} | USL: ${ch?.usl ?? "-"}`
+              : "";
+            return `<label class="importTreeRow"><input type="checkbox" data-import-char="${escHtml(code)}" data-import-char-key="${escHtml(key)}" ${checked} /><span>${escHtml(ch?.name || `Characteristic ${idx + 1}`)} <span class="importTreeMeta">${escHtml(ch?.unit || "")}${escHtml(specs)}</span></span></label>`;
+          }).join("");
+          const opRows = (product.operations || []).map((op, idx) => {
+            const key = structuredImportOpKey(op, idx);
+            const checked = selection.ops.has(key) ? "checked" : "";
+            const meta = [op?.stationCode, op?.workstation, sanitizeStructuredMarker(op?.controlMethod)].filter(Boolean).join(" | ");
+            return `<label class="importTreeRow"><input type="checkbox" data-import-op="${escHtml(code)}" data-import-op-key="${escHtml(key)}" ${checked} /><span>${escHtml(op?.name || `Operation ${idx + 1}`)} <span class="importTreeMeta">${escHtml(meta)}</span></span></label>`;
+          }).join("");
+          return `
+            <details ${isOpen ? "open" : ""}>
+              <summary>
+                <input type="checkbox" data-import-product="${escHtml(code)}" ${selection.product ? "checked" : ""} />
+                <span>${escHtml(structuredImportProductLabel(product))}</span>
+                <span class="importTreeMeta">${escHtml(`${product.characteristics.length} ${tt("spacial.section.characteristics", "Characteristics")} | ${product.operations.length} ${tt("spacial.section.operations", "Operations")}`)}</span>
+              </summary>
+              <div class="importTreeBody">
+                <div class="importTreeGroup">
+                  <label class="importTreeRow"><input type="checkbox" data-import-char-group="${escHtml(code)}" ${(product.characteristics || []).length && selection.chars.size === product.characteristics.length ? "checked" : ""} /><span>${escHtml(tt("spacial.section.characteristics", "Characteristics"))}</span></label>
+                  <div class="importTreeItems">${charRows || `<div class="mini">${escHtml(tt("spacial.characteristics.none", "No characteristics yet."))}</div>`}</div>
+                </div>
+                <div class="importTreeGroup">
+                  <label class="importTreeRow"><input type="checkbox" data-import-op-group="${escHtml(code)}" ${(product.operations || []).length && selection.ops.size === product.operations.length ? "checked" : ""} /><span>${escHtml(tt("spacial.section.operations", "Operations"))}</span></label>
+                  <div class="importTreeItems">${opRows || `<div class="mini">${escHtml(tt("spacial.none.operations", "No operations"))}</div>`}</div>
+                </div>
+              </div>
+            </details>
+          `;
+        }).join("");
+      }
+      function renderStructuredImportPanel() {
+        const loadBtn = $("spcImportLoadBtn");
+        const productBtn = $("spcImportProductBtn");
+        const allBtn = $("spcImportAllBtn");
+        const sel = $("spcImportProductSel");
+        const info = $("spcImportInfo");
+        const preview = $("spcImportPreview");
+        if (!sel || !info || !preview) return;
+        const rows = structuredImportProductsFiltered();
+        const wantedCode = strOrEmpty(sel.value || "");
+        sel.innerHTML = "";
+        if (!spcImportState || !Array.isArray(spcImportState.products) || !spcImportState.products.length) {
+          sel.innerHTML = `<option value="">${tt("spacial.import.empty", "Load a structured export file first.")}</option>`;
+          sel.disabled = true;
+          if (productBtn) productBtn.disabled = true;
+          if (allBtn) allBtn.disabled = true;
+          info.textContent = tt("spacial.import.idle", "No structured import file loaded.");
+          preview.textContent = "";
+          renderStructuredImportTree([]);
+          return;
+        }
+        for (const product of rows) {
+          const o = document.createElement("option");
+          o.value = String(product.code || "");
+          o.textContent = `${structuredImportProductLabel(product)} | ${product.characteristics.length} ${tt("spacial.section.characteristics", "Characteristics")} | ${product.operations.length} ${tt("spacial.section.operations", "Operations")}`;
+          sel.appendChild(o);
+        }
+        if (wantedCode && rows.some((product) => String(product.code || "") === wantedCode)) {
+          sel.value = wantedCode;
+        } else if (!rows.some((product) => String(product.code || "") === String(sel.value || ""))) {
+          sel.value = rows[0]?.code || "";
+        }
+        sel.disabled = !rows.length;
+        if (productBtn) productBtn.disabled = !rows.length;
+        if (allBtn) allBtn.disabled = !rows.length;
+        if (loadBtn) loadBtn.disabled = false;
+        const totals = spcImportState.products.reduce((acc, product) => {
+          acc.chars += Array.isArray(product?.characteristics) ? product.characteristics.length : 0;
+          acc.ops += Array.isArray(product?.operations) ? product.operations.length : 0;
+          return acc;
+        }, { chars: 0, ops: 0 });
+        info.textContent = `${(spcImportState.sourceFiles || []).length || 1} file(s) | ${spcImportState.products.length} ${tt("hub.jobs.entity.products", "Products")} | ${totals.chars} ${tt("spacial.section.characteristics", "Characteristics")} | ${totals.ops} ${tt("spacial.section.operations", "Operations")} | ${spcImportState.lineCount} lines`;
+        const selected = getSelectedStructuredImportProduct();
+        if (!selected) {
+          preview.textContent = tt("spacial.import.noMatch", "No products match the current filter.");
+          renderStructuredImportTree(rows);
+          return;
+        }
+        const opNames = selected.operations.slice(0, 4).map((op) => op.name).filter(Boolean);
+        const suffix = selected.operations.length > opNames.length ? ` +${selected.operations.length - opNames.length}` : "";
+        const chosen = structuredImportSelectedForProduct(selected);
+        preview.textContent = `${structuredImportProductLabel(selected)} | ${chosen.chars.size}/${selected.characteristics.length} ${tt("spacial.section.characteristics", "Characteristics")} | ${chosen.ops.size}/${selected.operations.length} ${tt("spacial.section.operations", "Operations")} | ${opNames.join(" | ")}${suffix}`;
+        renderStructuredImportTree(rows);
+      }
+      function structuredImportRouteId(productCode) {
+        return `routeplan_spc_${safeRecordToken(productCode)}`;
+      }
+      function structuredImportCharacteristicId(productCode, order, idx) {
+        const token = safeRecordToken(productCode);
+        const num = Number.isFinite(Number(order)) && Number(order) > 0 ? Number(order) : (idx + 1);
+        return `${token}-C${String(num).padStart(3, "0")}`;
+      }
+      function upsertStructuredProductIntoState(parsedProduct) {
+        const state = readState();
+        const code = strOrEmpty(parsedProduct?.code);
+        if (!code) return { state, product: null };
+        if (!Array.isArray(state.products)) state.products = [];
+        let product = state.products.find((row) => String(row?.code || "").trim().toLowerCase() === code.toLowerCase()) || null;
+        if (!product) {
+          product = {
+            id: uid("prod"),
+            code,
+            name: strOrEmpty(parsedProduct?.name) || code,
+            parentProductId: "",
+            categoryIds: [],
+            imageUrl: "",
+          };
+          state.products.push(product);
+        } else {
+          if (!strOrEmpty(product.name) || strOrEmpty(product.name) === strOrEmpty(product.code)) {
+            product.name = strOrEmpty(parsedProduct?.name) || product.name || code;
+          }
+          if (!strOrEmpty(product.code)) product.code = code;
+        }
+        state.activeProductId = String(product.id || "");
+        persistState(state);
+        return { state, product };
+      }
+      function removeStructuredCharacteristicsForProduct(productId, keepIds = new Set()) {
+        if (!window.VMillData?.listRecords || !window.VMillData?.deleteRecord) return;
+        const rows = window.VMillData.listRecords(NS_CHAR) || [];
+        for (const row of rows) {
+          if (String(row?.productId || "") !== String(productId || "")) continue;
+          if (!LEGACY_STRUCTURED_IMPORT_SOURCES.has(String(row?.importSource || ""))) continue;
+          if (keepIds.has(String(row?.id || ""))) continue;
+          window.VMillData.deleteRecord(NS_CHAR, row?.id);
+        }
+      }
+      function importStructuredProduct(parsedProduct, options = {}) {
+        if (!parsedProduct) return null;
+        const replace = options?.replace !== false;
+        const importedAt = new Date().toISOString();
+        const productUpsert = upsertStructuredProductIntoState(parsedProduct);
+        const product = productUpsert?.product || null;
+        if (!product) return null;
+        const characteristicIds = [];
+        const characteristicIdByOrder = new Map();
+        const characteristicIdByKey = new Map();
+        (parsedProduct.characteristics || []).forEach((sourceChar, idx) => {
+          const charId = structuredImportCharacteristicId(product.code, sourceChar?.sourceOrder, idx);
+          const rec = normalizeCharacteristic({
+            id: charId,
+            productId: product.id,
+            name: sourceChar?.name || `Characteristic ${idx + 1}`,
+            nominal: sourceChar?.nominal,
+            lsl: sourceChar?.lsl,
+            usl: sourceChar?.usl,
+            unit: sourceChar?.unit || "",
+            method: sanitizeStructuredMarker(sourceChar?.typeLabel || ""),
+            instrument: "",
+            reactionPlan: "",
+            createdAt: importedAt,
+            updatedAt: importedAt,
+          }, idx, product.id);
+          rec.importSource = STRUCTURED_IMPORT_SOURCE;
+          rec.sourceProductCode = product.code;
+          rec.sourceOrder = Number(sourceChar?.sourceOrder || idx + 1);
+          rec.sourceTypeCode = strOrEmpty(sourceChar?.typeCode);
+          rec.sourceImagePath = strOrEmpty(sourceChar?.imagePath);
+          window.VMillData.upsertRecord(NS_CHAR, rec);
+          characteristicIds.push(rec.id);
+          if (sourceChar?.sourceOrder != null) characteristicIdByOrder.set(Number(sourceChar.sourceOrder), rec.id);
+          characteristicIdByKey.set(`ord:${Number(sourceChar?.sourceOrder || 0)}`, rec.id);
+          characteristicIdByKey.set(`name:${String(sourceChar?.name || "").toLowerCase()}`, rec.id);
+        });
+        if (replace) removeStructuredCharacteristicsForProduct(product.id, new Set(characteristicIds));
+
+        const operations = (parsedProduct.operations || []).map((sourceOp, opIdx) => {
+          const bubbles = (sourceOp.links || []).map((link, bubbleIdx) => {
+            let characteristicId = "";
+            if (link?.characteristicOrder != null && characteristicIdByOrder.has(Number(link.characteristicOrder))) {
+              characteristicId = String(characteristicIdByOrder.get(Number(link.characteristicOrder)) || "");
+            }
+            if (!characteristicId) characteristicId = String(characteristicIdByKey.get(String(link?.characteristicKey || "")) || "");
+            const importedChar = (parsedProduct.characteristics || []).find((row) => Number(row?.sourceOrder || 0) === Number(link?.characteristicOrder || 0)) || null;
+            const bubble = normalizeBubble({
+              id: `B${String(bubbleIdx + 1).padStart(3, "0")}`,
+              characteristicId,
+              name: link?.name || importedChar?.name || `Annotation ${bubbleIdx + 1}`,
+              nominal: importedChar?.nominal,
+              lsl: importedChar?.lsl,
+              usl: importedChar?.usl,
+              unit: importedChar?.unit || "",
+              method: sanitizeStructuredMarker(sourceOp?.controlMethod) || sanitizeStructuredMarker(importedChar?.typeLabel) || "",
+              instrument: "",
+              reactionPlan: "",
+              bbox: link?.bbox || null,
+            }, bubbleIdx);
+            bubble.importSource = STRUCTURED_IMPORT_SOURCE;
+            bubble.sourceImagePath = strOrEmpty(link?.imagePath);
+            return bubble;
+          });
+          const fileName = fileNameOnly(sourceOp?.imagePath) || tt("spacial.file.default", "File");
+          const opFile = normalizeOperationFile({
+            name: fileName,
+            sourceName: strOrEmpty(sourceOp?.imagePath),
+            bubbles,
+          }, 0);
+          const characteristicIdsForOp = [...new Set(bubbles.map((bubble) => String(bubble?.characteristicId || "")).filter(Boolean))];
+          return normalizeOperation({
+            id: uid("op"),
+            seq: Number(sourceOp?.seq || (opIdx + 1) * 10),
+            name: sourceOp?.name || `${tt("spacial.section.operations", "Operations")} ${opIdx + 1}`,
+            stationCode: sourceOp?.stationCode || "",
+            workstation: sourceOp?.workstation || "",
+            estimatedTimeMin: sourceOp?.estimatedTimeMin,
+            sampleSize: null,
+            frequency: "",
+            controlMethod: sanitizeStructuredMarker(sourceOp?.controlMethod || ""),
+            critical: false,
+            notes: sourceOp?.description || "",
+            characteristicIds: characteristicIdsForOp,
+            files: [opFile],
+          }, opIdx);
+        });
+
+        const routeRecord = normalizeRoutePlan({
+          id: structuredImportRouteId(product.code),
+          jobId: "",
+          jobName: "",
+          stationId: "",
+          productId: product.id,
+          routeName: `${product.name || product.code} ${tt("spacial.section.route", "Route")}`,
+          revision: "A",
+          productRef: `${product.code || "--"} - ${product.name || tt("hub.structure.productDefault", "Product")}`,
+          operations,
+          importSource: STRUCTURED_IMPORT_SOURCE,
+          sourceProductCode: product.code,
+          sourceFileName: strOrEmpty(spcImportState?.sourceName),
+          updatedAt: importedAt,
+        }, null, null, product);
+        window.VMillData.upsertRecord(NS_ROUTE, routeRecord);
+        selectedProductFilterId = String(product.id || "");
+        selectedRouteId = String(routeRecord.id || "");
+        selectedOpId = String(routeRecord.operations?.[0]?.id || "");
+        selectedOpFileId = String(routeRecord.operations?.[0]?.activeFileId || routeRecord.operations?.[0]?.files?.[0]?.id || "");
+        clearBubbleForm();
+        return {
+          productId: String(product.id || ""),
+          productCode: product.code,
+          routeId: String(routeRecord.id || ""),
+          characteristicCount: characteristicIds.length,
+          operationCount: operations.length,
+        };
+      }
+      async function decodeStructuredImportFile(file) {
+        const buf = await file.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        const hasBomUtf16Le = bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe;
+        const hasBomUtf16Be = bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff;
+        const hasBomUtf8 = bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+        if (hasBomUtf16Le) return new TextDecoder("utf-16le").decode(bytes);
+        if (hasBomUtf16Be) return new TextDecoder("utf-16be").decode(bytes);
+        if (hasBomUtf8) return new TextDecoder("utf-8").decode(bytes);
+        const utf8 = new TextDecoder("utf-8").decode(bytes);
+        const nulCount = (utf8.match(/\u0000/g) || []).length;
+        if (nulCount > Math.max(4, Math.floor(utf8.length / 20))) {
+          return new TextDecoder("utf-16le").decode(bytes);
+        }
+        return utf8;
+      }
+      async function loadStructuredImportFile(file) {
+        if (!file) return;
+        const info = $("spcImportInfo");
+        if (info) info.textContent = tt("spacial.import.loading", "Loading and parsing structured export...");
+        try {
+          const text = await decodeStructuredImportFile(file);
+          const parsed = parseStructuredImportByFileName(text, file.name || "structured export");
+          spcImportState = mergeStructuredImportStates(spcImportState, parsed);
+          if (!spcImportQuery) resetStructuredImportSelection(true);
+          const search = $("spcImportSearchIn");
+          if (search && !spcImportQuery) search.value = "";
+          renderStructuredImportPanel();
+          if (info) info.textContent = `${file.name || "structured export"} appended. ${spcImportState.products.length} products ready to import.`;
+        } catch (err) {
+          renderStructuredImportPanel();
+          if (info) info.textContent = tt("spacial.import.failed", "Structured import load failed: {err}", { err: err?.message || "invalid file" });
+        }
+      }
+      function importSelectedStructuredProduct() {
+        const selected = getSelectedStructuredImportProduct();
+        const replace = !!$("spcImportReplaceChk")?.checked;
+        const info = $("spcImportInfo");
+        if (!selected) {
+          if (info) info.textContent = tt("spacial.import.selectProduct", "Select one imported product first.");
+          return;
+        }
+        const subset = buildStructuredImportSubset(selected);
+        if (!subset) {
+          if (info) info.textContent = tt("spacial.import.noSelection", "Select at least one product item to import.");
+          return;
+        }
+        const out = importStructuredProduct(subset, { replace });
+        renderStructuredImportPanel();
+        requestRefresh();
+        if (info && out) {
+          info.textContent = `${structuredImportProductLabel(selected)} imported | ${out.characteristicCount} ${tt("spacial.section.characteristics", "Characteristics")} | ${out.operationCount} ${tt("spacial.section.operations", "Operations")}`;
+        }
+      }
+      function importAllStructuredProducts() {
+        const rows = structuredImportProductsFiltered();
+        const replace = !!$("spcImportReplaceChk")?.checked;
+        const info = $("spcImportInfo");
+        if (!rows.length) {
+          if (info) info.textContent = tt("spacial.import.noMatch", "No products match the current filter.");
+          return;
+        }
+        let imported = 0;
+        for (const product of rows) {
+          const subset = buildStructuredImportSubset(product);
+          if (!subset) continue;
+          const out = importStructuredProduct(subset, { replace });
+          if (out) imported += 1;
+        }
+        renderStructuredImportPanel();
+        requestRefresh();
+        if (info) info.textContent = `${imported} ${tt("hub.jobs.entity.products", "Products")} imported from ${(spcImportState?.sourceFiles || []).join(", ") || "structured export"}.`;
       }
       function sortOpsBySeq(list) {
         return list.slice().sort((a, b) => {
@@ -1843,7 +3328,7 @@
           estimatedTimeMin: numOrNull(raw?.estimatedTimeMin),
           sampleSize: numOrNull(raw?.sampleSize),
           frequency: strOrEmpty(raw?.frequency),
-          controlMethod: strOrEmpty(raw?.controlMethod),
+          controlMethod: sanitizeStructuredMarker(raw?.controlMethod),
           critical: !!raw?.critical,
           notes: strOrEmpty(raw?.notes),
           activeFileId: strOrEmpty(raw?.activeFileId),
@@ -1861,8 +3346,8 @@
         const jobId = strOrEmpty(src.jobId || job?.id);
         const stationId = strOrEmpty(src.stationId || job?.stationId || station?.id);
         const productId = strOrEmpty(src.productId || job?.productId || product?.id);
-        const routeName = strOrEmpty(src.routeName || job?.name || (product?.name ? `${product.name} ${tt("spacial.section.route", "Route")}` : tt("spacial.section.route", "Route")));
-        const revision = strOrEmpty(src.revision || "A");
+        const routeName = strOrEmpty(src.routeName || (product?.name ? `${product.name} ${tt("spacial.section.route", "Route")}` : job?.name || tt("spacial.section.route", "Route")));
+        const revision = normalizeRouteRevision(src.revision || "A");
         const stationLabel = station ? `${station.code || "--"} - ${station.name || tt("spacial.stationDefault", "Station")}` : "";
         const fallbackProductRef = product ? `${product.code || "--"} - ${product.name || tt("hub.structure.productDefault", "Product")}` : "";
         const legacyDrawingImage = typeof src.drawingImage === "string" ? src.drawingImage : "";
@@ -1877,7 +3362,7 @@
           }
         }
         return {
-          id: strOrEmpty(src.id || `routeplan_${job?.id || uid("jobless")}`),
+          id: strOrEmpty(src.id || (productId ? `routeplan_${safeRecordToken(productId)}` : `routeplan_${job?.id || uid("route")}`)),
           jobId,
           jobName: strOrEmpty(src.jobName || job?.name),
           stationId,
@@ -1971,7 +3456,7 @@
         return {
           product: roleLabels("product", tt("hub.structure.productDefault", "Product"), "Products"),
           station: roleLabels("station", tt("spacial.stationDefault", "Station"), "Stations"),
-          job: roleLabels("job", tt("spacial.jobDefault", "Job"), "Jobs"),
+          job: roleLabels("job", tt("spacial.studyDefault", "Study"), "Studies"),
         };
       }
       function scopedJobSet(state) {
@@ -2045,10 +3530,10 @@
         const routeProductId = strOrEmpty(route.productId || linkedJob?.productId);
         const routeStationId = strOrEmpty(route.stationId || linkedJob?.stationId);
         const routeJobId = strOrEmpty(route.jobId || "");
-        if (scopeJobs && (!routeJobId || !scopeJobs.has(routeJobId))) return false;
+        if (scopeJobs && routeJobId && !scopeJobs.has(routeJobId)) return false;
         if (selectedProductFilterId && routeProductId !== String(selectedProductFilterId)) return false;
         if (selectedStationFilterId && routeStationId !== String(selectedStationFilterId)) return false;
-        if (selectedJobFilterId && routeJobId !== String(selectedJobFilterId)) return false;
+        if (selectedJobFilterId && routeJobId && routeJobId !== String(selectedJobFilterId)) return false;
         return true;
       }
       function listSavedRoutes(state) {
@@ -2096,31 +3581,28 @@
         return scoped[0];
       }
       function createRouteFromScope(state, id = "") {
-        const { job, station, product } = currentScope(state);
+        const explicitJob = null;
+        const { station, product } = currentScope(state);
         const routeName = product?.name
           ? `${product.name} ${tt("spacial.section.route", "Route")}`
           : tt("spacial.section.route", "Route");
         return normalizeRoutePlan({
           id: id || uid("routeplan"),
-          jobId: job?.id || "",
-          jobName: job?.name || "",
-          productId: product?.id || job?.productId || "",
-          stationId: station?.id || job?.stationId || "",
+          jobId: explicitJob?.id || "",
+          jobName: explicitJob?.name || "",
+          productId: product?.id || explicitJob?.productId || "",
+          stationId: station?.id || explicitJob?.stationId || "",
           routeName,
           revision: "A",
           productRef: product ? `${product.code || "--"} - ${product.name || tt("hub.structure.productDefault", "Product")}` : "",
           operations: [],
-        }, job, station, product);
+        }, explicitJob, station, product);
       }
       function writeRoutePlan(plan) {
         if (!plan || !window.VMillData?.upsertRecord) return;
         const state = readState();
         const scope = currentScope(state);
-        const targetJob = getJob(state, plan.jobId)
-          || getJob(state, selectedJobFilterId)
-          || getJob(state, state?.activeJobId)
-          || scope.job
-          || null;
+        const targetJob = getJob(state, plan.jobId) || null;
         const targetStation = getStation(state, plan.stationId)
           || getStation(state, targetJob?.stationId)
           || getStation(state, selectedStationFilterId)
@@ -2179,7 +3661,7 @@
           "routeExportJsonBtn","routeExportCsvBtn","routeExportPdfBtn",
           "routeOpSel","opAddBtn","opDeleteBtn","opUpBtn","opDownBtn","opSeqIn","opNameIn",
           "opStationIn","opWorkstationIn","opEstTimeIn","opSampleSizeIn","opFrequencyIn","opControlMethodIn",
-          "opNotesIn","opCriticalChk","opSaveBtn","opCharUseAllBtn","opCharClearBtn",
+          "opNotesIn","opCriticalChk","opSaveBtn",
           "opOpenChronoBtn",
           "bubbleIdIn","bubbleCharSel","bubbleNameIn","bubbleNomIn","bubbleLslIn",
           "bubbleUslIn","bubbleUnitIn","bubbleMethodIn","bubbleInstrumentIn","bubbleReactionIn",
@@ -2265,6 +3747,7 @@
       }
       function setCharacteristicEditorDisabled(disabled) {
         const ids = [
+          "charGridAddBtn",
           "charSel","charNewBtn","charDeleteBtn","charIdIn","charNameIn","charNomIn","charLslIn","charUslIn",
           "charUnitIn","charMethodIn","charInstrumentIn","charReactionIn","charSaveBtn","charClearBtn",
         ];
@@ -2303,6 +3786,131 @@
           instrument: $("charInstrumentIn").value,
           reactionPlan: $("charReactionIn").value,
         }, 0, productId);
+      }
+      function readCharacteristicRowFromInputs(row, productId, idOverride = "") {
+        const read = (field) => {
+          const el = row?.querySelector?.(`[data-char-grid-field="${field}"]`);
+          return el ? String(el.value || "") : "";
+        };
+        return normalizeCharacteristic({
+          id: idOverride || read("id"),
+          productId,
+          name: read("name"),
+          nominal: read("nominal"),
+          lsl: read("lsl"),
+          usl: read("usl"),
+          unit: read("unit"),
+          method: sanitizeStructuredMarker(read("method")),
+          instrument: read("instrument"),
+          reactionPlan: read("reaction"),
+        }, 0, productId);
+      }
+      function upsertCharacteristicRecord(rec, productId, options = {}) {
+        if (!window.VMillData?.upsertRecord) return { ok: false, error: "not_available" };
+        if (!productId) return { ok: false, error: tt("spacial.characteristics.pickProduct", "Select one product first.") };
+        const rows = listProductCharacteristics(productId);
+        const allRows = listAllCharacteristics().map((x, i) => normalizeCharacteristic(x, i, ""));
+        const originalId = strOrEmpty(options?.originalId || "");
+        if (!strOrEmpty(rec.name)) {
+          return { ok: false, error: tt("spacial.characteristics.nameRequired", "Characteristic name is required.") };
+        }
+        if (!strOrEmpty(rec.id)) rec.id = nextCharacteristicId(rows);
+        if (originalId && originalId !== String(rec.id || "")) {
+          return { ok: false, error: tt("spacial.characteristics.idLocked", "ID cannot be changed in inline edit.") };
+        }
+        const externalDup = allRows.find((x) =>
+          String(x.id || "") === String(rec.id || "")
+          && String(x.productId || "") !== String(productId || "")
+        );
+        if (externalDup) {
+          return { ok: false, error: tt("spacial.characteristics.idInUse", "This characteristic ID is already used by another product.") };
+        }
+        const dup = rows.find((x) => String(x.id || "") === String(originalId || rec.id || ""));
+        if (dup) rec.createdAt = dup.createdAt || rec.createdAt;
+        rec.updatedAt = new Date().toISOString();
+        window.VMillData.upsertRecord(NS_CHAR, rec);
+        selectedCharId = String(rec.id || "");
+        return { ok: true, id: selectedCharId };
+      }
+      function refreshCharacteristicViews() {
+        renderCharacteristicSelect();
+        renderCharacteristicGrid();
+        renderOperationCharacteristicList();
+        renderBubbleCharacteristicSelect();
+        renderBubbleTable();
+      }
+      function characteristicGridRowHtml(ch, options = {}) {
+        const isNew = !!options.newRow;
+        const rowId = String(ch?.id || "");
+        const actionLabel = tt("spacial.add", "Add");
+        const actionAttr = `data-char-grid-add="1"`;
+        const delBtn = isNew
+          ? ""
+          : `<button class="cellAction danger" type="button" data-char-grid-del="${escHtml(rowId)}">${escHtml(tt("spacial.delete", "Delete"))}</button>`;
+        const idReadonly = isNew ? "" : "readonly";
+        return `
+          <tr ${isNew ? `data-char-grid-new="1"` : `data-char-grid-id="${escHtml(rowId)}"`}>
+            <td><input class="cellInput mono" data-char-grid-field="id" type="text" value="${escHtml(ch?.id || "")}" ${idReadonly} /></td>
+            <td><input class="cellInput" data-char-grid-field="name" type="text" value="${escHtml(ch?.name || "")}" /></td>
+            <td><input class="cellInput" data-char-grid-field="nominal" type="number" step="0.001" value="${ch?.nominal == null ? "" : escHtml(ch.nominal)}" /></td>
+            <td><input class="cellInput" data-char-grid-field="lsl" type="number" step="0.001" value="${ch?.lsl == null ? "" : escHtml(ch.lsl)}" /></td>
+            <td><input class="cellInput" data-char-grid-field="usl" type="number" step="0.001" value="${ch?.usl == null ? "" : escHtml(ch.usl)}" /></td>
+            <td><input class="cellInput" data-char-grid-field="unit" type="text" value="${escHtml(ch?.unit || "")}" /></td>
+            <td><input class="cellInput" data-char-grid-field="method" type="text" value="${escHtml(ch?.method || "")}" /></td>
+            <td><input class="cellInput" data-char-grid-field="instrument" type="text" value="${escHtml(ch?.instrument || "")}" /></td>
+            <td><input class="cellInput" data-char-grid-field="reaction" type="text" value="${escHtml(ch?.reactionPlan || "")}" /></td>
+            <td>
+              <div class="cellActions">
+                ${isNew ? `<button class="cellAction primary" type="button" ${actionAttr}>${escHtml(actionLabel)}</button>` : `<span class="cellMeta">${escHtml(tt("spacial.autoSave", "Auto-save"))}</span>`}
+                ${delBtn}
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+      function renderCharacteristicGrid() {
+        const body = $("charGridBody");
+        const info = $("charGridInfo");
+        if (!body) return;
+        const productId = currentRouteProductId();
+        if (!productId) {
+          body.innerHTML = `<tr><td colspan="10" class="mini">${tt("spacial.characteristics.pickProduct", "Select one product first.")}</td></tr>`;
+          if (info) info.textContent = "";
+          return;
+        }
+        const rows = listProductCharacteristics(productId);
+        const visibleRows = rows.map((ch) => characteristicGridRowHtml(ch)).join("");
+        const newRow = characteristicGridRowHtml({
+          id: nextCharacteristicId(rows),
+          productId,
+          name: "",
+          nominal: null,
+          lsl: null,
+          usl: null,
+          unit: "mm",
+          method: "",
+          instrument: "",
+          reactionPlan: "",
+        }, { newRow: true });
+        body.innerHTML = `${visibleRows}${newRow}`;
+        if (info) {
+          info.textContent = tt("spacial.characteristics.gridInfo", "{count} characteristics", { count: rows.length });
+        }
+      }
+      function saveCharacteristicFromGridRow(row, options = {}) {
+        const productId = currentRouteProductId();
+        if (!productId) {
+          if (!options?.silent) alert(tt("spacial.characteristics.pickProduct", "Select one product first."));
+          return false;
+        }
+        const rec = readCharacteristicRowFromInputs(row, productId, options?.idOverride || "");
+        const result = upsertCharacteristicRecord(rec, productId, { originalId: options?.originalId || options?.idOverride || "" });
+        if (!result.ok) {
+          if (!options?.silent) alert(result.error || tt("spacial.saveFailed", "Save failed."));
+          return false;
+        }
+        refreshCharacteristicViews();
+        return true;
       }
       function removeCharacteristicRefsInRoutes(charId) {
         const cid = strOrEmpty(charId);
@@ -2367,39 +3975,14 @@
         writeCharacteristicToInputs(rows.find((x) => String(x.id || "") === String(selectedCharId || "")) || rows[0] || null);
       }
       function saveSelectedCharacteristic() {
-        if (!window.VMillData?.upsertRecord) return;
         const productId = currentRouteProductId();
-        if (!productId) {
-          alert(tt("spacial.characteristics.pickProduct", "Select one product first."));
-          return;
-        }
-        const rows = listProductCharacteristics(productId);
-        const allRows = listAllCharacteristics().map((x, i) => normalizeCharacteristic(x, i, ""));
         const rec = readCharacteristicForm();
-        if (!strOrEmpty(rec.name)) {
-          alert(tt("spacial.characteristics.nameRequired", "Characteristic name is required."));
+        const result = upsertCharacteristicRecord(rec, productId, { originalId: strOrEmpty(selectedCharId || rec.id || "") });
+        if (!result.ok) {
+          alert(result.error || tt("spacial.saveFailed", "Save failed."));
           return;
         }
-        if (!strOrEmpty(rec.id)) rec.id = nextCharacteristicId(rows);
-        const externalDup = allRows.find((x) =>
-          String(x.id || "") === String(rec.id || "")
-          && String(x.productId || "") !== String(productId || "")
-        );
-        if (externalDup) {
-          alert(tt("spacial.characteristics.idInUse", "This characteristic ID is already used by another product."));
-          return;
-        }
-        const dup = rows.find((x) => String(x.id || "") === String(rec.id || ""));
-        if (dup) {
-          rec.createdAt = dup.createdAt || rec.createdAt;
-        }
-        rec.updatedAt = new Date().toISOString();
-        window.VMillData.upsertRecord(NS_CHAR, rec);
-        selectedCharId = String(rec.id || "");
-        renderCharacteristicSelect();
-        renderOperationCharacteristicList();
-        renderBubbleCharacteristicSelect();
-        renderBubbleTable();
+        refreshCharacteristicViews();
       }
       function deleteSelectedCharacteristic() {
         if (!window.VMillData?.deleteRecord) return;
@@ -2413,10 +3996,8 @@
         renderRoutingPanel();
       }
       function operationCharacteristicIdsFromUi() {
-        const wrap = $("opCharList");
-        if (!wrap) return [];
-        const checked = wrap.querySelectorAll("input[data-op-char-id]:checked");
-        return normalizeIdList(Array.from(checked).map((el) => String(el.getAttribute("data-op-char-id") || "")));
+        const op = operationById(selectedOpId);
+        return op ? deriveOperationCharacteristicIdsFromBubbles(op) : [];
       }
       function renderOperationCharacteristicList() {
         const wrap = $("opCharList");
@@ -2435,12 +4016,30 @@
           wrap.innerHTML = `<div class="mini">${tt("spacial.op.noLinkedCharacteristics", "No linked characteristics yet. Save/import annotations first.")}</div>`;
           return;
         }
-        wrap.innerHTML = linkedIds.map((cid) => {
-          const ch = byId.get(String(cid || ""));
-          if (!ch) return `<div class="mini" style="padding:6px 4px;border-bottom:1px solid var(--border);"><strong>${escHtml(cid)}</strong> (${tt("spacial.annotation.legacy", "legacy")})</div>`;
-          const spec = `N:${ch.nominal == null ? "-" : ch.nominal} | L:${ch.lsl == null ? "-" : ch.lsl} | U:${ch.usl == null ? "-" : ch.usl} ${ch.unit || ""}`;
-          return `<div style="padding:6px 4px;border-bottom:1px solid var(--border);"><strong>${escHtml(ch.id || "")}</strong> - ${escHtml(ch.name || "")}<div class="mini">${escHtml(spec)}</div></div>`;
-        }).join("");
+        const bubbleCounts = new Map();
+        for (const file of ensureOperationFiles(op)) {
+          for (const bubble of (file?.bubbles || [])) {
+            const cid = String(bubble?.characteristicId || "");
+            if (!cid) continue;
+            bubbleCounts.set(cid, Number(bubbleCounts.get(cid) || 0) + 1);
+          }
+        }
+        const totalAnnotations = linkedIds.reduce((acc, cid) => acc + Number(bubbleCounts.get(String(cid || "")) || 0), 0);
+        const unresolved = linkedIds.filter((cid) => !byId.get(String(cid || ""))).length;
+        const preview = linkedIds
+          .slice(0, 6)
+          .map((cid) => {
+            const id = String(cid || "");
+            const ch = byId.get(id);
+            return ch ? `${ch.id || id} - ${ch.name || ""}` : `${id} (${tt("spacial.annotation.legacy", "legacy")})`;
+          })
+          .join(" | ");
+        const extra = linkedIds.length > 6 ? ` | +${linkedIds.length - 6}` : "";
+        wrap.innerHTML = `
+          <div class="mini">${escHtml(tt("spacial.op.linkedSummary", "{chars} linked characteristic(s) from {ann} annotation(s).", { chars: linkedIds.length, ann: totalAnnotations }))}</div>
+          <div class="mini" style="margin-top:6px;">${escHtml(preview + extra)}</div>
+          ${unresolved ? `<div class="mini" style="margin-top:6px;">${escHtml(tt("spacial.op.linkedLegacyNotice", "{count} linked item(s) are legacy IDs not in product catalog.", { count: unresolved }))}</div>` : ""}
+        `;
       }
       function renderBubbleCharacteristicSelect(preferredId = "") {
         const sel = $("bubbleCharSel");
@@ -2522,101 +4121,134 @@
           reactionPlan: $("bubbleReactionIn").value,
         }, 0);
       }
+      function bubbleCharacteristicOptionsHtml(selectedId, productId) {
+        const selected = strOrEmpty(selectedId);
+        const rows = listProductCharacteristics(productId);
+        const hasSelected = selected && rows.some((x) => String(x.id || "") === selected);
+        const out = [
+          `<option value="">${escHtml(tt("spacial.annotation.noCharacteristic", "No linked characteristic"))}</option>`,
+        ];
+        if (selected && !hasSelected) {
+          out.push(`<option value="${escHtml(selected)}" selected>${escHtml(`${selected} (${tt("spacial.annotation.legacy", "legacy")})`)}</option>`);
+        }
+        for (const ch of rows) {
+          const cid = String(ch.id || "");
+          const sel = cid === selected ? " selected" : "";
+          out.push(`<option value="${escHtml(cid)}"${sel}>${escHtml(`${cid} - ${ch.name || ""}`)}</option>`);
+        }
+        return out.join("");
+      }
+      function readBubbleRowFromInputs(row, fallback = null) {
+        const read = (field) => {
+          const el = row?.querySelector?.(`[data-bubble-grid-field="${field}"]`);
+          return el ? String(el.value || "") : "";
+        };
+        const src = fallback || {};
+        return normalizeBubble({
+          ...src,
+          id: read("id") || src.id,
+          characteristicId: read("characteristicId") || "",
+          name: read("name"),
+          nominal: read("nominal"),
+          lsl: read("lsl"),
+          usl: read("usl"),
+          unit: read("unit"),
+          method: sanitizeStructuredMarker(read("method")),
+          instrument: read("instrument"),
+          reactionPlan: read("reaction"),
+        }, 0);
+      }
+      function saveBubbleFromGridRow(row, options = {}) {
+        if (!routePlan) return false;
+        const op = operationById(selectedOpId);
+        if (!op) return false;
+        const opFile = selectedOperationFile(op);
+        if (!opFile) return false;
+        const bubbles = Array.isArray(opFile.bubbles) ? opFile.bubbles : [];
+        const idx = Number(row?.getAttribute?.("data-bubble-row-index"));
+        if (!Number.isFinite(idx) || idx < 0 || idx >= bubbles.length) return false;
+        const prev = normalizeBubble(bubbles[idx], idx);
+        const next = readBubbleRowFromInputs(row, prev);
+        next.id = strOrEmpty(prev.id) || strOrEmpty(next.id) || `B${String(idx + 1).padStart(3, "0")}`;
+        const productId = currentRouteProductId();
+        if (!strOrEmpty(next.name) && strOrEmpty(next.characteristicId)) {
+          const ch = characteristicById(next.characteristicId, productId);
+          if (ch?.name) next.name = ch.name;
+        }
+        if (next.characteristicId) {
+          const ch = characteristicById(next.characteristicId, productId);
+          if (ch) {
+            if (!strOrEmpty(next.name)) next.name = ch.name || next.name;
+            if (next.nominal == null) next.nominal = ch.nominal;
+            if (next.lsl == null) next.lsl = ch.lsl;
+            if (next.usl == null) next.usl = ch.usl;
+            if (!strOrEmpty(next.unit)) next.unit = ch.unit || "mm";
+            if (!strOrEmpty(next.method)) next.method = ch.method || "";
+            if (!strOrEmpty(next.instrument)) next.instrument = ch.instrument || "";
+            if (!strOrEmpty(next.reactionPlan)) next.reactionPlan = ch.reactionPlan || "";
+          }
+        }
+        if (!strOrEmpty(next.name)) {
+          if (!options?.silent) alert(tt("spacial.alert.annotationNameRequired", "Annotation name is required."));
+          return false;
+        }
+        const linkedCharId = upsertCharacteristicFromAnnotation(next, productId);
+        if (linkedCharId) next.characteristicId = linkedCharId;
+        if (prev?.bbox && !next?.bbox) next.bbox = prev.bbox;
+        if (prev?.bubbleOffset && !next?.bubbleOffset) next.bubbleOffset = prev.bubbleOffset;
+        if (prev?.thumbnailDataUrl && !next?.thumbnailDataUrl) next.thumbnailDataUrl = prev.thumbnailDataUrl;
+        if (prev?.thumbnailBBox && !next?.thumbnailBBox) next.thumbnailBBox = prev.thumbnailBBox;
+        opFile.bubbles[idx] = next;
+        syncOperationCharacteristicIdsFromBubbles(op);
+        if (String(selectedCanvasBubbleId || "") === String(prev.id || "")) {
+          selectedCanvasBubbleId = next.id;
+        }
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+        if (next?.bbox && opFile?.dataUrl) refreshBubbleThumbnail(next, opFile, ensureOcrUrlInput());
+        return true;
+      }
       function renderBubbleTable() {
         const body = $("bubbleTableBody");
         if (!body) return;
         const op = operationById(selectedOpId);
         if (!op) {
-          body.innerHTML = `<tr><td colspan="4" class="mini">${tt("spacial.none.operation", "Select or create an operation first.")}</td></tr>`;
+          body.innerHTML = `<tr><td colspan="11" class="mini">${tt("spacial.none.operation", "Select or create an operation first.")}</td></tr>`;
           return;
         }
         renderBubbleCharacteristicSelect();
         const productId = currentRouteProductId();
         const bubbles = selectedFileBubbles(op);
         if (!bubbles.length) {
-          body.innerHTML = `<tr><td colspan="4" class="mini">${tt("spacial.none.annotations", "No annotations yet for this operation.")}</td></tr>`;
+          body.innerHTML = `<tr><td colspan="11" class="mini">${tt("spacial.none.annotations", "No annotations yet for this operation.")}</td></tr>`;
           return;
         }
         body.innerHTML = bubbles.map((b, idx) => `
-          <tr class="${String(selectedCanvasBubbleId || "") === String(b.id || "") ? "sel" : ""}" data-bubble-pick="${idx}">
+          <tr class="${String(selectedCanvasBubbleId || "") === String(b.id || "") ? "sel" : ""}" data-bubble-row-index="${idx}" data-bubble-row-id="${escHtml(String(b.id || ""))}">
             <td class="mono">
               <div class="annIdCell">
                 ${strOrEmpty(b.thumbnailDataUrl) ? `<img class="annThumb" src="${escHtml(b.thumbnailDataUrl)}" alt="thumb" />` : ""}
-                <span>${escHtml(b.id || "")}</span>
+                <input class="cellInput mono" data-bubble-grid-field="id" type="text" value="${escHtml(b.id || "")}" readonly />
               </div>
             </td>
+            <td><select class="cellInput" data-bubble-grid-field="characteristicId">${bubbleCharacteristicOptionsHtml(b.characteristicId, productId)}</select></td>
+            <td><input class="cellInput" data-bubble-grid-field="name" type="text" value="${escHtml(b.name || "")}" /></td>
+            <td><input class="cellInput" data-bubble-grid-field="nominal" type="number" step="0.001" value="${b.nominal == null ? "" : escHtml(b.nominal)}" /></td>
+            <td><input class="cellInput" data-bubble-grid-field="lsl" type="number" step="0.001" value="${b.lsl == null ? "" : escHtml(b.lsl)}" /></td>
+            <td><input class="cellInput" data-bubble-grid-field="usl" type="number" step="0.001" value="${b.usl == null ? "" : escHtml(b.usl)}" /></td>
+            <td><input class="cellInput" data-bubble-grid-field="unit" type="text" value="${escHtml(b.unit || "")}" /></td>
+            <td><input class="cellInput" data-bubble-grid-field="method" type="text" value="${escHtml(b.method || "")}" /></td>
+            <td><input class="cellInput" data-bubble-grid-field="instrument" type="text" value="${escHtml(b.instrument || "")}" /></td>
+            <td><input class="cellInput" data-bubble-grid-field="reaction" type="text" value="${escHtml(b.reactionPlan || "")}" /></td>
             <td>
-              ${escHtml(b.name || "")}
-              ${strOrEmpty(b.characteristicId) ? `<div class="mini">${escHtml(characteristicNameById(b.characteristicId, productId) || b.characteristicId)}</div>` : ""}
-            </td>
-            <td class="specCell">N:${b.nominal == null ? "-" : escHtml(b.nominal)} | L:${b.lsl == null ? "-" : escHtml(b.lsl)} | U:${b.usl == null ? "-" : escHtml(b.usl)} ${escHtml(b.unit || "")}</td>
-            <td>
-              <div class="actions">
+              <div class="cellActions">
+                <span class="cellMeta">${escHtml(tt("spacial.autoSave", "Auto-save"))}</span>
                 <button data-bubble-pick-btn="${idx}" type="button">${tt("spacial.pick", "Pick")}</button>
-                <button data-bubble-edit="${idx}" type="button">${tt("spacial.edit", "Edit")}</button>
                 <button data-bubble-del="${idx}" type="button" class="danger">${tt("spacial.delete", "Delete")}</button>
               </div>
             </td>
           </tr>
         `).join("");
-        body.querySelectorAll("[data-bubble-edit]").forEach((el) => {
-          el.addEventListener("click", () => {
-            const i = Number(el.getAttribute("data-bubble-edit"));
-            const src = bubbles[i];
-            if (!src) return;
-            editingBubbleId = String(src.id || "");
-            selectedCanvasBubbleId = String(src.id || "");
-            $("bubbleIdIn").value = src.id || "";
-            renderBubbleCharacteristicSelect(src.characteristicId || "");
-            if ($("bubbleCharSel")) $("bubbleCharSel").value = src.characteristicId || "";
-            $("bubbleNameIn").value = src.name || "";
-            $("bubbleNomIn").value = src.nominal == null ? "" : String(src.nominal);
-            $("bubbleLslIn").value = src.lsl == null ? "" : String(src.lsl);
-            $("bubbleUslIn").value = src.usl == null ? "" : String(src.usl);
-            $("bubbleUnitIn").value = src.unit || "";
-            $("bubbleMethodIn").value = src.method || "";
-            $("bubbleInstrumentIn").value = src.instrument || "";
-            $("bubbleReactionIn").value = src.reactionPlan || "";
-            drawBubbleCanvas();
-          });
-        });
-        body.querySelectorAll("[data-bubble-pick]").forEach((el) => {
-          el.addEventListener("click", (e) => {
-            if ((e.target?.closest?.("button"))) return;
-            const i = Number(el.getAttribute("data-bubble-pick"));
-            const src = bubbles[i];
-            if (!src) return;
-            selectedCanvasBubbleId = String(src.id || "");
-            renderBubbleTable();
-            drawBubbleCanvas();
-          });
-        });
-        body.querySelectorAll("[data-bubble-pick-btn]").forEach((el) => {
-          el.addEventListener("click", () => {
-            const i = Number(el.getAttribute("data-bubble-pick-btn"));
-            const src = bubbles[i];
-            if (!src) return;
-            selectedCanvasBubbleId = String(src.id || "");
-            renderBubbleTable();
-            drawBubbleCanvas();
-          });
-        });
-        body.querySelectorAll("[data-bubble-del]").forEach((el) => {
-          el.addEventListener("click", () => {
-            const i = Number(el.getAttribute("data-bubble-del"));
-            if (!Number.isFinite(i)) return;
-            if (!confirm(tt("spacial.confirm.deleteAnnotation", "Delete this annotation?"))) return;
-            const file = selectedOperationFile(op);
-            if (!file) return;
-            file.bubbles = bubbles.filter((_, idx) => idx !== i);
-            syncOperationCharacteristicIdsFromBubbles(op);
-            if (!file.bubbles.some((x) => String(x.id || "") === String(selectedCanvasBubbleId || ""))) {
-              selectedCanvasBubbleId = file.bubbles[0]?.id || "";
-            }
-            writeRoutePlan(routePlan);
-            renderRoutingPanel();
-          });
-        });
       }
       function getSelectedOperation() {
         return operationById(selectedOpId);
@@ -3132,11 +4764,12 @@
           $("routeRevisionIn").value = "";
           $("routeProductRefIn").value = "";
           renderCharacteristicSelect();
+          renderCharacteristicGrid();
           $("opCharList").innerHTML = `<div class="mini">${tt("spacial.none.operation", "Select or create an operation first.")}</div>`;
           $("routeOpSel").innerHTML = `<option value="">${tt("spacial.none.operations", "No operations")}</option>`;
           $("opFileSel").innerHTML = `<option value="">${tt("spacial.none.file", "No files")}</option>`;
           $("bubbleCharSel").innerHTML = `<option value="">${tt("spacial.annotation.noCharacteristic", "No linked characteristic")}</option>`;
-          $("bubbleTableBody").innerHTML = `<tr><td colspan="4" class="mini">${tt("spacial.none.routeSelected", "Select or create a route.")}</td></tr>`;
+          $("bubbleTableBody").innerHTML = `<tr><td colspan="11" class="mini">${tt("spacial.none.routeSelected", "Select or create a route.")}</td></tr>`;
           writeOperationToInputs(null);
           clearBubbleForm();
           selectedOpFileId = "";
@@ -3148,7 +4781,7 @@
           return;
         }
         setRoutingDisabled(false);
-        routePlan.jobName = strOrEmpty(routePlan.jobName || job?.name);
+        routePlan.jobName = strOrEmpty(routePlan.jobName || "");
         routePlan.stationId = strOrEmpty(routePlan.stationId || station?.id || job?.stationId);
         routePlan.productId = strOrEmpty(routePlan.productId || product?.id || job?.productId);
         routePlan.stationLabel = station ? `${station.code || "--"} - ${station.name || tt("spacial.stationDefault", "Station")}` : routePlan.stationLabel;
@@ -3159,6 +4792,7 @@
         $("routeRevisionIn").value = routePlan.revision || "";
         $("routeProductRefIn").value = routePlan.productRef || "";
         renderCharacteristicSelect();
+        renderCharacteristicGrid();
         renderOperationSelect();
         renderOperationFileSelect();
         writeOperationToInputs(operationById(selectedOpId));
@@ -3459,7 +5093,8 @@
             const j = getJob(state, r.jobId);
             const st = getStation(state, r.stationId || j?.stationId);
             const p = getProduct(state, r.productId || j?.productId);
-            o.textContent = `${p?.code || "--"} · ${st?.code || "--"} · ${r.routeName || tt("spacial.section.route", "Route")} (${r.revision || "A"})`;
+            const routeBits = [p?.code || "--", r.routeName || tt("spacial.section.route", "Route"), st?.code || ""].filter(Boolean);
+            o.textContent = `${routeBits.join(" | ")} (${r.revision || "A"})`;
             routeSel.appendChild(o);
           }
           if (!routes.some((r) => String(r.id || "") === String(selectedRouteId || ""))) selectedRouteId = routes[0]?.id || "";
@@ -3479,13 +5114,12 @@
         const stationId = strOrEmpty(route.stationId || routeJob?.stationId);
         if (productId && getProduct(state, productId)) selectedProductFilterId = productId;
         if (stationId && getStation(state, stationId)) selectedStationFilterId = stationId;
-        if (routeJob?.id) selectedJobFilterId = String(routeJob.id || "");
       }
       function createNewRoute() {
         const state = readState();
         const scope = currentScope(state);
-        if (!scope.product && !scope.job) {
-          alert(tt("spacial.alert.routeNeedScope", "Select at least one product/job scope first."));
+        if (!scope.product) {
+          alert(tt("spacial.alert.routeNeedScope", "Select one product first."));
           return;
         }
         const base = createRouteFromScope(state);
@@ -3573,7 +5207,7 @@
         op.estimatedTimeMin = numOrNull($("opEstTimeIn").value);
         op.sampleSize = numOrNull($("opSampleSizeIn").value);
         op.frequency = strOrEmpty($("opFrequencyIn").value);
-        op.controlMethod = strOrEmpty($("opControlMethodIn").value);
+        op.controlMethod = sanitizeStructuredMarker($("opControlMethodIn").value);
         op.notes = strOrEmpty($("opNotesIn").value);
         op.critical = !!$("opCriticalChk").checked;
         syncOperationCharacteristicIdsFromBubbles(op);
@@ -3803,7 +5437,7 @@
                 opEstMin: op.estimatedTimeMin,
                 opSampleSize: op.sampleSize,
                 opFrequency: op.frequency,
-                opControl: op.controlMethod,
+                opControl: sanitizeStructuredMarker(op.controlMethod),
                 opCritical: op.critical ? "YES" : "NO",
                 opNotes: op.notes,
                 opCharacteristics: opChars.join("|"),
@@ -3851,7 +5485,7 @@
                 opEstMin: op.estimatedTimeMin ?? "",
                 opSampleSize: op.sampleSize ?? "",
                 opFrequency: op.frequency,
-                opControl: op.controlMethod,
+                opControl: sanitizeStructuredMarker(op.controlMethod),
                 opCritical: op.critical ? "YES" : "NO",
                 opNotes: op.notes,
                 opCharacteristics: opChars.join("|"),
@@ -3886,10 +5520,10 @@
       function exportRouteCsv() {
         if (!routePlan) return;
         const rows = routeRowsForExport(routePlan);
-        const headers = ["routeName","revision","productRef","jobName","station","opSeq","opName","opStation","opWorkstation","opEstMin","opSampleSize","opFrequency","opControl","opCritical","opNotes","opCharacteristics","opFileId","opFileName","opFileType","bubbleId","characteristicId","characteristicName","bubbleName","nominal","lsl","usl","unit","method","instrument","reaction","bubbleX1","bubbleY1","bubbleX2","bubbleY2","bubbleWidth","bubbleHeight","bubbleLabelX","bubbleLabelY"];
+        const headers = ["routeName","revision","productRef","station","opSeq","opName","opStation","opWorkstation","opEstMin","opSampleSize","opFrequency","opControl","opCritical","opNotes","opCharacteristics","opFileId","opFileName","opFileType","bubbleId","characteristicId","characteristicName","bubbleName","nominal","lsl","usl","unit","method","instrument","reaction","bubbleX1","bubbleY1","bubbleX2","bubbleY2","bubbleWidth","bubbleHeight","bubbleLabelX","bubbleLabelY"];
         const lines = [headers.join(",")];
         for (const row of rows) lines.push(headers.map((h) => csvCell(row[h])).join(","));
-        exportTextFile(`Route_${routePlan.jobName || "job"}_${new Date().toISOString().slice(0, 10)}.csv`, lines.join("\n"), "text/csv");
+        exportTextFile(`Route_${safeRecordToken(routePlan.routeName || routePlan.productRef || "route")}_${new Date().toISOString().slice(0, 10)}.csv`, lines.join("\n"), "text/csv");
       }
       function exportRoutePdf() {
         if (!routePlan) return;
@@ -3945,7 +5579,7 @@
           </head>
           <body>
             <h1>${escHtml(tt("spacial.routing.title", "Routing and Dimensional Control"))}</h1>
-            <div class="m">${escHtml(tt("spacial.section.route", "Route"))}: ${escHtml(routePlan.routeName)} | Rev: ${escHtml(routePlan.revision)} | Product: ${escHtml(routePlan.productRef)} | ${escHtml(tt("spacial.jobDefault", "Job"))}: ${escHtml(routePlan.jobName)} | ${escHtml(tt("spacial.stationDefault", "Station"))}: ${escHtml(routePlan.stationLabel)}</div>
+            <div class="m">${escHtml(tt("spacial.section.route", "Route"))}: ${escHtml(routePlan.routeName)} | Rev: ${escHtml(routePlan.revision)} | Product: ${escHtml(routePlan.productRef)} | ${escHtml(tt("spacial.stationDefault", "Station"))}: ${escHtml(routePlan.stationLabel)}</div>
             <table>
               <thead>
                 <tr>
@@ -3969,6 +5603,7 @@
         const state = env.state || { products: [], stations: [], jobs: [], meta: {} };
         applyGlobalScopeToFilters(state);
         populateSelectors(state);
+        renderStructuredImportPanel();
         const products = state.products || [];
         const stations = state.stations || [];
         const jobs = state.jobs || [];
@@ -3976,38 +5611,42 @@
         const current = selectedRouteFromState(state);
         const job = getJob(state, current?.jobId || selectedJobFilterId || state.activeJobId) || null;
         const product = getProduct(state, current?.productId || job?.productId) || null;
-        const noShared = !stations.length && !jobs.length;
+        const noShared = !products.length && !stations.length && !jobs.length && !routes.length;
         if (noShared) {
-          $("stateInfo").textContent = tt("spacial.state.none", "No shared stations/jobs yet.");
+          $("stateInfo").textContent = tt("spacial.state.none", "No shared products, stations, or studies yet.");
         } else {
-          $("stateInfo").textContent = tt("spacial.state.withCountsProducts", "Products: {products} • Stations: {stations} • Jobs: {jobs} • Routes: {routes}", {
+          $("stateInfo").textContent = tt("spacial.state.withCountsProducts", "Products: {products} | Stations: {stations} | Studies: {jobs} | Routes: {routes}", {
             products: products.length,
             stations: stations.length,
             jobs: jobs.length,
             routes: routes.length,
           });
         }
-        if (job?.id) setActiveJob(job.id);
+        if (current?.jobId) setActiveJob(current.jobId);
         if (current) {
-          $("stateInfo").textContent = tt("spacial.state.routeActive", "Route: {route} ({rev}) • Product: {product} • Job: {job}", {
+          $("stateInfo").textContent = tt("spacial.state.routeActive", "Route: {route} ({rev}) | Product: {product}", {
             route: current.routeName || tt("spacial.section.route", "Route"),
             rev: current.revision || "A",
             product: product ? `${product.code || "--"} - ${product.name || tt("hub.structure.productDefault", "Product")}` : "-",
-            job: job?.name || tt("spacial.jobDefault", "Job"),
+          });
+        } else if (product) {
+          $("stateInfo").textContent = tt("spacial.state.productActive", "Product: {product} | Routes: {routes}", {
+            product: `${product.code || "--"} - ${product.name || tt("hub.structure.productDefault", "Product")}`,
+            routes: routes.length,
           });
         } else if (job) {
           const vals = (job.cycles || []).map((c) => Number(c.totalMs || 0)).filter((x) => Number.isFinite(x) && x > 0);
-          $("stateInfo").textContent = tt("spacial.state.active", "Job: {job} • Product: {product} • Cycles: {cycles}", {
-            job: job.name || tt("spacial.jobDefault", "Job"),
+          $("stateInfo").textContent = tt("spacial.state.active", "Study: {job} | Product: {product} | Cycles: {cycles}", {
+            job: job.name || tt("spacial.studyDefault", "Study"),
             product: product ? `${product.code || "--"} - ${product.name || tt("hub.structure.productDefault", "Product")}` : "-",
             cycles: vals.length,
           });
         } else {
-          $("stateInfo").textContent += tt("spacial.state.selectOne.annotations", " • Select one job.");
+          $("stateInfo").textContent += tt("spacial.state.selectProduct", " | Select one product.");
         }
         const scopeLabel = currentScopeLabel();
         if (scopeLabel) {
-          $("stateInfo").textContent += ` • ${tt("spacial.state.scope", "Scope: {scope}", { scope: scopeLabel })}`;
+          $("stateInfo").textContent += ` · ${tt("spacial.state.scope", "Scope: {scope}", { scope: scopeLabel })}`;
         }
         renderRoutingPanel();
       }
@@ -4218,7 +5857,7 @@
             text: cssThemeHex("--text", "#ffffff"),
             bg: cssThemeHex("--bg", "#0f1724"),
           });
-          const name = safeFilename(`${routePlan?.jobName || "job"}_${op.seq || "op"}_${file.name || "file"}_annotated`, "operation_annotated");
+          const name = safeFilename(`${routePlan?.routeName || routePlan?.productRef || "route"}_${op.seq || "op"}_${file.name || "file"}_annotated`, "operation_annotated");
           if (cv.toBlob) {
             cv.toBlob((blob) => {
               if (!blob) return;
@@ -4324,7 +5963,7 @@
             <body>
               <h1>${escHtml(tt("spacial.routing.title", "Routing and Dimensional Control"))}</h1>
               <h2>${escHtml(opTitle)}</h2>
-              <div style="margin:0 0 12px;font-size:12px;">${escHtml(tt("spacial.section.route", "Route"))}: ${escHtml(routePlan.routeName || "")} | ${escHtml(tt("spacial.jobDefault", "Job"))}: ${escHtml(routePlan.jobName || "")}</div>
+              <div style="margin:0 0 12px;font-size:12px;">${escHtml(tt("spacial.section.route", "Route"))}: ${escHtml(routePlan.routeName || "")} | ${escHtml(tt("spacial.stationDefault", "Station"))}: ${escHtml(routePlan.stationLabel || "")}</div>
               ${blocks}
             </body>
           </html>
@@ -4375,6 +6014,84 @@
         }
         refresh();
       });
+      $("spcImportLoadBtn").addEventListener("click", () => $("spcImportFile").click());
+      $("spcImportFile").addEventListener("change", async (e) => {
+        const files = Array.from(e.target.files || []);
+        for (const file of files) await loadStructuredImportFile(file);
+        e.target.value = "";
+      });
+      $("spcImportSearchIn").addEventListener("input", () => {
+        spcImportQuery = strOrEmpty($("spcImportSearchIn").value);
+        renderStructuredImportPanel();
+      });
+      $("spcImportProductSel").addEventListener("change", renderStructuredImportPanel);
+      $("spcImportSelectVisibleBtn").addEventListener("click", () => {
+        setStructuredImportVisibleSelection(true);
+        renderStructuredImportPanel();
+      });
+      $("spcImportClearVisibleBtn").addEventListener("click", () => {
+        setStructuredImportVisibleSelection(false);
+        renderStructuredImportPanel();
+      });
+      $("spcImportTree").addEventListener("change", (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        const productCode = strOrEmpty(target.dataset.importProduct || target.dataset.importChar || target.dataset.importOp || target.dataset.importCharGroup || target.dataset.importOpGroup);
+        if (!productCode) return;
+        const product = findStructuredFilteredProduct(productCode);
+        if (!product) return;
+        const checked = !!target.checked;
+        const sel = $("spcImportProductSel");
+        if (sel && [...sel.options].some((o) => String(o.value || "") === productCode)) sel.value = productCode;
+        if (target.dataset.importProduct) {
+          setStructuredImportProductSelection(product, checked);
+          renderStructuredImportPanel();
+          return;
+        }
+        if (target.dataset.importCharGroup) {
+          for (const [idx, ch] of (product.characteristics || []).entries()) {
+            const key = structuredImportSelectionKey("char", productCode, structuredImportCharKey(ch, idx));
+            if (checked) spcImportSelection.characteristics.add(key);
+            else spcImportSelection.characteristics.delete(key);
+          }
+          if (checked) spcImportSelection.products.add(productCode);
+          renderStructuredImportPanel();
+          return;
+        }
+        if (target.dataset.importOpGroup) {
+          for (const [idx, op] of (product.operations || []).entries()) {
+            const key = structuredImportSelectionKey("op", productCode, structuredImportOpKey(op, idx));
+            if (checked) spcImportSelection.operations.add(key);
+            else spcImportSelection.operations.delete(key);
+          }
+          if (checked) spcImportSelection.products.add(productCode);
+          renderStructuredImportPanel();
+          return;
+        }
+        if (target.dataset.importChar) {
+          const key = structuredImportSelectionKey("char", productCode, strOrEmpty(target.dataset.importCharKey));
+          if (checked) {
+            spcImportSelection.characteristics.add(key);
+            spcImportSelection.products.add(productCode);
+          } else {
+            spcImportSelection.characteristics.delete(key);
+          }
+          renderStructuredImportPanel();
+          return;
+        }
+        if (target.dataset.importOp) {
+          const key = structuredImportSelectionKey("op", productCode, strOrEmpty(target.dataset.importOpKey));
+          if (checked) {
+            spcImportSelection.operations.add(key);
+            spcImportSelection.products.add(productCode);
+          } else {
+            spcImportSelection.operations.delete(key);
+          }
+          renderStructuredImportPanel();
+        }
+      });
+      $("spcImportProductBtn").addEventListener("click", importSelectedStructuredProduct);
+      $("spcImportAllBtn").addEventListener("click", importAllStructuredProducts);
       $("routeNewBtn").addEventListener("click", createNewRoute);
       $("routeDupBtn").addEventListener("click", duplicateSelectedRoute);
       $("routeDeleteBtn").addEventListener("click", deleteSelectedRoute);
@@ -4418,19 +6135,70 @@
       $("opDeleteBtn").addEventListener("click", deleteSelectedOperation);
       $("opUpBtn").addEventListener("click", () => moveSelectedOperation(-1));
       $("opDownBtn").addEventListener("click", () => moveSelectedOperation(1));
-      $("opCharUseAllBtn").addEventListener("click", () => {
-        const op = operationById(selectedOpId);
-        if (!op) return;
-        syncOperationCharacteristicIdsFromBubbles(op);
-        writeRoutePlan(routePlan);
-        renderRoutingPanel();
+      $("charGridAddBtn").addEventListener("click", () => {
+        const rows = listProductCharacteristics(currentRouteProductId());
+        const newRow = $("charGridBody")?.querySelector?.('tr[data-char-grid-new="1"]');
+        if (!newRow) return;
+        const idInput = newRow.querySelector('[data-char-grid-field="id"]');
+        const nameInput = newRow.querySelector('[data-char-grid-field="name"]');
+        if (idInput) idInput.value = nextCharacteristicId(rows);
+        if (nameInput) nameInput.focus();
       });
-      $("opCharClearBtn").addEventListener("click", () => {
-        const op = operationById(selectedOpId);
-        if (!op) return;
-        syncOperationCharacteristicIdsFromBubbles(op);
-        writeRoutePlan(routePlan);
-        renderRoutingPanel();
+      const scheduleCharGridRowSave = (row) => {
+        if (!row) return;
+        const isNew = row.getAttribute("data-char-grid-new") === "1";
+        const rowId = strOrEmpty(row.getAttribute("data-char-grid-id") || "");
+        const prev = charGridSaveTimers.get(row);
+        if (prev) clearTimeout(prev);
+        const timer = window.setTimeout(() => {
+          charGridSaveTimers.delete(row);
+          if (row.contains(document.activeElement)) return;
+          if (isNew) {
+            const nameVal = strOrEmpty(row.querySelector('[data-char-grid-field="name"]')?.value || "");
+            if (!nameVal) return;
+            saveCharacteristicFromGridRow(row, { silent: true });
+            return;
+          }
+          if (!rowId) return;
+          saveCharacteristicFromGridRow(row, { idOverride: rowId, originalId: rowId, silent: true });
+        }, 220);
+        charGridSaveTimers.set(row, timer);
+      };
+      $("charGridBody").addEventListener("click", (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        if (!target) return;
+        const addBtn = target.closest("[data-char-grid-add]");
+        if (addBtn) {
+          const row = addBtn.closest("tr");
+          if (!row) return;
+          saveCharacteristicFromGridRow(row);
+          return;
+        }
+        const delBtn = target.closest("[data-char-grid-del]");
+        if (delBtn) {
+          const id = strOrEmpty(delBtn.getAttribute("data-char-grid-del"));
+          if (!id) return;
+          if (!confirm(tt("spacial.characteristics.confirmDelete", "Delete this characteristic?"))) return;
+          if (window.VMillData?.deleteRecord) window.VMillData.deleteRecord(NS_CHAR, id);
+          removeCharacteristicRefsInRoutes(id);
+          selectedCharId = "";
+          refreshCharacteristicViews();
+          return;
+        }
+      });
+      $("charGridBody").addEventListener("change", (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        if (!target || !target.closest("[data-char-grid-field]")) return;
+        const row = target.closest("tr");
+        if (!row) return;
+        scheduleCharGridRowSave(row);
+      });
+      $("charGridBody").addEventListener("focusout", (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        if (!target || !target.closest("[data-char-grid-field]")) return;
+        const row = target.closest("tr");
+        if (!row) return;
+        scheduleCharGridRowSave(row);
       });
       $("charSel").addEventListener("change", () => {
         selectedCharId = strOrEmpty($("charSel").value);
@@ -4450,6 +6218,75 @@
       $("bubbleCharSel").addEventListener("change", () => {
         const charId = strOrEmpty($("bubbleCharSel").value);
         applyCharacteristicToBubbleForm(charId, false);
+      });
+      const scheduleBubbleGridRowSave = (row) => {
+        if (!row) return;
+        const prev = bubbleGridSaveTimers.get(row);
+        if (prev) clearTimeout(prev);
+        const timer = window.setTimeout(() => {
+          bubbleGridSaveTimers.delete(row);
+          if (row.contains(document.activeElement)) return;
+          saveBubbleFromGridRow(row, { silent: true });
+        }, 220);
+        bubbleGridSaveTimers.set(row, timer);
+      };
+      $("bubbleTableBody").addEventListener("click", (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        if (!target) return;
+        const delBtn = target.closest("[data-bubble-del]");
+        if (delBtn) {
+          const op = operationById(selectedOpId);
+          const opFile = selectedOperationFile(op);
+          if (!op || !opFile) return;
+          const i = Number(delBtn.getAttribute("data-bubble-del"));
+          if (!Number.isFinite(i) || i < 0) return;
+          if (!confirm(tt("spacial.confirm.deleteAnnotation", "Delete this annotation?"))) return;
+          const before = Array.isArray(opFile.bubbles) ? opFile.bubbles : [];
+          const removedId = String(before[i]?.id || "");
+          opFile.bubbles = before.filter((_, idx) => idx !== i);
+          syncOperationCharacteristicIdsFromBubbles(op);
+          if (!opFile.bubbles.some((x) => String(x.id || "") === String(selectedCanvasBubbleId || ""))) {
+            selectedCanvasBubbleId = opFile.bubbles[0]?.id || "";
+          }
+          if (String(editingBubbleId || "") === removedId) editingBubbleId = "";
+          writeRoutePlan(routePlan);
+          renderRoutingPanel();
+          return;
+        }
+        const pickBtn = target.closest("[data-bubble-pick-btn]");
+        if (pickBtn) {
+          const i = Number(pickBtn.getAttribute("data-bubble-pick-btn"));
+          const op = operationById(selectedOpId);
+          const bubbles = selectedFileBubbles(op);
+          const src = bubbles[i];
+          if (!src) return;
+          selectedCanvasBubbleId = String(src.id || "");
+          renderBubbleTable();
+          drawBubbleCanvas();
+          return;
+        }
+        const row = target.closest("tr[data-bubble-row-index]");
+        if (!row) return;
+        if (target.closest("button,input,select,textarea,label")) return;
+        const bubbleId = strOrEmpty(row.getAttribute("data-bubble-row-id"));
+        if (!bubbleId) return;
+        selectedCanvasBubbleId = bubbleId;
+        renderBubbleTable();
+        drawBubbleCanvas();
+      });
+      $("bubbleTableBody").addEventListener("change", (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        if (!target || !target.closest("[data-bubble-grid-field]")) return;
+        const row = target.closest("tr[data-bubble-row-index]");
+        if (!row) return;
+        scheduleBubbleGridRowSave(row);
+      });
+      $("bubbleTableBody").addEventListener("focusout", (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        if (!target || !target.closest("[data-bubble-grid-field]")) return;
+        const row = target.closest("tr[data-bubble-row-index]");
+        if (!row) return;
+        scheduleBubbleGridRowSave(row);
       });
       $("bubbleImportBtn").addEventListener("click", () => $("bubbleImportFile").click());
       $("bubbleImportFile").addEventListener("change", (e) => {
@@ -4514,7 +6351,7 @@
       });
       $("routeExportJsonBtn").addEventListener("click", () => {
         if (!routePlan) return;
-        exportJsonFile(`Route_${routePlan.jobName || "job"}_${new Date().toISOString().slice(0, 10)}.json`, routePlan);
+        exportJsonFile(`Route_${safeRecordToken(routePlan.routeName || routePlan.productRef || "route")}_${new Date().toISOString().slice(0, 10)}.json`, routePlan);
       });
       $("routeExportCsvBtn").addEventListener("click", exportRouteCsv);
       $("routeExportPdfBtn").addEventListener("click", exportRoutePdf);
@@ -4569,3 +6406,5 @@
   </script>
 </body>
 </html>
+
+

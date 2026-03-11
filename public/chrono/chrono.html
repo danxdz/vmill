@@ -1348,6 +1348,7 @@
   const STORAGE_KEY = "vmill:app-state:v1";
   const APP_STORAGE_KEYS = window.VMillData?.keys?.ALL_APP_KEYS || [STORAGE_KEY];
   const MODULE_STORAGE_KEY = String(window.VMillData?.keys?.MODULE_KEY || "vmill:module-data:v1");
+  const HUB_SCOPE_KEY = "vmill:hub-scope:v1";
   const SYNC_STORAGE_KEYS = Array.from(new Set([...APP_STORAGE_KEYS, MODULE_STORAGE_KEY]));
   const VIDEO_BOOKMARKS_KEY = "chrono_video_bookmarks_v1";
   const launchParams = new URLSearchParams(window.location.search || "");
@@ -2666,6 +2667,89 @@
     }
     launchRouteApplied = true;
   }
+  function readHubScopeState() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(HUB_SCOPE_KEY) || "{}");
+      if (!raw || typeof raw !== "object") return { selected: {} };
+      const selected = raw.selected && typeof raw.selected === "object" ? raw.selected : {};
+      return { selected };
+    } catch {
+      return { selected: {} };
+    }
+  }
+  function roleTypeId(role, fallbackId) {
+    const fallback = String(fallbackId || role || "");
+    if (!window.VMillData?.resolveEntityTypeIdByRole) return fallback;
+    return String(window.VMillData.resolveEntityTypeIdByRole(role) || fallback);
+  }
+  function normalizeScopePick(v) {
+    const value = String(v || "").trim();
+    return value && value !== "all" ? value : "";
+  }
+  function jobsInTimelineScope() {
+    return state.jobs.filter((j) => {
+      if (timelineProductFilterId && String(j.productId || "") !== String(timelineProductFilterId)) return false;
+      if (timelineStationFilterId && String(j.stationId || "") !== String(timelineStationFilterId)) return false;
+      return true;
+    });
+  }
+  function applyHubScopeToTimelineFilters(scopePayload = null) {
+    const source = scopePayload && typeof scopePayload === "object" ? scopePayload : readHubScopeState();
+    const selected = source?.selected && typeof source.selected === "object" ? source.selected : {};
+    const productTypeId = roleTypeId("product", "product");
+    const stationTypeId = roleTypeId("station", "station");
+    const jobTypeId = roleTypeId("job", "job");
+    let nextProductId = normalizeScopePick(selected[productTypeId]);
+    let nextStationId = normalizeScopePick(selected[stationTypeId]);
+    const scopeJobId = normalizeScopePick(selected[jobTypeId]);
+    let preferredJobId = "";
+    if (scopeJobId && state.jobs.some((j) => String(j.id || "") === scopeJobId)) {
+      preferredJobId = scopeJobId;
+      const scopedJob = state.jobs.find((j) => String(j.id || "") === scopeJobId) || null;
+      if (scopedJob?.productId) nextProductId = String(scopedJob.productId || "");
+      if (scopedJob?.stationId) nextStationId = String(scopedJob.stationId || "");
+    }
+    let changed = false;
+    if (timelineProductFilterId !== nextProductId) {
+      timelineProductFilterId = nextProductId;
+      changed = true;
+    }
+    if (timelineStationFilterId !== nextStationId) {
+      timelineStationFilterId = nextStationId;
+      changed = true;
+    }
+    if (nextProductId && state.products.some((p) => String(p.id || "") === nextProductId) && String(state.activeProductId || "") !== nextProductId) {
+      state.activeProductId = nextProductId;
+      changed = true;
+    }
+    if (changed) timelineScopeSeeded = true;
+    return { changed, preferredJobId };
+  }
+  function syncFromHubScope(scopePayload = null, options = {}) {
+    const result = applyHubScopeToTimelineFilters(scopePayload);
+    if (!result.changed && !result.preferredJobId && !options.force) return false;
+    if (options.initial) {
+      const scoped = jobsInTimelineScope();
+      const current = String(state.activeJobId || "");
+      let nextActive = current;
+      if (result.preferredJobId && scoped.some((j) => String(j.id || "") === String(result.preferredJobId))) {
+        nextActive = result.preferredJobId;
+      } else if (!scoped.some((j) => String(j.id || "") === current)) {
+        nextActive = scoped[0]?.id || "";
+      }
+      if (String(nextActive || "") !== current) {
+        state.activeJobId = nextActive || null;
+        selectedElementId = null;
+        selectedCycleId = null;
+        selectedCycleIdsForLine = new Set();
+      }
+      const active = getActiveJob();
+      if (active?.productId) state.activeProductId = active.productId;
+      return true;
+    }
+    selectFirstTimelineJobInScope(result.preferredJobId);
+    return true;
+  }
 
   let selectedElementId = null;
   let selectedCycleId = null;
@@ -2676,6 +2760,7 @@
   let sidebarStationFilterId = "";
   let timelineProductFilterId = "";
   let timelineStationFilterId = "";
+  let timelineScopeSeeded = false;
   let editingActionTypeId = null; // null when creating new, else original id when editing
   const addTypeBtn = $("addActionTypeBtn");
   function updateAddTypeButton() {
@@ -5027,8 +5112,11 @@
     const activeJob = getActiveJob();
     const products = state.products || [];
     const stations = state.stations || [];
-    if (!timelineProductFilterId && activeJob?.productId) timelineProductFilterId = String(activeJob.productId || "");
-    if (!timelineStationFilterId && activeJob?.stationId) timelineStationFilterId = String(activeJob.stationId || "");
+    if (!timelineScopeSeeded) {
+      if (!timelineProductFilterId && activeJob?.productId) timelineProductFilterId = String(activeJob.productId || "");
+      if (!timelineStationFilterId && activeJob?.stationId) timelineStationFilterId = String(activeJob.stationId || "");
+      timelineScopeSeeded = true;
+    }
 
     const hasProductFilter = !!timelineProductFilterId && products.some((p) => String(p.id || "") === String(timelineProductFilterId));
     if (!hasProductFilter) timelineProductFilterId = "";
@@ -6725,6 +6813,7 @@
     if (!forceRender && raw === lastStateSignature) return;
     state = next;
     lastStateSignature = raw;
+    syncFromHubScope(null, { initial: true });
     renderAll();
     flashSavePill("↻ Synced");
   }
@@ -6733,6 +6822,10 @@
   window.addEventListener("storage", (e) => {
     if (SYNC_STORAGE_KEYS.includes(String(e.key || ""))) syncStateFromStorageIfChanged(String(e.key || "") === MODULE_STORAGE_KEY);
     if (e.key === VIDEO_BOOKMARKS_KEY) populateVideoLibrarySelector();
+    if (e.key === HUB_SCOPE_KEY) syncFromHubScope(null);
+  });
+  window.addEventListener("vmill:hub-scope:changed", (e) => {
+    syncFromHubScope(e?.detail?.scope || null);
   });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
@@ -6742,6 +6835,7 @@
   });
   initI18n().finally(() => {
     applyLaunchRouteToState(true);
+    syncFromHubScope(null, { initial: true, force: true });
     renderAll();
     applyI18nStatic();
   });

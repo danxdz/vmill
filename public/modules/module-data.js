@@ -152,11 +152,74 @@
     window.CANBus?.emit("data:sync:status", payload, "module-data");
   }
 
+  function getOperationRows(src) {
+    if (Array.isArray(src?.operations)) return src.operations;
+    if (Array.isArray(src?.jobs)) return src.jobs;
+    return [];
+  }
+
+  function toInternalJobShape(raw) {
+    const st = raw && typeof raw === "object" ? raw : {};
+    if (!Array.isArray(st.jobs) && Array.isArray(st.operations)) st.jobs = st.operations.slice();
+    if (!Object.prototype.hasOwnProperty.call(st, "activeJobId") && Object.prototype.hasOwnProperty.call(st, "activeOperationId")) {
+      st.activeJobId = st.activeOperationId;
+    }
+    return st;
+  }
+
+  function toCanonicalOperationShape(raw) {
+    const st = raw && typeof raw === "object" ? raw : {};
+    if (!Array.isArray(st.operations) && Array.isArray(st.jobs)) st.operations = st.jobs.slice();
+    if (!Object.prototype.hasOwnProperty.call(st, "activeOperationId")) {
+      st.activeOperationId = st.activeJobId ?? null;
+    }
+    delete st.jobs;
+    delete st.activeJobId;
+    return st;
+  }
+
+  function attachLegacyJobAliases(raw) {
+    const st = raw && typeof raw === "object" ? raw : {};
+    try {
+      if (!Object.getOwnPropertyDescriptor(st, "jobs")) {
+        Object.defineProperty(st, "jobs", {
+          configurable: true,
+          enumerable: false,
+          get() {
+            return Array.isArray(st.operations) ? st.operations : [];
+          },
+          set(next) {
+            st.operations = Array.isArray(next) ? next : [];
+          },
+        });
+      }
+      if (!Object.getOwnPropertyDescriptor(st, "activeJobId")) {
+        Object.defineProperty(st, "activeJobId", {
+          configurable: true,
+          enumerable: false,
+          get() {
+            return st.activeOperationId ?? null;
+          },
+          set(next) {
+            st.activeOperationId = next == null ? null : String(next || "");
+          },
+        });
+      }
+    } catch {}
+    return st;
+  }
+
   function isValidAppState(v) {
-    return !!(v && typeof v === "object" && Array.isArray(v.stations) && Array.isArray(v.jobs));
+    return !!(
+      v
+      && typeof v === "object"
+      && Array.isArray(v.stations)
+      && (Array.isArray(v.operations) || Array.isArray(v.jobs))
+    );
   }
 
   function normalizeProductsAndJobs(st) {
+    st = toInternalJobShape(st);
     if (!isValidAppState(st)) return st;
     if (!Array.isArray(st.categories)) st.categories = [];
     st.categories = st.categories.map((c, idx) => ({
@@ -315,12 +378,13 @@
   function normalizeImportedAppState(v) {
     const src = (v && typeof v === "object" && v.app && typeof v.app === "object") ? v.app : v;
     if (!isValidAppState(src)) return null;
-    const st = safeParse(JSON.stringify(src), null);
+    const st = toInternalJobShape(safeParse(JSON.stringify(src), null));
     if (!isValidAppState(st)) return null;
-    normalizeProductsAndJobs(st);
-    if (!st.activeProductId && st.products[0]) st.activeProductId = st.products[0].id;
-    if (!st.activeJobId && st.jobs[0]) st.activeJobId = st.jobs[0].id;
-    return st;
+    const normalized = normalizeProductsAndJobs(st);
+    if (!normalized.activeProductId && normalized.products[0]) normalized.activeProductId = normalized.products[0].id;
+    if (!normalized.activeJobId && normalized.jobs[0]) normalized.activeJobId = normalized.jobs[0].id;
+    const canonical = toCanonicalOperationShape(normalized);
+    return attachLegacyJobAliases(canonical);
   }
 
   function readRawJsonByKey(key) {
@@ -387,10 +451,11 @@
 
   function statePayloadScore(v) {
     const stations = Array.isArray(v?.stations) ? v.stations.length : 0;
-    const jobs = Array.isArray(v?.jobs) ? v.jobs.length : 0;
+    const operations = getOperationRows(v);
+    const opCount = operations.length;
     let cycles = 0;
-    for (const j of (v?.jobs || [])) cycles += Array.isArray(j?.cycles) ? j.cycles.length : 0;
-    return (stations * 1000000) + (jobs * 1000) + cycles;
+    for (const op of operations) cycles += Array.isArray(op?.cycles) ? op.cycles.length : 0;
+    return (stations * 1000000) + (opCount * 1000) + cycles;
   }
 
   function hasPayloadData(v) {
@@ -545,29 +610,29 @@
         },
       ],
     };
-    return ensureStateMeta({
+    return attachLegacyJobAliases(ensureStateMeta({
       activeProductId: p1.id,
-      activeJobId: job1.id,
+      activeOperationId: job1.id,
       categories: [c1, c2],
       products: [p1, p2],
       stations: [st1, st2],
-      jobs: [job1, job2],
+      operations: [job1, job2],
       actionTypes: defaultActionTypes(),
       ui: defaultUiState(),
-    });
+    }));
   }
 
   function createEmptyAppState() {
-    return ensureStateMeta({
+    return attachLegacyJobAliases(ensureStateMeta({
       activeProductId: null,
-      activeJobId: null,
+      activeOperationId: null,
       categories: [],
       products: [],
       stations: [],
-      jobs: [],
+      operations: [],
       actionTypes: defaultActionTypes(),
       ui: defaultUiState(),
-    });
+    }));
   }
 
   function avgElementMs(job, elementId) {
@@ -697,11 +762,12 @@
     const normalizedBase = normalizeImportedAppState(next);
     if (!normalizedBase) return;
     const normalized = ensureStateMeta(normalizedBase);
-    const raw = JSON.stringify(normalized);
+    const canonical = toCanonicalOperationShape(safeParse(JSON.stringify(normalized), {}));
+    const raw = JSON.stringify(canonical);
     for (const key of ALL_APP_KEYS) {
       try { localStorage.setItem(key, raw); } catch {}
     }
-    writeWindowAppState(normalized);
+    writeWindowAppState(canonical);
     window.CANBus?.emit("data:app:updated", { key: APP_KEY, mirrors: LEGACY_APP_KEYS.slice() }, "module-data");
     if (!syncState.applyingRemote) {
       markDirty("app", "app-write");
@@ -950,6 +1016,8 @@
       nodes: "nodes",
       product: "products",
       products: "products",
+      operation: "jobs",
+      operations: "jobs",
       job: "jobs",
       jobs: "jobs",
       "chrono/session": "chrono_sessions",
@@ -2325,9 +2393,12 @@
   }
 
   function exportAllSnapshot() {
+    const appState = toCanonicalOperationShape(
+      safeParse(JSON.stringify(readAppState() || createEmptyAppState()), {})
+    );
     return {
       exportedAt: new Date().toISOString(),
-      app: readAppState(),
+      app: appState,
       modules: readModuleState(),
     };
   }
@@ -2404,14 +2475,14 @@
   function makeCsvForJobs() {
     const app = readAppState();
     const rows = [
-      "productCode,productName,stationCode,stationName,jobName,cycleId,cycleAtIso,tag,totalMs,lapIndex,elementName,elementType,lapMs",
+      "productCode,productName,stationCode,stationName,operationName,cycleId,cycleAtIso,tag,totalMs,lapIndex,elementName,elementType,lapMs",
     ];
     const products = new Map((app?.products || []).map((p) => [p.id, p]));
     const stations = new Map((app?.stations || []).map((s) => [s.id, s]));
-    for (const job of (app?.jobs || [])) {
-      const product = products.get(job.productId) || {};
-      const st = stations.get(job.stationId) || {};
-      for (const cyc of (job.cycles || [])) {
+    for (const operation of (app?.jobs || [])) {
+      const product = products.get(operation.productId) || {};
+      const st = stations.get(operation.stationId) || {};
+      for (const cyc of (operation.cycles || [])) {
         const laps = Array.isArray(cyc.laps) ? cyc.laps : [];
         for (let i = 0; i < laps.length; i++) {
           const l = laps[i] || {};
@@ -2420,7 +2491,7 @@
             product.name || "",
             st.code || "",
             st.name || "",
-            job.name || "",
+            operation.name || "",
             cyc.id || "",
             cyc.atIso || "",
             cyc.tag || "Normal",
@@ -2440,32 +2511,36 @@
     return rows.join("\n");
   }
 
+  function makeCsvForOperations() {
+    return makeCsvForJobs();
+  }
+
   function makeTextReport() {
     const app = readAppState();
     const modules = readModuleState();
     const categories = Array.isArray(app?.categories) ? app.categories : [];
     const products = Array.isArray(app?.products) ? app.products : [];
     const stations = Array.isArray(app?.stations) ? app.stations : [];
-    const jobs = Array.isArray(app?.jobs) ? app.jobs : [];
+    const operations = Array.isArray(app?.jobs) ? app.jobs : [];
     const lines = [];
     lines.push("VMill Offline Backup Report");
     lines.push(`ExportedAt: ${new Date().toISOString()}`);
     lines.push(`Categories: ${categories.length}`);
     lines.push(`Products: ${products.length}`);
     lines.push(`Stations: ${stations.length}`);
-    lines.push(`Jobs: ${jobs.length}`);
+    lines.push(`Operations: ${operations.length}`);
     lines.push("");
     for (const p of products) {
-      const pJobs = jobs.filter((j) => String(j.productId || "") === String(p.id || ""));
-      lines.push(`[Product] ${p.code || "-"} - ${p.name || "-"} | Jobs: ${pJobs.length}`);
+      const pOps = operations.filter((op) => String(op.productId || "") === String(p.id || ""));
+      lines.push(`[Product] ${p.code || "-"} - ${p.name || "-"} | Operations: ${pOps.length}`);
     }
     lines.push("");
     for (const st of stations) {
       lines.push(`[Station] ${st.code || "-"} - ${st.name || "-"}`);
-      const stJobs = jobs.filter((j) => String(j.stationId || "") === String(st.id || ""));
-      for (const j of stJobs) {
-        const cycles = Array.isArray(j.cycles) ? j.cycles : [];
-        lines.push(`  - Job: ${j.name || "-"} | Cycles: ${cycles.length}`);
+      const stOps = operations.filter((op) => String(op.stationId || "") === String(st.id || ""));
+      for (const op of stOps) {
+        const cycles = Array.isArray(op.cycles) ? op.cycles : [];
+        lines.push(`  - Operation: ${op.name || "-"} | Cycles: ${cycles.length}`);
       }
     }
     lines.push("");
@@ -2917,6 +2992,7 @@
     resolveLinkedIds,
     exportAllSnapshot,
     importAllSnapshot,
+    makeCsvForOperations,
     makeCsvForJobs,
     makeTextReport,
   };

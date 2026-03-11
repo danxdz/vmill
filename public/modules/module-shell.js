@@ -130,12 +130,53 @@
     node.style.setProperty("--vm-shell-scope-select-width", `${style.selectWidth}px`);
     node.style.setProperty("--vm-shell-scope-select-width-md", `${Math.max(108, style.selectWidth - 12)}px`);
     node.style.setProperty("--vm-shell-scope-search-max", `${style.searchMax}px`);
-    const sideGap = Math.max(8, Math.min(80, Math.round((100 - style.widthPct) * 2)));
+    // Keep room for fixed left/right header buttons while still allowing wide bars.
+    const sideGap = Math.max(112, Math.min(220, Math.round((100 - style.widthPct) * 2.4 + 96)));
     node.style.setProperty("--vm-shell-scope-side-gap", `${sideGap}px`);
   }
 
   function isValidAppState(st) {
-    return !!(st && typeof st === "object" && Array.isArray(st.stations) && Array.isArray(st.jobs));
+    return !!(
+      st
+      && typeof st === "object"
+      && Array.isArray(st.stations)
+      && (Array.isArray(st.operations) || Array.isArray(st.jobs))
+    );
+  }
+
+  function normalizeOperationState(raw) {
+    const st = raw && typeof raw === "object" ? raw : {};
+    if (!Array.isArray(st.operations) && Array.isArray(st.jobs)) st.operations = st.jobs.slice();
+    if (!Object.prototype.hasOwnProperty.call(st, "activeOperationId") && Object.prototype.hasOwnProperty.call(st, "activeJobId")) {
+      st.activeOperationId = st.activeJobId;
+    }
+    try {
+      if (!Object.getOwnPropertyDescriptor(st, "jobs")) {
+        Object.defineProperty(st, "jobs", {
+          configurable: true,
+          enumerable: false,
+          get() {
+            return Array.isArray(st.operations) ? st.operations : [];
+          },
+          set(next) {
+            st.operations = Array.isArray(next) ? next : [];
+          },
+        });
+      }
+      if (!Object.getOwnPropertyDescriptor(st, "activeJobId")) {
+        Object.defineProperty(st, "activeJobId", {
+          configurable: true,
+          enumerable: false,
+          get() {
+            return st.activeOperationId ?? null;
+          },
+          set(next) {
+            st.activeOperationId = next == null ? null : String(next || "");
+          },
+        });
+      }
+    } catch {}
+    return st;
   }
 
   function stateStamp(v) {
@@ -146,10 +187,10 @@
 
   function statePayloadScore(v) {
     const stations = Array.isArray(v?.stations) ? v.stations.length : 0;
-    const jobs = Array.isArray(v?.jobs) ? v.jobs.length : 0;
+    const operations = Array.isArray(v?.operations) ? v.operations : (Array.isArray(v?.jobs) ? v.jobs : []);
     let cycles = 0;
-    for (const j of (v?.jobs || [])) cycles += Array.isArray(j?.cycles) ? j.cycles.length : 0;
-    return (stations * 1000000) + (jobs * 1000) + cycles;
+    for (const op of operations) cycles += Array.isArray(op?.cycles) ? op.cycles.length : 0;
+    return (stations * 1000000) + (operations.length * 1000) + cycles;
   }
 
   function hasPayloadData(v) {
@@ -161,7 +202,7 @@
     for (const key of APP_KEYS) {
       const parsed = safeParse(localStorage.getItem(key), null);
       if (!isValidAppState(parsed)) continue;
-      candidates.push({ key, state: parsed, stamp: stateStamp(parsed) });
+      candidates.push({ key, state: normalizeOperationState(parsed), stamp: stateStamp(parsed) });
     }
     if (!candidates.length) return null;
     const nonEmpty = candidates.filter((c) => hasPayloadData(c.state));
@@ -182,7 +223,7 @@
 
   function readAppState() {
     const fromApi = window.VMillData?.readAppState ? window.VMillData.readAppState() : null;
-    if (isValidAppState(fromApi)) return fromApi;
+    if (isValidAppState(fromApi)) return normalizeOperationState(fromApi);
     return readLocalAppState();
   }
 
@@ -192,7 +233,14 @@
       window.VMillData.writeAppState(next);
       return;
     }
-    const raw = JSON.stringify(next);
+    const canonical = safeParse(JSON.stringify(next), {});
+    if (!Array.isArray(canonical.operations) && Array.isArray(canonical.jobs)) canonical.operations = canonical.jobs.slice();
+    if (!Object.prototype.hasOwnProperty.call(canonical, "activeOperationId") && Object.prototype.hasOwnProperty.call(canonical, "activeJobId")) {
+      canonical.activeOperationId = canonical.activeJobId;
+    }
+    delete canonical.jobs;
+    delete canonical.activeJobId;
+    const raw = JSON.stringify(canonical);
     for (const key of APP_KEYS) {
       try { localStorage.setItem(key, raw); } catch {}
     }
@@ -1863,6 +1911,25 @@
       const byId = [...typeById.values()].find((t) => String(t?.id || "").trim().toLowerCase() === wanted);
       return byId ? String(byId.id || "") : "";
     }
+    function scopeTypeRank(typeOrId) {
+      const row = typeof typeOrId === "string" ? typeByIdSafe(typeOrId) : typeOrId;
+      const tid = String(row?.id || typeOrId || "").trim().toLowerCase();
+      const role = String(row?.moduleRole || "").trim().toLowerCase();
+      if (role === "product" || tid === "product") return 0;
+      if (role === "station" || tid === "station") return 1;
+      if (role === "job" || tid === "job") return 2;
+      return 20;
+    }
+    function prioritizeScopeTypeIds(typeIds) {
+      const ids = Array.isArray(typeIds) ? typeIds.slice() : [];
+      ids.sort((a, b) => {
+        const ra = scopeTypeRank(a);
+        const rb = scopeTypeRank(b);
+        if (ra !== rb) return ra - rb;
+        return typeLabel(typeByIdSafe(a)).localeCompare(typeLabel(typeByIdSafe(b)));
+      });
+      return ids;
+    }
     function emptyModel() {
       return { types: [], items: [], links: [], rules: [] };
     }
@@ -2018,7 +2085,10 @@
         if (!baseTypeIds.includes(id) || orderedBase.includes(id)) continue;
         orderedBase.push(id);
       }
-      for (const id of baseTypeIds) {
+      const prioritizedRemainder = prioritizeScopeTypeIds(
+        baseTypeIds.filter((id) => !orderedBase.includes(id))
+      );
+      for (const id of prioritizedRemainder) {
         if (!orderedBase.includes(id)) orderedBase.push(id);
       }
       const hidden = new Set(prefs.hiddenTypeIds || []);
@@ -2482,10 +2552,10 @@
           const nextVal = String(scope.query || "");
           if (filterSearchEl.value !== nextVal) filterSearchEl.value = nextVal;
         }
-        filterSearchEl.placeholder = tt("hub.jobs.searchPlaceholder", "Search station/job...");
+        filterSearchEl.placeholder = tt("hub.scope.searchPlaceholder", "Search scope...");
         syncSearchInlineState();
       }
-      if (pickerSearchEl) pickerSearchEl.placeholder = tt("hub.jobs.searchPlaceholder", "Search station/job...");
+      if (pickerSearchEl) pickerSearchEl.placeholder = tt("hub.scope.searchPlaceholder", "Search scope...");
       if (pickerCloseEl) pickerCloseEl.textContent = tt("common.close", "Close");
       closePicker();
     }

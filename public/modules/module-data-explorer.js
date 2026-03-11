@@ -22,7 +22,12 @@
   }
 
   function isValidAppState(v) {
-    return !!(v && typeof v === "object" && Array.isArray(v.stations) && Array.isArray(v.jobs));
+    return !!(
+      v
+      && typeof v === "object"
+      && Array.isArray(v.stations)
+      && (Array.isArray(v.operations) || Array.isArray(v.jobs))
+    );
   }
 
   function readState() {
@@ -48,7 +53,14 @@
       window.VMillData.writeAppState(next);
       return;
     }
-    const raw = JSON.stringify(next);
+    const canonical = safeParse(JSON.stringify(next), {});
+    if (!Array.isArray(canonical.operations) && Array.isArray(canonical.jobs)) canonical.operations = canonical.jobs.slice();
+    if (!Object.prototype.hasOwnProperty.call(canonical, "activeOperationId") && Object.prototype.hasOwnProperty.call(canonical, "activeJobId")) {
+      canonical.activeOperationId = canonical.activeJobId;
+    }
+    delete canonical.jobs;
+    delete canonical.activeJobId;
+    const raw = JSON.stringify(canonical);
     for (const key of APP_KEYS) {
       try { localStorage.setItem(key, raw); } catch {}
     }
@@ -208,37 +220,37 @@
 
   function stationsAndJobsHtml(st) {
     const stations = Array.isArray(st?.stations) ? st.stations : [];
-    const jobs = Array.isArray(st?.jobs) ? st.jobs : [];
-    if (!stations.length && !jobs.length) return `<div class="empty">No global data available.</div>`;
+    const operations = Array.isArray(st?.operations) ? st.operations : (Array.isArray(st?.jobs) ? st.jobs : []);
+    if (!stations.length && !operations.length) return `<div class="empty">No global data available.</div>`;
     const byStation = new Map();
     for (const s of stations) byStation.set(String(s.id || ""), []);
     const unassigned = [];
-    for (const j of jobs) {
-      const sid = String(j.stationId || "");
-      if (byStation.has(sid)) byStation.get(sid).push(j);
-      else unassigned.push(j);
+    for (const op of operations) {
+      const sid = String(op.stationId || "");
+      if (byStation.has(sid)) byStation.get(sid).push(op);
+      else unassigned.push(op);
     }
     const parts = [];
     for (const s of stations) {
       const sid = String(s.id || "");
       const sj = byStation.get(sid) || [];
       const jobsHtml = sj.length
-        ? sj.map((j) => {
-            const cycles = Array.isArray(j?.cycles) ? j.cycles.length : 0;
-            const els = Array.isArray(j?.elements) ? j.elements.length : 0;
-            const active = String(st?.activeJobId || "") === String(j?.id || "") ? " (active)" : "";
-            return `<div class="job"><div class="jobName">${j?.name || "Job"}${active}</div><div class="meta">elements: ${els} | cycles: ${cycles}</div></div>`;
+        ? sj.map((op) => {
+            const cycles = Array.isArray(op?.cycles) ? op.cycles.length : 0;
+            const els = Array.isArray(op?.elements) ? op.elements.length : 0;
+            const active = String(st?.activeOperationId || st?.activeJobId || "") === String(op?.id || "") ? " (active)" : "";
+            return `<div class="job"><div class="jobName">${op?.name || "Operation"}${active}</div><div class="meta">elements: ${els} | cycles: ${cycles}</div></div>`;
           }).join("")
-        : `<div class="meta">No jobs</div>`;
+        : `<div class="meta">No operations</div>`;
       parts.push(`<div class="block"><div class="stTitle">${s?.code || "--"} - ${s?.name || "Station"}</div><div class="meta">stationId: ${s?.id || ""}</div>${jobsHtml}</div>`);
     }
     if (unassigned.length) {
-      const uj = unassigned.map((j) => {
-        const cycles = Array.isArray(j?.cycles) ? j.cycles.length : 0;
-        const els = Array.isArray(j?.elements) ? j.elements.length : 0;
-        return `<div class="job"><div class="jobName">${j?.name || "Job"}</div><div class="meta">stationId: ${j?.stationId || "-"} | elements: ${els} | cycles: ${cycles}</div></div>`;
+      const uj = unassigned.map((op) => {
+        const cycles = Array.isArray(op?.cycles) ? op.cycles.length : 0;
+        const els = Array.isArray(op?.elements) ? op.elements.length : 0;
+        return `<div class="job"><div class="jobName">${op?.name || "Operation"}</div><div class="meta">stationId: ${op?.stationId || "-"} | elements: ${els} | cycles: ${cycles}</div></div>`;
       }).join("");
-      parts.push(`<div class="block"><div class="stTitle">Unassigned Jobs</div>${uj}</div>`);
+      parts.push(`<div class="block"><div class="stTitle">Unassigned Operations</div>${uj}</div>`);
     }
     return parts.join("");
   }
@@ -251,11 +263,11 @@
       return;
     }
     const stations = Array.isArray(st.stations) ? st.stations.length : 0;
-    const jobs = Array.isArray(st.jobs) ? st.jobs.length : 0;
+    const operations = Array.isArray(st.operations) ? st.operations : (Array.isArray(st.jobs) ? st.jobs : []);
     let cycles = 0;
-    for (const j of (st.jobs || [])) cycles += Array.isArray(j?.cycles) ? j.cycles.length : 0;
+    for (const op of operations) cycles += Array.isArray(op?.cycles) ? op.cycles.length : 0;
     const srcUpdated = String(st?.meta?.updatedAt || st?.meta?.createdAt || "n/a");
-    setStatus(`Stations: ${stations} | Jobs: ${jobs} | Cycles: ${cycles} | Updated: ${srcUpdated}`);
+    setStatus(`Stations: ${stations} | Operations: ${operations.length} | Cycles: ${cycles} | Updated: ${srcUpdated}`);
     body.innerHTML = stationsAndJobsHtml(st);
   }
 

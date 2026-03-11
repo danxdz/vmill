@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Records Manager</title>
+  <title>Core Data Manager</title>
   <style>
     :root {
       --bg: #0b1220;
@@ -25,6 +25,7 @@
         radial-gradient(900px 420px at 110% -40%, rgba(33, 150, 99, .13), transparent 60%),
         var(--bg);
       color: var(--text);
+      color-scheme: dark;
       font: 500 15px/1.45 "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       min-height: 100%;
     }
@@ -88,6 +89,23 @@
       padding: 8px 10px;
       min-height: 36px;
       outline: none;
+    }
+    select {
+      appearance: none;
+      background-image:
+        linear-gradient(45deg, transparent 50%, color-mix(in srgb, var(--text) 72%, transparent) 50%),
+        linear-gradient(135deg, color-mix(in srgb, var(--text) 72%, transparent) 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(50% + 1px),
+        calc(100% - 12px) calc(50% + 1px);
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+      padding-right: 30px;
+    }
+    select option,
+    select optgroup {
+      background: var(--panel2);
+      color: var(--text);
     }
     input:focus, select:focus, textarea:focus {
       border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
@@ -275,6 +293,17 @@
       padding: 2px 8px;
       background: rgba(255,255,255,.02);
     }
+    .readonlyValue {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--panel2) 78%, transparent);
+      color: var(--text);
+      font-weight: 600;
+    }
     @media (max-width: 1160px) {
       .page {
         width: calc(100vw - 12px);
@@ -294,7 +323,7 @@
   <div class="page">
     <aside class="card left">
       <div class="cardHead">
-        <h2 id="titleEl">Records Manager</h2>
+        <h2 id="titleEl">Core Data Manager</h2>
       </div>
       <div class="leftBody">
         <div class="row">
@@ -302,7 +331,7 @@
           <button id="openHubBtn" type="button">Hub</button>
         </div>
         <div class="field">
-          <label id="searchLabelEl">Search folders</label>
+          <label id="searchLabelEl">Browse datasets</label>
           <input id="typeSearchIn" type="text" placeholder="Search folders..." />
         </div>
         <div class="typeList" id="typeList"></div>
@@ -313,15 +342,15 @@
       <div class="toolbar">
         <div class="toolbarGrid">
           <div class="field">
-            <label id="catLabelEl">System category</label>
+            <label id="catLabelEl">Data domain</label>
             <select id="typeSel"></select>
           </div>
           <div class="field">
-            <label id="recSearchLabelEl">Search records</label>
+            <label id="recSearchLabelEl">Search entries</label>
             <input id="recordSearchIn" type="text" placeholder="Search code/name..." />
           </div>
           <div class="row" style="justify-content:flex-end;">
-            <button id="addRecordBtn" class="btnPrimary" type="button">+ Record</button>
+            <button id="addRecordBtn" class="btnPrimary" type="button">+ Entry</button>
             <span class="pill" id="recordCountPill">0 records</span>
           </div>
         </div>
@@ -331,7 +360,7 @@
       <div class="split">
         <section class="section">
           <div class="sectionHead">
-            <h3 id="listTitleEl">Records (inline)</h3>
+            <h3 id="listTitleEl">Entries</h3>
             <span class="tiny" id="listMetaEl"></span>
           </div>
           <div class="sectionBody">
@@ -341,7 +370,7 @@
                 <tbody id="recordsBody"></tbody>
               </table>
             </div>
-            <div class="flash" id="flashEl">Saved ✓</div>
+            <div class="flash" id="flashEl">Saved âœ“</div>
           </div>
         </section>
       </div>
@@ -365,6 +394,7 @@
         selectedTypeId: "",
         inlineNewRow: false,
         flashTimer: 0,
+        autoSaveTimers: new Map(),
       };
 
       const el = {
@@ -390,6 +420,19 @@
 
       const tt = (key, fallback = "", vars) =>
         window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
+      const NS_ROUTE = "spacial_routes";
+      const SPECIAL_TYPES = [
+        {
+          id: "__route__",
+          code: "route",
+          synthetic: true,
+          base: true,
+          moduleRole: "route",
+          nameSingular: "Route",
+          namePlural: "Routes",
+          attributes: [],
+        },
+      ];
 
       function makeId(prefix = "id") {
         return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -434,8 +477,34 @@
         const src = String(rawRole || "").trim().toLowerCase();
         if (src) return src;
         const fb = String(fallbackId || "").trim().toLowerCase();
-        if (["product", "station", "job"].includes(fb)) return fb;
+        if (["product", "station", "job", "route"].includes(fb)) return fb;
+        if (fb === "__route__") return "route";
         return "custom";
+      }
+      function displayRoleName(role) {
+        const r = normalizeRole(role);
+        if (r === "product") return "Product";
+        if (r === "route") return "Route";
+        if (r === "station") return "Station";
+        if (r === "job") return "Study";
+        return "Record";
+      }
+      function displayTypeName(type, plural = false) {
+        if (!type) return plural ? "Entries" : "Entry";
+        const role = normalizeRole(type.moduleRole, type.id);
+        if (role === "job") return plural ? "Studies" : "Study";
+        if (role === "route") return plural ? "Routes" : "Route";
+        const singular = String(type?.nameSingular || type?.id || "Entry");
+        const pluralName = String(type?.namePlural || `${singular}s`);
+        return plural ? pluralName : singular;
+      }
+      function typeSortRank(type) {
+        const role = normalizeRole(type?.moduleRole, type?.id);
+        if (role === "product") return 0;
+        if (role === "route") return 1;
+        if (role === "station") return 2;
+        if (role === "job") return 3;
+        return 10;
       }
 
       function parseLooseNumberValue(rawValue) {
@@ -500,13 +569,19 @@
       function findType(typeId) {
         const id = String(typeId || "");
         if (!id) return null;
+        const special = SPECIAL_TYPES.find((t) => String(t?.id || "") === id);
+        if (special) return special;
         return (state.model.types || []).find((t) => String(t?.id || "") === id) || null;
       }
 
       function sortedTypes() {
-        return (state.model.types || [])
+        return [...SPECIAL_TYPES, ...(state.model.types || [])]
           .slice()
-          .sort((a, b) => String(a?.nameSingular || a?.id || "").localeCompare(String(b?.nameSingular || b?.id || "")));
+          .sort((a, b) => {
+            const rankDelta = typeSortRank(a) - typeSortRank(b);
+            if (rankDelta) return rankDelta;
+            return displayTypeName(a).localeCompare(displayTypeName(b));
+          });
       }
 
       function incomingRule(typeId) {
@@ -571,6 +646,14 @@
           out.add("name");
           return out;
         }
+        if (r === "route") {
+          out.add("routename");
+          out.add("revision");
+          out.add("productid");
+          out.add("stationid");
+          out.add("productref");
+          return out;
+        }
         if (r === "job") {
           out.add("name");
           out.add("stationid");
@@ -588,6 +671,7 @@
         if (!type) return [];
         const role = normalizeRole(type.moduleRole, type.id);
         if (role === "product") return (state.app.products || []).slice();
+        if (role === "route") return (window.VMillData?.listRecords ? window.VMillData.listRecords(NS_ROUTE) : []).slice();
         if (role === "station") return (state.app.stations || []).slice();
         if (role === "job") return (state.app.jobs || []).slice();
         return (window.VMillData?.listEntities ? window.VMillData.listEntities(String(type.id || "")) : []).slice();
@@ -596,6 +680,7 @@
       function rolePrefix(role) {
         const r = normalizeRole(role);
         if (r === "product") return "P";
+        if (r === "route") return "R";
         if (r === "station") return "S";
         if (r === "job") return "J";
         return "R";
@@ -629,14 +714,22 @@
           defs.push({ key: "code", label: "Code", type: "string", required: false });
           defs.push({ key: "name", label: "Name", type: "string", required: true });
           defs.push({ key: "parentProductId", label: "Parent product", type: "select-product", required: false });
+        } else if (role === "route") {
+          defs.push({ key: "routeName", label: "Route", type: "string", required: true });
+          defs.push({ key: "revision", label: "Revision", type: "string", required: false });
+          defs.push({ key: "productId", label: "Product", type: "select-product", required: false });
+          defs.push({ key: "stationId", label: "Station", type: "select-station", required: false });
+          defs.push({ key: "productRef", label: "Drawing / ref", type: "string", required: false });
+          defs.push({ key: "__ops", label: "Operations", type: "readonly", required: false });
         } else if (role === "station") {
           defs.push({ key: "code", label: "Code", type: "string", required: false });
           defs.push({ key: "name", label: "Name", type: "string", required: true });
         } else if (role === "job") {
-          defs.push({ key: "name", label: "Name", type: "string", required: true });
+          defs.push({ key: "name", label: "Study", type: "string", required: true });
           defs.push({ key: "stationId", label: "Station", type: "select-station", required: true });
           defs.push({ key: "productId", label: "Product", type: "select-product", required: false });
           defs.push({ key: "status", label: "Status", type: "select-status", required: false });
+          defs.push({ key: "__cycles", label: "Cycles", type: "readonly", required: false });
         } else {
           defs.push({ key: "code", label: "Code", type: "string", required: false });
           defs.push({ key: "name", label: "Name", type: "string", required: true });
@@ -704,7 +797,7 @@
             return `<div class="typeRow ${id === String(state.selectedTypeId || "") ? "active" : ""}" data-type-id="${esc(id)}">
               <div>
                 <div>${esc(String(t.nameSingular || id))}</div>
-                <div class="tiny">${esc(role)}${t.base ? " · base" : ""}</div>
+                <div class="tiny">${esc(role)}${t.base ? " Â· base" : ""}</div>
               </div>
               <div class="pill">${count}</div>
             </div>`;
@@ -719,8 +812,11 @@
         if (isNew) {
           if (key === "code") return nextCode(rolePrefix(role), recordsForType(type));
           if (key === "status") return "active";
+          if (key === "__ops" || key === "__cycles") return 0;
           if (key.startsWith("attr:") && String(def?.type || "") === "timestamp") return new Date().toISOString();
         }
+        if (key === "__ops") return Array.isArray(row?.operations) ? row.operations.length : 0;
+        if (key === "__cycles") return Array.isArray(row?.cycles) ? row.cycles.length : 0;
         if (key.startsWith("attr:")) {
           const attrId = String(def?.attrId || key.slice(5));
           return Object.prototype.hasOwnProperty.call(meta, attrId) ? meta[attrId] : "";
@@ -744,6 +840,9 @@
         if (defType === "boolean") {
           const checked = value === true || value === 1 || String(value).toLowerCase() === "true";
           return `<input data-field-key="${esc(key)}" type="checkbox" ${checked ? "checked" : ""} />`;
+        }
+        if (defType === "readonly") {
+          return `<div class="readonlyValue">${esc(value == null ? "" : String(value))}</div>`;
         }
         if (defType === "number") {
           return `<input data-field-key="${esc(key)}" type="text" inputmode="decimal" value="${esc(value == null ? "" : String(value))}" ${req} />`;
@@ -830,7 +929,6 @@
             ${cells}
             <td>
               <div class="rowActions">
-                <button type="button" class="btnPrimary" data-action="save-row" data-record-id="${esc(rid)}">${esc(tt("common.save", "Save"))}</button>
                 <button type="button" class="btnWarn" data-action="${isNew ? "cancel-new" : "delete-row"}" data-record-id="${esc(rid)}">${esc(isNew ? tt("common.cancel", "Cancel") : tt("common.delete", "Delete"))}</button>
               </div>
             </td>
@@ -845,10 +943,10 @@
           : `<tr><td colspan="${defs.length + 1}"><div class="empty">No records.</div></td></tr>`;
 
         el.recordCountPill.textContent = `${rows.length} ${rows.length === 1 ? "record" : "records"}`;
-        el.listMetaEl.textContent = `Type: ${String(type.nameSingular || type.id || "")} · Inline edit`;
+        el.listMetaEl.textContent = `Type: ${String(type.nameSingular || type.id || "")} Â· Auto-save inline edit`;
       }
 
-      function showFlash(msg = "Saved ✓") {
+      function showFlash(msg = "Saved âœ“") {
         el.flashEl.textContent = msg;
         el.flashEl.classList.add("show");
         if (state.flashTimer) clearTimeout(state.flashTimer);
@@ -1030,7 +1128,7 @@
         const rule = incomingRule(String(type.id || ""));
         const parentType = rule?.parentTypeId ? findType(String(rule.parentTypeId || "")) : null;
         const parentLabel = parentType ? String(parentType.nameSingular || parentType.id || "") : "(root)";
-        el.toolbarMeta.textContent = `Role: ${role} · Parent: ${parentLabel} · Fields: ${mergedTypeAttributes(type).length}`;
+        el.toolbarMeta.textContent = `Role: ${role} Â· Parent: ${parentLabel} Â· Fields: ${mergedTypeAttributes(type).length}`;
       }
 
       function renderAll() {
@@ -1082,6 +1180,25 @@
         let id = "";
         if (role === "product" || role === "station" || role === "job") {
           id = saveCoreRecord(role, type, isNew ? "" : String(recordId || ""), form, customDefs);
+        } else if (role === "route") {
+          const existing = isNew ? null : (recordsForType(type).find((x) => String(x?.id || "") === String(recordId || "")) || null);
+          const rid = String(existing?.id || (isNew ? makeId("route") : String(recordId || "")) || makeId("route"));
+          const routeRows = window.VMillData?.listRecords ? window.VMillData.listRecords(NS_ROUTE) : [];
+          const defaultName = `Route ${routeRows.length + 1}`;
+          const payload = {
+            ...(existing && typeof existing === "object" ? existing : {}),
+            id: rid,
+            routeName: String(form.routeName || existing?.routeName || defaultName),
+            revision: String(form.revision || existing?.revision || "A"),
+            productId: String(form.productId || existing?.productId || ""),
+            stationId: String(form.stationId || existing?.stationId || ""),
+            productRef: String(form.productRef || existing?.productRef || ""),
+            operations: Array.isArray(existing?.operations) ? existing.operations : [],
+            updatedAt: new Date().toISOString(),
+          };
+          if (!window.VMillData?.upsertRecord) return;
+          window.VMillData.upsertRecord(NS_ROUTE, payload);
+          id = rid;
         } else {
           const existing = isNew ? null : (recordsForType(type).find((x) => String(x?.id || "") === String(recordId || "")) || null);
           const baseMeta = (existing?.meta && typeof existing.meta === "object") ? { ...existing.meta } : {};
@@ -1118,7 +1235,7 @@
         state.inlineNewRow = false;
         window.CANBus?.emit("shop:tree:changed", { reason: "records-manager-save", typeId: String(type.id || ""), id }, "records-manager");
         await loadAll();
-        showFlash("Saved ✓");
+        showFlash("Saved âœ“");
       }
 
       async function deleteInlineRow(recordId, isNew = false) {
@@ -1136,6 +1253,8 @@
         if (role === "product" || role === "station" || role === "job") {
           ok = deleteCoreRecord(role, rid);
           if (ok) deleteLinksForRecord(type, rid);
+        } else if (role === "route") {
+          ok = !!window.VMillData?.deleteRecord?.(NS_ROUTE, rid);
         } else {
           ok = !!window.VMillData?.deleteEntityItem?.(String(type.id || ""), rid);
         }
@@ -1143,7 +1262,7 @@
         state.inlineNewRow = false;
         window.CANBus?.emit("shop:tree:changed", { reason: "records-manager-delete", typeId: String(type.id || ""), id: rid }, "records-manager");
         await loadAll();
-        showFlash("Deleted ✓");
+        showFlash("Deleted âœ“");
       }
 
       function applyTexts() {
@@ -1166,6 +1285,20 @@
       }
 
       function wireEvents() {
+        const scheduleRowAutoSave = (rowEl) => {
+          if (!(rowEl instanceof HTMLElement)) return;
+          const rid = String(rowEl.getAttribute("data-record-id") || "");
+          if (!rid) return;
+          const isNew = rowEl.getAttribute("data-row-new") === "1" || rid === "__new__";
+          const prev = state.autoSaveTimers.get(rowEl);
+          if (prev) clearTimeout(prev);
+          const timer = window.setTimeout(() => {
+            state.autoSaveTimers.delete(rowEl);
+            void saveInlineRow(rid, rowEl, isNew);
+          }, 220);
+          state.autoSaveTimers.set(rowEl, timer);
+        };
+
         el.refreshBtn?.addEventListener("click", () => { void loadAll(); });
         el.openHubBtn?.addEventListener("click", () => { location.href = "./vmill_hub.html"; });
         el.typeSel?.addEventListener("change", () => {
@@ -1196,17 +1329,28 @@
           const action = String(target.getAttribute("data-action") || target.closest("[data-action]")?.getAttribute("data-action") || "");
           const rid = String(target.getAttribute("data-record-id") || target.closest("[data-record-id]")?.getAttribute("data-record-id") || "");
           if (!action) return;
-          if (action === "save-row") {
-            const rowEl = target.closest("tr[data-record-id]");
-            if (!(rowEl instanceof HTMLElement)) return;
-            const isNew = rowEl.getAttribute("data-row-new") === "1" || rid === "__new__";
-            void saveInlineRow(rid, rowEl, isNew);
-            return;
-          }
           if (action === "delete-row" || action === "cancel-new") {
             const isNew = action === "cancel-new" || rid === "__new__";
             void deleteInlineRow(rid, isNew);
           }
+        });
+        el.recordsBody?.addEventListener("change", (e) => {
+          const target = e.target;
+          if (!(target instanceof HTMLElement)) return;
+          const fieldNode = target.closest("[data-field-key]");
+          if (!(fieldNode instanceof HTMLElement)) return;
+          const rowEl = target.closest("tr[data-record-id]");
+          if (!(rowEl instanceof HTMLElement)) return;
+          scheduleRowAutoSave(rowEl);
+        });
+        el.recordsBody?.addEventListener("focusout", (e) => {
+          const target = e.target;
+          if (!(target instanceof HTMLElement)) return;
+          const fieldNode = target.closest("[data-field-key]");
+          if (!(fieldNode instanceof HTMLElement)) return;
+          const rowEl = target.closest("tr[data-record-id]");
+          if (!(rowEl instanceof HTMLElement)) return;
+          scheduleRowAutoSave(rowEl);
         });
 
         window.CANBus?.onMessage((msg) => {
