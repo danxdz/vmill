@@ -244,6 +244,7 @@
       id: String(p?.id || uuid()),
       code: String(p?.code || `P${String(idx + 1).padStart(3, "0")}`),
       name: String(p?.name || `Product ${idx + 1}`),
+      family: String(p?.family || p?.meta?.family || ""),
       parentProductId: String(p?.parentProductId || ""),
       categoryIds: Array.isArray(p?.categoryIds) ? p.categoryIds.map((x) => String(x || "")).filter((x) => categoryIds.has(x)) : [],
       imageUrl: String(p?.imageUrl || ""),
@@ -265,6 +266,7 @@
             id: uuid(),
             code,
             name: baseName ? `${baseName} Product` : `Product ${n}`,
+            family: "",
             parentProductId: "",
             categoryIds: Array.isArray(job?.categoryIds)
               ? job.categoryIds.map((x) => String(x || "")).filter((x) => categoryIds.has(x))
@@ -344,7 +346,7 @@
     };
     for (const j of (st.jobs || [])) {
       if (!j.id) j.id = uuid();
-      if (!j.name) j.name = "Job";
+      if (!j.name) j.name = "Operation";
       if (!j.stationId && fallbackStationId) j.stationId = fallbackStationId;
       if (!Array.isArray(j.elements)) j.elements = [];
       if (!Array.isArray(j.cycles)) j.cycles = [];
@@ -450,12 +452,15 @@
   }
 
   function statePayloadScore(v) {
+    const products = Array.isArray(v?.products) ? v.products.length : 0;
     const stations = Array.isArray(v?.stations) ? v.stations.length : 0;
     const operations = getOperationRows(v);
     const opCount = operations.length;
     let cycles = 0;
+    let elements = 0;
     for (const op of operations) cycles += Array.isArray(op?.cycles) ? op.cycles.length : 0;
-    return (stations * 1000000) + (opCount * 1000) + cycles;
+    for (const op of operations) elements += Array.isArray(op?.elements) ? op.elements.length : 0;
+    return (products * 1000000000) + (stations * 1000000) + (opCount * 1000) + (cycles * 10) + elements;
   }
 
   function hasPayloadData(v) {
@@ -464,6 +469,8 @@
 
   function chooseBestState(candidates) {
     if (!candidates.length) return null;
+    const appCandidate = candidates.find((c) => String(c?.key || "") === APP_KEY) || null;
+    if (appCandidate && hasPayloadData(appCandidate.state)) return appCandidate;
     const nonEmpty = candidates.filter((c) => hasPayloadData(c.state));
     const pool = nonEmpty.length ? nonEmpty : candidates;
     let best = pool[0];
@@ -542,8 +549,8 @@
   function createDefaultAppState() {
     const c1 = { id: uuid(), code: "CAT001", name: "Assembly", parentCategoryId: "" };
     const c2 = { id: uuid(), code: "CAT002", name: "Packaging", parentCategoryId: "" };
-    const p1 = { id: uuid(), code: "P001", name: "Alpha Product", parentProductId: "", categoryIds: [c1.id], imageUrl: "" };
-    const p2 = { id: uuid(), code: "P002", name: "Beta Product", parentProductId: p1.id, categoryIds: [c2.id], imageUrl: "" };
+    const p1 = { id: uuid(), code: "P001", name: "Alpha Product", family: "", parentProductId: "", categoryIds: [c1.id], imageUrl: "" };
+    const p2 = { id: uuid(), code: "P002", name: "Beta Product", family: "", parentProductId: p1.id, categoryIds: [c2.id], imageUrl: "" };
     const st1 = { id: uuid(), code: "S01", name: "Assembly Line A - Station 1", categoryIds: [c1.id] };
     const st2 = { id: uuid(), code: "S02", name: "Packaging Cell - Station 2", categoryIds: [c2.id] };
     const e1 = { id: uuid(), name: "Pick part", type: "HUMAN" };
@@ -680,10 +687,10 @@
       id: `routeplan_${String(j.id || uuid())}`,
       jobId: String(j.id || ""),
       stationId: String(j.stationId || st?.id || ""),
-      jobName: String(j.name || "Job"),
+      jobName: String(j.name || "Operation"),
       stationLabel: st?.id ? `${st.code || "--"} - ${st.name || "Station"}` : "",
-      routeName: String(j.name || "Route"),
-      revision: "A",
+      routeName: sanitizeLegacyImportLabel(j.name || "Route", "Route"),
+      revision: normalizeRouteRevision("A", "A"),
       productRef: pd?.id ? `${pd.code || "--"} - ${pd.name || "Product"}` : "",
       operations: ops,
       updatedAt: new Date().toISOString(),
@@ -857,6 +864,24 @@
     return base;
   }
 
+  function sanitizeLegacyImportLabel(raw, fallback = "") {
+    let text = String(raw == null ? "" : raw).trim();
+    if (!text) text = String(fallback == null ? "" : fallback).trim();
+    if (!text) return "";
+    text = text
+      .replace(/\s*\((?:imp|import(?:ed)?)\)\s*$/i, "")
+      .replace(/\s*[-|/]\s*(?:imp|import(?:ed)?)\s*$/i, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    return text || String(fallback == null ? "" : fallback).trim();
+  }
+
+  function normalizeRouteRevision(raw, fallback = "A") {
+    const rev = String(raw == null ? "" : raw).trim() || String(fallback == null ? "A" : fallback).trim() || "A";
+    if (String(rev).toUpperCase() === "IMP") return "A";
+    return rev;
+  }
+
   function normalizeRouteRecord(input) {
     if (!input || typeof input !== "object") return null;
     const src = { ...input };
@@ -870,11 +895,11 @@
       stationId: String(src.stationId || ""),
       jobName: String(src.jobName || ""),
       stationLabel: String(src.stationLabel || ""),
-      routeName: String(src.routeName || src.jobName || "Route"),
-      revision: String(src.revision || "A"),
+      routeName: sanitizeLegacyImportLabel(src.routeName || src.jobName || "Route", "Route"),
+      revision: normalizeRouteRevision(src.revision || "A", "A"),
       productRef: String(src.productRef || ""),
       operations: Array.isArray(src.operations) ? src.operations.slice() : [],
-      updatedAt: new Date().toISOString(),
+      updatedAt: String(src.updatedAt || new Date().toISOString()),
     };
   }
 
@@ -977,9 +1002,11 @@
     const ns = String(namespace || "default");
     const st = readModuleState();
     if (!Array.isArray(st.store[ns])) st.store[ns] = [];
-    const id = String(record?.id || `${Date.now()}_${Math.random().toString(16).slice(2)}`);
+    const normalizedRoute = ns === NS_ROUTE ? normalizeRouteRecord(record) : null;
+    const payload = normalizedRoute || { ...(record || {}) };
+    const id = String(payload?.id || `${Date.now()}_${Math.random().toString(16).slice(2)}`);
     const idx = st.store[ns].findIndex((x) => String(x.id || "") === id);
-    const next = { ...(record || {}), id, updatedAt: new Date().toISOString() };
+    const next = { ...payload, id, updatedAt: new Date().toISOString() };
     if (idx >= 0) st.store[ns][idx] = { ...st.store[ns][idx], ...next };
     else st.store[ns].push({ createdAt: new Date().toISOString(), ...next });
     writeModuleState(st);
@@ -1002,7 +1029,9 @@
   function listRecords(namespace) {
     const ns = String(namespace || "default");
     const st = readModuleState();
-    return Array.isArray(st.store[ns]) ? st.store[ns].slice() : [];
+    const rows = Array.isArray(st.store[ns]) ? st.store[ns].slice() : [];
+    if (ns === NS_ROUTE) return rows.map((row) => normalizeRouteRecord(row)).filter(Boolean);
+    return rows;
   }
 
   function apiTableNamespace(table) {
@@ -1073,27 +1102,32 @@
 
   function apiProductFromLocal(raw) {
     const src = raw && typeof raw === "object" ? raw : {};
+    const family = String(firstRecordValue(src, "family") || "").trim();
+    const baseMeta = normalizeMeta(firstRecordValue(src, "meta"));
+    const meta = family ? { ...baseMeta, family } : baseMeta;
     return {
       id: String(src.id || uuid()),
       code: String(firstRecordValue(src, "code") || ""),
       name: String(firstRecordValue(src, "name") || "Product"),
       parent_product_id: String(firstRecordValue(src, "parent_product_id") || firstRecordValue(src, "parentProductId") || ""),
       image_url: String(firstRecordValue(src, "image_url") || firstRecordValue(src, "imageUrl") || ""),
-      meta: normalizeMeta(firstRecordValue(src, "meta")),
+      meta,
     };
   }
 
   function localProductFromApi(raw, current = null) {
     const src = raw && typeof raw === "object" ? raw : {};
     const prev = current && typeof current === "object" ? current : {};
+    const meta = normalizeMeta(firstRecordValue(src, "meta") || prev.meta || {});
     return {
       ...prev,
       id: String(src.id || prev.id || uuid()),
       code: String(firstRecordValue(src, "code") || prev.code || ""),
       name: String(firstRecordValue(src, "name") || prev.name || "Product"),
+      family: String(firstRecordValue(src, "family") || meta.family || prev.family || ""),
       parentProductId: String(firstRecordValue(src, "parent_product_id") || firstRecordValue(src, "parentProductId") || prev.parentProductId || ""),
       imageUrl: String(firstRecordValue(src, "image_url") || firstRecordValue(src, "imageUrl") || prev.imageUrl || ""),
-      meta: normalizeMeta(firstRecordValue(src, "meta") || prev.meta || {}),
+      meta,
       updatedAt: String(firstRecordValue(src, "updated_at") || firstRecordValue(src, "updatedAt") || prev.updatedAt || ""),
     };
   }
@@ -1109,7 +1143,7 @@
     );
     return {
       id: String(src.id || uuid()),
-      name: String(firstRecordValue(src, "name") || "Job"),
+      name: String(firstRecordValue(src, "name") || "Operation"),
       node_id: nodeId,
       product_id: String(firstRecordValue(src, "product_id") || firstRecordValue(src, "productId") || ""),
       status: String(firstRecordValue(src, "status") || "active"),
@@ -1126,7 +1160,7 @@
     return {
       ...prev,
       id: String(src.id || prev.id || uuid()),
-      name: String(firstRecordValue(src, "name") || prev.name || "Job"),
+      name: String(firstRecordValue(src, "name") || prev.name || "Operation"),
       productId: String(firstRecordValue(src, "product_id") || firstRecordValue(src, "productId") || prev.productId || ""),
       nodeId,
       stationId,
@@ -1530,15 +1564,16 @@
     });
     if (r === "product") {
       return [
-        mk("Code", "code", "string", false),
         mk("Name", "name", "string", true),
+        mk("Family", "family", "string", false),
         mk("Parent Product", "parentProductId", "string", false),
+        mk("Image URL", "imageUrl", "string", false),
       ];
     }
     if (r === "station") {
       return [
-        mk("Code", "code", "string", false),
         mk("Name", "name", "string", true),
+        mk("Image URL", "imageUrl", "string", false),
       ];
     }
     if (r === "job") {
@@ -1547,6 +1582,7 @@
         mk("Station", "stationId", "string", true),
         mk("Product", "productId", "string", false),
         mk("Status", "status", "string", false),
+        mk("Image URL", "imageUrl", "string", false),
       ];
     }
     return [];
@@ -1560,7 +1596,13 @@
   }
 
   function mergeCoreRoleAttributes(rawAttrs, role) {
-    const own = normalizeEntityAttributes(rawAttrs);
+    const r = normalizeModuleRole(role, role);
+    const own = normalizeEntityAttributes(rawAttrs).filter((attr) => {
+      const key = canonicalAttributeKey(attr);
+      if (!key) return true;
+      if ((r === "product" || r === "station") && key === "code") return false;
+      return true;
+    });
     const defaults = normalizeEntityAttributes(coreRoleDefaultAttributes(role));
     if (!defaults.length) return own;
     const existingKeys = new Set(own.map((attr) => canonicalAttributeKey(attr)).filter(Boolean));
@@ -1603,8 +1645,8 @@
       {
         id: "job",
         code: "CAT003",
-        nameSingular: "Job",
-        namePlural: "Jobs",
+        nameSingular: "Operation",
+        namePlural: "Operations",
         moduleRole: "job",
         icon: "clipboard",
         attributes: coreRoleDefaultAttributes("job"),

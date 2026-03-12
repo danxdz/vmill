@@ -370,7 +370,7 @@
                 <tbody id="recordsBody"></tbody>
               </table>
             </div>
-            <div class="flash" id="flashEl">Saved âœ“</div>
+            <div class="flash" id="flashEl">Saved ✓</div>
           </div>
         </section>
       </div>
@@ -395,6 +395,8 @@
         inlineNewRow: false,
         flashTimer: 0,
         autoSaveTimers: new Map(),
+        saveLocks: new Set(),
+        recentSaveFingerprintAt: new Map(),
       };
 
       const el = {
@@ -421,18 +423,7 @@
       const tt = (key, fallback = "", vars) =>
         window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
       const NS_ROUTE = "spacial_routes";
-      const SPECIAL_TYPES = [
-        {
-          id: "__route__",
-          code: "route",
-          synthetic: true,
-          base: true,
-          moduleRole: "route",
-          nameSingular: "Route",
-          namePlural: "Routes",
-          attributes: [],
-        },
-      ];
+      const SPECIAL_TYPES = [];
 
       function makeId(prefix = "id") {
         return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -478,23 +469,27 @@
         if (src) return src;
         const fb = String(fallbackId || "").trim().toLowerCase();
         if (["product", "station", "job", "route"].includes(fb)) return fb;
-        if (fb === "__route__") return "route";
         return "custom";
+      }
+      function roleLabel(role) {
+        const r = normalizeRole(role);
+        if (r === "product") return tt("shop.role.product", "product");
+        if (r === "route") return "route";
+        if (r === "station") return tt("shop.role.station", "station");
+        if (r === "job") return tt("shop.role.job", "operation");
+        return tt("shop.role.custom", "custom");
       }
       function displayRoleName(role) {
         const r = normalizeRole(role);
         if (r === "product") return "Product";
         if (r === "route") return "Route";
         if (r === "station") return "Station";
-        if (r === "job") return "Study";
+        if (r === "job") return "Operation";
         return "Record";
       }
       function displayTypeName(type, plural = false) {
         if (!type) return plural ? "Entries" : "Entry";
-        const role = normalizeRole(type.moduleRole, type.id);
-        if (role === "job") return plural ? "Studies" : "Study";
-        if (role === "route") return plural ? "Routes" : "Route";
-        const singular = String(type?.nameSingular || type?.id || "Entry");
+        const singular = String(type?.nameSingular || displayRoleName(type?.moduleRole || type?.id) || "Entry");
         const pluralName = String(type?.namePlural || `${singular}s`);
         return plural ? pluralName : singular;
       }
@@ -569,19 +564,14 @@
       function findType(typeId) {
         const id = String(typeId || "");
         if (!id) return null;
-        const special = SPECIAL_TYPES.find((t) => String(t?.id || "") === id);
-        if (special) return special;
-        return (state.model.types || []).find((t) => String(t?.id || "") === id) || null;
+        return [...SPECIAL_TYPES, ...(state.model.types || [])]
+          .find((t) => String(t?.id || "") === id) || null;
       }
 
       function sortedTypes() {
         return [...SPECIAL_TYPES, ...(state.model.types || [])]
           .slice()
-          .sort((a, b) => {
-            const rankDelta = typeSortRank(a) - typeSortRank(b);
-            if (rankDelta) return rankDelta;
-            return displayTypeName(a).localeCompare(displayTypeName(b));
-          });
+          .sort((a, b) => displayTypeName(a).localeCompare(displayTypeName(b)));
       }
 
       function incomingRule(typeId) {
@@ -638,12 +628,15 @@
         if (r === "product") {
           out.add("code");
           out.add("name");
+          out.add("family");
           out.add("parentproductid");
+          out.add("imageurl");
           return out;
         }
         if (r === "station") {
           out.add("code");
           out.add("name");
+          out.add("imageurl");
           return out;
         }
         if (r === "route") {
@@ -660,6 +653,7 @@
           out.add("productid");
           out.add("status");
           out.add("nodeid");
+          out.add("imageurl");
           return out;
         }
         out.add("code");
@@ -711,9 +705,10 @@
         const defs = [];
         const row = editingRow && typeof editingRow === "object" ? editingRow : {};
         if (role === "product") {
-          defs.push({ key: "code", label: "Code", type: "string", required: false });
           defs.push({ key: "name", label: "Name", type: "string", required: true });
+          defs.push({ key: "family", label: "Family", type: "string", required: false });
           defs.push({ key: "parentProductId", label: "Parent product", type: "select-product", required: false });
+          defs.push({ key: "imageUrl", label: "Image URL", type: "url", required: false });
         } else if (role === "route") {
           defs.push({ key: "routeName", label: "Route", type: "string", required: true });
           defs.push({ key: "revision", label: "Revision", type: "string", required: false });
@@ -722,16 +717,16 @@
           defs.push({ key: "productRef", label: "Drawing / ref", type: "string", required: false });
           defs.push({ key: "__ops", label: "Operations", type: "readonly", required: false });
         } else if (role === "station") {
-          defs.push({ key: "code", label: "Code", type: "string", required: false });
           defs.push({ key: "name", label: "Name", type: "string", required: true });
+          defs.push({ key: "imageUrl", label: "Image URL", type: "url", required: false });
         } else if (role === "job") {
-          defs.push({ key: "name", label: "Study", type: "string", required: true });
+          defs.push({ key: "name", label: "Operation", type: "string", required: true });
           defs.push({ key: "stationId", label: "Station", type: "select-station", required: true });
           defs.push({ key: "productId", label: "Product", type: "select-product", required: false });
           defs.push({ key: "status", label: "Status", type: "select-status", required: false });
+          defs.push({ key: "imageUrl", label: "Image URL", type: "url", required: false });
           defs.push({ key: "__cycles", label: "Cycles", type: "readonly", required: false });
         } else {
-          defs.push({ key: "code", label: "Code", type: "string", required: false });
           defs.push({ key: "name", label: "Name", type: "string", required: true });
         }
 
@@ -797,7 +792,7 @@
             return `<div class="typeRow ${id === String(state.selectedTypeId || "") ? "active" : ""}" data-type-id="${esc(id)}">
               <div>
                 <div>${esc(String(t.nameSingular || id))}</div>
-                <div class="tiny">${esc(role)}${t.base ? " Â· base" : ""}</div>
+                <div class="tiny">${esc(roleLabel(role))}${t.base ? ` - ${esc(tt("shop.tag.base", "base"))}` : ""}</div>
               </div>
               <div class="pill">${count}</div>
             </div>`;
@@ -846,6 +841,9 @@
         }
         if (defType === "number") {
           return `<input data-field-key="${esc(key)}" type="text" inputmode="decimal" value="${esc(value == null ? "" : String(value))}" ${req} />`;
+        }
+        if (defType === "url") {
+          return `<input data-field-key="${esc(key)}" type="url" value="${esc(value == null ? "" : String(value))}" ${req} />`;
         }
         if (defType === "date") {
           return `<input data-field-key="${esc(key)}" type="date" value="${esc(value == null ? "" : String(value))}" ${req} />`;
@@ -943,10 +941,10 @@
           : `<tr><td colspan="${defs.length + 1}"><div class="empty">No records.</div></td></tr>`;
 
         el.recordCountPill.textContent = `${rows.length} ${rows.length === 1 ? "record" : "records"}`;
-        el.listMetaEl.textContent = `Type: ${String(type.nameSingular || type.id || "")} Â· Auto-save inline edit`;
+        el.listMetaEl.textContent = `Type: ${String(type.nameSingular || type.id || "")} - Auto-save inline edit`;
       }
 
-      function showFlash(msg = "Saved âœ“") {
+      function showFlash(msg = "Saved ✓") {
         el.flashEl.textContent = msg;
         el.flashEl.classList.add("show");
         if (state.flashTimer) clearTimeout(state.flashTimer);
@@ -1031,15 +1029,23 @@
         }
 
         if (role === "product") {
+          const family = String(form.family || prev.family || prev?.meta?.family || "");
           const next = {
             ...prev,
             id: rid,
             code: String(form.code || prev.code || nextCode("P", rows)),
             name: String(form.name || prev.name || "Product"),
+            family,
             parentProductId: String(form.parentProductId || prev.parentProductId || ""),
-            imageUrl: String(prev.imageUrl || ""),
+            imageUrl: String(form.imageUrl || prev.imageUrl || ""),
             meta: nextMeta,
           };
+          if (family) next.meta = { ...(next.meta || {}), family };
+          else if (next.meta && typeof next.meta === "object" && Object.prototype.hasOwnProperty.call(next.meta, "family")) {
+            const m = { ...next.meta };
+            delete m.family;
+            next.meta = m;
+          }
           if (idx >= 0) rows[idx] = next;
           else rows.push(next);
           if (!app.activeProductId) app.activeProductId = rid;
@@ -1049,7 +1055,7 @@
             id: rid,
             code: String(form.code || prev.code || nextCode("S", rows)),
             name: String(form.name || prev.name || "Station"),
-            imageUrl: String(prev.imageUrl || ""),
+            imageUrl: String(form.imageUrl || prev.imageUrl || ""),
             meta: nextMeta,
           };
           if (idx >= 0) rows[idx] = next;
@@ -1061,14 +1067,14 @@
           const next = {
             ...prev,
             id: rid,
-            name: String(form.name || prev.name || `Job ${rows.length + 1}`),
+            name: String(form.name || prev.name || `Operation ${rows.length + 1}`),
             stationId,
             nodeId: stationId,
             productId,
             status: String(form.status || prev.status || "active"),
             cycles: Array.isArray(prev?.cycles) ? prev.cycles : [],
             elements: Array.isArray(prev?.elements) ? prev.elements : [],
-            imageUrl: String(prev.imageUrl || ""),
+            imageUrl: String(form.imageUrl || prev.imageUrl || ""),
             meta: nextMeta,
           };
           if (idx >= 0) rows[idx] = next;
@@ -1128,7 +1134,7 @@
         const rule = incomingRule(String(type.id || ""));
         const parentType = rule?.parentTypeId ? findType(String(rule.parentTypeId || "")) : null;
         const parentLabel = parentType ? String(parentType.nameSingular || parentType.id || "") : "(root)";
-        el.toolbarMeta.textContent = `Role: ${role} Â· Parent: ${parentLabel} Â· Fields: ${mergedTypeAttributes(type).length}`;
+        el.toolbarMeta.textContent = `Role: ${roleLabel(role)} - Parent: ${parentLabel} - Fields: ${mergedTypeAttributes(type).length}`;
       }
 
       function renderAll() {
@@ -1146,9 +1152,30 @@
       }
 
       async function loadAll() {
-        const model = window.VMillData?.readStructureModel
-          ? window.VMillData.readStructureModel({ persist: false })
-          : { types: [], items: [], links: [], rules: [] };
+        let model = { types: [], items: [], links: [], rules: [] };
+        if (window.VMillData?.listEntityTypes) {
+          const types = window.VMillData.listEntityTypes() || [];
+          const items = [];
+          for (const t of (Array.isArray(types) ? types : [])) {
+            const typeId = String(t?.id || "");
+            if (!typeId) continue;
+            const rows = window.VMillData?.listEntities ? (window.VMillData.listEntities(typeId) || []) : [];
+            for (const row of (Array.isArray(rows) ? rows : [])) {
+              items.push({
+                ...(row || {}),
+                typeId,
+              });
+            }
+          }
+          model = {
+            types: Array.isArray(types) ? types : [],
+            items,
+            links: window.VMillData?.listEntityLinks ? (window.VMillData.listEntityLinks() || []) : [],
+            rules: window.VMillData?.listStructureRules ? (window.VMillData.listStructureRules() || []) : [],
+          };
+        } else if (window.VMillData?.readStructureModel) {
+          model = window.VMillData.readStructureModel({ persist: false }) || { types: [], items: [], links: [], rules: [] };
+        }
         const app = window.VMillData?.readAppState
           ? (window.VMillData.readAppState({ seedIfMissing: true }) || { products: [], stations: [], jobs: [] })
           : { products: [], stations: [], jobs: [] };
@@ -1173,71 +1200,88 @@
       async function saveInlineRow(recordId, rowEl, isNew = false) {
         const type = findType(state.selectedTypeId);
         if (!type || !(rowEl instanceof HTMLElement)) return;
-        const role = normalizeRole(type.moduleRole, type.id);
-        const defs = buildFieldDefs(type, isNew ? null : (recordsForType(type).find((x) => String(x?.id || "") === String(recordId || "")) || null));
-        const customDefs = defs.filter((d) => String(d?.key || "").startsWith("attr:"));
+        const saveKey = isNew ? "__new__" : String(recordId || "");
+        if (!saveKey) return;
+        if (state.saveLocks.has(saveKey)) return;
         const form = readInlineRowValues(rowEl);
-        let id = "";
-        if (role === "product" || role === "station" || role === "job") {
-          id = saveCoreRecord(role, type, isNew ? "" : String(recordId || ""), form, customDefs);
-        } else if (role === "route") {
-          const existing = isNew ? null : (recordsForType(type).find((x) => String(x?.id || "") === String(recordId || "")) || null);
-          const rid = String(existing?.id || (isNew ? makeId("route") : String(recordId || "")) || makeId("route"));
-          const routeRows = window.VMillData?.listRecords ? window.VMillData.listRecords(NS_ROUTE) : [];
-          const defaultName = `Route ${routeRows.length + 1}`;
-          const payload = {
-            ...(existing && typeof existing === "object" ? existing : {}),
-            id: rid,
-            routeName: String(form.routeName || existing?.routeName || defaultName),
-            revision: String(form.revision || existing?.revision || "A"),
-            productId: String(form.productId || existing?.productId || ""),
-            stationId: String(form.stationId || existing?.stationId || ""),
-            productRef: String(form.productRef || existing?.productRef || ""),
-            operations: Array.isArray(existing?.operations) ? existing.operations : [],
-            updatedAt: new Date().toISOString(),
-          };
-          if (!window.VMillData?.upsertRecord) return;
-          window.VMillData.upsertRecord(NS_ROUTE, payload);
-          id = rid;
-        } else {
-          const existing = isNew ? null : (recordsForType(type).find((x) => String(x?.id || "") === String(recordId || "")) || null);
-          const baseMeta = (existing?.meta && typeof existing.meta === "object") ? { ...existing.meta } : {};
-          for (const def of customDefs) {
-            const raw = form[String(def.key || "")];
-            const attrId = String(def.attrId || "");
-            const defType = String(def.type || "string");
-            let value = raw;
-            if (defType === "number") {
-              const parsed = parseLooseNumberValue(raw);
-              value = parsed.ok ? parsed.value : raw;
-            } else if (defType === "boolean") {
-              value = !!raw;
-            } else if (defType === "timestamp") {
-              value = normalizeTimestampInput(raw);
-              if (!String(value || "").trim() && isNew) value = new Date().toISOString();
-            } else {
-              value = String(raw || "");
-            }
-            if (attrId) baseMeta[attrId] = value;
+        const nowTs = Date.now();
+        const fingerprint = `${saveKey}::${JSON.stringify(form)}`;
+        const previousTs = Number(state.recentSaveFingerprintAt.get(fingerprint) || 0);
+        if (previousTs && (nowTs - previousTs) < 450) return;
+        state.recentSaveFingerprintAt.set(fingerprint, nowTs);
+        if (state.recentSaveFingerprintAt.size > 180) {
+          for (const [k, ts] of state.recentSaveFingerprintAt.entries()) {
+            if ((nowTs - Number(ts || 0)) > 120000) state.recentSaveFingerprintAt.delete(k);
           }
-          const out = window.VMillData?.upsertEntityItem?.({
-            typeId: String(type.id || ""),
-            id: isNew ? "" : String(recordId || ""),
-            code: String(form.code || ""),
-            name: String(form.name || "Record"),
-            meta: baseMeta,
-          });
-          if (!out?.id) return;
-          id = String(out.id || "");
-          applyParentAssignment(type, id, form.__parentAssign || "");
         }
-        if (!id) return;
-        state.inlineNewRow = false;
-        window.CANBus?.emit("shop:tree:changed", { reason: "records-manager-save", typeId: String(type.id || ""), id }, "records-manager");
-        await loadAll();
-        showFlash("Saved âœ“");
+        state.saveLocks.add(saveKey);
+        try {
+          const role = normalizeRole(type.moduleRole, type.id);
+          const defs = buildFieldDefs(type, isNew ? null : (recordsForType(type).find((x) => String(x?.id || "") === String(recordId || "")) || null));
+          const customDefs = defs.filter((d) => String(d?.key || "").startsWith("attr:"));
+          let id = "";
+          if (role === "product" || role === "station" || role === "job") {
+            id = saveCoreRecord(role, type, isNew ? "" : String(recordId || ""), form, customDefs);
+          } else if (role === "route") {
+            const existing = isNew ? null : (recordsForType(type).find((x) => String(x?.id || "") === String(recordId || "")) || null);
+            const rid = String(existing?.id || (isNew ? makeId("route") : String(recordId || "")) || makeId("route"));
+            const routeRows = window.VMillData?.listRecords ? window.VMillData.listRecords(NS_ROUTE) : [];
+            const defaultName = `Route ${routeRows.length + 1}`;
+            const payload = {
+              ...(existing && typeof existing === "object" ? existing : {}),
+              id: rid,
+              routeName: String(form.routeName || existing?.routeName || defaultName),
+              revision: String(form.revision || existing?.revision || "A"),
+              productId: String(form.productId || existing?.productId || ""),
+              stationId: String(form.stationId || existing?.stationId || ""),
+              productRef: String(form.productRef || existing?.productRef || ""),
+              operations: Array.isArray(existing?.operations) ? existing.operations : [],
+              updatedAt: new Date().toISOString(),
+            };
+            if (!window.VMillData?.upsertRecord) return;
+            window.VMillData.upsertRecord(NS_ROUTE, payload);
+            id = rid;
+          } else {
+            const existing = isNew ? null : (recordsForType(type).find((x) => String(x?.id || "") === String(recordId || "")) || null);
+            const baseMeta = (existing?.meta && typeof existing.meta === "object") ? { ...existing.meta } : {};
+            for (const def of customDefs) {
+              const raw = form[String(def.key || "")];
+              const attrId = String(def.attrId || "");
+              const defType = String(def.type || "string");
+              let value = raw;
+              if (defType === "number") {
+                const parsed = parseLooseNumberValue(raw);
+                value = parsed.ok ? parsed.value : raw;
+              } else if (defType === "boolean") {
+                value = !!raw;
+              } else if (defType === "timestamp") {
+                value = normalizeTimestampInput(raw);
+                if (!String(value || "").trim() && isNew) value = new Date().toISOString();
+              } else {
+                value = String(raw || "");
+              }
+              if (attrId) baseMeta[attrId] = value;
+            }
+            const out = window.VMillData?.upsertEntityItem?.({
+              typeId: String(type.id || ""),
+              id: isNew ? "" : String(recordId || ""),
+              code: String(form.code || ""),
+              name: String(form.name || "Record"),
+              meta: baseMeta,
+            });
+            if (!out?.id) return;
+            id = String(out.id || "");
+            applyParentAssignment(type, id, form.__parentAssign || "");
+          }
+          if (!id) return;
+          state.inlineNewRow = false;
+          window.CANBus?.emit("shop:tree:changed", { reason: "records-manager-save", typeId: String(type.id || ""), id }, "records-manager");
+          await loadAll();
+          showFlash("Saved ✓");
+        } finally {
+          state.saveLocks.delete(saveKey);
+        }
       }
-
       async function deleteInlineRow(recordId, isNew = false) {
         if (isNew) {
           state.inlineNewRow = false;
@@ -1262,7 +1306,7 @@
         state.inlineNewRow = false;
         window.CANBus?.emit("shop:tree:changed", { reason: "records-manager-delete", typeId: String(type.id || ""), id: rid }, "records-manager");
         await loadAll();
-        showFlash("Deleted âœ“");
+        showFlash("Deleted ✓");
       }
 
       function applyTexts() {
@@ -1343,6 +1387,19 @@
           if (!(rowEl instanceof HTMLElement)) return;
           scheduleRowAutoSave(rowEl);
         });
+        el.recordsBody?.addEventListener("keydown", (e) => {
+          const target = e.target;
+          if (!(target instanceof HTMLElement)) return;
+          if (e.key !== "Enter" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+          const fieldNode = target.closest("[data-field-key]");
+          if (!(fieldNode instanceof HTMLElement)) return;
+          const rowEl = target.closest("tr[data-record-id]");
+          if (!(rowEl instanceof HTMLElement)) return;
+          e.preventDefault();
+          e.stopPropagation();
+          scheduleRowAutoSave(rowEl);
+          if (typeof target.blur === "function") target.blur();
+        });
         el.recordsBody?.addEventListener("focusout", (e) => {
           const target = e.target;
           if (!(target instanceof HTMLElement)) return;
@@ -1356,7 +1413,7 @@
         window.CANBus?.onMessage((msg) => {
           const t = String(msg?.type || "");
           if (t === "data:sync:status") return;
-          if (t === "data:module:updated" || t === "data:app:updated" || t === "shop:tree:changed") {
+          if (t === "data:module:updated" || t === "data:app:updated" || t === "shop:tree:changed" || t.startsWith("shop:")) {
             void loadAll();
           }
         });

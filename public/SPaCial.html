@@ -1784,6 +1784,23 @@
         if (compact === "par produit" || compact === "par product") return "";
         return raw;
       }
+      function sanitizeLegacyImportLabel(raw, fallback = "") {
+        let text = strOrEmpty(raw);
+        if (!text) text = strOrEmpty(fallback);
+        if (!text) return "";
+        text = text
+          .replace(/\s*\((?:imp|import(?:ed)?)\)\s*$/i, "")
+          .replace(/\s*[-|/]\s*(?:imp|import(?:ed)?)\s*$/i, "")
+          .replace(/\s{2,}/g, " ")
+          .trim();
+        return text || strOrEmpty(fallback);
+      }
+      function sanitizeRouteName(raw, fallback = "") {
+        return sanitizeLegacyImportLabel(raw, fallback || tt("spacial.section.route", "Route"));
+      }
+      function sanitizeOperationName(raw, fallback = "") {
+        return sanitizeLegacyImportLabel(raw, fallback || tt("spacial.section.operations", "Operations"));
+      }
       function escHtml(v) {
         return String(v || "").replace(/[&<>"']/g, (c) => ({
           "&": "&amp;",
@@ -2040,7 +2057,7 @@
           const product = ensureStructuredImportProduct(productsByCode, code, lineNo);
           if (!product) continue;
           product.sourceBlocks += 1;
-          const opName = strOrEmpty(fromAlias(row, ["operation", "operationname", "opname", "name", "nomoperation", "gamme", "route", "stationoperation"]));
+          const opName = sanitizeOperationName(fromAlias(row, ["operation", "operationname", "opname", "name", "nomoperation", "gamme", "route", "stationoperation"]));
           if (!opName) continue;
           const ctx = {
             workstation: strOrEmpty(fromAlias(row, ["workstation", "poste", "stationname"])),
@@ -2188,7 +2205,7 @@
           if (!line || /^VERSION\s*=/i.test(line)) continue;
           const parts = line.split(";");
           const productCode = strOrEmpty(parts[3] || parts[0]);
-          const opName = combineStructuredName(parts[0], parts[1]);
+          const opName = sanitizeOperationName(combineStructuredName(parts[0], parts[1]));
           if (!productCode || !opName) continue;
           const product = ensureStructuredImportProduct(productsByCode, productCode, lineNo);
           if (!product) continue;
@@ -2280,7 +2297,7 @@
       }
       function ensureStructuredOperation(product, opName, ctx, rowParts = []) {
         if (!product) return null;
-        const name = strOrEmpty(opName);
+        const name = sanitizeOperationName(opName);
         if (!name) return null;
         const key = name.toLowerCase();
         if (!product.operationsByKey.has(key)) {
@@ -2372,7 +2389,7 @@
           }
           if (line.startsWith("_INSPECTION_STANDARD_")) {
             ctx.section = "inspectionStandard";
-            ctx.currentOperationName = strOrEmpty(line.slice("_INSPECTION_STANDARD_".length).split(";")[0]);
+            ctx.currentOperationName = sanitizeOperationName(line.slice("_INSPECTION_STANDARD_".length).split(";")[0]);
             continue;
           }
           if (line.startsWith("_")) {
@@ -2434,7 +2451,7 @@
             const code = strOrEmpty(parts[3] || ctx.productCode);
             const product = ensureStructuredImportProduct(productsByCode, code, lineNo);
             if (!product) continue;
-            const opName = strOrEmpty(parts[0] || ctx.currentOperationName);
+            const opName = sanitizeOperationName(parts[0] || ctx.currentOperationName);
             const op = ensureStructuredOperation(product, opName, ctx, parts);
             if (op) ctx.currentOperationName = op.name;
             continue;
@@ -2445,7 +2462,7 @@
             const code = strOrEmpty((codeIdx >= 0 ? parts[codeIdx] : "") || ctx.productCode);
             const product = ensureStructuredImportProduct(productsByCode, code, lineNo);
             if (!product) continue;
-            const opName = strOrEmpty(parts[codeIdx - 2] || ctx.currentOperationName);
+            const opName = sanitizeOperationName(parts[codeIdx - 2] || ctx.currentOperationName);
             const op = ensureStructuredOperation(product, opName, ctx, []);
             if (!op) continue;
             const imagePathIdx = findStructuredPathIndex(parts, codeIdx + 1);
@@ -3322,7 +3339,7 @@
         const op = {
           id: strOrEmpty(raw?.id) || uid("op"),
           seq: Number.isFinite(seqNum) ? seqNum : ((idx + 1) * 10),
-          name: strOrEmpty(raw?.name) || `${tt("spacial.section.operations", "Operations")} ${idx + 1}`,
+          name: sanitizeOperationName(raw?.name, `${tt("spacial.section.operations", "Operations")} ${idx + 1}`),
           stationCode: strOrEmpty(raw?.stationCode),
           workstation: strOrEmpty(raw?.workstation),
           estimatedTimeMin: numOrNull(raw?.estimatedTimeMin),
@@ -3346,7 +3363,7 @@
         const jobId = strOrEmpty(src.jobId || job?.id);
         const stationId = strOrEmpty(src.stationId || job?.stationId || station?.id);
         const productId = strOrEmpty(src.productId || job?.productId || product?.id);
-        const routeName = strOrEmpty(src.routeName || (product?.name ? `${product.name} ${tt("spacial.section.route", "Route")}` : job?.name || tt("spacial.section.route", "Route")));
+        const routeName = sanitizeRouteName(src.routeName || (product?.name ? `${product.name} ${tt("spacial.section.route", "Route")}` : job?.name || tt("spacial.section.route", "Route")));
         const revision = normalizeRouteRevision(src.revision || "A");
         const stationLabel = station ? `${station.code || "--"} - ${station.name || tt("spacial.stationDefault", "Station")}` : "";
         const fallbackProductRef = product ? `${product.code || "--"} - ${product.name || tt("hub.structure.productDefault", "Product")}` : "";
@@ -3583,9 +3600,11 @@
       function createRouteFromScope(state, id = "") {
         const explicitJob = null;
         const { station, product } = currentScope(state);
-        const routeName = product?.name
-          ? `${product.name} ${tt("spacial.section.route", "Route")}`
-          : tt("spacial.section.route", "Route");
+        const routeName = sanitizeRouteName(
+          product?.name
+            ? `${product.name} ${tt("spacial.section.route", "Route")}`
+            : tt("spacial.section.route", "Route")
+        );
         return normalizeRoutePlan({
           id: id || uid("routeplan"),
           jobId: explicitJob?.id || "",
@@ -5125,7 +5144,7 @@
         const base = createRouteFromScope(state);
         const existing = routesInFilters(state);
         const nextIdx = existing.length + 1;
-        base.routeName = `${base.routeName || tt("spacial.section.route", "Route")} ${nextIdx}`;
+        base.routeName = sanitizeRouteName(`${base.routeName || tt("spacial.section.route", "Route")} ${nextIdx}`);
         base.revision = "A";
         writeRoutePlan(base);
         selectedRouteId = String(base.id || "");
@@ -5141,7 +5160,7 @@
         const copy = cloneJson(src, null);
         if (!copy) return;
         copy.id = uid("routeplan");
-        copy.routeName = `${src.routeName || tt("spacial.section.route", "Route")} ${tt("spacial.copySuffix", "Copy")}`;
+        copy.routeName = sanitizeRouteName(`${src.routeName || tt("spacial.section.route", "Route")} ${tt("spacial.copySuffix", "Copy")}`);
         copy.updatedAt = new Date().toISOString();
         writeRoutePlan(copy);
         selectedRouteId = String(copy.id || "");
@@ -5163,8 +5182,8 @@
 
       function saveRouteMetaFromInputs() {
         if (!routePlan) return;
-        routePlan.routeName = strOrEmpty($("routeNameIn").value) || routePlan.routeName || tt("spacial.section.route", "Route");
-        routePlan.revision = strOrEmpty($("routeRevisionIn").value) || "A";
+        routePlan.routeName = sanitizeRouteName($("routeNameIn").value || routePlan.routeName || tt("spacial.section.route", "Route"));
+        routePlan.revision = normalizeRouteRevision($("routeRevisionIn").value || "A");
         routePlan.productRef = strOrEmpty($("routeProductRefIn").value);
         writeRoutePlan(routePlan);
         renderRoutingPanel();

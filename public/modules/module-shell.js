@@ -186,11 +186,14 @@
   }
 
   function statePayloadScore(v) {
+    const products = Array.isArray(v?.products) ? v.products.length : 0;
     const stations = Array.isArray(v?.stations) ? v.stations.length : 0;
     const operations = Array.isArray(v?.operations) ? v.operations : (Array.isArray(v?.jobs) ? v.jobs : []);
     let cycles = 0;
+    let elements = 0;
     for (const op of operations) cycles += Array.isArray(op?.cycles) ? op.cycles.length : 0;
-    return (stations * 1000000) + (operations.length * 1000) + cycles;
+    for (const op of operations) elements += Array.isArray(op?.elements) ? op.elements.length : 0;
+    return (products * 1000000000) + (stations * 1000000) + (operations.length * 1000) + (cycles * 10) + elements;
   }
 
   function hasPayloadData(v) {
@@ -205,6 +208,8 @@
       candidates.push({ key, state: normalizeOperationState(parsed), stamp: stateStamp(parsed) });
     }
     if (!candidates.length) return null;
+    const appCandidate = candidates.find((c) => String(c?.key || "") === APP_KEY) || null;
+    if (appCandidate && hasPayloadData(appCandidate.state)) return appCandidate.state;
     const nonEmpty = candidates.filter((c) => hasPayloadData(c.state));
     const pool = nonEmpty.length ? nonEmpty : candidates;
     let best = pool[0];
@@ -277,6 +282,7 @@
           chrono: "./chrono.html",
           camera: "./chrono_camera.html",
           spacial: "../SPaCial.html",
+          factory: "../factory_manager.html",
           contas: "../contas_calc.html",
           shop: "../shop_tree.html",
           logger: "../logger.html",
@@ -291,6 +297,7 @@
           chrono: "./chrono/chrono.html",
           camera: "./chrono/chrono_camera.html",
           spacial: "./SPaCial.html",
+          factory: "./factory_manager.html",
           contas: "./contas_calc.html",
           shop: "./shop_tree.html",
           logger: "./logger.html",
@@ -304,6 +311,7 @@
         chrono: "./public/chrono/chrono.html",
         camera: "./public/chrono/chrono_camera.html",
         spacial: "./public/SPaCial.html",
+        factory: "./public/factory_manager.html",
         contas: "./public/contas_calc.html",
         shop: "./public/shop_tree.html",
         logger: "./public/logger.html",
@@ -318,6 +326,7 @@
         chrono: "./chrono.html",
         camera: "./chrono_camera.html",
         spacial: "../SPaCial.html",
+        factory: "../factory_manager.html",
         contas: "../contas_calc.html",
         shop: "../shop_tree.html",
         logger: "../logger.html",
@@ -331,6 +340,7 @@
       chrono: "/chrono/chrono.html",
       camera: "/chrono/chrono_camera.html",
       spacial: "/SPaCial.html",
+      factory: "/factory_manager.html",
       contas: "/contas_calc.html",
       shop: "/shop_tree.html",
       logger: "/logger.html",
@@ -346,6 +356,7 @@
     { id: "chrono", labelKey: "hub.dock.chrono", fallback: "Chrono", route: ROUTES.chrono },
     { id: "chrono-camera", labelKey: "hub.dock.camera", fallback: "Camera", route: ROUTES.camera },
     { id: "spacial", labelKey: "hub.dock.spacial", fallback: "SPaCial", route: ROUTES.spacial },
+    { id: "factory", labelKey: "hub.dock.factory", fallback: "Factory", route: ROUTES.factory },
     { id: "contas", labelKey: "hub.dock.contas", fallback: "Contas", route: ROUTES.contas },
     { id: "shop-tree", labelKey: "hub.dock.shopTree", fallback: "Shop", route: ROUTES.shop, minRole: "admin" },
     { id: "can-bus", labelKey: "hub.dock.logger", fallback: "Logger", route: ROUTES.logger },
@@ -389,6 +400,7 @@
     if (p.includes("/chrono/chrono_camera.html")) return "chrono-camera";
     if (p.includes("/chrono/chrono.html")) return "chrono";
     if (p.includes("/SPaCial.html")) return "spacial";
+    if (p.includes("/factory_manager.html")) return "factory";
     if (p.includes("/contas_calc.html")) return "contas";
     if (p.includes("/shop_tree.html")) return "shop-tree";
     if (p.includes("/logger.html")) return "can-bus";
@@ -470,7 +482,7 @@
       job: {
         id: job.id || "",
         stationId: job.stationId || station.id || "",
-        name: job.name || tt("spacial.jobDefault", "Job"),
+        name: job.name || tt("spacial.jobDefault", "Operation"),
         cycles: cycles.map((c) => ({
           id: c?.id || "",
           totalMs: Number(c?.totalMs || 0),
@@ -655,7 +667,7 @@
       </div>
       <div class="ctx">
         <select id="vmillRadialStation" title="Global station"></select>
-        <select id="vmillRadialJob" title="Global job"></select>
+        <select id="vmillRadialJob" title="Global operation"></select>
         <div class="closeHint" id="vmillRadialHint">Right click opens. Esc or click outside closes.</div>
       </div>
     </div>
@@ -1029,7 +1041,7 @@
 
   function applyI18n() {
     stationSel.title = tt("shell.ctx.stationTitle", "Global station");
-    jobSel.title = tt("shell.ctx.jobTitle", "Global job");
+    jobSel.title = tt("shell.ctx.jobTitle", "Global operation");
     if (hintEl) hintEl.textContent = tt("shell.hint.close", "Right click opens. Esc or click outside closes.");
     if (rightRailToggle) rightRailToggle.title = tt("shell.rail.toggle", "Quick menu");
     if (rightRailPanel) {
@@ -1130,7 +1142,7 @@
     for (const j of jobsForStation) {
       const opt = document.createElement("option");
       opt.value = j.id;
-      opt.textContent = j.name || tt("hub.jobs.unnamed", "Unnamed job");
+      opt.textContent = j.name || tt("hub.jobs.unnamed", "Unnamed operation");
       jobSel.appendChild(opt);
     }
 
@@ -1337,7 +1349,7 @@
         for (const j of jobs) {
           const o = document.createElement("option");
           o.value = String(j.id || "");
-          o.textContent = String(j.name || tt("hub.jobs.unnamed", "Unnamed job"));
+          o.textContent = String(j.name || tt("hub.jobs.unnamed", "Unnamed operation"));
           railJob.appendChild(o);
         }
         if (prevJob && jobs.some((j) => String(j.id || "") === prevJob)) railJob.value = prevJob;
@@ -1991,7 +2003,7 @@
       const types = [
         { id: "product", nameSingular: "Product", namePlural: "Products", moduleRole: "product" },
         { id: "station", nameSingular: "Station", namePlural: "Stations", moduleRole: "station" },
-        { id: "job", nameSingular: "Job", namePlural: "Jobs", moduleRole: "job" },
+        { id: "job", nameSingular: "Operation", namePlural: "Operations", moduleRole: "job" },
       ];
       const mapRows = (rows, typeId) =>
         (Array.isArray(rows) ? rows : [])
@@ -2015,6 +2027,47 @@
         ...mapRows(app?.jobs, "job"),
       ];
       return { types, items, links: [], rules: [] };
+    }
+    function mergeRoleItemsFromAppState(types, items) {
+      const typeRows = Array.isArray(types) ? types : [];
+      const itemRows = Array.isArray(items) ? items : [];
+      if (!typeRows.length) return itemRows;
+      const app = readAppState() || {};
+      const roleRows = {
+        product: Array.isArray(app?.products) ? app.products : [],
+        station: Array.isArray(app?.stations) ? app.stations : [],
+        job: Array.isArray(app?.jobs) ? app.jobs : [],
+      };
+      const nextItems = itemRows.slice();
+      const existingKey = new Set(
+        nextItems
+          .map((row) => `${String(row?.typeId || "")}::${String(row?.id || "")}`)
+          .filter((k) => !k.endsWith("::"))
+      );
+      for (const t of typeRows) {
+        const typeId = String(t?.id || "");
+        if (!typeId) continue;
+        const role = String(t?.moduleRole || "").trim().toLowerCase();
+        const rows = roleRows[role];
+        if (!Array.isArray(rows) || !rows.length) continue;
+        for (const row of rows) {
+          const id = String(row?.id || "");
+          if (!id) continue;
+          const key = `${typeId}::${id}`;
+          if (existingKey.has(key)) continue;
+          nextItems.push({
+            id,
+            typeId,
+            source: "app",
+            sourceId: id,
+            code: String(row?.code || ""),
+            name: String(row?.name || id),
+            meta: {},
+          });
+          existingKey.add(key);
+        }
+      }
+      return nextItems;
     }
     function loadModel() {
       const nowTs = Date.now();
@@ -2044,7 +2097,7 @@
       if (!model.types.length) model = normalizeStructureModel(synthesizeRoleModelFromAppState());
 
       const types = model.types.slice();
-      const items = model.items.slice();
+      const items = mergeRoleItemsFromAppState(types, model.items.slice());
       const links = model.links.slice();
       const rules = model.rules.slice();
 
@@ -2321,7 +2374,17 @@
           const sel = String(selected[tid] || "all");
           if (!sel || sel === "all") continue;
           const rows = (itemsByType.get(tid) || []);
-          const selectedRow = rows.find((row) => String(row?.id || "") === sel) || null;
+          const selectedRow = rows.find((row) => {
+            const rid = String(row?.id || "");
+            const sid = String(row?.sourceId || "");
+            return rid === sel || (sid && sid === sel);
+          }) || null;
+          if (!selectedRow) {
+            selected[tid] = "all";
+            mutated = true;
+            changed = true;
+            continue;
+          }
           const scopedSet = computeScopeTypeSet({ ...ctx, scopeSelected: selected }, tid, tid);
           if (!scopedSet) continue;
           const valid = scopedSet.has(sel) || (selectedRow ? rowIdMatchesScopedSet(selectedRow, scopedSet) : false);

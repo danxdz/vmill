@@ -8,8 +8,8 @@
   <title>Chrono Capture</title>
   <style>
     :root {
-      --acc: var(--vm-theme-accent, #3dffa0);
-      --acc-rgb: var(--vm-theme-accent-rgb, 61,255,160);
+      --acc: var(--vm-theme-accent, #59b8ff);
+      --acc-rgb: var(--vm-theme-accent-rgb, 89,184,255);
       --acc-dim: rgba(var(--acc-rgb),.14);
       --acc-b: rgba(var(--acc-rgb),.40);
       --warn: var(--vm-theme-warn, #ffd37a);
@@ -20,8 +20,8 @@
       --danger-rgb: var(--vm-theme-danger-rgb, 255,76,106);
       --danger-dim: rgba(var(--danger-rgb),.14);
       --danger-b: rgba(var(--danger-rgb),.40);
-      --glass: rgba(8,10,14,.82);
-      --glass2: rgba(8,10,14,.96);
+      --glass: color-mix(in srgb, var(--vm-theme-panel, #0d1020) 86%, transparent);
+      --glass2: color-mix(in srgb, var(--vm-theme-panel, #0d1020) 96%, transparent);
       --border: var(--vm-theme-border, rgba(255,255,255,.10));
       --text: var(--vm-theme-text, #eef0f6);
       --muted: var(--vm-theme-muted, rgba(238,240,246,.55));
@@ -198,6 +198,8 @@
     }
     .mBtn.on { background: var(--acc-dim); border-color: var(--acc-b); color: var(--acc); }
     /* new job */
+    #productSec { margin-top: 10px; }
+    #newProductSec { display: none; margin-top: 8px; }
     #newJobSec { display: none; margin-top: 8px; }
     .elRow { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
     .elN { font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 18px; text-align: center; }
@@ -347,6 +349,23 @@
     <div id="noJobsHint" style="display:none; font-size:11px; color:var(--muted); margin-top:6px;">
       Create a shared job in Chrono Study or create one here.
     </div>
+    <div id="productSec">
+      <div class="pLabel" id="productLbl">Product</div>
+      <select id="prodSel">
+        <option id="prodSelOptPlaceholder" value="">— Select a product —</option>
+        <option id="prodSelOptNew" value="__new__">+ Create new product…</option>
+      </select>
+      <div id="noProductsHint" style="display:none; font-size:11px; color:var(--muted); margin-top:6px;">
+        Create one product to link camera jobs.
+      </div>
+      <div id="newProductSec">
+        <input type="text" id="newProdName" placeholder="Product name" style="margin-bottom:8px;" />
+        <div class="r2">
+          <button class="smBtn a" id="createProdBtn" type="button">✓ Create product</button>
+          <button class="smBtn" id="cancelNewProdBtn" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
     <!-- New job creation -->
     <div id="newJobSec">
       <label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;color:var(--text);">
@@ -434,7 +453,7 @@
     if (typeof fn !== "function") return String(fallback ?? key ?? "");
     return fn(String(key || ""), String(fallback ?? ""), vars);
   };
-  const uuid = () => (crypto.randomUUID?.() ?? Date.now()+"_"+Math.random().toString(16).slice(2));
+  const uuid = () => (crypto.randomUUID?.() || `${Date.now()}_${Math.random().toString(16).slice(2)}`);
   const now = () => performance.now();
   const iso = () => new Date().toISOString();
   const fmtMs = ms => {
@@ -471,9 +490,17 @@
     `);
     setText("ceLabel", "camera.currentElement", "current element");
     setText("jobLbl", "camera.job", "Job");
-    setText("jobSelOptPlaceholder", "camera.job.select", "— Select a job —");
-    setText("jobSelOptNew", "camera.job.new", "+ Create new job…");
+    setText("jobSelOptPlaceholder", "camera.job.select", "- Select a job -");
+    setText("jobSelOptNew", "camera.job.new", "+ Create new job...");
     setText("noJobsHint", "camera.job.noneHint", "Create a shared job in Chrono Study or create one here.");
+    setText("productLbl", "camera.product", "Product");
+    setText("prodSelOptPlaceholder", "camera.product.select", "- Select a product -");
+    setText("prodSelOptNew", "camera.product.new", "+ Create new product...");
+    setText("noProductsHint", "camera.product.noneHint", "Create one product to link camera jobs.");
+    const newProdName = $("newProdName");
+    if (newProdName) newProdName.placeholder = tr("camera.product.name", "Product name");
+    setText("createProdBtn", "camera.product.create", "Create product");
+    setText("cancelNewProdBtn", "common.cancel", "Cancel");
     setText("autoSeqLbl", "camera.autoSeq", "Auto sequence capture (seq1, seq2, ... on each tap until stop)");
     setText("newJobElementsLbl", "camera.newJob.elements", "New job elements");
     setText("addElBtn", "common.add", "+ Add");
@@ -531,16 +558,25 @@
       parentProductId: String(p?.parentProductId || ""),
       imageUrl: String(p?.imageUrl || ""),
     }));
-    if(!st.products.length && Array.isArray(st.jobs) && st.jobs.length){
-      st.products = [{ id: uuid(), code: "P001", name: "Product", parentProductId: "", imageUrl: "" }];
-    }
     const ids = new Set((st.products||[]).map((p) => String(p.id || "")).filter(Boolean));
-    if(!ids.has(String(st.activeProductId || ""))) st.activeProductId = st.products[0]?.id || null;
+    if(!ids.has(String(st.activeProductId || ""))) st.activeProductId = null;
     for(const j of (st.jobs || [])){
       const pid = String(j?.productId || "");
-      if(!pid || !ids.has(pid)) j.productId = st.products[0]?.id || "";
+      if(pid && !ids.has(pid)) j.productId = "";
     }
     return st;
+  }
+
+  function nextProductCode(products){
+    const rows = Array.isArray(products) ? products : [];
+    let max = 0;
+    for(const p of rows){
+      const m = String(p?.code || "").toUpperCase().match(/^P(\d+)$/);
+      if(!m) continue;
+      const n = Number(m[1] || 0);
+      if(Number.isFinite(n) && n > max) max = n;
+    }
+    return `P${String(max + 1).padStart(3,"0")}`;
   }
 
   function loadCS() {
@@ -703,7 +739,7 @@
       });
     });
   }
-  function sync() { state=loadCS(); populateJobSel(); updateBadge(); renderVideoBookmarksLibrary(); }
+  function sync() { state=loadCS(); populateProductSel(); populateJobSel(); updateBadge(); renderVideoBookmarksLibrary(); }
   let syncQueued = false;
   let syncTimer = null;
   function requestSync() {
@@ -729,6 +765,36 @@
       b.textContent = tr("camera.sync.notLinked", "NOT LINKED");
       b.classList.add("no");
     }
+  }
+
+  function selectedProductId(){
+    const sel = $("prodSel");
+    const v = String(sel?.value || "");
+    if(v && v !== "__new__") return v;
+    return "";
+  }
+
+  function populateProductSel() {
+    const sel = $("prodSel");
+    if(!sel) return;
+    const prev = String(sel.value || "");
+    while(sel.options.length > 2) sel.remove(2);
+    const products = state?.products || [];
+    $("noProductsHint").style.display = products.length ? "none" : "";
+    for(const p of products){
+      const o = document.createElement("option");
+      o.value = String(p.id || "");
+      o.textContent = `${String(p.code || "--")} · ${String(p.name || tr("camera.product", "Product"))}`;
+      sel.appendChild(o);
+    }
+    let wanted = "";
+    const pickedJob = getJob();
+    if(pickedJob?.productId) wanted = String(pickedJob.productId || "");
+    if(!wanted) wanted = String(state?.activeProductId || "");
+    const canKeepPrev = !!prev && [...sel.options].some((o) => o.value === prev);
+    sel.value = canKeepPrev ? prev : wanted;
+    if(!sel.value && [...sel.options].some((o) => o.value === "__new__")) sel.value = "";
+    $("newProductSec").style.display = (sel.value === "__new__") ? "block" : "none";
   }
 
   function populateJobSel() {
@@ -790,7 +856,7 @@
 
   function onJobChange(){
     const v=$("jobSel").value;
-    if(v==="__new__"){$("newJobSec").style.display=""; jobId=null; if(!newEls.length) addEl();}
+    if(v==="__new__"){$("newJobSec").style.display="block"; jobId=null; if(!newEls.length) addEl();}
     else if(v){
       $("newJobSec").style.display="none";
       jobId=v;
@@ -803,6 +869,7 @@
       populateSingleSel();
     }
     else{$("newJobSec").style.display="none"; jobId=null;}
+    populateProductSel();
     if(isAutoSeqMode()){
       mode="continuous";
       $("modeCont").classList.add("on");
@@ -814,6 +881,36 @@
   }
   $("jobSel").addEventListener("change",onJobChange);
   $("autoSeqChk").addEventListener("change",()=>{ onJobChange(); renderEls(); populateSingleSel(); updateBtns(); updateCenter(); });
+
+  function onProductChange(){
+    const sel = $("prodSel");
+    if(!sel) return;
+    const pid = String(sel.value || "");
+    $("newProductSec").style.display = pid === "__new__" ? "block" : "none";
+    if(!state){ updateBtns(); return; }
+    if(!pid){
+      if(state.activeProductId){
+        state.activeProductId = null;
+        saveCS();
+      }
+      updateBtns();
+      return;
+    }
+    if(pid === "__new__"){ updateBtns(); return; }
+    const job = getJob();
+    let changed = false;
+    if(String(state.activeProductId || "") !== pid){
+      state.activeProductId = pid;
+      changed = true;
+    }
+    if(job && String(job.productId || "") !== pid){
+      job.productId = pid;
+      changed = true;
+    }
+    if(changed) saveCS();
+    updateBtns();
+  }
+  $("prodSel").addEventListener("change", onProductChange);
 
   // New job
   function renderEls(){
@@ -829,6 +926,26 @@
   $("addElBtn").addEventListener("click",addEl);
   $("elsList").addEventListener("input",e=>{ const i=e.target.dataset.i; if(i!=null) newEls[+i].name=e.target.value; });
   $("elsList").addEventListener("click",e=>{ const d=e.target.dataset.d; if(d!=null){newEls.splice(+d,1);renderEls();} });
+  $("cancelNewProdBtn").addEventListener("click",()=>{
+    $("newProdName").value = "";
+    if($("prodSel")) $("prodSel").value = String(state?.activeProductId || "");
+    onProductChange();
+  });
+  $("createProdBtn").addEventListener("click",()=>{
+    ensureStateLoaded();
+    const name = $("newProdName").value.trim();
+    if(!name) return toast(tr("camera.toast.productNameRequired", "Product name is required"),"w");
+    const code = nextProductCode(state.products || []);
+    const p = { id: uuid(), code, name, parentProductId: "", imageUrl: "" };
+    state.products.push(p);
+    state.activeProductId = p.id;
+    saveCS();
+    $("newProdName").value = "";
+    populateProductSel();
+    if($("prodSel")) $("prodSel").value = p.id;
+    onProductChange();
+    toast(tr("camera.toast.productCreated", `✓ Product \"{name}\" created`, { name }));
+  });
   $("cancelNewJobBtn").addEventListener("click",()=>{ $("jobSel").value=""; onJobChange(); });
   $("createJobBtn").addEventListener("click",()=>{
     if(isAutoSeqMode()) return toast(tr("camera.toast.useStartStopAuto", "Use Start/Stop to create auto sequence job."),"w");
@@ -839,7 +956,8 @@
     normalizeProductsState(state);
     let stId=(state.stations||[])[0]?.id;
     if(!stId){stId=uuid(); state.stations.push({id:stId,code:"CAM",name:tr("camera.stationCapture", "Camera capture")});}
-    const productId = String(state.activeProductId || state.products?.[0]?.id || "");
+    const productId = selectedProductId();
+    if(!productId) return toast(tr("camera.toast.productRequired", "Select one product first"),"e");
     const j={id:uuid(),productId,stationId:stId,name,allowancePct:12,ratingPct:100,elements:els,cycles:[]};
     state.jobs.push(j); state.activeJobId=j.id; saveCS();
     newEls=[]; $("newJobName").value=""; sync();
@@ -1064,7 +1182,11 @@
       name: seqElements[i].name,
       type: seqElements[i].type
     }));
-    const productId = String(state.activeProductId || state.products?.[0]?.id || "");
+    const productId = selectedProductId();
+    if(!productId){
+      toast(tr("camera.toast.productRequired", "Select one product first"),"e");
+      return null;
+    }
     const j={id:uuid(),productId,stationId:stId,name:jobNameRaw,allowancePct:12,ratingPct:100,elements:seqElements,cycles:[{...cycle,laps:remappedLaps}]};
     state.jobs.push(j);
     state.activeJobId=j.id;
@@ -1116,18 +1238,24 @@
   function updateCycCnt(){
     const n=cycles.length;
     $("cycCnt").textContent=n ? tr("camera.cyclesReady", `{count} cycle(s) ready to export`, { count: n }) : "";
-    $("exportBtn").disabled=!n;
+    const job = getJob();
+    const hasBoundProduct = !!String(job?.productId || selectedProductId() || "");
+    $("exportBtn").disabled=!n || !job || !hasBoundProduct;
     $("clearBtn").disabled=!n&&!laps.length;
   }
 
   function updateBtns(){
     const job=getJob();
-    const canStart=(!!job || isAutoSeqMode())&&(mode==="continuous"||!!singleElId||isAutoSeqMode());
+    const selectedPid = selectedProductId();
+    const hasBoundProduct = !!String(job?.productId || selectedPid || "");
+    const canStart=(!!job || (isAutoSeqMode() && !!selectedPid))&&hasBoundProduct&&(mode==="continuous"||!!singleElId||isAutoSeqMode());
     const btn=$("mainBtn");
     if(!running){btn.textContent=tr("camera.action.start","▶ Start"); btn.className=""; btn.disabled=!canStart;}
     else if(mode==="single"){btn.textContent=tr("camera.action.capture","⏺ Capture"); btn.className="w"; btn.disabled=false;}
     else if(isAutoSeqMode()){btn.textContent=tr("camera.action.seqNext","⏭ Seq+1"); btn.className="w"; btn.disabled=false;}
     else{const last=idx>=(job?.elements?.length||1)-1; btn.textContent=last?tr("camera.action.finish","⏹ Finish"):tr("camera.action.next","⏭ Next"); btn.className=last?"d":"w"; btn.disabled=false;}
+    const createJobBtn = $("createJobBtn");
+    if(createJobBtn) createJobBtn.disabled = isAutoSeqMode() || !selectedPid;
     // Single finish btn
     let fb=$("finBtn");
     if((mode==="single"&&running) || (isAutoSeqMode()&&running)){
@@ -1150,7 +1278,7 @@
 
   // Panel toggle
   function togglePanel(v){
-    panelOpen=v??!panelOpen;
+    panelOpen = (v == null) ? !panelOpen : !!v;
     $("panel").classList.toggle("open",panelOpen);
   }
   $("cfgBtn").addEventListener("click",()=>togglePanel());
@@ -1163,6 +1291,12 @@
   $("exportBtn").addEventListener("click",()=>{
     state=loadCS(); if(!state) return toast(tr("camera.toast.chronoNotFound", "Chrono Study not found"),"e");
     const job=(state.jobs||[]).find(j=>j.id===jobId); if(!job) return toast(tr("camera.toast.jobNotFound", "Job not found"),"e");
+    const pid = String(job.productId || selectedProductId() || "");
+    if(!pid) return toast(tr("camera.toast.productRequired", "Select one product first"),"e");
+    if(String(job.productId || "") !== pid){
+      job.productId = pid;
+      state.activeProductId = pid;
+    }
     const valid=new Set((job.elements||[]).map(e=>e.id));
     let n=0;
     for(const cy of cycles){ const vl=cy.laps.filter(l=>valid.has(l.elementId)); if(!vl.length) continue; job.cycles.push({...cy,laps:vl}); n++; }

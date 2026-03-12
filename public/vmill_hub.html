@@ -1529,6 +1529,7 @@
       <a class="dockBtn" data-dock-id="chrono" data-module-id="chrono" href="./chrono/chrono.html">Chrono</a>
       <a class="dockBtn" data-dock-id="chrono-camera" data-module-id="chrono-camera" href="./chrono/chrono_camera.html">Camera</a>
       <a class="dockBtn" data-dock-id="spacial" data-module-id="spacial" href="./SPaCial.html">SPaCial</a>
+      <a class="dockBtn" data-dock-id="factory" data-module-id="factory" href="./factory_manager.html">Factory</a>
       <a class="dockBtn" data-dock-id="shop-tree" data-module-id="shop-tree" href="./shop_tree.html">Shop Organizer</a>
       <a class="dockBtn" data-dock-id="records" data-module-id="records" href="./records_manager.html">Records</a>
       <a class="dockBtn" data-dock-id="can-bus" data-module-id="can-bus" href="./logger.html">Logger</a>
@@ -1820,6 +1821,7 @@
         { id: "chrono", name: "Chrono Study", desc: "Timing, timeline editing, KPI, and cycle analysis.", href: "./chrono/chrono.html", status: "ready", tags: ["time-study", "timeline", "kpi"] },
         { id: "chrono-camera", name: "Chrono Camera", desc: "Camera-assisted capture with sequence marks and bookmark export.", href: "./chrono/chrono_camera.html", status: "ready", tags: ["capture", "camera", "bookmarks"] },
         { id: "spacial", name: "SPaCial", desc: "SPC analytics with control limits, rule flags, and offline backups.", href: "./SPaCial.html", status: "ready", tags: ["spc", "quality", "control-chart", "offline"] },
+        { id: "factory", name: "Factory Manager", desc: "Unified flow manager for products, stations, operations, and capacity targets.", href: "./factory_manager.html", status: "ready", tags: ["factory", "operations", "capacity", "planning"] },
         { id: "shop-tree", name: "Shop Organizer", desc: "Recursive shop hierarchy with node CRUD, linked jobs, and drag reparenting.", href: "./shop_tree.html", status: "ready", tags: ["shop", "tree", "nodes", "crud"] },
         { id: "records", name: "Records Manager", desc: "Dynamic record CRUD forms generated from selected system category fields.", href: "./records_manager.html", status: "ready", tags: ["records", "crud", "forms", "schema"] },
         { id: "contas", name: "Contas CNC", desc: "Legacy CNC calculators: thread, milling, turning, and trig helpers.", href: "./contas_calc.html", status: "ready", tags: ["cnc", "calculator", "thread", "milling", "turning"] },
@@ -2072,6 +2074,7 @@
           ["chrono", "hub.dock.chrono", "Chrono"],
           ["chrono-camera", "hub.dock.camera", "Camera"],
           ["spacial", "hub.dock.spacial", "SPaCial"],
+          ["factory", "hub.dock.factory", "Factory"],
           ["shop-tree", "hub.dock.shopTree", "Shop Organizer"],
           ["records", "hub.dock.records", "Records"],
           ["can-bus", "hub.dock.logger", "Logger"],
@@ -2971,7 +2974,7 @@
         const usesStudyLabel = String(selectedJob?.meta?.kind || "").trim().toLowerCase() === "chrono_study";
         const jobTypeName = usesStudyLabel
           ? { singular: "Study", plural: "Studies" }
-          : dynamicTypeName(jobTypeId, "Job", "Jobs");
+          : dynamicTypeName(jobTypeId, "Operation", "Operations");
 
         const productLabel = productId
           ? dynamicItemLabel(productById.get(productId), productType).trim()
@@ -3209,6 +3212,22 @@
         } catch {}
       }
 
+      function restoreWorkspaceFromPrefs(prefs) {
+        const src = prefs && typeof prefs === "object" ? prefs : {};
+        const savedHref = String(src.href || "").trim();
+        let savedModuleId = String(src.moduleId || "").trim();
+        if ((!savedModuleId || savedModuleId === "hub") && savedHref) {
+          savedModuleId = moduleIdFromHref(savedHref);
+        }
+        if (!savedModuleId || savedModuleId === "hub") return false;
+        if (!canAccessModule(savedModuleId) || !isModuleEnabled(savedModuleId)) return false;
+        const defaultHref = String(moduleById.get(savedModuleId)?.href || "").trim();
+        const targetHref = savedHref || defaultHref;
+        if (!targetHref) return false;
+        openModuleInWorkspace(targetHref, savedModuleId);
+        return activeWorkspaceModuleId === savedModuleId;
+      }
+
       function closeWorkspace() {
         if (!confirmAnyStudioExit()) return;
         activeWorkspaceModuleId = "hub";
@@ -3420,7 +3439,11 @@
         return types
           .map((t) => {
             const id = String(t?.id || "");
-            const label = String(t?.namePlural || t?.nameSingular || id || "Type");
+            const label = dynamicTypeName(
+              id,
+              String(t?.nameSingular || id || "Type"),
+              String(t?.namePlural || t?.nameSingular || id || "Type")
+            ).plural;
             return { id, label, isRoot: !childTypeIds.has(id) };
           })
           .filter((r) => !!r.id)
@@ -3985,7 +4008,7 @@
         const pid = String(productId || "");
         const item = getProductById(st, pid);
         if (!item) return;
-        if (!confirm(tt("hub.confirm.deleteProduct", "Delete product {code} - {name}? Jobs will be kept unassigned.", {
+        if (!confirm(tt("hub.confirm.deleteProduct", "Delete product {code} - {name}? Operations will be kept unassigned.", {
           code: item.code || "",
           name: item.name || "",
         }))) return;
@@ -4126,7 +4149,7 @@
         const station = st.stations.find((x) => String(x.id || "") === sid);
         if (!station) return;
         const jobsAt = st.jobs.filter((j) => String(j.stationId || "") === sid).length;
-        if (!confirm(tt("hub.confirm.deleteStation", "Delete station {code} - {name}? This will remove {count} job(s).", {
+        if (!confirm(tt("hub.confirm.deleteStation", "Delete station {code} - {name}? This will remove {count} operation(s).", {
           code: station.code || "",
           name: station.name || "",
           count: jobsAt,
@@ -4151,10 +4174,10 @@
         let targetStationId = sid;
         if (!targetStationId || targetStationId === "all") {
           if (st.stations.length === 1) targetStationId = st.stations[0].id;
-          else return alert(tt("hub.alert.selectStationToAddJob", "Select one station to add a job."));
+          else return alert(tt("hub.alert.selectStationToAddJob", "Select one station to add an operation."));
         }
         if (!st.stations.some((x) => String(x.id || "") === targetStationId)) return alert(tt("hub.alert.stationNotFound", "Station not found."));
-        const name = String(prompt(tt("hub.prompt.jobName", "Job name:"), "") || "").trim() || tt("spacial.jobDefault", "Job");
+        const name = String(prompt(tt("hub.prompt.jobName", "Operation name:"), "") || "").trim() || tt("spacial.jobDefault", "Operation");
         let productId = String(st.activeProductId || "");
         if (productId && !st.products.some((p) => String(p.id || "") === productId)) productId = "";
         if (!productId && st.products[0]) productId = String(st.products[0].id || "");
@@ -4183,7 +4206,7 @@
         const st = getWritableState();
         const job = st.jobs.find((x) => String(x.id || "") === String(jobId || ""));
         if (!job) return;
-        const name = String(prompt(tt("hub.prompt.jobName", "Job name:"), job.name || "") || "").trim();
+        const name = String(prompt(tt("hub.prompt.jobName", "Operation name:"), job.name || "") || "").trim();
         if (!name) return;
         job.name = name;
         st.activeJobId = job.id;
@@ -4194,7 +4217,7 @@
         const st = getWritableState();
         const job = st.jobs.find((x) => String(x.id || "") === String(jobId || ""));
         if (!job) return;
-        const next = String(prompt(tt("hub.prompt.jobImage", "Job image URL (http or data:image):"), String(job.imageUrl || "")) || "").trim();
+        const next = String(prompt(tt("hub.prompt.jobImage", "Operation image URL (http or data:image):"), String(job.imageUrl || "")) || "").trim();
         job.imageUrl = next;
         writeState(st);
       }
@@ -4203,8 +4226,8 @@
         const st = getWritableState();
         const job = st.jobs.find((x) => String(x.id || "") === String(jobId || ""));
         if (!job) return;
-        if (!confirm(tt("hub.confirm.deleteJob", "Delete job \"{name}\"?", {
-          name: job.name || tt("hub.jobs.unnamed", "Unnamed job"),
+        if (!confirm(tt("hub.confirm.deleteJob", "Delete operation \"{name}\"?", {
+          name: job.name || tt("hub.jobs.unnamed", "Unnamed operation"),
         }))) return;
         st.jobs = st.jobs.filter((x) => String(x.id || "") !== String(jobId || ""));
         if (!st.jobs.some((j) => String(j.id || "") === String(st.activeJobId || ""))) {
@@ -4239,9 +4262,22 @@
       function dynamicTypeName(typeId, fallbackSingular, fallbackPlural) {
         const model = readDynamicModelSafe();
         const t = dynamicTypeById(model, typeId);
+        const isLegacyJobLabel = (v) => {
+          const s = String(v || "").trim().toLowerCase();
+          return s === "job" || s === "jobs";
+        };
+        const isJobRole = String(t?.moduleRole || "").trim().toLowerCase() === "job" || String(t?.id || "") === "job";
+        let singular = String(t?.nameSingular || fallbackSingular);
+        let plural = String(t?.namePlural || fallbackPlural);
+        if (isJobRole) {
+          const operationSingular = tt("hub.jobs.entity.job", "Operation");
+          const operationPlural = tt("hub.jobs.entity.jobs", "Operations");
+          if (!singular || isLegacyJobLabel(singular)) singular = operationSingular;
+          if (!plural || isLegacyJobLabel(plural)) plural = operationPlural;
+        }
         return {
-          singular: String(t?.nameSingular || fallbackSingular),
-          plural: String(t?.namePlural || fallbackPlural),
+          singular,
+          plural,
         };
       }
 
@@ -4591,7 +4627,11 @@
             : tt("hub.common.all", "All");
           return {
             typeId,
-            label: String(type?.namePlural || type?.nameSingular || typeId || "Type"),
+            label: dynamicTypeName(
+              typeId,
+              String(type?.nameSingular || typeId || "Type"),
+              String(type?.namePlural || type?.nameSingular || typeId || "Type")
+            ).plural,
             value: Number(countsByType.get(typeId) || 0),
             selectedLabel,
             active: String(scopeState?.openTypeId || "") === typeId,
@@ -4605,7 +4645,7 @@
           cards.push(
             { typeId: "product", label: tt("hub.jobs.entity.products", "Products"), value: products, selectedLabel: tt("hub.common.all", "All"), active: false },
             { typeId: "station", label: tt("hub.jobs.entity.stations", "Stations"), value: stations, selectedLabel: tt("hub.common.all", "All"), active: false },
-            { typeId: "job", label: tt("hub.jobs.entity.jobs", "Jobs"), value: jobs, selectedLabel: tt("hub.common.all", "All"), active: false },
+            { typeId: "job", label: tt("hub.jobs.entity.jobs", "Operations"), value: jobs, selectedLabel: tt("hub.common.all", "All"), active: false },
           );
         }
 
@@ -4706,10 +4746,15 @@
           });
         const selectedTypeId = pickerTypeId || openTypeId;
         const selectedId = String(scopeState.selected?.[selectedTypeId] || "all");
+        const pickerTypeNames = dynamicTypeName(
+          String(pickerType?.id || selectedTypeId || openTypeId || ""),
+          String(pickerType?.nameSingular || selectedTypeId || openTypeId || "Type"),
+          String(pickerType?.namePlural || pickerType?.nameSingular || selectedTypeId || openTypeId || "Type")
+        );
         overviewPicker.classList.remove("hidden");
         overviewPicker.innerHTML = `
           <div class="overviewPickerHead">
-            <strong>${escHtml(String(pickerType?.namePlural || pickerType?.nameSingular || selectedTypeId || openTypeId))}</strong>
+            <strong>${escHtml(String(pickerTypeNames.plural || selectedTypeId || openTypeId || "Type"))}</strong>
             <input class="overviewPickerSearch" id="overviewPickerSearchIn" type="text" value="${escHtml(scopeState.query || "")}" placeholder="${escHtml(tt("hub.scope.searchPlaceholder", "Search scope..."))}" />
             <button class="btn ghost" id="overviewPickerCloseBtn" type="button">${escHtml(tt("common.close", "Close"))}</button>
           </div>
@@ -4775,7 +4820,7 @@
           job: {
             id: job.id || "",
             stationId: job.stationId || station.id || "",
-            name: job.name || "Job",
+            name: job.name || "Operation",
             cycles: cycles.map((c) => ({
               id: c?.id || "",
               totalMs: Number(c?.totalMs || 0),
@@ -4860,15 +4905,20 @@
             .map((r) => String(r?.childTypeId || ""))
             .filter((id) => id && modelTypes.some((t) => String(t?.id || "") === id))
         );
+        const typePluralLabel = (t) => dynamicTypeName(
+          String(t?.id || ""),
+          String(t?.nameSingular || t?.id || "Type"),
+          String(t?.namePlural || t?.nameSingular || t?.id || "Type")
+        ).plural;
         const customTypes = modelTypes
           .filter((t) => !coreTypeIds.has(String(t?.id || "")))
-          .sort((a, b) => String(a?.namePlural || a?.nameSingular || a?.id || "").localeCompare(String(b?.namePlural || b?.nameSingular || b?.id || "")));
+          .sort((a, b) => String(typePluralLabel(a) || "").localeCompare(String(typePluralLabel(b) || "")));
 
         entitySel.innerHTML = [
           `<option value="jobs">${escHtml(jobTypeName.plural)}</option>`,
           `<option value="stations">${escHtml(stationTypeName.plural)}</option>`,
           `<option value="products">${escHtml(productTypeName.plural)}</option>`,
-          ...customTypes.map((t) => `<option value="${escHtml(`type:${String(t?.id || "")}`)}">${escHtml(String(t?.namePlural || t?.nameSingular || t?.id || "Type"))}</option>`),
+          ...customTypes.map((t) => `<option value="${escHtml(`type:${String(t?.id || "")}`)}">${escHtml(typePluralLabel(t))}</option>`),
         ].join("");
         if ([...entitySel.options].some((o) => o.value === jobsEntityMode)) entitySel.value = jobsEntityMode;
         else entitySel.value = "jobs";
@@ -4892,7 +4942,11 @@
           if (m === "jobs") return jobTypeName.plural;
           const tid = modeTypeId(m);
           const t = modelTypes.find((x) => String(x?.id || "") === tid);
-          return String(t?.namePlural || t?.nameSingular || tid || m);
+          return dynamicTypeName(
+            tid,
+            String(t?.nameSingular || tid || m),
+            String(t?.namePlural || t?.nameSingular || tid || m)
+          ).plural;
         };
         const modeFromTypeId = (typeId) => {
           const tid = String(typeId || "");
@@ -5114,7 +5168,7 @@
 
         const jobActions = (j) => actionsMenu([
           `<button class="btn ghost" type="button" data-job-prod="${escHtml(j.id || "")}">${escHtml(tt("hub.jobs.setProduct", "Set product"))}</button>`,
-          `<button class="btn ghost" type="button" data-job-img="${escHtml(j.id || "")}">${escHtml(tt("hub.jobs.jobImage", "Job Img"))}</button>`,
+          `<button class="btn ghost" type="button" data-job-img="${escHtml(j.id || "")}">${escHtml(tt("hub.jobs.jobImage", "Op Img"))}</button>`,
           `<button class="btn ghost" type="button" data-job-img-file="${escHtml(j.id || "")}">${escHtml(tt("hub.jobs.imageLocal", "Local Img"))}</button>`,
           `<button class="btn ghost" type="button" data-job-edit="${escHtml(j.id || "")}">${escHtml(tt("hub.jobs.rename", "Rename"))}</button>`,
           `<button class="btn warn" type="button" data-job-del="${escHtml(j.id || "")}">${escHtml(tt("hub.jobs.delete", "Delete"))}</button>`,
@@ -5957,9 +6011,9 @@
       if (topbarCollapsed) scheduleHeaderRevealHide(120);
       if (!scopeUiPrefs.compact) scheduleOverviewAutoHide();
       bindWorkspaceRouting();
-      refreshWorkspaceChrome();
+      const restoredWorkspace = restoreWorkspaceFromPrefs(workspacePrefs);
+      if (!restoredWorkspace) refreshWorkspaceChrome();
       setDesktopOverlayVisibility(overlayVisible);
-      writeWorkspacePrefs({ moduleId: "hub", href: "", overlayVisible });
 
       enableWidgetDnd();
       applyLayout();

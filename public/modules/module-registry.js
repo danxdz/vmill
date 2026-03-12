@@ -24,6 +24,14 @@ window.VMillModules = [
     tags: ["spc", "routing", "blueprint", "offline"],
   },
   {
+    id: "factory",
+    name: "Factory Manager",
+    desc: "Unified flow manager for products, stations, operations, and capacity targets.",
+    href: "./factory_manager.html",
+    status: "ready",
+    tags: ["factory", "operations", "capacity", "planning"],
+  },
+  {
     id: "contas",
     name: "Contas CNC",
     desc: "Legacy CNC calculators: thread, milling, turning, and trig helpers.",

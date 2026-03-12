@@ -1130,6 +1130,17 @@
 
             <div class="row2">
               <div>
+                <label>Effort</label>
+                <input id="jobEffort" type="text" placeholder="e.g. 100" />
+              </div>
+              <div>
+                <label>Position</label>
+                <input id="jobPosition" type="text" placeholder="e.g. standing" />
+              </div>
+            </div>
+
+            <div class="row2">
+              <div>
                 <label>Station code</label>
                 <input id="stationCodeView" disabled />
               </div>
@@ -1489,6 +1500,8 @@
     "noProducts": "No products",
     "allowancePct": "Allowance %",
     "ratingPct": "Rating %",
+    "effortLabel": "Effort",
+    "positionLabel": "Position",
     "stationCode": "Station code",
     "jobScopeHint": "Create/edit products, stations, and studies in Hub. Chrono uses global scope and records cycle timings.",
     "newJob": "+ New Study",
@@ -1689,6 +1702,8 @@
     "noProducts": "Aucun produit",
     "allowancePct": "Allowance %",
     "ratingPct": "Rating %",
+    "effortLabel": "Effort",
+    "positionLabel": "Position",
     "stationCode": "Code poste",
     "jobScopeHint": "Creez/editez produits, postes et jobs dans le Hub. Chrono utilise ce scope global pour enregistrer les cycles.",
     "newJob": "+ Nouveau Job",
@@ -1978,6 +1993,10 @@
     if (apl) apl.textContent = t("allowancePct", "Allowance %");
     const rpl = $("ratingPct")?.closest("div")?.querySelector("label");
     if (rpl) rpl.textContent = t("ratingPct", "Rating %");
+    const efl = $("jobEffort")?.closest("div")?.querySelector("label");
+    if (efl) efl.textContent = t("effortLabel", "Effort");
+    const psl = $("jobPosition")?.closest("div")?.querySelector("label");
+    if (psl) psl.textContent = t("positionLabel", "Position");
     const ppl = $("jobProductSelect")?.closest("div")?.querySelector("label");
     if (ppl) ppl.textContent = names.product.singular;
     const scl = $("stationCodeView")?.closest("div")?.querySelector("label");
@@ -2178,6 +2197,18 @@
       const r = ridx + 1;
       const cells = (row || []).map((value, cidx) => {
         const ref = `${excelColName(cidx + 1)}${r}`;
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          const formulaRaw = value.formula;
+          if (formulaRaw !== undefined && formulaRaw !== null && String(formulaRaw).trim() !== "") {
+            const formula = String(formulaRaw).trim().replace(/^=/, "");
+            const result = value.result;
+            if (typeof result === "number" && Number.isFinite(result)) {
+              return `<c r="${ref}"><f>${xmlEsc(formula)}</f><v>${String(result)}</v></c>`;
+            }
+            return `<c r="${ref}"><f>${xmlEsc(formula)}</f></c>`;
+          }
+          value = (Object.prototype.hasOwnProperty.call(value, "value")) ? value.value : "";
+        }
         if (typeof value === "number" && Number.isFinite(value)) {
           return `<c r="${ref}"><v>${String(value)}</v></c>`;
         }
@@ -2517,12 +2548,7 @@
   }
 
   // ----- State -----
-  function ensureGlobalState() {
-    if (window.VMillData?.createDefaultAppState && window.VMillData?.writeAppState) {
-      const seeded = window.VMillData.createDefaultAppState();
-      window.VMillData.writeAppState(seeded);
-      return seeded;
-    }
+  function makeChronoFallbackState() {
     return {
       meta: { createdAt: wallIso(), updatedAt: wallIso() },
       activeProductId: null,
@@ -2533,6 +2559,16 @@
       actionTypes: defaultActionTypes(),
       ui: defaultUiState(),
     };
+  }
+  function ensureGlobalState() {
+    // Never seed default demo records from Chrono fallback path.
+    // Fallback must be non-destructive so opening Chrono cannot overwrite app data.
+    if (window.VMillData?.createEmptyAppState) {
+      try {
+        return window.VMillData.createEmptyAppState();
+      } catch {}
+    }
+    return makeChronoFallbackState();
   }
 
   function ensureProductsState(st) {
@@ -2584,6 +2620,8 @@
       }
       ensureProductsState(parsed);
       for (const j of parsed.jobs) {
+        j.effort = String(j?.effort ?? j?.meta?.effort ?? "").trim();
+        j.position = String(j?.position ?? j?.meta?.position ?? "").trim();
         if (!Array.isArray(j.cycles)) j.cycles = [];
         for (const c of j.cycles) {
           if (!Array.isArray(c.laps)) c.laps = [];
@@ -4189,14 +4227,18 @@
     const fromTxt = Number.isFinite(firstDate.getTime()) ? firstDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
     const toTxt = Number.isFinite(lastDate.getTime()) ? lastDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
     const studyId = String(job?.id || "").trim().slice(0, 8);
+    const asHeaderCell = (label, value) => {
+      const v = String(value == null ? "" : value).trim();
+      return v ? `${label}\r\n${v}` : `${label}`;
+    };
 
     rows[0][0] = "FEUILLE DE CHRONOMETRAGE (travaux repetitifs)";
-    rows[0][6] = `Feuille N°: ${pageNo}/${pageCount}`;
-    rows[0][9] = `Etude N°: ${studyId}`;
-    rows[0][12] = `Nom: ${String(product?.name || "").trim()}`;
-    rows[0][15] = `Poste: ${String(station?.code || "").trim()} ${String(station?.name || "").trim()}`.trim();
-    rows[0][18] = `Date: ${dateTxt}`;
-    rows[0][21] = `Horaires: ${fromTxt} - ${toTxt}`.trim();
+    rows[0][6] = asHeaderCell("Feuille N°:", `${pageNo}/${pageCount}`);
+    rows[0][9] = asHeaderCell("Etude N°:", studyId);
+    rows[0][12] = asHeaderCell("Nom:", String(product?.name || "").trim());
+    rows[0][15] = asHeaderCell("Poste:", `${String(station?.code || "").trim()} ${String(station?.name || "").trim()}`.trim());
+    rows[0][18] = asHeaderCell("Date:", dateTxt);
+    rows[0][21] = asHeaderCell("Horaires:", `${fromTxt} - ${toTxt}`.trim());
 
     rows[1][0] = "Fractions chronometrees";
     for (let i = 0; i < 16; i++) rows[1][2 + i] = i + 1;
@@ -4256,23 +4298,80 @@
       if (ireMs > 0) rows[row][21] = roundNumber(ireMs / 1000, 3);
     }
 
+    const usedCycleCols = Math.min(16, cycleRows.length);
+    const firstCycleCol = "C";
+    const lastCycleCol = excelColName(2 + Math.max(1, usedCycleCols));
+    const parseExportNumberOrText = (raw) => {
+      const s = String(raw == null ? "" : raw).trim();
+      if (!s) return "";
+      const n = Number(s.replace(",", "."));
+      return Number.isFinite(n) ? roundNumber(n, 3) : s;
+    };
+    const effortValue = parseExportNumberOrText(job?.effort);
+    const positionValue = parseExportNumberOrText(job?.position);
+    for (let cidx = 0; cidx < usedCycleCols; cidx++) {
+      rows[4][2 + cidx] = effortValue;
+      rows[5][2 + cidx] = positionValue;
+    }
     rows[28][0] = "Somme";
     rows[28][17] = `Cycles: ${cycleRows.length}`;
-    for (let cidx = 0; cidx < 16; cidx++) rows[28][2 + cidx] = cycleTotalsSec[cidx] === "" ? "" : cycleTotalsSec[cidx];
+    for (let cidx = 0; cidx < 16; cidx++) {
+      if (cidx < usedCycleCols) {
+        const col = excelColName(3 + cidx);
+        rows[28][2 + cidx] = { formula: `=SUM(${col}7:${col}28)` };
+      } else {
+        rows[28][2 + cidx] = "";
+      }
+    }
+    rows[28][18] = { formula: "=SUM(S7:S28)" };
+    rows[28][21] = { formula: "=SUM(V7:V28)" };
 
-    const observedTotalsSec = cycleTotalsSec.filter((v) => typeof v === "number");
-    const avgSec = observedTotalsSec.length
-      ? observedTotalsSec.reduce((a, b) => a + b, 0) / observedTotalsSec.length
-      : 0;
-    const aleaRate = totalMs > 0 ? (irregularMs / totalMs) * 100 : 0;
     rows[29][0] = "Moyenne";
-    rows[29][2] = observedTotalsSec.length ? roundNumber(avgSec, 3) : "";
+    rows[29][2] = usedCycleCols
+      ? { formula: `=IF(COUNT(${firstCycleCol}29:${lastCycleCol}29)=0,"",ROUND(AVERAGE(${firstCycleCol}29:${lastCycleCol}29),3))` }
+      : "";
     rows[30][0] = "Taux d'aleas";
-    rows[30][2] = observedTotalsSec.length ? roundNumber(aleaRate, 2) : "";
-    rows[30][3] = observedTotalsSec.length ? "%" : "";
+    rows[30][2] = usedCycleCols
+      ? { formula: `=IF(SUM(${firstCycleCol}29:${lastCycleCol}29)=0,"",ROUND((SUM(S7:S28)+SUM(V7:V28))/SUM(${firstCycleCol}29:${lastCycleCol}29)*100,2))` }
+      : "";
+    rows[30][3] = usedCycleCols ? "%" : "";
     return rows;
   }
-  function exportXlsx() {
+  async function exportXlsxFromServerTemplate(formSheets, filename) {
+    const sheets = (formSheets || [])
+      .filter((s) => s && Array.isArray(s.rows))
+      .map((s, idx) => ({
+        name: String(s.name || `Feuil${idx + 1}`).slice(0, 31) || `Feuil${idx + 1}`,
+        rows: s.rows,
+      }));
+    if (!sheets.length) throw new Error("no_template_sheets");
+    const tokenKey = String(window.VMillData?.keys?.AUTH_TOKEN_KEY || "vmill:auth:token");
+    const token = String(localStorage.getItem(tokenKey) || "");
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch("/api/reports/chrono/template-xlsx", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        template: "chrono_report_template_v1.xlsx",
+        filename: String(filename || "chrono_report.xlsx"),
+        sheets,
+      }),
+    });
+    if (!res.ok) {
+      let detail = `HTTP_${res.status || 0}`;
+      try {
+        const err = await res.json();
+        if (err && typeof err === "object" && err.error) detail = String(err.error);
+      } catch {}
+      throw new Error(detail);
+    }
+    const blob = await res.blob();
+    if (!blob || !blob.size) throw new Error("empty_blob");
+    return blob;
+  }
+
+  async function exportXlsx() {
     const job = getActiveJob();
     if (!job) return alert(t("selectJob", "Select a job first."));
     const st = getStationById(job.stationId);
@@ -4287,6 +4386,8 @@
       ["Station code", st?.code || ""],
       ["Station name", st?.name || ""],
       ["Job", job.name || ""],
+      ["Effort", String(job?.effort || "")],
+      ["Position", String(job?.position || "")],
       ["Filtered cycles", filtered.length],
       ["Time unit", timeUnit()],
       ["Resolution (s)", timeResolutionSec()],
@@ -4366,6 +4467,15 @@
       }),
     }));
 
+    const safe = `${(st?.code || "ST")}_${String(job.name || "operation").replace(/[^\w\-]+/g, "_")}`;
+    try {
+      const templateBlob = await exportXlsxFromServerTemplate(formSheets, `${safe}.xlsx`);
+      downloadBlob(`${safe}.xlsx`, templateBlob);
+      return;
+    } catch (err) {
+      console.warn("Template XLSX export failed, falling back to built-in export:", err);
+    }
+
     const blob = buildSimpleXlsxBlob([
       ...formSheets,
       { name: "Summary", rows: summaryRows },
@@ -4373,7 +4483,6 @@
       { name: "Actions", rows: actionSheetRows },
     ]);
     if (!blob) return alert("Unable to build XLSX.");
-    const safe = `${(st?.code || "ST")}_${String(job.name || "job").replace(/[^\w\-]+/g, "_")}`;
     downloadBlob(`${safe}.xlsx`, blob);
   }
   function exportTimelineGraph() {
@@ -5299,12 +5408,18 @@
       const el = $(id);
       if (el) el.disabled = true;
     }
+    const effortIn = $("jobEffort");
+    const positionIn = $("jobPosition");
+    if (effortIn) effortIn.disabled = disabled;
+    if (positionIn) positionIn.disabled = disabled;
     if ($("jobSwitchSel")) $("jobSwitchSel").disabled = state.jobs.length === 0;
 
     if (!job) {
       $("jobName").value = "";
       $("allowancePct").value = 12;
       $("ratingPct").value = 100;
+      if (effortIn) effortIn.value = "";
+      if (positionIn) positionIn.value = "";
       $("jobProductSelect").value = "";
       $("stationCodeView").value = "";
       renderElementsTable(null);
@@ -5321,6 +5436,8 @@
     $("jobName").value = job.name;
     $("allowancePct").value = job.allowancePct;
     $("ratingPct").value = job.ratingPct;
+    if (effortIn) effortIn.value = String(job.effort || "");
+    if (positionIn) positionIn.value = String(job.position || "");
     $("stationCodeView").value = getStationById(job.stationId)?.code || "";
     if (job.elements.length && !selectedElementId) selectedElementId = job.elements[0].id;
     const selEl = job.elements.find((e) => e.id === selectedElementId);
@@ -6309,6 +6426,19 @@
       if (id && state.jobs.some(j => j.id === id)) selectJob(id);
     });
   }
+  const bindJobTextField = (inputId, fieldKey) => {
+    const input = $(inputId);
+    if (!input) return;
+    input.addEventListener("change", () => {
+      const job = getActiveJob();
+      if (!job) return;
+      job[fieldKey] = String(input.value || "").trim();
+      saveState();
+      renderAll();
+    });
+  };
+  bindJobTextField("jobEffort", "effort");
+  bindJobTextField("jobPosition", "position");
   function selectFirstTimelineJobInScope(preferredJobId = "") {
     const jobs = state.jobs.filter((j) => {
       if (timelineProductFilterId && String(j.productId || "") !== String(timelineProductFilterId)) return false;

@@ -650,15 +650,16 @@
         });
         if (role === "product") {
           return [
-            mk("Code", "code", "string", false),
             mk("Name", "name", "string", true),
+            mk("Family", "family", "string", false),
             mk("Parent Product", "parentProductId", "string", false),
+            mk("Image URL", "imageUrl", "string", false),
           ];
         }
         if (role === "station") {
           return [
-            mk("Code", "code", "string", false),
             mk("Name", "name", "string", true),
+            mk("Image URL", "imageUrl", "string", false),
           ];
         }
         if (role === "job") {
@@ -667,6 +668,7 @@
             mk("Station", "stationId", "string", true),
             mk("Product", "productId", "string", false),
             mk("Status", "status", "string", false),
+            mk("Image URL", "imageUrl", "string", false),
           ];
         }
         return [];
@@ -717,7 +719,7 @@
         const r = String(role || "custom").toLowerCase();
         if (r === "product") return tt("shop.role.product", "product");
         if (r === "station") return tt("shop.role.station", "station");
-        if (r === "job") return tt("shop.role.job", "job");
+        if (r === "job") return tt("shop.role.job", "operation");
         return tt("shop.role.custom", "custom");
       }
 
@@ -1041,6 +1043,7 @@
             id,
             code: String(payload?.code || prev.code || nextCode("P", app.products)),
             name: String(payload?.name || "Product"),
+            family: String(payload?.family || prev.family || prev?.meta?.family || ""),
             parentProductId: String(payload?.parentProductId || ""),
             imageUrl: String(payload?.imageUrl || ""),
             meta: payload?.meta && typeof payload.meta === "object" ? payload.meta : (prev.meta || {}),
@@ -1360,10 +1363,11 @@
         const attributeRows = typeAttributes.length
           ? typeAttributes.map((attr) => {
             const isOwn = String(attr?.origin || "own") === "own";
+            const isCore = !!attr?.core;
             const attrKey = String(attr?.key || attr?.name || "");
             const displayName = String(attr?.name || "");
             return `
-              <tr data-type-attr-row data-attr-origin="${esc(isOwn ? "own" : "inherited")}" data-attr-id="${esc(String(attr.id || ""))}" data-attr-core="0" data-attr-key="${esc(attrKey)}" ${isOwn ? 'draggable="true"' : ""}>
+              <tr data-type-attr-row data-attr-origin="${esc(isOwn ? "own" : "inherited")}" data-attr-id="${esc(String(attr.id || ""))}" data-attr-core="${isCore ? "1" : "0"}" data-attr-key="${esc(attrKey)}" ${isOwn && !isCore ? 'draggable="true"' : ""}>
                 <td><input data-attr-field="name" type="text" value="${esc(displayName)}" ${isOwn ? "" : "readonly"} /></td>
                 <td>
                   <select data-attr-field="type" ${isOwn ? "" : "disabled"}>
@@ -1375,9 +1379,9 @@
                 <td>${esc(String(attr?.sourceLabel || tt("shop.form.sourceInherited", "Inherited")))}</td>
                 <td>${isOwn ? `
                   <div class="attrActions">
-                    <button class="attrMoveBtn" type="button" data-move-attr="${esc(String(attr.id || ""))}" data-dir="up" title="${esc(tt("shop.action.moveUp", "Move up"))}">↑</button>
-                    <button class="attrMoveBtn" type="button" data-move-attr="${esc(String(attr.id || ""))}" data-dir="down" title="${esc(tt("shop.action.moveDown", "Move down"))}">↓</button>
-                    <button class="recordDeleteBtn" type="button" data-delete-attr-id="${esc(String(attr.id || ""))}">${esc(tt("common.delete", "Delete"))}</button>
+                    <button class="attrMoveBtn" type="button" data-move-attr="${esc(String(attr.id || ""))}" data-dir="up" title="${esc(tt("shop.action.moveUp", "Move up"))}" ${isCore ? "disabled" : ""}>↑</button>
+                    <button class="attrMoveBtn" type="button" data-move-attr="${esc(String(attr.id || ""))}" data-dir="down" title="${esc(tt("shop.action.moveDown", "Move down"))}" ${isCore ? "disabled" : ""}>↓</button>
+                    <button class="recordDeleteBtn" type="button" data-delete-attr-id="${esc(String(attr.id || ""))}" ${isCore ? "disabled" : ""}>${esc(tt("common.delete", "Delete"))}</button>
                   </div>
                 `
                   : `<span class="tiny">-</span>`}
@@ -1395,6 +1399,12 @@
             }
             if (key === "name") {
               return `<input data-record-field="name" type="text" value="${esc(String(raw?.name || ""))}" />`;
+            }
+            if (key === "family") {
+              return `<input data-record-field="family" type="text" value="${esc(String(raw?.family || ""))}" />`;
+            }
+            if (key === "imageurl") {
+              return `<input data-record-field="imageUrl" type="url" value="${esc(String(raw?.imageUrl || ""))}" />`;
             }
             if (key === "stationid") {
               const opts = [`<option value="">${esc(tt("shop.option.none", "(none)"))}</option>`, ...(state.app.stations || []).map((x) => {
@@ -1445,6 +1455,9 @@
             }
             if (attrType === "number") {
               return `<input data-record-field="attr:${esc(attrId)}" data-attr-type="${esc(attrType)}" type="text" inputmode="decimal" value="${esc(value == null ? "" : String(value))}" />`;
+            }
+            if (attrType === "url") {
+              return `<input data-record-field="attr:${esc(attrId)}" data-attr-type="${esc(attrType)}" type="url" value="${esc(value == null ? "" : String(value))}" />`;
             }
             if (attrType === "date") {
               return `<input data-record-field="attr:${esc(attrId)}" data-attr-type="${esc(attrType)}" type="date" value="${esc(value == null ? "" : String(value))}" />`;
@@ -1678,18 +1691,22 @@
         const readAttrRows = () => {
           const body = document.getElementById("typeAttrBody");
           if (!(body instanceof HTMLElement)) return [];
+          const roleKey = String(row?.moduleRole || "custom").trim().toLowerCase();
           const rows = Array.from(body.querySelectorAll('[data-type-attr-row][data-attr-origin="own"]'));
           const out = [];
           let order = 0;
           for (const tr of rows) {
             if (!(tr instanceof HTMLElement)) continue;
             const attrId = String(tr.getAttribute("data-attr-id") || makeId("attr"));
+            const isCore = String(tr.getAttribute("data-attr-core") || "0") === "1";
             const name = String(tr.querySelector('[data-attr-field="name"]')?.value || "").trim();
             const type = String(tr.querySelector('[data-attr-field="type"]')?.value || "string").trim().toLowerCase();
             const required = !!tr.querySelector('[data-attr-field="required"]')?.checked;
             const enabled = !!tr.querySelector('[data-attr-field="enabled"]')?.checked;
             if (!name) continue;
-            out.push({ id: attrId, name, type, required, enabled, order, key: name });
+            const keyNorm = canonicalFieldKey(name);
+            if ((roleKey === "product" || roleKey === "station") && keyNorm === "code") continue;
+            out.push({ id: attrId, name, type, required, enabled, order, key: name, core: isCore });
             order += 1;
           }
           return normalizeTypeAttributes(out);
@@ -1802,6 +1819,17 @@
             payload.parentProductId = visibleFieldKeys.has("parentproductid")
               ? getVal("parentProductId")
               : String(existingRow?.parentProductId || "");
+            payload.family = visibleFieldKeys.has("family")
+              ? getVal("family")
+              : String(existingRow?.family || existingRow?.meta?.family || "");
+            payload.imageUrl = visibleFieldKeys.has("imageurl")
+              ? getVal("imageUrl")
+              : String(existingRow?.imageUrl || "");
+          }
+          if (role === "station") {
+            payload.imageUrl = visibleFieldKeys.has("imageurl")
+              ? getVal("imageUrl")
+              : String(existingRow?.imageUrl || "");
           }
           if (role === "job") {
             payload.stationId = visibleFieldKeys.has("stationid")
@@ -1814,6 +1842,9 @@
             payload.status = visibleFieldKeys.has("status")
               ? (getVal("status") || "active")
               : String(existingRow?.status || "active");
+            payload.imageUrl = visibleFieldKeys.has("imageurl")
+              ? getVal("imageUrl")
+              : String(existingRow?.imageUrl || "");
           }
           payload.meta = nextMeta;
           const savedId = upsertAppRow(role, payload);
@@ -2107,6 +2138,8 @@
           const attrId = String(moveAttrBtn.getAttribute("data-move-attr") || "");
           const dir = String(moveAttrBtn.getAttribute("data-dir") || "");
           if (!attrId || !dir) return;
+          const anchorRow = moveAttrBtn.closest("[data-type-attr-row]");
+          if (anchorRow instanceof HTMLElement && String(anchorRow.getAttribute("data-attr-core") || "0") === "1") return;
           const ownRows = Array.from(body.querySelectorAll('[data-type-attr-row][data-attr-origin="own"]'));
           const curIdx = ownRows.findIndex((row) => String(row.getAttribute("data-attr-id") || "") === attrId);
           if (curIdx < 0) return;
@@ -2124,6 +2157,7 @@
         const delAttrBtn = target.closest("[data-delete-attr-id]");
         if (delAttrBtn) {
           const row = delAttrBtn.closest("[data-type-attr-row]");
+          if (row instanceof HTMLElement && String(row.getAttribute("data-attr-core") || "0") === "1") return;
           if (row && row.parentElement) row.parentElement.removeChild(row);
           await saveTypeFromForm();
           return;

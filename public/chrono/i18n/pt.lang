@@ -51,6 +51,8 @@
     "noJobs": "Sem jobs",
     "jobSetupSub": "Elementos - Resolucao - Backup",
     "jobScopeHint": "Crie/edite produtos, estacoes e jobs no Hub. O Chrono usa esse escopo global para gravar ciclos.",
+    "effortLabel": "Esforco",
+    "positionLabel": "Posicao",
     "exportXlsx": "Exportar XLSX",
     "exportGraph": "Exportar grafico PNG",
     "showAllRecords": "Mostrar todos os registos"

@@ -1,0 +1,595 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Factory Manager</title>
+  <style>
+    :root {
+      --bg: var(--vm-theme-bg, #0b111b);
+      --panel: var(--vm-theme-panel, #121b2a);
+      --panel2: var(--vm-theme-panel-2, #0f1624);
+      --text: var(--vm-theme-text, #e8eef8);
+      --muted: var(--vm-theme-muted, rgba(232, 238, 248, 0.65));
+      --border: var(--vm-theme-border, rgba(232, 238, 248, 0.16));
+      --accent: var(--vm-theme-accent, #57b4ff);
+      --ok: var(--vm-theme-ok, #33d19b);
+      --warn: var(--vm-theme-warn, #f3c76b);
+      --danger: var(--vm-theme-danger, #ff6173);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(980px 540px at 10% -20%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 60%),
+        linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg) 84%, #000));
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+    .wrap { width: 100%; max-width: none; margin: 0; padding: 16px 14px 24px; min-height: 100dvh; }
+    .hero { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    h1 { margin: 0; font-size: 30px; letter-spacing: .02em; }
+    .sub { margin-top: 5px; color: var(--muted); font-size: 13px; max-width: 920px; }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .grow { flex: 1 1 170px; }
+    .btn, select, input {
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      padding: 9px 10px;
+      font-size: 13px;
+    }
+    .btn { cursor: pointer; font-weight: 700; width: auto; }
+    .btn.primary {
+      border-color: color-mix(in srgb, var(--accent) 62%, transparent);
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 16%, transparent);
+    }
+    .btn.warn {
+      border-color: color-mix(in srgb, var(--warn) 58%, transparent);
+      color: var(--warn);
+      background: color-mix(in srgb, var(--warn) 12%, transparent);
+    }
+    .btn.ghost {
+      border-color: color-mix(in srgb, var(--text) 28%, transparent);
+      background: transparent;
+      color: var(--text);
+    }
+    .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .kpi {
+      border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+      border-radius: 12px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.02);
+      min-height: 76px;
+    }
+    .kpi .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    .kpi .value { margin-top: 6px; font-size: 21px; font-weight: 800; font-family: var(--mono); line-height: 1.2; }
+    .kpi .hint { margin-top: 5px; font-size: 12px; color: var(--muted); }
+    .mini { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 2px 0 8px; }
+    .statusLine { margin-top: 8px; font-size: 12px; color: var(--muted); }
+    .tableWrap {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: auto;
+      max-height: 62vh;
+      background: rgba(2, 7, 13, 0.24);
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 1060px; }
+    th, td {
+      padding: 8px;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+      vertical-align: middle;
+      text-align: left;
+      font-size: 12px;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: color-mix(in srgb, var(--panel) 82%, #000);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-size: 10px;
+    }
+    tr.state-drift td { background: color-mix(in srgb, var(--danger) 11%, transparent); }
+    tr.state-risk td { background: color-mix(in srgb, var(--warn) 10%, transparent); }
+    tr.state-on-target td { background: color-mix(in srgb, var(--ok) 8%, transparent); }
+    tr:hover td { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+    .mono { font-family: var(--mono); font-size: 12px; }
+    .state {
+      display: inline-block;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+      padding: 2px 7px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .state.state-drift { border-color: color-mix(in srgb, var(--danger) 64%, transparent); color: var(--danger); }
+    .state.state-risk { border-color: color-mix(in srgb, var(--warn) 64%, transparent); color: var(--warn); }
+    .state.state-on-target { border-color: color-mix(in srgb, var(--ok) 64%, transparent); color: var(--ok); }
+    .state.state-no-target, .state.state-no-data { color: var(--muted); }
+    .cellIn, .cellSel {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text);
+      padding: 6px 7px;
+      font-size: 12px;
+    }
+    .actions { display: flex; gap: 5px; flex-wrap: wrap; }
+    .act {
+      border-radius: 8px;
+      border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      padding: 5px 7px;
+      font-size: 11px;
+      text-decoration: none;
+    }
+    .act:hover { border-color: color-mix(in srgb, var(--accent) 66%, transparent); color: var(--accent); }
+    @media (max-width: 1180px) {
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .tableWrap { max-height: 56vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1 id="title">Factory Manager</h1>
+        <div id="subtitle" class="sub">Unified flow manager for products, stations, operations, cycle targets, and bottleneck control.</div>
+      </div>
+      <div class="row">
+        <button class="btn ghost" id="reloadBtn" type="button">Reload</button>
+        <button class="btn" id="seedBtn" type="button">Auto Seed Targets</button>
+        <button class="btn warn" id="clearBtn" type="button">Clear Visible Plans</button>
+        <button class="btn primary" id="csvBtn" type="button">Export Planning CSV</button>
+      </div>
+    </div>
+
+    <section class="card">
+      <div class="row">
+        <div class="grow"><div class="mini" id="productLbl">Product</div><select id="productSel"></select></div>
+        <div class="grow"><div class="mini" id="stationLbl">Station</div><select id="stationSel"></select></div>
+        <div class="grow"><div class="mini" id="searchLbl">Search</div><input id="searchIn" type="text" placeholder="operation / product / station / owner" /></div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:20px;"><input id="issuesChk" type="checkbox" /><span id="issuesLbl">Issues only</span></label>
+      </div>
+      <div id="statusLine" class="statusLine">Ready.</div>
+    </section>
+
+    <section class="card kpis">
+      <article class="kpi"><div class="label">Visible Ops</div><div id="kOps" class="value">0</div><div id="kOpsHint" class="hint">0 with samples</div></article>
+      <article class="kpi"><div class="label">Weighted Avg Cycle</div><div id="kAvg" class="value">-</div><div class="hint">seconds</div></article>
+      <article class="kpi"><div class="label">Target Attainment</div><div id="kAtt" class="value">-</div><div id="kAttHint" class="hint">on target</div></article>
+      <article class="kpi"><div class="label">Issue Mix</div><div id="kMix" class="value">-</div><div class="hint">drift / risk / no target / no data</div></article>
+    </section>
+
+    <section class="card">
+      <div class="mini">Operation Planning Grid</div>
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr><th>Operation</th><th>Product</th><th>Station</th><th>Samples</th><th>Avg Sec</th><th>Target Sec</th><th>Gap</th><th>Priority</th><th>Owner</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="./modules/module-shell.js"></script>
+  <script src="./modules/module-io.js"></script>
+  <script src="./modules/module-data.js"></script>
+  <script src="./modules/module-auth.js"></script>
+  <script src="./modules/module-lang.js"></script>
+  <script src="./modules/module-theme.js"></script>
+  <script>
+    (() => {
+      if (typeof window.VMillAuth === "undefined" || !window.VMillAuth.isLoggedIn()) {
+        location.replace("./login.html");
+        return;
+      }
+
+      const PLAN_NS = "factory_manager_plan_v1";
+      const APP_KEYS = Array.isArray(window.VMillData?.keys?.ALL_APP_KEYS)
+        ? window.VMillData.keys.ALL_APP_KEYS.slice()
+        : ["vmill:app-state:v1"];
+      const WATCH_KEYS = new Set([...APP_KEYS, String(window.VMillData?.keys?.MODULE_KEY || "vmill:module-data:v1")]);
+      const PRIORITY_ORDER = { critical: 4, high: 3, normal: 2, low: 1 };
+      const STATUS_ORDER = { drift: 5, risk: 4, "no-target": 3, "no-data": 2, "on-target": 1 };
+      const $ = (id) => document.getElementById(id);
+      const tt = (key, fallback, vars) => window.VMillLang?.t ? window.VMillLang.t(String(key || ""), String(fallback || ""), vars) : String(fallback || key || "");
+      const num = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+      };
+      const sec = (ms) => {
+        const n = num(ms);
+        return n > 0 ? n / 1000 : 0;
+      };
+      const esc = (v) => String(v ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+      let rowsCache = [];
+      let plansById = new Map();
+
+      function fmt(v, digits = 2) {
+        const n = num(v);
+        return n ? n.toFixed(digits) : "-";
+      }
+
+      function applyTheme(event) {
+        if (window.VMillTheme?.applyTheme) {
+          window.VMillTheme.applyTheme(document, "factory", event?.detail?.theme || null);
+        }
+      }
+
+      function readApp() {
+        return window.VMillData?.readAppState?.({ seedIfMissing: false }) || window.VMillData?.readAppState?.() || null;
+      }
+
+      function getStatus(avgSec, targetSec, sampleCount) {
+        if (!sampleCount || avgSec <= 0) return "no-data";
+        if (!(targetSec > 0)) return "no-target";
+        const ratio = avgSec / targetSec;
+        if (ratio <= 1) return "on-target";
+        if (ratio <= 1.15) return "risk";
+        return "drift";
+      }
+
+      function statusLabel(status) {
+        if (status === "drift") return "Drift";
+        if (status === "risk") return "Risk";
+        if (status === "on-target") return "On Target";
+        if (status === "no-target") return "No Target";
+        return "No Data";
+      }
+
+      function priLabel(priority) {
+        if (priority === "critical") return "Critical";
+        if (priority === "high") return "High";
+        if (priority === "low") return "Low";
+        return "Normal";
+      }
+
+      function cycleDurations(operation) {
+        const out = [];
+        for (const cycle of (Array.isArray(operation?.cycles) ? operation.cycles : [])) {
+          const total = Number(cycle?.totalMs || 0);
+          if (total > 0) {
+            out.push(total);
+            continue;
+          }
+          const sum = (Array.isArray(cycle?.laps) ? cycle.laps : [])
+            .reduce((acc, lap) => acc + Math.max(0, Number(lap?.ms || 0)), 0);
+          if (sum > 0) out.push(sum);
+        }
+        return out;
+      }
+
+      function actionUrl(base, row) {
+        const url = new URL(base, location.href);
+        if (row.id) {
+          url.searchParams.set("operation", row.id);
+          url.searchParams.set("job", row.id);
+        }
+        if (row.stationId) url.searchParams.set("station", row.stationId);
+        if (row.productId) url.searchParams.set("product", row.productId);
+        return url.href;
+      }
+
+      function readPlans() {
+        const map = new Map();
+        for (const record of (window.VMillData?.listRecords?.(PLAN_NS) || [])) {
+          const id = String(record?.id || "").trim();
+          if (!id) continue;
+          map.set(id, {
+            id,
+            targetSec: Number.isFinite(Number(record?.targetSec)) ? Number(record.targetSec) : null,
+            priority: String(record?.priority || "normal").toLowerCase(),
+            owner: String(record?.owner || "").trim(),
+          });
+        }
+        return map;
+      }
+
+      function savePlan(id, patch) {
+        const planId = String(id || "").trim();
+        if (!planId) return;
+        const prev = plansById.get(planId) || { id: planId, targetSec: null, priority: "normal", owner: "" };
+        const next = { ...prev, ...patch, id: planId, updatedAt: new Date().toISOString() };
+        if (!["critical", "high", "normal", "low"].includes(next.priority)) next.priority = "normal";
+        const empty = !(next.targetSec > 0) && !String(next.owner || "") && next.priority === "normal";
+        if (empty) {
+          window.VMillData?.deleteRecord?.(PLAN_NS, planId);
+          plansById.delete(planId);
+          return;
+        }
+        window.VMillData?.upsertRecord?.(PLAN_NS, next);
+        plansById.set(planId, next);
+      }
+
+      function makeRows() {
+        const app = readApp();
+        if (!app) return [];
+        const operations = Array.isArray(app.operations) ? app.operations : (Array.isArray(app.jobs) ? app.jobs : []);
+        const productsById = new Map((app.products || []).map((p) => [String(p?.id || ""), p]));
+        const stationsById = new Map((app.stations || []).map((s) => [String(s?.id || ""), s]));
+        return operations.map((op) => {
+          const id = String(op?.id || "");
+          const plan = plansById.get(id) || { targetSec: null, priority: "normal", owner: "" };
+          const durations = cycleDurations(op);
+          const samples = durations.length;
+          const avgSec = samples ? sec(durations.reduce((a, b) => a + b, 0) / samples) : 0;
+          const targetSec = Number.isFinite(Number(plan.targetSec)) ? Number(plan.targetSec) : null;
+          return {
+            id,
+            name: String(op?.name || "Operation"),
+            code: String(op?.code || ""),
+            productId: String(op?.productId || ""),
+            product: String(productsById.get(String(op?.productId || ""))?.name || productsById.get(String(op?.productId || ""))?.code || "-"),
+            stationId: String(op?.stationId || ""),
+            station: String(stationsById.get(String(op?.stationId || ""))?.name || stationsById.get(String(op?.stationId || ""))?.code || "-"),
+            samples,
+            avgSec,
+            targetSec,
+            gap: (targetSec && samples) ? (avgSec - targetSec) : null,
+            priority: String(plan.priority || "normal"),
+            owner: String(plan.owner || ""),
+            state: getStatus(avgSec, targetSec, samples),
+          };
+        });
+      }
+
+      function fillFilters(rows) {
+        const productSel = $("productSel");
+        const stationSel = $("stationSel");
+        const prevProduct = String(productSel.value || "all");
+        const prevStation = String(stationSel.value || "all");
+        const products = new Map();
+        const stations = new Map();
+        for (const row of rows) {
+          if (row.productId) products.set(row.productId, row.product);
+          if (row.stationId) stations.set(row.stationId, row.station);
+        }
+        productSel.innerHTML = `<option value=\"all\">All (${rows.length})</option>`;
+        stationSel.innerHTML = `<option value=\"all\">All (${rows.length})</option>`;
+        for (const [id, label] of [...products.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1])))) {
+          productSel.insertAdjacentHTML("beforeend", `<option value=\"${esc(id)}\">${esc(label)}</option>`);
+        }
+        for (const [id, label] of [...stations.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1])))) {
+          stationSel.insertAdjacentHTML("beforeend", `<option value=\"${esc(id)}\">${esc(label)}</option>`);
+        }
+        if ([...productSel.options].some((option) => option.value === prevProduct)) productSel.value = prevProduct;
+        if ([...stationSel.options].some((option) => option.value === prevStation)) stationSel.value = prevStation;
+      }
+
+      function activeFilters() {
+        return {
+          product: String($("productSel").value || "all"),
+          station: String($("stationSel").value || "all"),
+          query: String($("searchIn").value || "").trim().toLowerCase(),
+          issuesOnly: !!$("issuesChk").checked,
+        };
+      }
+
+      function matches(row, filters) {
+        if (filters.product !== "all" && row.productId !== filters.product) return false;
+        if (filters.station !== "all" && row.stationId !== filters.station) return false;
+        if (filters.issuesOnly && row.state === "on-target") return false;
+        if (!filters.query) return true;
+        return `${row.name} ${row.product} ${row.station} ${row.owner} ${row.code}`
+          .toLowerCase()
+          .includes(filters.query);
+      }
+
+      function sortRows(rows) {
+        return rows.slice().sort((a, b) =>
+          (STATUS_ORDER[b.state] - STATUS_ORDER[a.state]) ||
+          ((PRIORITY_ORDER[b.priority] || 0) - (PRIORITY_ORDER[a.priority] || 0)) ||
+          (b.samples - a.samples) ||
+          String(a.name).localeCompare(String(b.name))
+        );
+      }
+
+      function render() {
+        plansById = readPlans();
+        rowsCache = makeRows();
+        fillFilters(rowsCache);
+
+        const filters = activeFilters();
+        const rows = sortRows(rowsCache.filter((row) => matches(row, filters)));
+        const withSamples = rows.filter((row) => row.samples > 0);
+        const weightedAvg = withSamples.length
+          ? withSamples.reduce((sum, row) => sum + (row.avgSec * row.samples), 0) / withSamples.reduce((sum, row) => sum + row.samples, 0)
+          : 0;
+        const withTarget = rows.filter((row) => row.samples > 0 && row.targetSec > 0);
+        const onTarget = withTarget.filter((row) => row.state === "on-target").length;
+
+        const drift = rows.filter((row) => row.state === "drift").length;
+        const risk = rows.filter((row) => row.state === "risk").length;
+        const noTarget = rows.filter((row) => row.state === "no-target").length;
+        const noData = rows.filter((row) => row.state === "no-data").length;
+
+        $("kOps").textContent = String(rows.length);
+        $("kOpsHint").textContent = `${withSamples.length} with samples`;
+        $("kAvg").textContent = weightedAvg ? `${fmt(weightedAvg)} s` : "-";
+        $("kAtt").textContent = withTarget.length ? `${((onTarget / withTarget.length) * 100).toFixed(0)}%` : "-";
+        $("kAttHint").textContent = `${onTarget}/${withTarget.length || 0} on target`;
+        $("kMix").textContent = `${drift}/${risk}/${noTarget}/${noData}`;
+        $("statusLine").textContent = `${rows.length} visible operations | ${drift + risk + noTarget + noData} issue(s) | plans: ${plansById.size}`;
+
+        const body = $("rows");
+        if (!rows.length) {
+          body.innerHTML = `<tr><td colspan=\"11\">No operations for current filters.</td></tr>`;
+          return;
+        }
+
+        body.innerHTML = rows.map((row) => {
+          const gap = row.gap == null ? "-" : `${row.gap >= 0 ? "+" : ""}${row.gap.toFixed(2)}`;
+          const ratio = (row.targetSec && row.samples) ? ` (${(row.avgSec / row.targetSec).toFixed(2)}x)` : "";
+          return `<tr id=\"row_${esc(row.id)}\" class=\"state-${esc(row.state)}\">
+            <td><div><strong>${esc(row.name)}</strong></div><div class=\"mono\" style=\"color:var(--muted)\">${esc(row.code || row.id)}</div></td>
+            <td>${esc(row.product)}</td>
+            <td>${esc(row.station)}</td>
+            <td class=\"mono\">${row.samples}</td>
+            <td class=\"mono\">${row.samples ? `${fmt(row.avgSec)} s` : "-"}</td>
+            <td><input class=\"cellIn\" type=\"number\" step=\"0.01\" min=\"0\" data-plan-id=\"${esc(row.id)}\" data-plan-field=\"targetSec\" value=\"${row.targetSec ? esc(row.targetSec) : ""}\" /></td>
+            <td class=\"mono\">${gap}${ratio}</td>
+            <td><select class=\"cellSel\" data-plan-id=\"${esc(row.id)}\" data-plan-field=\"priority\"><option value=\"critical\" ${row.priority === "critical" ? "selected" : ""}>${priLabel("critical")}</option><option value=\"high\" ${row.priority === "high" ? "selected" : ""}>${priLabel("high")}</option><option value=\"normal\" ${row.priority === "normal" ? "selected" : ""}>${priLabel("normal")}</option><option value=\"low\" ${row.priority === "low" ? "selected" : ""}>${priLabel("low")}</option></select></td>
+            <td><input class=\"cellIn\" type=\"text\" data-plan-id=\"${esc(row.id)}\" data-plan-field=\"owner\" value=\"${esc(row.owner)}\" /></td>
+            <td><span class=\"state state-${esc(row.state)}\">${statusLabel(row.state)}</span></td>
+            <td><div class=\"actions\"><a class=\"act\" href=\"${esc(actionUrl("./chrono/chrono.html", row))}\">Chrono</a><a class=\"act\" href=\"${esc(actionUrl("./chrono/chrono_camera.html", row))}\">Camera</a><a class=\"act\" href=\"${esc(actionUrl("./SPaCial.html", row))}\">SPaCial</a></div></td>
+          </tr>`;
+        }).join("");
+      }
+
+      function seedVisible() {
+        const filters = activeFilters();
+        let updated = 0;
+        for (const row of rowsCache.filter((entry) => matches(entry, filters))) {
+          if (!row.samples || row.targetSec) continue;
+          savePlan(row.id, { targetSec: Math.max(0.01, Number((row.avgSec * 0.92).toFixed(2))) });
+          updated += 1;
+        }
+        render();
+        $("statusLine").textContent = `Auto-seeded targets for ${updated} operation(s).`;
+      }
+
+      function clearVisible() {
+        const filters = activeFilters();
+        const ids = rowsCache.filter((entry) => matches(entry, filters)).map((entry) => entry.id);
+        if (!ids.length) return;
+        if (!confirm(`Clear plans for ${ids.length} visible operation(s)?`)) return;
+        let removed = 0;
+        for (const id of ids) {
+          if (window.VMillData?.deleteRecord?.(PLAN_NS, id)) removed += 1;
+        }
+        render();
+        $("statusLine").textContent = `Removed ${removed} plan record(s).`;
+      }
+
+      function exportCsv() {
+        const filters = activeFilters();
+        const rows = sortRows(rowsCache.filter((entry) => matches(entry, filters)));
+        const out = [];
+        out.push(["operation_id", "operation_name", "product", "station", "samples", "avg_sec", "target_sec", "gap_sec", "priority", "owner", "status"].join(","));
+        for (const row of rows) {
+          const cols = [
+            row.id,
+            row.name,
+            row.product,
+            row.station,
+            row.samples,
+            row.samples ? row.avgSec.toFixed(3) : "",
+            row.targetSec ?? "",
+            row.gap != null ? row.gap.toFixed(3) : "",
+            row.priority,
+            row.owner,
+            row.state,
+          ];
+          out.push(cols.map((value) => {
+            const str = String(value ?? "");
+            return /[\",\n]/.test(str) ? `\"${str.replace(/\"/g, "\"\"")}\"` : str;
+          }).join(","));
+        }
+        const blob = new Blob([out.join("\n")], { type: "text/csv;charset=utf-8" });
+        const anchor = document.createElement("a");
+        anchor.href = URL.createObjectURL(blob);
+        anchor.download = `factory_planning_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(anchor.href);
+          anchor.remove();
+        }, 200);
+      }
+
+      function wire() {
+        $("reloadBtn").addEventListener("click", render);
+        $("seedBtn").addEventListener("click", seedVisible);
+        $("clearBtn").addEventListener("click", clearVisible);
+        $("csvBtn").addEventListener("click", exportCsv);
+        $("productSel").addEventListener("change", render);
+        $("stationSel").addEventListener("change", render);
+        $("searchIn").addEventListener("input", render);
+        $("issuesChk").addEventListener("change", render);
+
+        $("rows").addEventListener("change", (event) => {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return;
+          const id = String(target.getAttribute("data-plan-id") || "");
+          const field = String(target.getAttribute("data-plan-field") || "");
+          if (!id || !field) return;
+          if (field === "targetSec") {
+            const value = String(target.value || "").trim();
+            savePlan(id, { targetSec: value ? Number(value) : null });
+          } else if (field === "priority") {
+            savePlan(id, { priority: String(target.value || "normal").toLowerCase() });
+          } else if (field === "owner") {
+            savePlan(id, { owner: String(target.value || "").trim() });
+          }
+          render();
+        });
+
+        $("rows").addEventListener("blur", (event) => {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return;
+          const id = String(target.getAttribute("data-plan-id") || "");
+          const field = String(target.getAttribute("data-plan-field") || "");
+          if (!id || field !== "owner") return;
+          savePlan(id, { owner: String(target.value || "").trim() });
+          render();
+        }, true);
+
+        window.addEventListener("storage", (event) => {
+          if (event.key && WATCH_KEYS.has(event.key)) render();
+        });
+        window.CANBus?.onMessage((msg) => {
+          if (String(msg?.type || "").startsWith("data:")) render();
+        });
+        window.addEventListener("vmill:theme:changed", applyTheme);
+        window.addEventListener("vmill:lang:changed", applyI18n);
+      }
+
+      function applyI18n() {
+        $("title").textContent = tt("hub.mod.factory.name", "Factory Manager");
+        $("subtitle").textContent = tt("hub.mod.factory.desc", "Unified flow manager for products, stations, operations, and capacity targets.");
+        $("productLbl").textContent = tt("common.product", "Product");
+        $("stationLbl").textContent = tt("common.station", "Station");
+        $("searchLbl").textContent = tt("common.search", "Search");
+        $("issuesLbl").textContent = tt("factory.issues_only", "Issues only");
+      }
+
+      applyTheme();
+      applyI18n();
+      wire();
+      render();
+      window.CANBus?.emit("factory:ready", { ns: PLAN_NS }, "factory");
+    })();
+  </script>
+</body>
+</html>

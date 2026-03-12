@@ -14,6 +14,9 @@ import sqlite3
 import threading
 import time
 import uuid
+import io
+import math
+import zipfile
 from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -25,6 +28,7 @@ import socket
 import smtplib
 import sys
 from email.message import EmailMessage
+import xml.etree.ElementTree as ET
 
 def resolve_frozen_root_dir() -> Path:
     """
@@ -63,6 +67,7 @@ else:
     RUNTIME_DIR = ROOT_DIR
 
 PUBLIC_DIR = ROOT_DIR / "public"
+CHRONO_TEMPLATE_DIR = PUBLIC_DIR / "chrono" / "templates"
 DB_PATH = Path(os.environ.get("VMILL_DB_PATH", str(RUNTIME_DIR / "vmill.db"))).expanduser()
 DEFAULT_PORT = int(os.environ.get("PORT", "8080"))
 TOKEN_TTL_HOURS = 24 * 7
@@ -253,6 +258,220 @@ def verify_password(password: str, salt_hex: str, digest_hex: str) -> Tuple[bool
         return False, 0
     except Exception:
         return False, 0
+
+
+XLSX_NS_MAIN = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+XLSX_NS_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+XLSX_NS_PKG_REL = "http://schemas.openxmlformats.org/package/2006/relationships"
+ET.register_namespace("", XLSX_NS_MAIN)
+
+
+def normalize_template_filename(raw: Any) -> str:
+    name = os.path.basename(str(raw or "").strip())
+    if not name:
+        return ""
+    if not name.lower().endswith(".xlsx"):
+        return ""
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", name):
+        return ""
+    return name
+
+
+def excel_col_name(idx1: int) -> str:
+    n = max(1, int(idx1))
+    out = ""
+    while n > 0:
+        rem = (n - 1) % 26
+        out = chr(65 + rem) + out
+        n = (n - 1) // 26
+    return out
+
+
+def excel_ref(col_idx1: int, row_idx1: int) -> str:
+    return f"{excel_col_name(col_idx1)}{max(1, int(row_idx1))}"
+
+
+def cell_ref_key(ref: str) -> Tuple[int, int]:
+    m = re.fullmatch(r"([A-Z]+)(\d+)", str(ref or "").upper().strip())
+    if not m:
+        return (10_000_000, 10_000_000)
+    letters, digits = m.group(1), m.group(2)
+    col = 0
+    for ch in letters:
+        col = col * 26 + (ord(ch) - 64)
+    row = int(digits)
+    return (row, col)
+
+
+def _xlsx_write_cell_value(cell_el: ET.Element, value: Any) -> None:
+    for child in list(cell_el):
+        cell_el.remove(child)
+    if value is None:
+        cell_el.attrib.pop("t", None)
+        return
+    if isinstance(value, dict):
+        formula_raw = value.get("formula")
+        if formula_raw is not None and str(formula_raw).strip() != "":
+            formula = str(formula_raw).strip()
+            if formula.startswith("="):
+                formula = formula[1:]
+            cell_el.attrib.pop("t", None)
+            f_el = ET.SubElement(cell_el, f"{{{XLSX_NS_MAIN}}}f")
+            f_el.text = formula
+            result = value.get("result", None)
+            if isinstance(result, bool):
+                v_el = ET.SubElement(cell_el, f"{{{XLSX_NS_MAIN}}}v")
+                v_el.text = "1" if result else "0"
+            elif isinstance(result, (int, float)) and math.isfinite(float(result)):
+                v_el = ET.SubElement(cell_el, f"{{{XLSX_NS_MAIN}}}v")
+                num = float(result)
+                v_el.text = str(int(num)) if float(int(num)) == num else str(num)
+            return
+        value = value.get("value", "")
+    if isinstance(value, str):
+        text = value
+    elif isinstance(value, bool):
+        text = "1" if value else "0"
+        cell_el.attrib.pop("t", None)
+        v_el = ET.SubElement(cell_el, f"{{{XLSX_NS_MAIN}}}v")
+        v_el.text = text
+        return
+    elif isinstance(value, (int, float)):
+        num = float(value)
+        if not math.isfinite(num):
+            cell_el.attrib.pop("t", None)
+            return
+        text = str(int(num)) if float(int(num)) == num else str(num)
+        cell_el.attrib.pop("t", None)
+        v_el = ET.SubElement(cell_el, f"{{{XLSX_NS_MAIN}}}v")
+        v_el.text = text
+        return
+    else:
+        text = str(value)
+
+    if text == "":
+        cell_el.attrib.pop("t", None)
+        return
+    cell_el.attrib["t"] = "inlineStr"
+    is_el = ET.SubElement(cell_el, f"{{{XLSX_NS_MAIN}}}is")
+    t_el = ET.SubElement(is_el, f"{{{XLSX_NS_MAIN}}}t")
+    if text[:1].isspace() or text[-1:].isspace() or "\n" in text:
+        t_el.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+    t_el.text = text
+
+
+def xlsx_apply_rows_to_sheet(sheet_bytes: bytes, rows: List[Any]) -> bytes:
+    root = ET.fromstring(sheet_bytes)
+    sheet_data = root.find(f"{{{XLSX_NS_MAIN}}}sheetData")
+    if sheet_data is None:
+        sheet_data = ET.SubElement(root, f"{{{XLSX_NS_MAIN}}}sheetData")
+
+    row_map: Dict[int, ET.Element] = {}
+    for row_el in sheet_data.findall(f"{{{XLSX_NS_MAIN}}}row"):
+        try:
+            rid = int(str(row_el.attrib.get("r", "0")).strip() or "0")
+        except Exception:
+            rid = 0
+        if rid > 0:
+            row_map[rid] = row_el
+
+    max_rows = min(4000, len(rows or []))
+    for ridx in range(1, max_rows + 1):
+        raw_row = rows[ridx - 1]
+        values = raw_row if isinstance(raw_row, list) else []
+        values = values[:256]
+        row_el = row_map.get(ridx)
+        if row_el is None:
+            row_el = ET.Element(f"{{{XLSX_NS_MAIN}}}row", {"r": str(ridx)})
+            sheet_data.append(row_el)
+            row_map[ridx] = row_el
+
+        cell_map: Dict[str, ET.Element] = {}
+        for cell_el in row_el.findall(f"{{{XLSX_NS_MAIN}}}c"):
+            ref = str(cell_el.attrib.get("r", "")).upper().strip()
+            if ref:
+                cell_map[ref] = cell_el
+
+        for cidx in range(1, len(values) + 1):
+            ref = excel_ref(cidx, ridx)
+            cell_el = cell_map.get(ref)
+            if cell_el is None:
+                cell_el = ET.Element(f"{{{XLSX_NS_MAIN}}}c", {"r": ref})
+                row_el.append(cell_el)
+                cell_map[ref] = cell_el
+            _xlsx_write_cell_value(cell_el, values[cidx - 1])
+
+        cells = row_el.findall(f"{{{XLSX_NS_MAIN}}}c")
+        sorted_cells = sorted(cells, key=lambda c: cell_ref_key(str(c.attrib.get("r", ""))))
+        if cells != sorted_cells:
+            for c in cells:
+                row_el.remove(c)
+            for c in sorted_cells:
+                row_el.append(c)
+
+    row_els = sheet_data.findall(f"{{{XLSX_NS_MAIN}}}row")
+    sorted_rows = sorted(
+        row_els,
+        key=lambda r: int(str(r.attrib.get("r", "0")).strip() or "0"),
+    )
+    if row_els != sorted_rows:
+        for r in row_els:
+            sheet_data.remove(r)
+        for r in sorted_rows:
+            sheet_data.append(r)
+
+    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+
+def xlsx_sheet_target_map(zf: zipfile.ZipFile) -> Dict[str, str]:
+    ns = {"m": XLSX_NS_MAIN}
+    wb = ET.fromstring(zf.read("xl/workbook.xml"))
+    rels = ET.fromstring(zf.read("xl/_rels/workbook.xml.rels"))
+    rel_map = {
+        str(rel.attrib.get("Id", "")): str(rel.attrib.get("Target", ""))
+        for rel in rels.findall(f".//{{{XLSX_NS_PKG_REL}}}Relationship")
+    }
+    out: Dict[str, str] = {}
+    for sheet in wb.findall(".//m:sheets/m:sheet", ns):
+        name = str(sheet.attrib.get("name", "")).strip()
+        rid = str(sheet.attrib.get(f"{{{XLSX_NS_REL}}}id", "")).strip()
+        if not name or not rid:
+            continue
+        target = rel_map.get(rid, "").strip()
+        if not target:
+            continue
+        if not target.startswith("xl/"):
+            target = f"xl/{target.lstrip('/')}"
+        out[name] = target
+    return out
+
+
+def build_chrono_template_xlsx(template_path: Path, sheets_payload: List[Dict[str, Any]]) -> bytes:
+    payload_by_name: Dict[str, List[Any]] = {}
+    for entry in sheets_payload:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name", "")).strip()
+        rows = entry.get("rows")
+        if not name or not isinstance(rows, list):
+            continue
+        payload_by_name[name] = rows
+
+    with zipfile.ZipFile(template_path, "r") as zin:
+        sheet_targets = xlsx_sheet_target_map(zin)
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zout:
+            for info in zin.infolist():
+                data = zin.read(info.filename)
+                match_name = None
+                for sheet_name, target in sheet_targets.items():
+                    if target == info.filename and sheet_name in payload_by_name:
+                        match_name = sheet_name
+                        break
+                if match_name:
+                    data = xlsx_apply_rows_to_sheet(data, payload_by_name[match_name])
+                zout.writestr(info, data)
+        return buf.getvalue()
 
 
 class DB:
@@ -629,6 +848,23 @@ class VMillHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.safe_write(raw)
 
+    def send_bytes(
+        self,
+        status: HTTPStatus,
+        raw: bytes,
+        content_type: str = "application/octet-stream",
+        download_name: str = "",
+    ) -> None:
+        data = raw if isinstance(raw, (bytes, bytearray)) else bytes(raw or b"")
+        self.send_response(status)
+        self.send_header("Content-Type", str(content_type or "application/octet-stream"))
+        self.send_header("Content-Length", str(len(data)))
+        if download_name:
+            safe = re.sub(r"[^A-Za-z0-9._-]+", "_", str(download_name or "")).strip("._") or "download.bin"
+            self.send_header("Content-Disposition", f'attachment; filename="{safe}"')
+        self.end_headers()
+        self.safe_write(bytes(data))
+
     def safe_write(self, raw: bytes) -> bool:
         try:
             self.wfile.write(raw)
@@ -761,6 +997,13 @@ class VMillHandler(BaseHTTPRequestHandler):
             if not user:
                 return
             self.api_sync_push(user)
+            return
+
+        if parts == ["api", "reports", "chrono", "template-xlsx"] and method == "POST":
+            user = self.require_auth("operator")
+            if not user:
+                return
+            self.api_chrono_template_xlsx()
             return
 
         # Nodes special actions
@@ -1277,6 +1520,69 @@ class VMillHandler(BaseHTTPRequestHandler):
                 "rev": db.last_sync_rev(),
                 "workspace": {"id": "default", "updated_at": ts, "app": payload.get("app"), "modules": payload.get("modules")},
             },
+        )
+
+    def api_chrono_template_xlsx(self) -> None:
+        try:
+            body = self.read_json_body()
+        except ValueError:
+            return
+
+        template_name = normalize_template_filename(body.get("template"))
+        if not template_name:
+            template_name = "chrono_report_template_v1.xlsx"
+        template_path = (CHRONO_TEMPLATE_DIR / template_name).resolve()
+        if not template_path.exists() or not template_path.is_file():
+            self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "template_not_found", "template": template_name})
+            return
+        if not str(template_path).startswith(str(CHRONO_TEMPLATE_DIR.resolve())):
+            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_template"})
+            return
+
+        raw_sheets = body.get("sheets")
+        if not isinstance(raw_sheets, list) or not raw_sheets:
+            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "missing_sheets"})
+            return
+
+        sheets_payload: List[Dict[str, Any]] = []
+        for entry in raw_sheets[:8]:
+            if not isinstance(entry, dict):
+                continue
+            name = str(entry.get("name", "")).strip()
+            rows = entry.get("rows")
+            if not name or not isinstance(rows, list):
+                continue
+            clean_rows: List[List[Any]] = []
+            for row in rows[:4000]:
+                if isinstance(row, list):
+                    clean_rows.append(row[:256])
+                else:
+                    clean_rows.append([])
+            sheets_payload.append({"name": name[:31], "rows": clean_rows})
+
+        if not sheets_payload:
+            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_sheets"})
+            return
+
+        download_name = str(body.get("filename", "")).strip()
+        if not download_name.lower().endswith(".xlsx"):
+            download_name = f"{download_name}.xlsx" if download_name else "chrono_report.xlsx"
+        download_name = re.sub(r"[^A-Za-z0-9._-]+", "_", download_name).strip("._") or "chrono_report.xlsx"
+
+        try:
+            xlsx_bytes = build_chrono_template_xlsx(template_path, sheets_payload)
+        except Exception as exc:
+            self.send_json(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {"ok": False, "error": "template_fill_failed", "detail": str(exc)},
+            )
+            return
+
+        self.send_bytes(
+            HTTPStatus.OK,
+            xlsx_bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            download_name=download_name,
         )
 
     def collect_node_subtree_ids(self, root_id: str) -> List[str]:
