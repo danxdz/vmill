@@ -1821,6 +1821,7 @@
         { id: "chrono", name: "Chrono Study", desc: "Timing, timeline editing, KPI, and cycle analysis.", href: "./chrono/chrono.html", status: "ready", tags: ["time-study", "timeline", "kpi"] },
         { id: "chrono-camera", name: "Chrono Camera", desc: "Camera-assisted capture with sequence marks and bookmark export.", href: "./chrono/chrono_camera.html", status: "ready", tags: ["capture", "camera", "bookmarks"] },
         { id: "spacial", name: "SPaCial", desc: "SPC analytics with control limits, rule flags, and offline backups.", href: "./SPaCial.html", status: "ready", tags: ["spc", "quality", "control-chart", "offline"] },
+        { id: "blueprint-manager", name: "Drawing Manager", desc: "Product-level drawings, OCR sources, and master annotations shared into SPaCial routes.", href: "./blueprint_manager.html", status: "ready", tags: ["drawings", "ocr", "annotations", "product-docs"] },
         { id: "factory", name: "Factory Manager", desc: "Unified flow manager for products, stations, operations, and capacity targets.", href: "./factory_manager.html", status: "ready", tags: ["factory", "operations", "capacity", "planning"] },
         { id: "shop-tree", name: "Shop Organizer", desc: "Recursive shop hierarchy with node CRUD, linked jobs, and drag reparenting.", href: "./shop_tree.html", status: "ready", tags: ["shop", "tree", "nodes", "crud"] },
         { id: "records", name: "Records Manager", desc: "Dynamic record CRUD forms generated from selected system category fields.", href: "./records_manager.html", status: "ready", tags: ["records", "crud", "forms", "schema"] },
@@ -5679,8 +5680,7 @@
             if (window.VMillData?.loadDemoAppState) {
               try {
                 await window.VMillData.loadDemoAppState(preset);
-                renderOverview();
-                renderStationsJobs();
+                requestHubRender({ overview: true, jobs: true });
                 return;
               } catch (err) {
                 console.warn("Seed demo preset load failed, fallback to local default seed.", err);
@@ -5691,8 +5691,7 @@
               window.VMillData.writeAppState(window.VMillData.createDefaultAppState());
               window.VMillData?.seedRoutesForCurrentApp?.({ overwrite: true, pruneMissing: true });
             }
-            renderOverview();
-            renderStationsJobs();
+            requestHubRender({ overview: true, jobs: true });
           } catch (err) {
             console.error("Seed demo failed:", err);
             alert(tt("hub.alert.seedDemoFailed", "Seed demo failed: {err}", { err: err?.message || "unknown error" }));

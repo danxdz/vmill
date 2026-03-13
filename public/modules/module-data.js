@@ -732,8 +732,19 @@
   function readAppState(options = {}) {
     const seedIfMissing = options?.seedIfMissing !== false;
     const syncMirrors = options?.syncMirrors === true;
+    const primary = normalizeImportedAppState(readRawJsonByKey(APP_KEY));
+    if (primary) {
+      if (syncMirrors) {
+        const raw = JSON.stringify(primary);
+        for (const key of ALL_APP_KEYS) {
+          try { localStorage.setItem(key, raw); } catch {}
+        }
+        writeWindowAppState(primary);
+      }
+      return primary;
+    }
     const candidates = [];
-    for (const key of ALL_APP_KEYS) {
+    for (const key of LEGACY_APP_KEYS) {
       const parsed = normalizeImportedAppState(readRawJsonByKey(key));
       if (!parsed) continue;
       candidates.push({ key, state: parsed, stamp: stateStamp(parsed) });
@@ -765,7 +776,7 @@
     return best.state;
   }
 
-  function writeAppState(next) {
+  function writeAppState(next, options = {}) {
     const normalizedBase = normalizeImportedAppState(next);
     if (!normalizedBase) return;
     const normalized = ensureStateMeta(normalizedBase);
@@ -775,9 +786,11 @@
       try { localStorage.setItem(key, raw); } catch {}
     }
     writeWindowAppState(canonical);
-    window.CANBus?.emit("data:app:updated", { key: APP_KEY, mirrors: LEGACY_APP_KEYS.slice() }, "module-data");
-    if (!syncState.applyingRemote) {
-      markDirty("app", "app-write");
+    if (options?.emit !== false) {
+      window.CANBus?.emit("data:app:updated", { key: APP_KEY, mirrors: LEGACY_APP_KEYS.slice() }, "module-data");
+    }
+    if (!syncState.applyingRemote && options?.markDirty !== false) {
+      markDirty("app", String(options?.reason || "app-write"));
     }
   }
 
@@ -843,9 +856,9 @@
           tries.push(`${candidate} -> invalid app/snapshot format`);
           continue;
         }
-        writeAppState(normalized);
-        seedRoutesForState(normalized, { overwrite: true, pruneMissing: true });
-        return { state: normalized, source: candidate };
+        const imported = importJsonPayload(normalized, { seedRoutes: true, seedOverwrite: true, seedPrune: true });
+        const appState = readAppState({ seedIfMissing: false }) || normalized;
+        return { state: appState, source: candidate, imported };
       } catch (err) {
         tries.push(`${candidate} -> ${err?.message || "fetch failed"}`);
       }
@@ -964,7 +977,13 @@
       else target.push({ createdAt: new Date().toISOString(), ...route, updatedAt: new Date().toISOString() });
       changed += 1;
     }
-    if (changed > 0) writeModuleState(st);
+    if (changed > 0) {
+      writeModuleState(st, {
+        emit: options?.emit !== false,
+        markDirty: options?.markDirty !== false,
+        reason: options?.reason || "routes-seeded",
+      });
+    }
     return changed;
   }
 
@@ -978,22 +997,22 @@
     let raw = null;
     try { raw = localStorage.getItem(MODULE_KEY); } catch {}
     const fromLs = ensureModuleState(safeParse(raw, {}), { touchUpdated: false });
+    if (raw) return fromLs;
     const fromWinRaw = readWindowModuleState();
     if (!fromWinRaw) return fromLs;
     const fromWin = ensureModuleState(fromWinRaw, { touchUpdated: false });
-    const lsTs = Date.parse(String(fromLs?.meta?.updatedAt || ""));
-    const winTs = Date.parse(String(fromWin?.meta?.updatedAt || ""));
-    if (Number.isFinite(winTs) && (!Number.isFinite(lsTs) || winTs > lsTs)) return fromWin;
-    return fromLs;
+    return fromWin;
   }
 
-  function writeModuleState(next) {
+  function writeModuleState(next, options = {}) {
     const st = ensureModuleState(next, { touchUpdated: true });
     try { localStorage.setItem(MODULE_KEY, JSON.stringify(st)); } catch {}
     writeWindowModuleState(st);
-    window.CANBus?.emit("data:module:updated", { key: MODULE_KEY }, "module-data");
-    if (!syncState.applyingRemote) {
-      markDirty("modules", "module-write");
+    if (options?.emit !== false) {
+      window.CANBus?.emit("data:module:updated", { key: MODULE_KEY }, "module-data");
+    }
+    if (!syncState.applyingRemote && options?.markDirty !== false) {
+      markDirty("modules", String(options?.reason || "module-write"));
     }
     return st;
   }
@@ -2459,6 +2478,11 @@
       importedRoutes: 0,
       seededRoutes: 0,
     };
+    const batchedWriteOptions = {
+      emit: false,
+      markDirty: false,
+      reason: String(options?.reason || "snapshot-import"),
+    };
     if (Array.isArray(src)) {
       result.mode = "routes-array";
       result.importedRoutes = importRouteRecords(src, { replace: options?.replaceRoutes === true });
@@ -2471,29 +2495,35 @@
       const appPayload = src.app || src.state || src.data?.app || null;
       const modulesPayload = src.modules || src.data?.modules || null;
       if (appPayload) {
-        writeAppState(appPayload);
+        writeAppState(appPayload, batchedWriteOptions);
         result.importedApp = true;
       }
       if (modulesPayload) {
-        writeModuleState(modulesPayload);
+        writeModuleState(modulesPayload, batchedWriteOptions);
         result.importedModules = true;
       }
       if (result.importedApp && options?.seedRoutes !== false) {
         result.seededRoutes = seedRoutesForCurrentApp({
           overwrite: options?.seedOverwrite === true,
           pruneMissing: options?.seedPrune !== false,
+          emit: false,
+          markDirty: false,
+          reason: batchedWriteOptions.reason,
         });
       }
     } else {
       const app = normalizeImportedAppState(src);
       if (app) {
         result.mode = "app";
-        writeAppState(app);
+        writeAppState(app, batchedWriteOptions);
         result.importedApp = true;
         if (options?.seedRoutes !== false) {
           result.seededRoutes = seedRoutesForState(app, {
             overwrite: options?.seedOverwrite === true,
             pruneMissing: options?.seedPrune !== false,
+            emit: false,
+            markDirty: false,
+            reason: batchedWriteOptions.reason,
           });
         }
       } else if (Array.isArray(src.routes)) {
@@ -2505,6 +2535,14 @@
       } else {
         throw new Error("Unsupported JSON structure. Expected app, snapshot, or route JSON.");
       }
+    }
+    if (result.importedApp) {
+      window.CANBus?.emit("data:app:updated", { key: APP_KEY, mirrors: LEGACY_APP_KEYS.slice() }, "module-data");
+      if (!syncState.applyingRemote) markDirty("app", batchedWriteOptions.reason);
+    }
+    if (result.importedModules || result.seededRoutes > 0) {
+      window.CANBus?.emit("data:module:updated", { key: MODULE_KEY }, "module-data");
+      if (!syncState.applyingRemote) markDirty("modules", batchedWriteOptions.reason);
     }
     window.CANBus?.emit("data:snapshot:imported", result, "module-data");
     return result;

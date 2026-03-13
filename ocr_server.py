@@ -2725,12 +2725,25 @@ async def pdf_to_image(
     safe_dpi = max(120, min(400, int(dpi or 220)))
     temp_pdf_path = create_secure_temp_file(".pdf")
     temp_image_path = None
+    page_width_pt = 0.0
+    page_height_pt = 0.0
     try:
         content = await file.read()
         if not content:
             raise HTTPException(status_code=400, detail="Empty PDF upload")
         with open(temp_pdf_path, "wb") as f:
             f.write(content)
+
+        try:
+            doc = fitz.open(temp_pdf_path)
+            if 0 <= safe_page < len(doc):
+                rect = doc[safe_page].rect
+                page_width_pt = float(rect.width or 0.0)
+                page_height_pt = float(rect.height or 0.0)
+            doc.close()
+        except Exception:
+            page_width_pt = 0.0
+            page_height_pt = 0.0
 
         temp_image_path = convert_pdf_to_image(temp_pdf_path, page_number=safe_page, dpi=safe_dpi)
         with open(temp_image_path, "rb") as img_f:
@@ -2754,6 +2767,8 @@ async def pdf_to_image(
                     "height": int(height),
                     "page": int(safe_page),
                     "dpi": int(safe_dpi),
+                    "page_width_pt": float(page_width_pt),
+                    "page_height_pt": float(page_height_pt),
                     "source_name": os.path.basename(filename or "document.pdf"),
                 },
             }
@@ -2841,6 +2856,7 @@ def make_annotation_thumbnail(
     image_path: str,
     bbox,
     *,
+    rotation: int = 0,
     max_size: int = 160,
     padding: int = 8,
     jpeg_quality: int = 85,
@@ -2864,6 +2880,13 @@ def make_annotation_thumbnail(
     crop = img[y1:y2, x1:x2]
     if crop is None or crop.size == 0:
         return None
+    rotation = normalize_cardinal_rotation(rotation, 0)
+    if rotation == 90:
+        crop = cv2.rotate(crop, cv2.ROTATE_90_CLOCKWISE)
+    elif rotation == 180:
+        crop = cv2.rotate(crop, cv2.ROTATE_180)
+    elif rotation == 270:
+        crop = cv2.rotate(crop, cv2.ROTATE_90_COUNTERCLOCKWISE)
     ch, cw = crop.shape[:2]
     wanted = max(24, int(max_size or 160))
     scale = min(1.0, wanted / max(cw, ch))
@@ -2888,6 +2911,7 @@ def make_annotation_thumbnail(
             "width": int(x2 - x1),
             "height": int(y2 - y1),
         },
+        "rotation": int(rotation),
     }
 
 
@@ -2899,6 +2923,7 @@ async def annotation_thumbnail(request: dict = Body(...)):
     max_size = int(request.get("max_size", 160) or 160)
     padding = int(request.get("padding", 8) or 8)
     quality = int(request.get("quality", 85) or 85)
+    rotation = normalize_cardinal_rotation(request.get("rotation", 0), 0)
 
     temp_path = decode_image_data_to_temp(image_data, suffix=".jpg")
     try:
@@ -2909,6 +2934,7 @@ async def annotation_thumbnail(request: dict = Body(...)):
         thumb = make_annotation_thumbnail(
             temp_path,
             normalized_bbox,
+            rotation=rotation,
             max_size=max_size,
             padding=padding,
             jpeg_quality=quality,
@@ -2972,9 +2998,11 @@ async def annotation_click_ocr(request: dict = Body(...)):
         }
         thumb = None
         if want_thumb:
+            thumb_rotation = normalize_cardinal_rotation((360 - int(payload_zone.get("rotation", rotation) or 0)) % 360, 0)
             thumb = make_annotation_thumbnail(
                 temp_path,
                 bbox,
+                rotation=thumb_rotation,
                 max_size=max_thumb,
                 padding=thumb_padding,
                 jpeg_quality=85,
@@ -4810,6 +4838,6 @@ async def validate_training_sample(sample_id: str):
 if __name__ == "__main__":
     import uvicorn
     ensure_single_ocr_server_instance()
-    # Get port from environment variable (for Hugging Face Spaces) or default to 8000
-    port = int(os.getenv("PORT", 8000))
+    # Prefer OCR_PORT for local/portable OCR runs, then PORT for hosting platforms.
+    port = int(os.getenv("OCR_PORT") or os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)

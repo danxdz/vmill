@@ -264,6 +264,7 @@
     if (p.includes("/chrono/")) return "chrono";
     if (p.includes("/vmill_hub.html")) return "hub";
     if (p.includes("/SPaCial.html")) return "spacial";
+    if (p.includes("/blueprint_manager.html")) return "blueprints";
     if (p.includes("/cnc_sim.html")) return "cnc-launch";
     return "root";
   }
@@ -282,6 +283,7 @@
           chrono: "./chrono.html",
           camera: "./chrono_camera.html",
           spacial: "../SPaCial.html",
+          blueprints: "../blueprint_manager.html",
           factory: "../factory_manager.html",
           contas: "../contas_calc.html",
           shop: "../shop_tree.html",
@@ -297,6 +299,7 @@
           chrono: "./chrono/chrono.html",
           camera: "./chrono/chrono_camera.html",
           spacial: "./SPaCial.html",
+          blueprints: "./blueprint_manager.html",
           factory: "./factory_manager.html",
           contas: "./contas_calc.html",
           shop: "./shop_tree.html",
@@ -311,6 +314,7 @@
         chrono: "./public/chrono/chrono.html",
         camera: "./public/chrono/chrono_camera.html",
         spacial: "./public/SPaCial.html",
+        blueprints: "./public/blueprint_manager.html",
         factory: "./public/factory_manager.html",
         contas: "./public/contas_calc.html",
         shop: "./public/shop_tree.html",
@@ -326,6 +330,7 @@
         chrono: "./chrono.html",
         camera: "./chrono_camera.html",
         spacial: "../SPaCial.html",
+        blueprints: "../blueprint_manager.html",
         factory: "../factory_manager.html",
         contas: "../contas_calc.html",
         shop: "../shop_tree.html",
@@ -340,6 +345,7 @@
       chrono: "/chrono/chrono.html",
       camera: "/chrono/chrono_camera.html",
       spacial: "/SPaCial.html",
+      blueprints: "/blueprint_manager.html",
       factory: "/factory_manager.html",
       contas: "/contas_calc.html",
       shop: "/shop_tree.html",
@@ -356,6 +362,7 @@
     { id: "chrono", labelKey: "hub.dock.chrono", fallback: "Chrono", route: ROUTES.chrono },
     { id: "chrono-camera", labelKey: "hub.dock.camera", fallback: "Camera", route: ROUTES.camera },
     { id: "spacial", labelKey: "hub.dock.spacial", fallback: "SPaCial", route: ROUTES.spacial },
+    { id: "blueprint-manager", labelKey: "", fallback: "Drawings", route: ROUTES.blueprints },
     { id: "factory", labelKey: "hub.dock.factory", fallback: "Factory", route: ROUTES.factory },
     { id: "contas", labelKey: "hub.dock.contas", fallback: "Contas", route: ROUTES.contas },
     { id: "shop-tree", labelKey: "hub.dock.shopTree", fallback: "Shop", route: ROUTES.shop, minRole: "admin" },
@@ -400,6 +407,7 @@
     if (p.includes("/chrono/chrono_camera.html")) return "chrono-camera";
     if (p.includes("/chrono/chrono.html")) return "chrono";
     if (p.includes("/SPaCial.html")) return "spacial";
+    if (p.includes("/blueprint_manager.html")) return "blueprint-manager";
     if (p.includes("/factory_manager.html")) return "factory";
     if (p.includes("/contas_calc.html")) return "contas";
     if (p.includes("/shop_tree.html")) return "shop-tree";
@@ -1298,7 +1306,7 @@
       const activeJob = ctx.jobs.find((j) => String(j.id || "") === activeJobId) || null;
       const activeStationId = String(activeJob?.stationId || railStation?.value || ctx.stationId || "");
       const activeStation = ctx.stations.find((s) => String(s.id || "") === activeStationId) || null;
-      const ids = ["hub", "chrono", "chrono-camera", "spacial", "can-bus", "translations", "theme"];
+      const ids = ["hub", "chrono", "chrono-camera", "spacial", "blueprint-manager", "can-bus", "translations", "theme"];
       for (const id of ids) {
         const mod = MODULES.find((m) => m.id === id);
         if (!mod) continue;

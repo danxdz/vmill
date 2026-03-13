@@ -421,6 +421,7 @@
         autoSaveTimers: new Map(),
         saveLocks: new Set(),
         recentSaveFingerprintAt: new Map(),
+        loadTimer: 0,
       };
 
       const el = {
@@ -1233,6 +1234,14 @@
         }
         renderAll();
       }
+
+      function queueLoad(delay = 40) {
+        if (state.loadTimer) clearTimeout(state.loadTimer);
+        state.loadTimer = window.setTimeout(() => {
+          state.loadTimer = 0;
+          void loadAll();
+        }, Math.max(0, Number(delay || 0)));
+      }
       async function saveInlineRow(recordId, rowEl, isNew = false) {
         const type = findType(state.selectedTypeId);
         if (!type || !(rowEl instanceof HTMLElement)) return;
@@ -1491,7 +1500,7 @@
           const t = String(msg?.type || "");
           if (t === "data:sync:status") return;
           if (t === "data:module:updated" || t === "data:app:updated" || t === "shop:tree:changed" || t.startsWith("shop:")) {
-            void loadAll();
+            queueLoad(60);
           }
         });
 
@@ -1502,7 +1511,7 @@
             return;
           }
           if (k === "vmill:module-data:v1" || k === "vmill:app-state:v1") {
-            void loadAll();
+            queueLoad(60);
           }
         });
 

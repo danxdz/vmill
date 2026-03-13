@@ -1,0 +1,61 @@
+{
+  "template": "spacial_autocontrol_template.xlsx",
+  "version": 1,
+  "notes": [
+    "Based on the customer-provided EXAMPLE.xlsx workbook.",
+    "SPaCial fills value cells only so layout, merges, styles, print setup, and validations stay untouched.",
+    "PV contains the combined operation list.",
+    "TCN OP 1-2-3 uses up to four operation files split across the existing sections.",
+    "APRES RECTIF uses the currently selected file, or a file whose name suggests rectification if present.",
+    "Data sheet updates the instrument list used by workbook validations."
+  ],
+  "sheets": {
+    "PV": {
+      "header_cells": ["D2", "D3", "D4", "F7"],
+      "table_start_row": 15,
+      "table_end_row": 50,
+      "columns": {
+        "point": "A",
+        "characteristic": "B",
+        "nominal": "C",
+        "tol_min": "D",
+        "tol_max": "E",
+        "instrument": "P",
+        "instrument_id": "R",
+        "operator": "S",
+        "date": "T",
+        "result": "U"
+      }
+    },
+    " TCN OP 1-2-3": {
+      "header_cells": ["D2", "D3", "D4"],
+      "sections": [
+        { "start_row": 9, "end_row": 15 },
+        { "start_row": 20, "end_row": 34 },
+        { "start_row": 39, "end_row": 40 },
+        { "start_row": 45, "end_row": 48 }
+      ]
+    },
+    "APRES RECTIF": {
+      "header_cells": ["D2", "D3", "D4", "F7"],
+      "table_start_row": 15,
+      "table_end_row": 22,
+      "columns": {
+        "point": "A",
+        "characteristic": "B",
+        "nominal": "C",
+        "tol_min": "D",
+        "tol_max": "E",
+        "instrument": "K",
+        "instrument_id": "M",
+        "operator": "N",
+        "date": "O",
+        "result": "P"
+      }
+    },
+    "Data": {
+      "start_row": 2,
+      "column": "A"
+    }
+  }
+}

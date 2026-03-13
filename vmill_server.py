@@ -68,6 +68,7 @@ else:
 
 PUBLIC_DIR = ROOT_DIR / "public"
 CHRONO_TEMPLATE_DIR = PUBLIC_DIR / "chrono" / "templates"
+SPACIAL_TEMPLATE_DIR = PUBLIC_DIR / "spacial" / "templates"
 DB_PATH = Path(os.environ.get("VMILL_DB_PATH", str(RUNTIME_DIR / "vmill.db"))).expanduser()
 DEFAULT_PORT = int(os.environ.get("PORT", "8080"))
 TOKEN_TTL_HOURS = 24 * 7
@@ -423,6 +424,73 @@ def xlsx_apply_rows_to_sheet(sheet_bytes: bytes, rows: List[Any]) -> bytes:
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
 
 
+def xlsx_apply_cells_to_sheet(sheet_bytes: bytes, cells_payload: List[Dict[str, Any]]) -> bytes:
+    root = ET.fromstring(sheet_bytes)
+    sheet_data = root.find(f"{{{XLSX_NS_MAIN}}}sheetData")
+    if sheet_data is None:
+        sheet_data = ET.SubElement(root, f"{{{XLSX_NS_MAIN}}}sheetData")
+
+    row_map: Dict[int, ET.Element] = {}
+    row_cells_map: Dict[int, Dict[str, ET.Element]] = {}
+    for row_el in sheet_data.findall(f"{{{XLSX_NS_MAIN}}}row"):
+        try:
+            rid = int(str(row_el.attrib.get("r", "0")).strip() or "0")
+        except Exception:
+            rid = 0
+        if rid <= 0:
+            continue
+        row_map[rid] = row_el
+        cell_map: Dict[str, ET.Element] = {}
+        for cell_el in row_el.findall(f"{{{XLSX_NS_MAIN}}}c"):
+            ref = str(cell_el.attrib.get("r", "")).upper().strip()
+            if ref:
+                cell_map[ref] = cell_el
+        row_cells_map[rid] = cell_map
+
+    for entry in cells_payload[:20_000]:
+        if not isinstance(entry, dict):
+            continue
+        ref = str(entry.get("ref", "")).upper().strip()
+        row_idx, _col_idx = cell_ref_key(ref)
+        if row_idx >= 10_000_000 or not ref:
+            continue
+        row_el = row_map.get(row_idx)
+        if row_el is None:
+            row_el = ET.Element(f"{{{XLSX_NS_MAIN}}}row", {"r": str(row_idx)})
+            sheet_data.append(row_el)
+            row_map[row_idx] = row_el
+            row_cells_map[row_idx] = {}
+        cell_map = row_cells_map.setdefault(row_idx, {})
+        cell_el = cell_map.get(ref)
+        if cell_el is None:
+            cell_el = ET.Element(f"{{{XLSX_NS_MAIN}}}c", {"r": ref})
+            row_el.append(cell_el)
+            cell_map[ref] = cell_el
+        _xlsx_write_cell_value(cell_el, entry.get("value"))
+
+    for row_idx, row_el in row_map.items():
+        cells = row_el.findall(f"{{{XLSX_NS_MAIN}}}c")
+        sorted_cells = sorted(cells, key=lambda c: cell_ref_key(str(c.attrib.get("r", ""))))
+        if cells != sorted_cells:
+            for c in cells:
+                row_el.remove(c)
+            for c in sorted_cells:
+                row_el.append(c)
+
+    row_els = sheet_data.findall(f"{{{XLSX_NS_MAIN}}}row")
+    sorted_rows = sorted(
+        row_els,
+        key=lambda r: int(str(r.attrib.get("r", "0")).strip() or "0"),
+    )
+    if row_els != sorted_rows:
+        for r in row_els:
+            sheet_data.remove(r)
+        for r in sorted_rows:
+            sheet_data.append(r)
+
+    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+
 def xlsx_sheet_target_map(zf: zipfile.ZipFile) -> Dict[str, str]:
     ns = {"m": XLSX_NS_MAIN}
     wb = ET.fromstring(zf.read("xl/workbook.xml"))
@@ -446,16 +514,23 @@ def xlsx_sheet_target_map(zf: zipfile.ZipFile) -> Dict[str, str]:
     return out
 
 
-def build_chrono_template_xlsx(template_path: Path, sheets_payload: List[Dict[str, Any]]) -> bytes:
-    payload_by_name: Dict[str, List[Any]] = {}
+def build_template_xlsx(template_path: Path, sheets_payload: List[Dict[str, Any]]) -> bytes:
+    payload_by_name: Dict[str, Dict[str, Any]] = {}
     for entry in sheets_payload:
         if not isinstance(entry, dict):
             continue
         name = str(entry.get("name", "")).strip()
-        rows = entry.get("rows")
-        if not name or not isinstance(rows, list):
+        if not name:
             continue
-        payload_by_name[name] = rows
+        rows = entry.get("rows")
+        cells = entry.get("cells")
+        if not isinstance(rows, list):
+            rows = []
+        if not isinstance(cells, list):
+            cells = []
+        if not rows and not cells:
+            continue
+        payload_by_name[name] = {"rows": rows, "cells": cells}
 
     with zipfile.ZipFile(template_path, "r") as zin:
         sheet_targets = xlsx_sheet_target_map(zin)
@@ -469,9 +544,19 @@ def build_chrono_template_xlsx(template_path: Path, sheets_payload: List[Dict[st
                         match_name = sheet_name
                         break
                 if match_name:
-                    data = xlsx_apply_rows_to_sheet(data, payload_by_name[match_name])
+                    payload = payload_by_name[match_name]
+                    rows = payload.get("rows") or []
+                    cells = payload.get("cells") or []
+                    if rows:
+                        data = xlsx_apply_rows_to_sheet(data, rows)
+                    if cells:
+                        data = xlsx_apply_cells_to_sheet(data, cells)
                 zout.writestr(info, data)
         return buf.getvalue()
+
+
+def build_chrono_template_xlsx(template_path: Path, sheets_payload: List[Dict[str, Any]]) -> bytes:
+    return build_template_xlsx(template_path, sheets_payload)
 
 
 class DB:
@@ -1005,6 +1090,12 @@ class VMillHandler(BaseHTTPRequestHandler):
                 return
             self.api_chrono_template_xlsx()
             return
+        if parts == ["api", "reports", "spacial", "template-xlsx"] and method == "POST":
+            user = self.require_auth("operator")
+            if not user:
+                return
+            self.api_spacial_template_xlsx()
+            return
 
         # Nodes special actions
         if len(parts) == 4 and parts[0] == "api" and parts[1] == "nodes" and parts[3] == "clone" and method == "POST":
@@ -1528,49 +1619,81 @@ class VMillHandler(BaseHTTPRequestHandler):
         except ValueError:
             return
 
-        template_name = normalize_template_filename(body.get("template"))
-        if not template_name:
-            template_name = "chrono_report_template_v1.xlsx"
-        template_path = (CHRONO_TEMPLATE_DIR / template_name).resolve()
-        if not template_path.exists() or not template_path.is_file():
-            self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "template_not_found", "template": template_name})
-            return
-        if not str(template_path).startswith(str(CHRONO_TEMPLATE_DIR.resolve())):
-            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_template"})
+        self._serve_template_xlsx(
+            body,
+            template_dir=CHRONO_TEMPLATE_DIR,
+            default_template="chrono_report_template_v1.xlsx",
+            default_filename="chrono_report.xlsx",
+        )
+
+    def api_spacial_template_xlsx(self) -> None:
+        try:
+            body = self.read_json_body()
+        except ValueError:
             return
 
-        raw_sheets = body.get("sheets")
-        if not isinstance(raw_sheets, list) or not raw_sheets:
-            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "missing_sheets"})
-            return
+        self._serve_template_xlsx(
+            body,
+            template_dir=SPACIAL_TEMPLATE_DIR,
+            default_template="spacial_autocontrol_template.xlsx",
+            default_filename="spacial_autocontrol.xlsx",
+        )
 
+    def _clean_template_sheets_payload(self, raw_sheets: Any) -> List[Dict[str, Any]]:
+        if not isinstance(raw_sheets, list):
+            return []
         sheets_payload: List[Dict[str, Any]] = []
-        for entry in raw_sheets[:8]:
+        for entry in raw_sheets[:16]:
             if not isinstance(entry, dict):
                 continue
             name = str(entry.get("name", "")).strip()
-            rows = entry.get("rows")
-            if not name or not isinstance(rows, list):
+            if not name:
                 continue
+            rows = entry.get("rows")
+            cells = entry.get("cells")
             clean_rows: List[List[Any]] = []
-            for row in rows[:4000]:
-                if isinstance(row, list):
-                    clean_rows.append(row[:256])
-                else:
-                    clean_rows.append([])
-            sheets_payload.append({"name": name[:31], "rows": clean_rows})
+            clean_cells: List[Dict[str, Any]] = []
+            if isinstance(rows, list):
+                for row in rows[:4000]:
+                    if isinstance(row, list):
+                        clean_rows.append(row[:256])
+                    else:
+                        clean_rows.append([])
+            if isinstance(cells, list):
+                for cell in cells[:20_000]:
+                    if not isinstance(cell, dict):
+                        continue
+                    ref = str(cell.get("ref", "")).upper().strip()
+                    if cell_ref_key(ref)[0] >= 10_000_000:
+                        continue
+                    clean_cells.append({"ref": ref, "value": cell.get("value")})
+            if not clean_rows and not clean_cells:
+                continue
+            sheets_payload.append({"name": name[:31], "rows": clean_rows, "cells": clean_cells})
+        return sheets_payload
 
+    def _serve_template_xlsx(self, body: Dict[str, Any], template_dir: Path, default_template: str, default_filename: str) -> None:
+        template_name = normalize_template_filename(body.get("template")) or default_template
+        template_path = (template_dir / template_name).resolve()
+        if not template_path.exists() or not template_path.is_file():
+            self.send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "template_not_found", "template": template_name})
+            return
+        if not str(template_path).startswith(str(template_dir.resolve())):
+            self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_template"})
+            return
+
+        sheets_payload = self._clean_template_sheets_payload(body.get("sheets"))
         if not sheets_payload:
             self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_sheets"})
             return
 
         download_name = str(body.get("filename", "")).strip()
         if not download_name.lower().endswith(".xlsx"):
-            download_name = f"{download_name}.xlsx" if download_name else "chrono_report.xlsx"
-        download_name = re.sub(r"[^A-Za-z0-9._-]+", "_", download_name).strip("._") or "chrono_report.xlsx"
+            download_name = f"{download_name}.xlsx" if download_name else default_filename
+        download_name = re.sub(r"[^A-Za-z0-9._-]+", "_", download_name).strip("._") or default_filename
 
         try:
-            xlsx_bytes = build_chrono_template_xlsx(template_path, sheets_payload)
+            xlsx_bytes = build_template_xlsx(template_path, sheets_payload)
         except Exception as exc:
             self.send_json(
                 HTTPStatus.INTERNAL_SERVER_ERROR,

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Drawing Manager</title>
+  <style>
+    :root {
+      --bg:var(--vm-theme-bg, #0a0f17);
+      --panel:var(--vm-theme-panel, #111a2a);
+      --panel2:var(--vm-theme-panel-2, #0f1623);
+      --text:var(--vm-theme-text, #e6edf8);
+      --muted:var(--vm-theme-muted, rgba(230,237,248,.66));
+      --border:var(--vm-theme-border, rgba(230,237,248,.18));
+      --accent:var(--vm-theme-accent, #57b4ff);
+      --accent-rgb:var(--vm-theme-accent-rgb, 87,180,255);
+      --bad:var(--vm-theme-danger, #ff8a8a);
+      --ok:var(--vm-theme-ok, #7ee7a2);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(900px 520px at 10% -12%, rgba(var(--accent-rgb), .18), transparent 62%),
+        linear-gradient(180deg,var(--bg),color-mix(in srgb, var(--bg) 84%, #000));
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+    .wrap { padding: 14px; display:grid; gap:10px; align-content:start; }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: linear-gradient(180deg,var(--panel),var(--panel2));
+      padding: 12px;
+      min-width: 0;
+    }
+    .hero { display:flex; justify-content:space-between; align-items:flex-end; gap:10px; flex-wrap:wrap; }
+    h1 { margin: 0; font-size: 28px; letter-spacing: .02em; }
+    .sub { margin-top: 4px; font-size: 13px; color: var(--muted); }
+    .title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+    .row > * { flex:1 1 180px; min-width:0; }
+    .row.actions > * { flex:0 0 auto; }
+    label { display:block; margin:0 0 6px; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+    input, select, textarea, button {
+      width:100%; border-radius:10px; border:1px solid var(--border);
+      background:rgba(255,255,255,.03); color:var(--text); padding:9px 10px; font-size:13px;
+    }
+    textarea { min-height: 72px; resize: vertical; }
+    button { cursor:pointer; font-weight:700; }
+    .btn { width:auto; padding:9px 12px; white-space:nowrap; }
+    .btn.primary { border-color:rgba(var(--accent-rgb),.55); background:rgba(var(--accent-rgb),.16); color:var(--accent); }
+    .btn.bad { border-color:rgba(255,138,138,.55); background:rgba(255,138,138,.12); color:var(--bad); }
+    .btn.ok { border-color:rgba(126,231,162,.45); background:rgba(126,231,162,.12); color:var(--ok); }
+    .grid2 { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr); gap:10px; }
+    @media (max-width: 1080px) { .grid2 { grid-template-columns:1fr; } }
+    .previewWrap {
+      border:1px solid var(--border); border-radius:12px; background:rgba(0,0,0,.18); min-height:440px;
+      display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;
+    }
+    .previewWrap img, .previewWrap iframe { width:100%; height:100%; border:0; object-fit:contain; background:#fff; }
+    .empty { color:var(--muted); font-size:13px; padding:18px; text-align:center; }
+    .list { display:grid; gap:8px; }
+    .docCard, .annCard {
+      border:1px solid var(--border); border-radius:12px; padding:10px; background:rgba(255,255,255,.03);
+      display:grid; gap:8px;
+    }
+    .docCard.sel, .annCard.sel { border-color: rgba(var(--accent-rgb), .55); box-shadow: 0 0 0 1px rgba(var(--accent-rgb), .22) inset; }
+    .docHead, .annHead { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+    .docMeta, .annMeta, .hint, .status { font-size:12px; color:var(--muted); }
+    .annGrid { display:grid; grid-template-columns: 92px minmax(0,1.2fr) 110px 110px 110px 84px auto; gap:8px; align-items:center; }
+    @media (max-width: 1400px) { .annGrid { grid-template-columns: 92px minmax(180px,1fr) 100px 100px 100px 84px auto; overflow:auto; } }
+    .thumb { width:56px; height:56px; border-radius:10px; object-fit:cover; border:1px solid var(--border); background:#fff; }
+    .thumbPlaceholder { width:56px; height:56px; border-radius:10px; border:1px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--muted); }
+    .thumbLarge { width:160px; height:160px; border-radius:14px; object-fit:contain; border:1px solid var(--border); background:#fff; }
+    .thumbLargePlaceholder { width:160px; height:160px; border-radius:14px; border:1px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--muted); background:rgba(255,255,255,.02); }
+    .chip { display:inline-flex; align-items:center; gap:6px; padding:4px 9px; border-radius:999px; border:1px solid var(--border); font-size:11px; }
+    .status { border:1px dashed var(--border); border-radius:10px; padding:9px 10px; }
+    .inline { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .detailGrid { display:grid; grid-template-columns:180px minmax(0,1fr); gap:12px; align-items:start; margin-top:12px; }
+    .detailMeta { display:grid; gap:8px; }
+    .detailMeta .chip { width:max-content; }
+    .detailList { display:grid; gap:6px; font-size:12px; color:var(--muted); }
+    @media (max-width: 860px) { .detailGrid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card hero">
+      <div>
+        <h1 id="pageTitle">Drawing Manager</h1>
+        <div class="sub" id="pageSub">Product-level drawings, OCR sources, and master annotations. Upload and prepare documents here, then open SPaCial only when you need route-linked box authoring.</div>
+      </div>
+      <div class="row actions" style="margin:0;">
+        <button class="btn" id="openHubBtn" type="button">Hub</button>
+        <button class="btn" id="openSpacialBtn" type="button">SPaCial</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="title">Context</div>
+      <div class="row">
+        <div>
+          <label for="productSel">Product</label>
+          <select id="productSel"></select>
+        </div>
+        <div>
+          <label for="docSel">Document</label>
+          <select id="docSel"></select>
+        </div>
+        <div>
+          <label for="docRevisionIn">Revision</label>
+          <input id="docRevisionIn" type="text" placeholder="A / B / AB-000" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="docNameIn">Document Name</label>
+          <input id="docNameIn" type="text" placeholder="Blueprint / PDF name" />
+        </div>
+        <div>
+          <label for="docNotesIn">Notes</label>
+          <textarea id="docNotesIn" placeholder="Optional notes about this document or revision"></textarea>
+        </div>
+      </div>
+      <div class="row actions">
+        <button class="btn primary" id="uploadDocBtn" type="button">+ Add Doc(s)</button>
+        <button class="btn" id="buildPreviewBtn" type="button">Build PDF Preview</button>
+        <button class="btn" id="saveDocBtn" type="button">Save Doc</button>
+        <button class="btn bad" id="deleteDocBtn" type="button">Delete Doc</button>
+        <button class="btn ok" id="openInSpacialBtn" type="button">Open In SPaCial</button>
+        <button class="btn ok" id="openInSpacialAutoBtn" type="button">Auto OCR In SPaCial</button>
+        <button class="btn" id="openInSpacialClickBtn" type="button">Click OCR In SPaCial</button>
+        <input id="docInput" type="file" accept="image/*,.pdf,application/pdf" multiple hidden />
+      </div>
+      <div class="hint" id="docHint">Use this module to own product documents and master annotations. Upload files here, build PDF previews here, then launch SPaCial only for box authoring.</div>
+    </section>
+
+    <section class="card">
+      <div class="title">OCR Workflow</div>
+      <div class="row">
+        <div>
+          <label for="bubbleOcrUrlIn">OCR Server URL</label>
+          <input id="bubbleOcrUrlIn" type="text" placeholder="http://localhost:8000" />
+        </div>
+        <div>
+          <label for="bubbleOcrPortIn">Port</label>
+          <input id="bubbleOcrPortIn" type="number" min="1" max="65535" step="1" />
+        </div>
+      </div>
+      <div class="row actions">
+        <button class="btn" id="bubbleOcrSaveBtn" type="button">Save OCR Settings</button>
+        <button class="btn" id="bubbleOcrTestBtn" type="button">Test OCR Server</button>
+      </div>
+      <div class="hint" id="ocrHint">PDF previews are generated through the OCR server. Auto OCR and Click OCR both launch the selected drawing into SPaCial with the right mode armed.</div>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <div class="title">Document Preview</div>
+        <div class="previewWrap" id="docPreviewWrap">
+          <div class="empty" id="docPreviewEmpty">Pick a product document to preview it here.</div>
+          <img id="docImagePreview" alt="Blueprint preview" hidden />
+          <iframe id="docPdfPreview" title="Blueprint PDF preview" hidden></iframe>
+        </div>
+        <div class="row actions" style="margin-top:10px;">
+          <span class="chip" id="docTypeChip">No document</span>
+          <span class="chip mono" id="docStatsChip">0 master annotations</span>
+        </div>
+        <div class="list" id="docList" style="margin-top:10px;"></div>
+      </section>
+
+      <section class="card">
+        <div class="title">Master Annotations</div>
+        <div class="row">
+          <div>
+            <label for="annSearchIn">Search</label>
+            <input id="annSearchIn" type="text" placeholder="Filter by id, name, characteristic" />
+          </div>
+          <div>
+            <label for="annScopeSel">Scope</label>
+            <select id="annScopeSel">
+              <option value="document">Selected document only</option>
+              <option value="product">All product annotations</option>
+            </select>
+          </div>
+        </div>
+        <div class="hint" id="annHint">These are the product-level master annotations. SPaCial should link them into operations instead of recreating them each time.</div>
+        <div class="list" id="annList" style="margin-top:10px;"></div>
+        <div class="card" style="margin-top:10px; padding:10px;">
+          <div class="title" style="margin-bottom:6px;">Selected Annotation</div>
+          <div id="annDetailEmpty" class="empty">Pick a master annotation to inspect its thumbnail, characteristic link, and operation usage.</div>
+          <div id="annDetailWrap" class="detailGrid" hidden>
+            <div id="annDetailThumbHost"></div>
+            <div class="detailMeta">
+              <div class="inline">
+                <span class="chip mono" id="annDetailIdChip">--</span>
+                <span class="chip" id="annDetailUsageChip">0 operation links</span>
+              </div>
+              <div class="detailList" id="annDetailList"></div>
+              <div class="row actions" style="margin-top:0;">
+                <button class="btn ok" id="annDetailOpenSpacialBtn" type="button">Open Doc In SPaCial OCR</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="status" id="status">Ready.</div>
+  </div>
+
+  <script src="./modules/module-shell.js"></script>
+  <script src="./modules/module-data.js"></script>
+  <script src="./modules/module-lang.js"></script>
+  <script src="./modules/module-theme.js"></script>
+  <script src="./modules/spacial/ocr-tools.js"></script>
+  <script src="./modules/spacial/product-docs-tools.js"></script>
+  <script type="module" src="./modules/blueprint-manager/index.js"></script>
+</body>
+</html>
