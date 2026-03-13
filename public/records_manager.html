@@ -278,6 +278,29 @@
       display: flex;
       gap: 6px;
     }
+    .imageField {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 250px;
+    }
+    .imageField input {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .imageBtn {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--panel2) 88%, transparent);
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 8px;
+      min-height: 32px;
+      line-height: 1;
+      white-space: nowrap;
+      cursor: pointer;
+    }
     .empty {
       border: 1px dashed var(--border);
       border-radius: 10px;
@@ -376,6 +399,7 @@
       </div>
     </main>
   </div>
+  <input id="recordImageFilePicker" type="file" accept="image/*" hidden />
 
   <script src="./modules/module-shell.js"></script>
   <script src="./modules/module-registry.js"></script>
@@ -418,6 +442,7 @@
         listMetaEl: document.getElementById("listMetaEl"),
         recordsHead: document.getElementById("recordsHead"),
         recordsBody: document.getElementById("recordsBody"),
+        recordImageFilePicker: document.getElementById("recordImageFilePicker"),
       };
 
       const tt = (key, fallback = "", vars) =>
@@ -843,7 +868,18 @@
           return `<input data-field-key="${esc(key)}" type="text" inputmode="decimal" value="${esc(value == null ? "" : String(value))}" ${req} />`;
         }
         if (defType === "url") {
-          return `<input data-field-key="${esc(key)}" type="url" value="${esc(value == null ? "" : String(value))}" ${req} />`;
+          const keyNorm = canonicalFieldKey(key);
+          const labelNorm = canonicalFieldKey(def?.label || "");
+          const isImageUrl = keyNorm === "imageurl" || labelNorm === "imageurl";
+          const inputHtml = `<input data-field-key="${esc(key)}" type="url" value="${esc(value == null ? "" : String(value))}" ${req} />`;
+          if (!isImageUrl) return inputHtml;
+          return `
+            <div class="imageField">
+              ${inputHtml}
+              <button type="button" class="imageBtn" data-image-pick>${esc(tt("shop.action.pickImage", "Pick"))}</button>
+              <button type="button" class="imageBtn" data-image-clear>${esc(tt("shop.action.clearImage", "Clear"))}</button>
+            </div>
+          `;
         }
         if (defType === "date") {
           return `<input data-field-key="${esc(key)}" type="date" value="${esc(value == null ? "" : String(value))}" ${req} />`;
@@ -1329,6 +1365,7 @@
       }
 
       function wireEvents() {
+        let pendingImageFieldInput = null;
         const scheduleRowAutoSave = (rowEl) => {
           if (!(rowEl instanceof HTMLElement)) return;
           const rid = String(rowEl.getAttribute("data-record-id") || "");
@@ -1370,6 +1407,29 @@
         el.recordsBody?.addEventListener("click", (e) => {
           const target = e.target;
           if (!(target instanceof HTMLElement)) return;
+          const pickBtn = target.closest("[data-image-pick]");
+          if (pickBtn instanceof HTMLElement) {
+            const fieldWrap = pickBtn.closest(".imageField");
+            const valueInput = fieldWrap?.querySelector('input[data-field-key]');
+            if (valueInput instanceof HTMLInputElement && el.recordImageFilePicker instanceof HTMLInputElement) {
+              pendingImageFieldInput = valueInput;
+              el.recordImageFilePicker.value = "";
+              el.recordImageFilePicker.click();
+            }
+            return;
+          }
+          const clearBtn = target.closest("[data-image-clear]");
+          if (clearBtn instanceof HTMLElement) {
+            const fieldWrap = clearBtn.closest(".imageField");
+            const valueInput = fieldWrap?.querySelector('input[data-field-key]');
+            const rowEl = clearBtn.closest("tr[data-record-id]");
+            if (valueInput instanceof HTMLInputElement) {
+              valueInput.value = "";
+              valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+            if (rowEl instanceof HTMLElement) scheduleRowAutoSave(rowEl);
+            return;
+          }
           const action = String(target.getAttribute("data-action") || target.closest("[data-action]")?.getAttribute("data-action") || "");
           const rid = String(target.getAttribute("data-record-id") || target.closest("[data-record-id]")?.getAttribute("data-record-id") || "");
           if (!action) return;
@@ -1408,6 +1468,23 @@
           const rowEl = target.closest("tr[data-record-id]");
           if (!(rowEl instanceof HTMLElement)) return;
           scheduleRowAutoSave(rowEl);
+        });
+        el.recordImageFilePicker?.addEventListener("change", (e) => {
+          const picker = e.target;
+          if (!(picker instanceof HTMLInputElement)) return;
+          const file = picker.files && picker.files[0];
+          const valueInput = pendingImageFieldInput;
+          pendingImageFieldInput = null;
+          picker.value = "";
+          if (!file || !(valueInput instanceof HTMLInputElement)) return;
+          const rowEl = valueInput.closest("tr[data-record-id]");
+          const reader = new FileReader();
+          reader.onload = () => {
+            valueInput.value = String(reader.result || "");
+            valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+            if (rowEl instanceof HTMLElement) scheduleRowAutoSave(rowEl);
+          };
+          reader.readAsDataURL(file);
         });
 
         window.CANBus?.onMessage((msg) => {

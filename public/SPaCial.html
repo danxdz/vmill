@@ -44,11 +44,30 @@
       gap:0;
     }
     .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;}
+    .headTools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    .modeBtn{
+      width:auto;
+      min-width:108px;
+      padding:8px 12px;
+      border-radius:999px;
+      border:1px solid color-mix(in srgb,var(--text) 18%, transparent);
+      background:color-mix(in srgb,var(--panel2) 82%, transparent);
+      color:var(--muted);
+      font-size:12px;
+      font-weight:700;
+    }
+    .modeBtn.active{
+      color:var(--text);
+      border-color:color-mix(in srgb,var(--accent) 60%, transparent);
+      background:color-mix(in srgb,var(--accent) 20%, transparent);
+      box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 26%, transparent) inset;
+    }
     .sub{color:var(--muted);font-size:13px;margin-top:6px;}
     .card{
       border:1px solid var(--border);
       border-radius:14px;
       background:linear-gradient(180deg,var(--panel),var(--panel2));
+      box-shadow:0 20px 46px rgba(0,0,0,.22);
       padding:12px;
       flex:0 0 auto;
       min-height:0;
@@ -290,7 +309,10 @@
       border:1px solid var(--border);
       border-radius:10px;
       overflow:auto;
-      background:color-mix(in srgb,var(--panel2) 92%, transparent);
+      overscroll-behavior:contain;
+      background:
+        linear-gradient(180deg, color-mix(in srgb,var(--panel2) 90%, transparent), color-mix(in srgb,var(--panel2) 78%, transparent)),
+        radial-gradient(700px 300px at 0 -20%, color-mix(in srgb,var(--accent) 12%, transparent), transparent 62%);
       flex:0 0 auto;
       min-height:320px;
       max-height:72dvh;
@@ -321,13 +343,270 @@
       gap:8px;
     }
     .annThumb{
-      width:34px;
-      height:34px;
+      width:46px;
+      height:46px;
       border-radius:8px;
       border:1px solid color-mix(in srgb,var(--text) 16%, transparent);
       object-fit:cover;
       flex:0 0 auto;
       background:color-mix(in srgb,var(--panel) 84%, transparent);
+    }
+    .annThumbPlaceholder{
+      width:46px;
+      height:46px;
+      border-radius:8px;
+      border:1px dashed color-mix(in srgb,var(--text) 16%, transparent);
+      display:grid;
+      place-items:center;
+      font-size:10px;
+      color:var(--muted);
+      background:color-mix(in srgb,var(--panel) 84%, transparent);
+    }
+    .annMeta{
+      margin-top:4px;
+      font-size:10px;
+      color:var(--muted);
+      white-space:normal;
+      line-height:1.35;
+    }
+    .bubbleTableWrap{
+      max-height:42dvh;
+      min-height:220px;
+    }
+    .bubbleTableWrap .tbl{
+      min-width:1440px;
+      table-layout:fixed;
+    }
+    .bubbleTableWrap .tbl th,
+    .bubbleTableWrap .tbl td{
+      padding:6px 8px;
+    }
+    .bubbleTableWrap .tbl td .cellInput{
+      min-width:0;
+      padding:5px 7px;
+      font-size:11px;
+    }
+    .bubbleTableWrap .tbl td .cellActions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:4px;
+      align-items:center;
+    }
+    .bubbleTableWrap .tbl td .cellActions .cellMeta{
+      display:none;
+    }
+    .bubbleTableWrap .tbl td .cellActions button{
+      flex:0 0 auto;
+      min-width:58px;
+      padding:5px 8px;
+      font-size:11px;
+      border-radius:8px;
+    }
+    .bubbleColThumb{width:70px;}
+    .bubbleColId{width:170px;}
+    .bubbleColChar{width:150px;}
+    .bubbleColName{width:150px;}
+    .bubbleColNum{width:110px;}
+    .bubbleColUnit{width:88px;}
+    .bubbleColMethod{width:130px;}
+    .bubbleColInstrument{width:130px;}
+    .bubbleColReaction{width:130px;}
+    .bubbleColActions{width:160px;}
+    .bubbleGridHint{
+      margin-top:8px;
+      font-size:11px;
+      color:var(--muted);
+    }
+    .bubbleCardList{
+      display:grid;
+      gap:10px;
+      padding:10px;
+    }
+    .bubbleCard{
+      border:1px solid color-mix(in srgb,var(--text) 10%, transparent);
+      border-radius:14px;
+      padding:10px;
+      background:color-mix(in srgb,var(--panel) 88%, transparent);
+    }
+    .bubbleCard.sel{
+      border-color:color-mix(in srgb,var(--accent) 56%, transparent);
+      box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 28%, transparent) inset;
+      background:
+        linear-gradient(180deg, color-mix(in srgb,var(--accent) 10%, transparent), transparent),
+        color-mix(in srgb,var(--panel) 92%, transparent);
+    }
+    .bubbleCardHead{
+      display:grid;
+      grid-template-columns:auto minmax(0,1fr) auto;
+      gap:10px;
+      align-items:start;
+    }
+    .bubbleCardMain{
+      min-width:0;
+      display:grid;
+      gap:8px;
+    }
+    .bubbleCardTitleRow{
+      display:grid;
+      grid-template-columns:minmax(120px,160px) minmax(0,1fr);
+      gap:8px;
+      align-items:center;
+    }
+    .bubbleCardMetrics{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(88px,1fr));
+      gap:8px;
+    }
+    .bubbleCardActions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      justify-content:flex-end;
+      align-items:flex-start;
+      min-width:132px;
+    }
+    .bubbleCardActions button{
+      min-width:58px;
+      padding:6px 10px;
+      font-size:11px;
+      border-radius:8px;
+    }
+    .bubbleCardMore{
+      margin-top:8px;
+      border-top:1px dashed color-mix(in srgb,var(--text) 10%, transparent);
+      padding-top:8px;
+    }
+    .bubbleCardMore > summary{
+      cursor:pointer;
+      font-size:11px;
+      color:var(--muted);
+      user-select:none;
+    }
+    .bubbleCardMoreGrid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:8px;
+      margin-top:8px;
+    }
+    .bubbleCardMetaRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      font-size:11px;
+      color:var(--muted);
+    }
+    .bubbleChip{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid color-mix(in srgb,var(--text) 12%, transparent);
+      background:color-mix(in srgb,var(--panel2) 88%, transparent);
+    }
+    @media(max-width:980px){
+      .bubbleCardHead{
+        grid-template-columns:auto minmax(0,1fr);
+      }
+      .bubbleCardActions{
+        grid-column:1 / -1;
+        justify-content:flex-start;
+        min-width:0;
+      }
+      .bubbleCardMoreGrid,
+      .bubbleCardMetrics,
+      .bubbleCardTitleRow{
+        grid-template-columns:1fr 1fr;
+      }
+    }
+    @media(max-width:640px){
+      .bubbleCardMoreGrid,
+      .bubbleCardMetrics,
+      .bubbleCardTitleRow{
+        grid-template-columns:1fr;
+      }
+      .bubbleCardList{
+        padding:8px;
+      }
+    }
+    .opQuickGrid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:8px;
+      margin-top:8px;
+    }
+    .opQuickCard{
+      border:1px solid color-mix(in srgb,var(--text) 10%, transparent);
+      border-radius:12px;
+      padding:10px;
+      background:color-mix(in srgb,var(--panel2) 84%, transparent);
+    }
+    .opQuickCard.sel{
+      border-color:color-mix(in srgb,var(--accent) 60%, transparent);
+      background:color-mix(in srgb,var(--accent) 12%, var(--panel2));
+    }
+    .opQuickTitle{
+      font-weight:700;
+      font-size:13px;
+      line-height:1.3;
+    }
+    .opQuickMeta{
+      margin-top:4px;
+      font-size:11px;
+      color:var(--muted);
+    }
+    .opQuickActions{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+      margin-top:8px;
+    }
+    .opQuickActions > button{
+      flex:1 1 110px;
+    }
+    .viewerMainTools{
+      align-items:center;
+    }
+    .viewerMainTools > button,
+    .viewerMainTools > select{
+      flex:1 1 140px;
+    }
+    .viewerMainTools .viewerZoomBtn{
+      flex:0 0 auto;
+      width:auto;
+      min-width:52px;
+    }
+    .viewerMoreTools{
+      flex:1 1 180px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:8px 10px;
+      background:color-mix(in srgb,var(--panel) 84%, transparent);
+    }
+    .viewerMoreTools > summary{
+      cursor:pointer;
+      font-size:12px;
+      color:var(--muted);
+      user-select:none;
+    }
+    .viewerMoreGrid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+      gap:8px;
+      margin-top:8px;
+    }
+    body.uiSimple #sectionImportPanel,
+    body.uiSimple #sectionBubblesPanel{
+      display:none;
+    }
+    body.uiSimple #bubbleCanvasMoreTools{
+      display:none;
+    }
+    body.uiSimple #sectionRoutePanel,
+    body.uiSimple #sectionOpsPanel,
+    body.uiSimple #sectionBlueprintPanel{
+      margin-top:8px;
     }
     @media(max-width:760px){
       .wrap{
@@ -381,6 +660,10 @@
         <h1 id="spacialTitle" style="margin:0;">SPaCial</h1>
         <div class="sub" id="spacialSubtitle">Dimensional control and blueprint annotation planning.</div>
       </div>
+      <div class="headTools">
+        <button id="uiModeSimpleBtn" type="button" class="modeBtn">Simple View</button>
+        <button id="uiModeFullBtn" type="button" class="modeBtn active">Full View</button>
+      </div>
     </div>
     <section class="card">
       <div class="controls">
@@ -399,7 +682,7 @@
         <div id="routingTitle" style="font-weight:700;">Routing and Dimensional Control</div>
         <div class="mini" id="routeInfo" style="margin-top:8px;"></div>
 
-        <details class="section" open>
+        <details class="section" id="sectionImportPanel" open>
           <summary id="sectionImportSummary">Structured Import</summary>
           <div class="sectionBody">
             <div class="mini" id="spcImportHint" style="margin-top:2px;">Load structured export files, pick products, and import products, characteristics, routes, and operation annotations.</div>
@@ -425,7 +708,7 @@
           </div>
         </details>
 
-        <details class="section" open>
+        <details class="section" id="sectionRoutePanel" open>
           <summary id="sectionRouteSummary">Route</summary>
           <div class="sectionBody">
             <div class="routeGrid" style="margin-top:2px;">
@@ -443,7 +726,7 @@
           </div>
         </details>
 
-        <details class="section" open>
+        <details class="section" id="sectionOpsPanel" open>
           <summary id="sectionOpsSummary">Operations</summary>
           <div class="sectionBody">
             <div class="routeGrid3" style="margin-top:2px;">
@@ -454,6 +737,10 @@
             <div class="routeTools">
               <button id="opUpBtn" type="button">Move Up</button>
               <button id="opDownBtn" type="button">Move Down</button>
+            </div>
+            <div class="chartBox" style="margin-top:10px;">
+              <div class="mini" id="opQuickHint">Quick jump between operations and add annotation rows directly.</div>
+              <div id="opQuickList" class="opQuickGrid"></div>
             </div>
             <div class="routeGrid3" style="margin-top:8px;">
               <input id="opSeqIn" type="number" step="1" placeholder="Seq" />
@@ -536,18 +823,20 @@
           </div>
         </details>
 
-        <details class="section" open>
+        <details class="section" id="sectionBubblesPanel" open>
           <summary id="sectionBubblesSummary">Annotations</summary>
           <div class="sectionBody">
-            <div class="mini" id="bubbleSectionHint" style="margin-top:2px;">Dimensional annotations for selected operation</div>
+            <div class="mini" id="bubbleSectionHint" style="margin-top:2px;">Annotations are drawing boxes/bubbles. Characteristics are the linked measurable specs.</div>
             <div class="routeGrid3" style="margin-top:8px;">
               <input id="bubbleIdIn" type="text" placeholder="Annotation ID (e.g. A01)" />
               <select id="bubbleCharSel"></select>
               <input id="bubbleNameIn" type="text" placeholder="Annotation name" />
             </div>
             <div class="routeTools">
+              <button id="bubbleAddRowBtn" type="button">+ Empty Annotation</button>
               <button id="bubbleSaveBtn" class="primary" type="button">Save Annotation</button>
               <button id="bubbleClearBtn" type="button">Clear Annotation Form</button>
+              <button id="bubbleRefreshThumbsBtn" type="button">Refresh Thumbs</button>
               <button id="bubbleImportBtn" type="button">Import Annotations CSV</button>
               <input id="bubbleImportFile" type="file" accept=".csv,text/csv" style="display:none;" />
             </div>
@@ -565,30 +854,14 @@
                 </div>
               </div>
             </details>
-            <div class="tableWrap">
-              <table class="tbl">
-                <thead>
-                  <tr>
-                    <th id="bubbleHeadId">Annotation</th>
-                    <th id="bubbleHeadName">Characteristic</th>
-                    <th id="bubbleHeadSpec">Name</th>
-                    <th>Nominal</th>
-                    <th>LSL</th>
-                    <th>USL</th>
-                    <th>Unit</th>
-                    <th>Method</th>
-                    <th>Instrument</th>
-                    <th>Reaction</th>
-                    <th id="bubbleHeadActions">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="bubbleTableBody"></tbody>
-              </table>
+            <div class="bubbleGridHint" id="bubbleGridHint">Click Pick or a row to load it into the editor. Grid fields auto-save after edit.</div>
+            <div class="tableWrap bubbleTableWrap">
+              <div id="bubbleTableBody" class="bubbleCardList"></div>
             </div>
           </div>
         </details>
 
-        <details class="section">
+        <details class="section" id="sectionBlueprintPanel">
           <summary id="sectionBlueprintSummary">Blueprint</summary>
           <div class="sectionBody">
             <div class="chartTitle" id="bubbleCanvasTitle" style="margin-top:2px;">Annotation Canvas</div>
@@ -601,8 +874,7 @@
               <button id="opExportFileJpgBtn" type="button">Export Annotated JPG</button>
               <button id="opExportPdfBtn" class="warn" type="button">Operation PDF</button>
             </div>
-            <div class="routeTools">
-              <button id="bubbleDrawingClearBtn" type="button">Clear Image</button>
+            <div class="routeTools viewerMainTools">
               <button id="bubbleOcrDetectBtn" type="button" class="warn">Auto OCR Annotations</button>
               <button id="bubbleOcrClickBtn" type="button">Click OCR</button>
               <select id="bubbleOcrModeSel">
@@ -611,28 +883,36 @@
                 <option value="accurate">accurate</option>
                 <option value="hardcore">hardcore</option>
               </select>
-              <button id="bubbleOcrTestBtn" type="button">Test OCR</button>
-              <details id="bubbleOcrSettings" style="flex:1 1 260px;">
-                <summary id="bubbleOcrSettingsSummary">OCR Settings</summary>
-                <div style="padding-top:8px;">
-                  <input id="bubbleOcrUrlIn" type="text" placeholder="OCR URL (http://localhost:8081)" style="width:100%;" />
+              <button id="bubbleZoomOutBtn" class="viewerZoomBtn" type="button">-</button>
+              <button id="bubbleZoomResetBtn" class="viewerZoomBtn" type="button">100%</button>
+              <button id="bubbleZoomInBtn" class="viewerZoomBtn" type="button">+</button>
+              <button id="bubbleZoomFitBtn" class="viewerZoomBtn" type="button">Fit</button>
+              <button id="bubbleFullscreenBtn" class="viewerZoomBtn" type="button">Fullscreen</button>
+              <details id="bubbleCanvasMoreTools" class="viewerMoreTools">
+                <summary id="bubbleCanvasMoreSummary">More tools</summary>
+                <div class="viewerMoreGrid">
+                  <button id="bubbleDrawingClearBtn" type="button">Clear Image</button>
+                  <button id="bubbleOcrTestBtn" type="button">Test OCR</button>
+                  <button id="bubbleDeleteSelBtn" type="button" class="danger">Delete Selected Annotation</button>
+                  <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;">
+                    <input id="bubbleShowBoxesChk" class="inlineCheck" type="checkbox" checked />
+                    <span id="bubbleShowBoxesLbl">Boxes on viewer/export</span>
+                  </label>
+                  <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;">
+                    <input id="bubblePdfIncludeImageChk" class="inlineCheck" type="checkbox" />
+                    <span id="bubblePdfIncludeImageLbl">Include blueprint in PDF</span>
+                  </label>
+                  <details id="bubbleOcrSettings" style="grid-column:1 / -1;">
+                    <summary id="bubbleOcrSettingsSummary">OCR Settings</summary>
+                    <div style="padding-top:8px;">
+                      <input id="bubbleOcrUrlIn" type="text" placeholder="OCR URL (http://localhost:8081)" style="width:100%;" />
+                    </div>
+                  </details>
                 </div>
               </details>
-              <button id="bubbleDeleteSelBtn" type="button" class="danger">Delete Selected Annotation</button>
-              <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;">
-                <input id="bubbleShowBoxesChk" class="inlineCheck" type="checkbox" checked />
-                <span id="bubbleShowBoxesLbl">Show boxes</span>
-              </label>
-            </div>
-            <div class="routeTools">
-              <button id="bubbleZoomOutBtn" type="button">-</button>
-              <button id="bubbleZoomResetBtn" type="button">100%</button>
-              <button id="bubbleZoomFitBtn" type="button">Fit</button>
-              <button id="bubbleZoomInBtn" type="button">+</button>
-              <button id="bubbleFullscreenBtn" type="button">Fullscreen</button>
             </div>
             <div class="mini" id="bubbleOcrStatus"></div>
-            <div class="mini" id="bubbleCanvasInfo">Drag to draw, move, zoom, and double-click OCR.</div>
+            <div class="mini" id="bubbleCanvasInfo">Left-drag to pan, drag box or dots to resize, Alt+drag to draw, wheel to zoom, and double-click OCR.</div>
             <div class="canvasWrap" id="bubbleCanvasWrap">
               <canvas id="bubbleCanvas" width="1000" height="560"></canvas>
             </div>
@@ -680,6 +960,7 @@
       const NS_CHAR = "spacial_characteristics";
       const STRUCTURED_IMPORT_SOURCE = "structured_import";
       const LEGACY_STRUCTURED_IMPORT_SOURCES = new Set(["spc_structured", STRUCTURED_IMPORT_SOURCE]);
+      const UI_MODE_KEY = "vmill:spacial:ui-mode";
       const launchParams = new URLSearchParams(window.location.search || "");
       let launchRouteApplied = false;
       let lastStateSig = "";
@@ -702,7 +983,7 @@
       let scopeJobsCacheSig = "";
       let scopeJobsCacheSet = null;
       let bubbleCanvasImageSrc = "";
-      let bubbleCanvasMode = "idle"; // idle | draw | dragBox | dragLabel
+      let bubbleCanvasMode = "idle"; // idle | draw | dragBox | dragLabel | resizeBox | pan
       let bubbleCanvasStart = null;
       let bubbleCanvasRect = null;
       let bubbleCanvasLast = null;
@@ -710,6 +991,8 @@
       let bubbleClickOcrArmed = false;
       let bubbleCanvasZoom = 1;
       let bubbleCanvasPan = null;
+      let bubbleCanvasResize = null;
+      let uiMode = "full";
       const charGridSaveTimers = new WeakMap();
       const bubbleGridSaveTimers = new WeakMap();
       let refreshRaf = 0;
@@ -738,6 +1021,8 @@
         };
         setTxt("spacialTitle", "spacial.title", "SPaCial");
         setTxt("spacialSubtitle", "spacial.subtitle.annotations", "Dimensional control and blueprint annotation planning.");
+        setTxt("uiModeSimpleBtn", "spacial.ui.simple", "Simple View");
+        setTxt("uiModeFullBtn", "spacial.ui.full", "Full View");
         setTxt("routeNewBtn", "spacial.route.new", "+ Route");
         setTxt("routeDupBtn", "spacial.route.duplicate", "Duplicate Route");
         setTxt("routeDeleteBtn", "spacial.route.delete", "Delete Route");
@@ -765,7 +1050,8 @@
         setTxt("opCriticalLbl", "spacial.op.critical", "Critical operation");
         setTxt("opSaveBtn", "spacial.op.save", "Save Operation");
         setTxt("opOpenChronoBtn", "spacial.op.openChrono", "Open Chrono Study");
-        setTxt("opCharHint", "spacial.op.characteristicsAutoHint", "Operation-linked characteristics (derived from annotations). Edit in Product Characteristics.");
+        setTxt("opQuickHint", "spacial.op.quickHint", "Quick jump between operations and add annotation rows directly.");
+        setTxt("opCharHint", "spacial.op.characteristicsAutoHint", "Characteristic = spec record. Annotation = drawing bubble linked to that spec.");
         setTxt("charSectionHint", "spacial.characteristics.hint", "Catalog linked to the selected product.");
         setTxt("charGridAddBtn", "spacial.characteristics.new", "+ Characteristic");
         setTxt("charLegacySummary", "spacial.characteristics.advanced", "Advanced characteristic editor (legacy)");
@@ -773,15 +1059,19 @@
         setTxt("charDeleteBtn", "spacial.characteristics.delete", "Delete");
         setTxt("charSaveBtn", "spacial.characteristics.save", "Save Characteristic");
         setTxt("charClearBtn", "spacial.characteristics.clear", "Clear Form");
-        setTxt("bubbleSectionHint", "spacial.annotations.title", "Dimensional annotations for selected operation");
+        setTxt("bubbleSectionHint", "spacial.annotations.title", "Annotations are drawing boxes/bubbles. Characteristics are the linked measurable specs.");
         setTxt("bubbleAdvancedSummary", "spacial.annotations.advanced", "Advanced annotation fields");
+        setTxt("bubbleAddRowBtn", "spacial.annotation.newEmpty", "+ Empty Annotation");
         setTxt("bubbleSaveBtn", "spacial.annotation.save", "Save Annotation");
         setTxt("bubbleClearBtn", "spacial.annotation.clear", "Clear Annotation Form");
+        setTxt("bubbleRefreshThumbsBtn", "spacial.annotation.refreshThumbs", "Refresh Thumbs");
         setTxt("bubbleImportBtn", "spacial.annotation.importCsv", "Import Annotations CSV");
+        setTxt("bubbleHeadThumb", "spacial.annotation.thumb", "Thumb");
         setTxt("bubbleHeadId", "spacial.table.annotation", "Annotation");
-        setTxt("bubbleHeadName", "spacial.characteristics.name", "Characteristic");
+        setTxt("bubbleHeadName", "spacial.annotation.linkedCharacteristic", "Linked Char");
         setTxt("bubbleHeadSpec", "spacial.table.name", "Name");
         setTxt("bubbleHeadActions", "spacial.table.actions", "Actions");
+        setTxt("bubbleGridHint", "spacial.annotation.gridHint", "Click Pick or a row to load it into the editor. Grid fields auto-save after edit.");
         setTxt("bubbleCanvasTitle", "spacial.canvas.title.annotation", "Annotation Canvas");
         setTxt("opFileUploadBtn", "spacial.file.add", "+ File(s)");
         setTxt("opFileRenameBtn", "spacial.file.rename", "Rename File");
@@ -794,13 +1084,15 @@
         setTxt("bubbleOcrTestBtn", "spacial.ocr.test", "Test OCR");
         setTxt("bubbleOcrSettingsSummary", "spacial.ocr.settings", "OCR Settings");
         setTxt("bubbleDeleteSelBtn", "spacial.canvas.deleteSelectedAnnotation", "Delete Selected Annotation");
-        setTxt("bubbleShowBoxesLbl", "spacial.canvas.showBoxes", "Show boxes");
+        setTxt("bubbleShowBoxesLbl", "spacial.canvas.showBoxes", "Boxes on viewer/export");
+        setTxt("bubblePdfIncludeImageLbl", "spacial.pdf.includeBlueprint", "Include blueprint in PDF");
         setTxt("bubbleZoomOutBtn", "spacial.canvas.zoomOut", "-");
         setTxt("bubbleZoomResetBtn", "spacial.canvas.zoomReset", "100%");
         setTxt("bubbleZoomFitBtn", "spacial.canvas.zoomFit", "Fit");
         setTxt("bubbleZoomInBtn", "spacial.canvas.zoomIn", "+");
         setTxt("bubbleFullscreenBtn", "spacial.canvas.fullscreen", "Fullscreen");
-        setTxt("bubbleCanvasInfo", "spacial.canvas.help.annotations", "Drag to draw, move, zoom, and double-click OCR.");
+        setTxt("bubbleCanvasMoreSummary", "spacial.canvas.moreTools", "More tools");
+        setTxt("bubbleCanvasInfo", "spacial.canvas.help.annotations", "Left-drag to pan, drag box or dots to resize, Alt+drag to draw, wheel to zoom, and double-click OCR.");
         const modeSel = $("bubbleOcrModeSel");
         if (modeSel) {
           const prev = strOrEmpty(modeSel.value || "auto") || "auto";
@@ -851,6 +1143,30 @@
         const n = Number(v);
         return Number.isFinite(n) ? n : null;
       }
+      function applyUiMode(mode, options = {}) {
+        const next = mode === "simple" ? "simple" : "full";
+        uiMode = next;
+        document.body.classList.toggle("uiSimple", next === "simple");
+        const simpleBtn = $("uiModeSimpleBtn");
+        const fullBtn = $("uiModeFullBtn");
+        if (simpleBtn) simpleBtn.classList.toggle("active", next === "simple");
+        if (fullBtn) fullBtn.classList.toggle("active", next === "full");
+        if (next === "simple") {
+          const importPanel = $("sectionImportPanel");
+          const bubblesPanel = $("sectionBubblesPanel");
+          const moreTools = $("bubbleCanvasMoreTools");
+          if (importPanel) importPanel.open = false;
+          if (bubblesPanel) bubblesPanel.open = false;
+          if (moreTools) moreTools.open = false;
+        }
+        if (options?.persist !== false) {
+          localStorage.setItem(UI_MODE_KEY, next);
+        }
+      }
+      function loadUiMode() {
+        const stored = strOrEmpty(localStorage.getItem(UI_MODE_KEY) || "");
+        applyUiMode(stored === "simple" ? "simple" : "full", { persist: false });
+      }
       function cloneJson(v, fallback) {
         try {
           return JSON.parse(JSON.stringify(v));
@@ -890,16 +1206,28 @@
         add("http://localhost:8081");
         return Array.from(set);
       }
-      async function callOcrProcessWithRetry(uploadFile, mode, preferredBaseUrl) {
+      function normalizeCardinalRotation(value, fallback = 0) {
+        const raw = Number(value);
+        if (!Number.isFinite(raw)) return fallback;
+        const rounded = Math.round(raw / 90) * 90;
+        const normalized = ((rounded % 360) + 360) % 360;
+        return [0, 90, 180, 270].includes(normalized) ? normalized : fallback;
+      }
+      function zoneRotationToCorrection(value) {
+        const zoneRot = normalizeCardinalRotation(value, 0);
+        return normalizeCardinalRotation(360 - zoneRot, 0);
+      }
+      async function callOcrProcessWithRetry(uploadFile, mode, preferredBaseUrl, rotation = 0) {
         const candidates = ocrCandidateBaseUrls(preferredBaseUrl);
         let lastError = null;
+        const safeRotation = normalizeCardinalRotation(rotation, 0);
         for (const baseUrl of candidates) {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 25000);
           try {
             const formData = new FormData();
             formData.append("file", uploadFile, uploadFile.name);
-            const res = await fetch(`${baseUrl}/ocr/process?mode=${encodeURIComponent(mode)}&rotation=0`, {
+            const res = await fetch(`${baseUrl}/ocr/process?mode=${encodeURIComponent(mode)}&rotation=${encodeURIComponent(safeRotation)}`, {
               method: "POST",
               body: formData,
               signal: controller.signal,
@@ -1002,12 +1330,12 @@
         }
         throw lastError || new Error("OCR server not reachable");
       }
-      async function callOcrAnnotationClickWithRetry(imageDataUrl, point, mode, preferredBaseUrl) {
+      async function callOcrAnnotationClickWithRetry(imageDataUrl, point, mode, preferredBaseUrl, rotation = 0) {
         return callOcrJsonWithRetry("/ocr/annotation-click", {
           image: imageDataUrl,
           point: { x: Number(point?.x || 0), y: Number(point?.y || 0) },
           mode: strOrEmpty(mode || "fast") || "fast",
-          rotation: 0,
+          rotation: normalizeCardinalRotation(rotation, 0),
           thumbnail: true,
           max_thumb: 160,
           thumb_padding: 8,
@@ -1074,6 +1402,14 @@
         if (Array.isArray(src?.items)) return src.items;
         return [];
       }
+      function extractOcrMetadata(payload) {
+        const src = payload && typeof payload === "object" ? payload : {};
+        if (src?.metadata && typeof src.metadata === "object") return src.metadata;
+        if (src?.data?.metadata && typeof src.data.metadata === "object") return src.data.metadata;
+        if (src?.result?.metadata && typeof src.result.metadata === "object") return src.result.metadata;
+        if (src?.response?.metadata && typeof src.response.metadata === "object") return src.response.metadata;
+        return {};
+      }
       function isLikelyAnnotationZone(zone) {
         if (!zone || typeof zone !== "object") return false;
         if (zone.is_dimension) return true;
@@ -1099,6 +1435,46 @@
           score += conf;
         }
         return score;
+      }
+      function inferOcrRotationRecommendation(zones, metadata = null) {
+        const meta = metadata && typeof metadata === "object" ? metadata : {};
+        const mdAngle = normalizeCardinalRotation(meta.detected_angle, -1);
+        const mdConfRaw = Number(meta.rotation_confidence);
+        const mdConf = Number.isFinite(mdConfRaw) ? Math.max(0, Math.min(1, mdConfRaw)) : 0;
+        if (mdAngle >= 0) {
+          return {
+            rotation: mdAngle,
+            confidence: mdConf,
+            source: "metadata",
+            shouldRerun: mdAngle !== 0 && mdConf >= 0.26,
+          };
+        }
+        const rows = Array.isArray(zones) ? zones : [];
+        const votes = { 0: 0, 90: 0, 180: 0, 270: 0 };
+        let total = 0;
+        for (const z of rows) {
+          const text = strOrEmpty(z?.text);
+          const conf = Math.max(0, Math.min(1, Number(z?.confidence || 0)));
+          const orient = normalizeCardinalRotation(z?.rotation ?? z?.text_orientation ?? 0, 0);
+          const correction = zoneRotationToCorrection(orient);
+          let weight = 0.2 + conf;
+          if (/\d/.test(text)) weight += 0.7;
+          if (z?.is_dimension) weight += 1.2;
+          if (z?.tolerance_info && typeof z.tolerance_info === "object") weight += 0.8;
+          votes[correction] += weight;
+          total += weight;
+        }
+        const entries = Object.entries(votes).map(([k, v]) => [Number(k), Number(v)]);
+        entries.sort((a, b) => b[1] - a[1]);
+        const best = entries[0]?.[0] ?? 0;
+        const bestWeight = entries[0]?.[1] ?? 0;
+        const confidence = total > 0 ? bestWeight / total : 0;
+        return {
+          rotation: normalizeCardinalRotation(best, 0),
+          confidence: Math.max(0, Math.min(1, confidence)),
+          source: "zones",
+          shouldRerun: best !== 0 && confidence >= 0.26,
+        };
       }
       async function normalizeOcrBoxesToImage(zones, imageDataUrl, metadata = null) {
         const srcZones = Array.isArray(zones) ? zones : [];
@@ -1306,6 +1682,26 @@
         const selectedMode = strOrEmpty($("bubbleOcrModeSel")?.value || "auto") || "auto";
         return selectedMode === "auto" ? "fast" : selectedMode;
       }
+      function scoreSingleOcrZone(zone) {
+        if (!zone || typeof zone !== "object") return 0;
+        return scoreOcrZoneSet([zone]);
+      }
+      async function runOcrProcessPass(uploadFile, mode, rotation, ocrBaseUrl) {
+        const safeRotation = normalizeCardinalRotation(rotation, 0);
+        const out = await callOcrProcessWithRetry(uploadFile, mode, ocrBaseUrl, safeRotation);
+        const allZones = extractOcrZones(out);
+        const zones = allZones.filter((z) => isLikelyAnnotationZone(z));
+        const metadata = extractOcrMetadata(out);
+        const recommendation = inferOcrRotationRecommendation(zones, metadata);
+        return {
+          mode,
+          rotation: safeRotation,
+          zones,
+          score: scoreOcrZoneSet(zones),
+          metadata,
+          recommendation,
+        };
+      }
       async function refreshBubbleThumbnail(bubble, opFile, preferredBaseUrl) {
         if (!bubble || !opFile || !isImageDataUrl(opFile?.dataUrl)) return;
         const bbox = normalizeBbox(bubble?.bbox);
@@ -1323,6 +1719,34 @@
         } catch {
           // Non-blocking thumbnail refresh.
         }
+      }
+      async function refreshBubbleThumbnailsBatch(bubbles, opFile, preferredBaseUrl) {
+        const rows = Array.isArray(bubbles) ? bubbles : [];
+        if (!rows.length || !opFile || !isImageDataUrl(opFile?.dataUrl)) return 0;
+        let changed = 0;
+        const tasks = rows.map(async (bubble) => {
+          if (!bubble) return;
+          const bbox = normalizeBbox(bubble?.bbox);
+          if (!bbox) return;
+          try {
+            const out = await callOcrThumbnailWithRetry(opFile.dataUrl, bbox, preferredBaseUrl || ensureOcrUrlInput());
+            const thumb = out?.thumbnail;
+            const dataUrl = strOrEmpty(thumb?.data_url || "");
+            if (!dataUrl) return;
+            bubble.thumbnailDataUrl = dataUrl;
+            bubble.thumbnailBBox = normalizeBbox(thumb?.source_bbox || bbox) || bbox;
+            changed += 1;
+          } catch {
+            // Non-blocking thumbnail refresh.
+          }
+        });
+        await Promise.allSettled(tasks);
+        if (changed > 0) {
+          writeRoutePlan(routePlan);
+          renderBubbleTable();
+          drawBubbleCanvas();
+        }
+        return changed;
       }
       async function runOcrClickForCanvasPoint(point) {
         if (bubbleOcrBusy) return;
@@ -1346,22 +1770,46 @@
         applyOcrBusyState(true);
         setOcrStatus("info", tt("spacial.ocr.click.running", "Detecting annotation at click..."));
         try {
-          let out;
-          try {
-            out = await callOcrAnnotationClickWithRetry(opFile.dataUrl, point, mode, ocrBaseUrl);
-          } catch (clickErr) {
-            // Backward-compatible fallback with older OCR server endpoint.
-            out = await callOcrJsonWithRetry("/ocr/process-center", {
-              image: opFile.dataUrl,
-              center_point: { x: Number(point?.x || 0), y: Number(point?.y || 0) },
-              use_rectangle: false,
-              rotation: 0,
-            }, ocrBaseUrl);
+          const clickPoint = { x: Number(point?.x || 0), y: Number(point?.y || 0) };
+          const triedRotations = new Set();
+          const tryOcrAtRotation = async (rotation) => {
+            const safeRotation = normalizeCardinalRotation(rotation, 0);
+            if (triedRotations.has(safeRotation)) return null;
+            triedRotations.add(safeRotation);
+            let out = null;
+            try {
+              out = await callOcrAnnotationClickWithRetry(opFile.dataUrl, clickPoint, mode, ocrBaseUrl, safeRotation);
+            } catch {
+              // Backward-compatible fallback with older OCR server endpoint.
+              out = await callOcrJsonWithRetry("/ocr/process-center", {
+                image: opFile.dataUrl,
+                center_point: clickPoint,
+                use_rectangle: false,
+                rotation: safeRotation,
+              }, ocrBaseUrl);
+            }
+            const rawZone = (out && typeof out === "object") ? (out.zone || out?.zones?.[0] || null) : null;
+            const rawBbox = bboxFromOcrZone(rawZone);
+            const bbox = clampBboxToCanvas(rawBbox) || normalizeBbox(rawBbox);
+            if (!rawZone || !bbox) return null;
+            return {
+              rotation: safeRotation,
+              out,
+              zone: rawZone,
+              bbox,
+              score: scoreSingleOcrZone(rawZone),
+            };
+          };
+          let best = await tryOcrAtRotation(0);
+          const firstRec = inferOcrRotationRecommendation(best?.zone ? [best.zone] : [], extractOcrMetadata(best?.out));
+          if (firstRec.shouldRerun && firstRec.rotation !== 0) {
+            setOcrStatus("info", tt("spacial.ocr.retry.rotation", "Checking with rotation {deg}°...", { deg: firstRec.rotation }));
+            const rotated = await tryOcrAtRotation(firstRec.rotation);
+            if (rotated && (!best || rotated.score >= best.score)) best = rotated;
           }
-          const zone = (out && typeof out === "object") ? (out.zone || null) : null;
-          const rawBbox = bboxFromOcrZone(zone);
-          const bbox = clampBboxToCanvas(rawBbox) || normalizeBbox(rawBbox);
-          if (!zone || !bbox) {
+          const zone = best?.zone || null;
+          const bbox = best?.bbox || null;
+          if (!zone || !bbox || !best) {
             setOcrStatus("warn", tt("spacial.ocr.click.none", "No annotation found at clicked area."));
             return;
           }
@@ -1374,8 +1822,8 @@
             unit: "mm",
             bbox,
             bubbleOffset: { x: -14, y: -14 },
-            thumbnailDataUrl: strOrEmpty(out?.thumbnail?.data_url || ""),
-            thumbnailBBox: out?.thumbnail?.source_bbox || bbox,
+            thumbnailDataUrl: strOrEmpty(best?.out?.thumbnail?.data_url || ""),
+            thumbnailBBox: best?.out?.thumbnail?.source_bbox || bbox,
           }, bubbles.length);
           bubble.bbox = bbox;
           bubbles.push(bubble);
@@ -1387,7 +1835,10 @@
           if (!bubble.thumbnailDataUrl) {
             refreshBubbleThumbnail(bubble, opFile, ocrBaseUrl);
           }
-          setOcrStatus("ok", tt("spacial.ocr.click.added", "Added annotation from clicked OCR area."));
+          const statusMsg = best.rotation
+            ? tt("spacial.ocr.click.addedRotation", "Added annotation from clicked OCR area (rotation {deg}°).", { deg: best.rotation })
+            : tt("spacial.ocr.click.added", "Added annotation from clicked OCR area.");
+          setOcrStatus("ok", statusMsg);
         } catch (err) {
           setOcrStatus("danger", tt("spacial.ocr.alert.failed", "OCR detection failed: {err}", {
             err: err?.message || String(err || "unknown"),
@@ -1451,35 +1902,58 @@
           return;
         }
         const selectedMode = strOrEmpty($("bubbleOcrModeSel")?.value || "auto") || "auto";
-        const modeList = selectedMode === "auto"
-          ? ["fast", "accurate"]
-          : [selectedMode];
+        const requestedMode = selectedMode === "auto" ? "accurate" : selectedMode;
         applyOcrBusyState(true);
         setOcrStatus("info", tt("spacial.ocr.detectRunning", "Detecting..."));
         try {
           const uploadFile = await dataUrlToUploadFile(opFile.dataUrl, opFile.name || "drawing.png");
-          let bestResult = null;
+          const passCache = new Map();
           let lastError = null;
-          for (const mode of modeList) {
+          const runPass = async (mode, rotation, label) => {
+            const safeRotation = normalizeCardinalRotation(rotation, 0);
+            const key = `${mode}|${safeRotation}`;
+            if (passCache.has(key)) return passCache.get(key);
+            if (label) setOcrStatus("info", label);
             try {
-              setOcrStatus("info", tt("spacial.ocr.tryMode", "Trying OCR mode: {mode}", { mode }));
-              const out = await callOcrProcessWithRetry(uploadFile, mode, ocrBaseUrl);
-              const zones = extractOcrZones(out);
-              const candidateZones = zones.filter((z) => isLikelyAnnotationZone(z));
-              const score = scoreOcrZoneSet(candidateZones);
-              if (candidateZones.length && (!bestResult || score > bestResult.score)) {
-                bestResult = {
-                  mode,
-                  score,
-                  zones: candidateZones,
-                  metadata: out?.metadata && typeof out.metadata === "object" ? out.metadata : {},
-                };
-                if (selectedMode === "auto" && mode === "fast" && (candidateZones.length >= 4 || score >= 9)) {
-                  break;
-                }
-              }
+              const pass = await runOcrProcessPass(uploadFile, mode, safeRotation, ocrBaseUrl);
+              passCache.set(key, pass);
+              return pass;
             } catch (err) {
               lastError = err;
+              return null;
+            }
+          };
+          const collected = [];
+          const firstPass = await runPass("fast", 0, tt("spacial.ocr.firstPass", "First pass: text detection..."));
+          if (firstPass) collected.push(firstPass);
+          const rotationRec = inferOcrRotationRecommendation(firstPass?.zones || [], firstPass?.metadata || {});
+          const preferredRotation = rotationRec.shouldRerun ? rotationRec.rotation : 0;
+          if (preferredRotation !== 0) {
+            const rotatedPass = await runPass(
+              requestedMode,
+              preferredRotation,
+              tt("spacial.ocr.retry.rotation", "Checking with rotation {deg}°...", { deg: preferredRotation }),
+            );
+            if (rotatedPass && !collected.includes(rotatedPass)) collected.push(rotatedPass);
+          }
+          const modeZeroPass = await runPass(
+            requestedMode,
+            0,
+            tt("spacial.ocr.tryMode", "Trying OCR mode: {mode}", { mode: requestedMode }),
+          );
+          if (modeZeroPass && !collected.includes(modeZeroPass)) collected.push(modeZeroPass);
+          let bestResult = collected
+            .filter((x) => x && Array.isArray(x.zones) && x.zones.length)
+            .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))[0] || null;
+          if (selectedMode === "auto" && (!bestResult || bestResult.score < 8 || bestResult.zones.length < 2)) {
+            const hardcore = await runPass(
+              "hardcore",
+              preferredRotation,
+              tt("spacial.ocr.tryMode", "Trying OCR mode: {mode}", { mode: "hardcore" }),
+            );
+            if (hardcore) {
+              if (!collected.includes(hardcore)) collected.push(hardcore);
+              if (!bestResult || hardcore.score > bestResult.score) bestResult = hardcore;
             }
           }
           if (!bestResult || !Array.isArray(bestResult.zones) || !bestResult.zones.length) {
@@ -1517,7 +1991,9 @@
               lsl,
               usl,
               unit: "mm",
-              method: "OCR",
+              method: bestResult.rotation
+                ? tt("spacial.ocr.method.rotation", "OCR ({deg}°)", { deg: bestResult.rotation })
+                : "OCR",
               instrument: "",
               reactionPlan: "",
               bbox,
@@ -1540,11 +2016,13 @@
           if (showBoxesChk) showBoxesChk.checked = true;
           writeRoutePlan(routePlan);
           renderRoutingPanel();
-          for (const bubble of addedBubbles) {
-            refreshBubbleThumbnail(bubble, opFile, ocrBaseUrl);
-          }
+          const thumbsAdded = await refreshBubbleThumbnailsBatch(addedBubbles, opFile, ocrBaseUrl);
           const statusMsg = bestResult.mode
-            ? tt("spacial.ocr.alert.importedMode.annotations", "Imported {count} OCR annotation(s) using {mode}.", { count: added, mode: bestResult.mode })
+            ? tt(
+              "spacial.ocr.alert.importedMode.annotations",
+              "Imported {count} OCR annotation(s) using {mode} @ {rot}° ({thumbs} thumbnails).",
+              { count: added, mode: bestResult.mode, rot: bestResult.rotation || 0, thumbs: thumbsAdded },
+            )
             : tt("spacial.ocr.alert.imported.annotations", "Imported {count} OCR annotation(s).", { count: added });
           setOcrStatus("ok", statusMsg);
         } catch (err) {
@@ -3227,6 +3705,87 @@
         op.characteristicIds = normalizeIdList(nextIds);
         return op.characteristicIds;
       }
+      function annotationCountForOperation(op) {
+        if (!op || typeof op !== "object") return 0;
+        return ensureOperationFiles(op).reduce((acc, file) => acc + (Array.isArray(file?.bubbles) ? file.bubbles.length : 0), 0);
+      }
+      function focusBubbleRowInput(bubbleId, field = "name") {
+        const safeId = String(bubbleId || "");
+        if (!safeId) return;
+        const row = document.querySelector(`[data-bubble-row-id="${CSS.escape(safeId)}"]`);
+        if (!row) return;
+        row.scrollIntoView({ block: "nearest" });
+        const input = row.querySelector(`[data-bubble-grid-field="${field}"]`);
+        if (input && typeof input.focus === "function") {
+          input.focus();
+          if (typeof input.select === "function") input.select();
+        }
+      }
+      function selectOperationForAnnotations(opId, preferredFileId = "") {
+        if (!routePlan) return null;
+        const wantedId = strOrEmpty(opId);
+        const op = routePlan.operations?.find((row) => String(row?.id || "") === wantedId) || null;
+        if (!op) return null;
+        selectedOpId = String(op.id || "");
+        const files = ensureOperationFiles(op);
+        selectedOpFileId = strOrEmpty(preferredFileId || op.activeFileId || files[0]?.id || "");
+        if (!files.some((file) => String(file?.id || "") === String(selectedOpFileId || ""))) {
+          selectedOpFileId = String(files[0]?.id || "");
+        }
+        op.activeFileId = selectedOpFileId;
+        selectedCanvasBubbleId = "";
+        clearBubbleForm();
+        const bubblesPanel = $("sectionBubblesPanel");
+        const blueprintPanel = $("sectionBlueprintPanel");
+        if (bubblesPanel) bubblesPanel.open = true;
+        if (blueprintPanel) blueprintPanel.open = true;
+        return op;
+      }
+      function addEmptyBubbleForSelectedOperation(options = {}) {
+        const op = getSelectedOperation();
+        if (!op) return null;
+        const opFile = selectedOperationFile(op);
+        if (!opFile) return null;
+        const bubbles = Array.isArray(opFile.bubbles) ? opFile.bubbles : (opFile.bubbles = []);
+        const idSet = new Set(bubbles.map((b) => String(b?.id || "")).filter(Boolean));
+        const bubble = normalizeBubble({
+          id: nextBubbleId(idSet),
+          name: `Annotation ${bubbles.length + 1}`,
+          unit: "mm",
+          method: strOrEmpty(op.controlMethod || ""),
+        }, bubbles.length);
+        bubbles.push(bubble);
+        selectedCanvasBubbleId = String(bubble.id || "");
+        editingBubbleId = "";
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+        if (options?.focus !== false) {
+          setTimeout(() => focusBubbleRowInput(bubble.id, "name"), 0);
+        }
+        return bubble;
+      }
+      async function refreshMissingThumbnailsForSelectedFile() {
+        const op = getSelectedOperation();
+        const opFile = selectedOperationFile(op);
+        if (!op || !opFile || !isImageDataUrl(opFile?.dataUrl)) {
+          setOcrStatus("warn", tt("spacial.alert.imageFileRequired", "Current file is not an image. Upload/select an image file first."));
+          return 0;
+        }
+        const missing = (opFile.bubbles || []).filter((bubble) => normalizeBbox(bubble?.bbox) && !strOrEmpty(bubble?.thumbnailDataUrl));
+        if (!missing.length) {
+          setOcrStatus("info", tt("spacial.ocr.thumb.noneMissing", "All visible annotations already have thumbnails."));
+          return 0;
+        }
+        setOcrStatus("info", tt("spacial.ocr.thumb.refreshing", "Refreshing annotation thumbnails..."));
+        const changed = await refreshBubbleThumbnailsBatch(missing, opFile, ensureOcrUrlInput());
+        setOcrStatus(
+          changed > 0 ? "ok" : "warn",
+          changed > 0
+            ? tt("spacial.ocr.thumb.refreshed", "Refreshed {count} annotation thumbnail(s).", { count: changed })
+            : tt("spacial.ocr.thumb.failed", "No annotation thumbnails were refreshed."),
+        );
+        return changed;
+      }
       function ensureOpCharacteristicRefs(op) {
         if (!op || typeof op !== "object") return [];
         const base = normalizeIdList(op.characteristicIds);
@@ -4018,6 +4577,31 @@
         const op = operationById(selectedOpId);
         return op ? deriveOperationCharacteristicIdsFromBubbles(op) : [];
       }
+      function renderOperationQuickList() {
+        const wrap = $("opQuickList");
+        if (!wrap) return;
+        const ops = Array.isArray(routePlan?.operations) ? routePlan.operations : [];
+        if (!ops.length) {
+          wrap.innerHTML = `<div class="mini">${tt("spacial.none.operations", "No operations")}</div>`;
+          return;
+        }
+        wrap.innerHTML = ops.map((op) => {
+          const isSel = String(op?.id || "") === String(selectedOpId || "");
+          const fileCount = ensureOperationFiles(op).length;
+          const annCount = annotationCountForOperation(op);
+          return `
+            <div class="opQuickCard ${isSel ? "sel" : ""}">
+              <div class="opQuickTitle">${escHtml(`${op?.seq || "--"} - ${op?.name || tt("spacial.section.operations", "Operations")}`)}</div>
+              <div class="opQuickMeta">${escHtml(tt("spacial.op.quickMeta", "{files} file(s) | {anns} annotation(s)", { files: fileCount, anns: annCount }))}</div>
+              <div class="opQuickMeta">${escHtml(strOrEmpty(op?.stationCode || op?.workstation || op?.controlMethod || tt("spacial.op.quickNoMeta", "No station/method yet")))}</div>
+              <div class="opQuickActions">
+                <button type="button" data-op-open="${escHtml(String(op?.id || ""))}">${escHtml(tt("spacial.op.openAnnotations", "Open"))}</button>
+                <button type="button" data-op-add-bubble="${escHtml(String(op?.id || ""))}">${escHtml(tt("spacial.annotation.newShort", "+ Annotation"))}</button>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
       function renderOperationCharacteristicList() {
         const wrap = $("opCharList");
         if (!wrap) return;
@@ -4163,10 +4747,11 @@
           return el ? String(el.value || "") : "";
         };
         const src = fallback || {};
+        const characteristicInput = row?.querySelector?.('[data-bubble-grid-field="characteristicId"]');
         return normalizeBubble({
           ...src,
           id: read("id") || src.id,
-          characteristicId: read("characteristicId") || "",
+          characteristicId: characteristicInput ? read("characteristicId") : strOrEmpty(src.characteristicId || ""),
           name: read("name"),
           nominal: read("nominal"),
           lsl: read("lsl"),
@@ -4190,7 +4775,7 @@
         const next = readBubbleRowFromInputs(row, prev);
         next.id = strOrEmpty(prev.id) || strOrEmpty(next.id) || `B${String(idx + 1).padStart(3, "0")}`;
         const productId = currentRouteProductId();
-        if (!strOrEmpty(next.name) && strOrEmpty(next.characteristicId)) {
+        if (!strOrEmpty(next.name) && next.characteristicId) {
           const ch = characteristicById(next.characteristicId, productId);
           if (ch?.name) next.name = ch.name;
         }
@@ -4232,42 +4817,62 @@
         if (!body) return;
         const op = operationById(selectedOpId);
         if (!op) {
-          body.innerHTML = `<tr><td colspan="11" class="mini">${tt("spacial.none.operation", "Select or create an operation first.")}</td></tr>`;
+          body.innerHTML = `<div class="mini">${tt("spacial.none.operation", "Select or create an operation first.")}</div>`;
           return;
         }
         renderBubbleCharacteristicSelect();
         const productId = currentRouteProductId();
         const bubbles = selectedFileBubbles(op);
         if (!bubbles.length) {
-          body.innerHTML = `<tr><td colspan="11" class="mini">${tt("spacial.none.annotations", "No annotations yet for this operation.")}</td></tr>`;
+          body.innerHTML = `<div class="mini">${tt("spacial.none.annotations", "No annotations yet for this operation.")}</div>`;
           return;
         }
-        body.innerHTML = bubbles.map((b, idx) => `
-          <tr class="${String(selectedCanvasBubbleId || "") === String(b.id || "") ? "sel" : ""}" data-bubble-row-index="${idx}" data-bubble-row-id="${escHtml(String(b.id || ""))}">
-            <td class="mono">
-              <div class="annIdCell">
-                ${strOrEmpty(b.thumbnailDataUrl) ? `<img class="annThumb" src="${escHtml(b.thumbnailDataUrl)}" alt="thumb" />` : ""}
-                <input class="cellInput mono" data-bubble-grid-field="id" type="text" value="${escHtml(b.id || "")}" readonly />
+        body.innerHTML = bubbles.map((b, idx) => {
+          const box = normalizeBbox(b?.bbox);
+          const linkedChar = characteristicById(b.characteristicId, productId);
+          const linkedLabel = linkedChar
+            ? `${linkedChar.id || "--"} - ${linkedChar.name || ""}`
+            : tt("spacial.annotation.noCharacteristic", "No linked characteristic");
+          return `
+          <article class="bubbleCard ${String(selectedCanvasBubbleId || "") === String(b.id || "") ? "sel" : ""}" data-bubble-row-index="${idx}" data-bubble-row-id="${escHtml(String(b.id || ""))}">
+            <div class="bubbleCardHead">
+              ${strOrEmpty(b.thumbnailDataUrl)
+                ? `<img class="annThumb" src="${escHtml(b.thumbnailDataUrl)}" alt="thumb" />`
+                : `<div class="annThumbPlaceholder">${escHtml(tt("spacial.annotation.thumbEmpty", "none"))}</div>`}
+              <div class="bubbleCardMain">
+                <div class="bubbleCardTitleRow">
+                  <input class="cellInput mono" data-bubble-grid-field="id" type="text" value="${escHtml(b.id || "")}" readonly />
+                  <input class="cellInput" data-bubble-grid-field="name" type="text" value="${escHtml(b.name || "")}" placeholder="${escHtml(tt("spacial.annotation.name", "Annotation name"))}" />
+                </div>
+                <div class="bubbleCardMetrics">
+                  <input class="cellInput" data-bubble-grid-field="nominal" type="number" step="0.001" value="${b.nominal == null ? "" : escHtml(b.nominal)}" placeholder="${escHtml(tt("spacial.annotation.nominal", "Nominal"))}" />
+                  <input class="cellInput" data-bubble-grid-field="lsl" type="number" step="0.001" value="${b.lsl == null ? "" : escHtml(b.lsl)}" placeholder="LSL" />
+                  <input class="cellInput" data-bubble-grid-field="usl" type="number" step="0.001" value="${b.usl == null ? "" : escHtml(b.usl)}" placeholder="USL" />
+                  <input class="cellInput" data-bubble-grid-field="unit" type="text" value="${escHtml(b.unit || "")}" placeholder="${escHtml(tt("spacial.annotation.unit", "Unit"))}" />
+                </div>
+                <div class="bubbleCardMetaRow">
+                  <span class="bubbleChip">${escHtml(linkedLabel)}</span>
+                  <span>${escHtml(box ? `${Math.round(box.x1)},${Math.round(box.y1)} -> ${Math.round(box.x2)},${Math.round(box.y2)}` : tt("spacial.annotation.noBox", "No box yet"))}</span>
+                  <span>${escHtml(tt("spacial.autoSave", "Auto-save"))}</span>
+                </div>
               </div>
-            </td>
-            <td><select class="cellInput" data-bubble-grid-field="characteristicId">${bubbleCharacteristicOptionsHtml(b.characteristicId, productId)}</select></td>
-            <td><input class="cellInput" data-bubble-grid-field="name" type="text" value="${escHtml(b.name || "")}" /></td>
-            <td><input class="cellInput" data-bubble-grid-field="nominal" type="number" step="0.001" value="${b.nominal == null ? "" : escHtml(b.nominal)}" /></td>
-            <td><input class="cellInput" data-bubble-grid-field="lsl" type="number" step="0.001" value="${b.lsl == null ? "" : escHtml(b.lsl)}" /></td>
-            <td><input class="cellInput" data-bubble-grid-field="usl" type="number" step="0.001" value="${b.usl == null ? "" : escHtml(b.usl)}" /></td>
-            <td><input class="cellInput" data-bubble-grid-field="unit" type="text" value="${escHtml(b.unit || "")}" /></td>
-            <td><input class="cellInput" data-bubble-grid-field="method" type="text" value="${escHtml(b.method || "")}" /></td>
-            <td><input class="cellInput" data-bubble-grid-field="instrument" type="text" value="${escHtml(b.instrument || "")}" /></td>
-            <td><input class="cellInput" data-bubble-grid-field="reaction" type="text" value="${escHtml(b.reactionPlan || "")}" /></td>
-            <td>
-              <div class="cellActions">
-                <span class="cellMeta">${escHtml(tt("spacial.autoSave", "Auto-save"))}</span>
+              <div class="bubbleCardActions">
                 <button data-bubble-pick-btn="${idx}" type="button">${tt("spacial.pick", "Pick")}</button>
+                <button data-bubble-thumb-btn="${idx}" type="button">${tt("spacial.annotation.thumbRefresh", "Thumb")}</button>
                 <button data-bubble-del="${idx}" type="button" class="danger">${tt("spacial.delete", "Delete")}</button>
               </div>
-            </td>
-          </tr>
-        `).join("");
+            </div>
+            <details class="bubbleCardMore">
+              <summary>${escHtml(tt("spacial.annotation.more", "More fields"))}</summary>
+              <div class="bubbleCardMoreGrid">
+                <input class="cellInput" data-bubble-grid-field="method" type="text" value="${escHtml(b.method || "")}" placeholder="${escHtml(tt("spacial.annotation.method", "Method"))}" />
+                <input class="cellInput" data-bubble-grid-field="instrument" type="text" value="${escHtml(b.instrument || "")}" placeholder="${escHtml(tt("spacial.annotation.instrument", "Instrument"))}" />
+                <input class="cellInput" data-bubble-grid-field="reaction" type="text" value="${escHtml(b.reactionPlan || "")}" placeholder="${escHtml(tt("spacial.annotation.reaction", "Reaction plan"))}" />
+              </div>
+            </details>
+          </article>
+        `;
+        }).join("");
       }
       function getSelectedOperation() {
         return operationById(selectedOpId);
@@ -4447,33 +5052,108 @@
           y: (e.clientY - rect.top) * scaleY,
         };
       }
+      function bubbleResizeHandleRadius() {
+        return 6;
+      }
+      function bubbleResizeCursor(handle) {
+        switch (String(handle || "")) {
+          case "n":
+          case "s":
+            return "ns-resize";
+          case "e":
+          case "w":
+            return "ew-resize";
+          case "ne":
+          case "sw":
+            return "nesw-resize";
+          case "nw":
+          case "se":
+            return "nwse-resize";
+          default:
+            return "grab";
+        }
+      }
+      function bubbleResizeHandles(boxB) {
+        const box = normalizeBbox(boxB);
+        if (!box) return [];
+        const cx = (box.x1 + box.x2) / 2;
+        const cy = (box.y1 + box.y2) / 2;
+        const r = bubbleResizeHandleRadius();
+        return [
+          { name: "nw", x: box.x1, y: box.y1, r, cursor: bubbleResizeCursor("nw") },
+          { name: "n", x: cx, y: box.y1, r, cursor: bubbleResizeCursor("n") },
+          { name: "ne", x: box.x2, y: box.y1, r, cursor: bubbleResizeCursor("ne") },
+          { name: "e", x: box.x2, y: cy, r, cursor: bubbleResizeCursor("e") },
+          { name: "se", x: box.x2, y: box.y2, r, cursor: bubbleResizeCursor("se") },
+          { name: "s", x: cx, y: box.y2, r, cursor: bubbleResizeCursor("s") },
+          { name: "sw", x: box.x1, y: box.y2, r, cursor: bubbleResizeCursor("sw") },
+          { name: "w", x: box.x1, y: cy, r, cursor: bubbleResizeCursor("w") },
+        ];
+      }
+      function bubbleResizeHandleAtPoint(boxB, x, y) {
+        for (const handle of bubbleResizeHandles(boxB)) {
+          if (Math.hypot(x - handle.x, y - handle.y) <= handle.r + 3) return handle;
+        }
+        return null;
+      }
+      function resizeBubbleRectFromHandle(startBoxB, handleName, point) {
+        const startBox = normalizeBbox(startBoxB);
+        if (!startBox) return null;
+        const p = point || { x: startBox.x2, y: startBox.y2 };
+        const next = { x1: startBox.x1, y1: startBox.y1, x2: startBox.x2, y2: startBox.y2 };
+        if (String(handleName || "").includes("w")) next.x1 = p.x;
+        if (String(handleName || "").includes("e")) next.x2 = p.x;
+        if (String(handleName || "").includes("n")) next.y1 = p.y;
+        if (String(handleName || "").includes("s")) next.y2 = p.y;
+        if (handleName === "n" || handleName === "s") {
+          next.x1 = startBox.x1;
+          next.x2 = startBox.x2;
+        }
+        if (handleName === "e" || handleName === "w") {
+          next.y1 = startBox.y1;
+          next.y2 = startBox.y2;
+        }
+        return clampBboxToCanvas(next) || startBox;
+      }
+      function bubbleCanvasCursorForHit(hit, altKey = false) {
+        if (hit?.onDelete) return "pointer";
+        if (hit?.onResize?.cursor) return hit.onResize.cursor;
+        if (hit?.onLabel || hit?.bubble) return "move";
+        return altKey ? "crosshair" : "grab";
+      }
+      function setBubbleCanvasCursor(nextCursor) {
+        const cv = $("bubbleCanvas");
+        if (cv) cv.style.cursor = nextCursor || "grab";
+      }
       function findBubbleAtPoint(x, y) {
         const op = getSelectedOperation();
         const bubbles = selectedFileBubbles(op);
-        if (!op) return { bubble: null, onLabel: false, onDelete: false };
+        if (!op) return { bubble: null, onLabel: false, onDelete: false, onResize: null };
         const selected = bubbles.find((b) => String(b?.id || "") === String(selectedCanvasBubbleId || ""));
         if (selected) {
           const sbox = normalizeBbox(selected?.bbox);
           const delRect = bubbleDeleteControlRect(sbox);
           if (delRect && x >= delRect.x1 && x <= delRect.x2 && y >= delRect.y1 && y <= delRect.y2) {
-            return { bubble: selected, onLabel: false, onDelete: true };
+            return { bubble: selected, onLabel: false, onDelete: true, onResize: null };
           }
+          const handle = bubbleResizeHandleAtPoint(sbox, x, y);
+          if (handle) return { bubble: selected, onLabel: false, onDelete: false, onResize: handle };
         }
         for (let i = bubbles.length - 1; i >= 0; i--) {
           const b = bubbles[i];
           const label = bubbleLabelPosition(b);
           if (label) {
             const d = Math.hypot(x - label.x, y - label.y);
-            if (d <= label.r) return { bubble: b, onLabel: true, onDelete: false };
+            if (d <= label.r) return { bubble: b, onLabel: true, onDelete: false, onResize: null };
           }
         }
         for (let i = bubbles.length - 1; i >= 0; i--) {
           const b = bubbles[i];
           const box = normalizeBbox(b?.bbox);
           if (!box) continue;
-          if (x >= box.x1 && x <= box.x2 && y >= box.y1 && y <= box.y2) return { bubble: b, onLabel: false, onDelete: false };
+          if (x >= box.x1 && x <= box.x2 && y >= box.y1 && y <= box.y2) return { bubble: b, onLabel: false, onDelete: false, onResize: null };
         }
-        return { bubble: null, onLabel: false, onDelete: false };
+        return { bubble: null, onLabel: false, onDelete: false, onResize: null };
       }
       function drawBubbleCanvas() {
         const box = ensureCanvasReady();
@@ -4502,14 +5182,14 @@
           const opName = op?.name || tt("spacial.canvas.noOp", "No operation");
           const fileName = opFile?.name ? ` | ${tt("spacial.file.label", "File")}: ${opFile.name}` : "";
           const sel = selectedCanvasBubbleId ? ` | ${tt("spacial.canvas.selected", "Selected: {id}", { id: selectedCanvasBubbleId })}` : "";
-          info.textContent = `${tt("spacial.canvas.instructions.annotations", "Operation: {op}{selected}. Drag to create/move, wheel to zoom, double-click OCR.", { op: opName, selected: sel })}${fileName}`;
+          info.textContent = `${tt("spacial.canvas.instructions.annotations", "Operation: {op}{selected}. Left-drag to pan, drag box or dots to resize, Alt+drag to draw, wheel to zoom, double-click OCR.", { op: opName, selected: sel })}${fileName}`;
         }
         if (op && Array.isArray(bubbles)) {
           bubbles.forEach((b, idx) => {
             const boxB = normalizeBbox(b?.bbox);
             if (!boxB) return;
             const isSel = String(b.id || "") === String(selectedCanvasBubbleId || "");
-            if (showBoxes) {
+            if (showBoxes || isSel) {
               ctx.strokeStyle = isSel ? okHex : accentHex;
               ctx.lineWidth = isSel ? 3 : 2;
               ctx.fillStyle = isSel ? hexToRgba(okHex, .08) : hexToRgba(accentHex, .06);
@@ -4528,6 +5208,16 @@
                   ctx.moveTo(delRect.x2 - 4, delRect.y1 + 4);
                   ctx.lineTo(delRect.x1 + 4, delRect.y2 - 4);
                   ctx.stroke();
+                }
+                for (const handle of bubbleResizeHandles(boxB)) {
+                  ctx.fillStyle = bgHex;
+                  ctx.beginPath();
+                  ctx.arc(handle.x, handle.y, handle.r + 1.5, 0, Math.PI * 2);
+                  ctx.fill();
+                  ctx.fillStyle = okHex;
+                  ctx.beginPath();
+                  ctx.arc(handle.x, handle.y, handle.r, 0, Math.PI * 2);
+                  ctx.fill();
                 }
               }
             }
@@ -4577,6 +5267,8 @@
         editingBubbleId = selectedCanvasBubbleId;
         if (b) {
           $("bubbleIdIn").value = b.id || "";
+          renderBubbleCharacteristicSelect(b.characteristicId || "");
+          if ($("bubbleCharSel")) $("bubbleCharSel").value = b.characteristicId || "";
           $("bubbleNameIn").value = b.name || "";
           $("bubbleNomIn").value = b.nominal == null ? "" : String(b.nominal);
           $("bubbleLslIn").value = b.lsl == null ? "" : String(b.lsl);
@@ -4643,26 +5335,33 @@
         const wrap = $("bubbleCanvasWrap");
         if (!cv || cv.dataset.bound === "1") return;
         cv.dataset.bound = "1";
+        const beginPan = (e) => {
+          if (!wrap) return;
+          bubbleCanvasMode = "pan";
+          bubbleCanvasResize = null;
+          bubbleCanvasPan = {
+            x: e.clientX,
+            y: e.clientY,
+            scrollLeft: wrap.scrollLeft,
+            scrollTop: wrap.scrollTop,
+          };
+          cv.style.cursor = "grabbing";
+          e.preventDefault();
+        };
         cv.addEventListener("mousedown", (e) => {
           const op = getSelectedOperation();
           if (!op) return;
-          if ((e.button === 1 || e.shiftKey) && wrap) {
-            bubbleCanvasMode = "pan";
-            bubbleCanvasPan = {
-              x: e.clientX,
-              y: e.clientY,
-              scrollLeft: wrap.scrollLeft,
-              scrollTop: wrap.scrollTop,
-            };
-            e.preventDefault();
-            return;
-          }
+          if (e.button !== 0 && e.button !== 1) return;
           const p = pointFromCanvasEvent(e);
           if (bubbleClickOcrArmed) {
             bubbleClickOcrArmed = false;
             applyOcrBusyState(false);
             runOcrClickForCanvasPoint(p);
             e.preventDefault();
+            return;
+          }
+          if ((e.button === 1 || e.shiftKey) && wrap) {
+            beginPan(e);
             return;
           }
           const hit = findBubbleAtPoint(p.x, p.y);
@@ -4680,16 +5379,26 @@
           }
           if (hit.bubble) {
             canvasPickBubble(hit.bubble);
-            bubbleCanvasMode = hit.onLabel ? "dragLabel" : "dragBox";
+            bubbleCanvasMode = hit.onResize ? "resizeBox" : (hit.onLabel ? "dragLabel" : "dragBox");
             bubbleCanvasLast = p;
+            bubbleCanvasResize = hit.onResize
+              ? { handle: hit.onResize.name, startBox: normalizeBbox(hit.bubble?.bbox) }
+              : null;
+            setBubbleCanvasCursor(hit.onResize ? hit.onResize.cursor : "move");
             e.preventDefault();
+            return;
+          }
+          if (!e.altKey && wrap) {
+            beginPan(e);
             return;
           }
           clearBubbleForm();
           startDrawAt(p.x, p.y);
           bubbleCanvasLast = p;
+          bubbleCanvasResize = null;
           renderBubbleTable();
           drawBubbleCanvas();
+          e.preventDefault();
         });
         cv.addEventListener("dblclick", async (e) => {
           const op = getSelectedOperation();
@@ -4702,20 +5411,26 @@
           bubbleCanvasStart = null;
           bubbleCanvasRect = null;
           bubbleCanvasLast = null;
+          bubbleCanvasResize = null;
           await runOcrClickForCanvasPoint(p);
         });
         cv.addEventListener("mousemove", (e) => {
           const op = getSelectedOperation();
-          if (!op || !bubbleCanvasMode || bubbleCanvasMode === "idle") return;
+          if (!op) return;
+          const p = pointFromCanvasEvent(e);
+          if (!bubbleCanvasMode || bubbleCanvasMode === "idle") {
+            setBubbleCanvasCursor(bubbleCanvasCursorForHit(findBubbleAtPoint(p.x, p.y), e.altKey));
+            return;
+          }
           if (bubbleCanvasMode === "pan" && wrap && bubbleCanvasPan) {
             const dx = e.clientX - bubbleCanvasPan.x;
             const dy = e.clientY - bubbleCanvasPan.y;
             wrap.scrollLeft = bubbleCanvasPan.scrollLeft - dx;
             wrap.scrollTop = bubbleCanvasPan.scrollTop - dy;
+            e.preventDefault();
             return;
           }
           const bubbles = selectedFileBubbles(op);
-          const p = pointFromCanvasEvent(e);
           if (bubbleCanvasMode === "draw" && bubbleCanvasStart) {
             bubbleCanvasRect = clampBboxToCanvas({ x1: bubbleCanvasStart.x, y1: bubbleCanvasStart.y, x2: p.x, y2: p.y });
             drawBubbleCanvas();
@@ -4729,6 +5444,8 @@
           if (bubbleCanvasMode === "dragLabel") {
             const cur = sel.bubbleOffset || { x: -14, y: -14 };
             sel.bubbleOffset = { x: Number(cur.x || 0) + dx, y: Number(cur.y || 0) + dy };
+          } else if (bubbleCanvasMode === "resizeBox" && bubbleCanvasResize?.handle && bubbleCanvasResize?.startBox) {
+            sel.bbox = resizeBubbleRectFromHandle(bubbleCanvasResize.startBox, bubbleCanvasResize.handle, p);
           } else if (bubbleCanvasMode === "dragBox") {
             const b = normalizeBbox(sel.bbox);
             if (b) sel.bbox = clampBboxToCanvas({ x1: b.x1 + dx, y1: b.y1 + dy, x2: b.x2 + dx, y2: b.y2 + dy }) || b;
@@ -4744,11 +5461,13 @@
           bubbleCanvasRect = null;
           bubbleCanvasLast = null;
           bubbleCanvasPan = null;
+          bubbleCanvasResize = null;
+          setBubbleCanvasCursor("grab");
           if (mode === "draw" && rect) {
             upsertCanvasBubbleWithRect(rect);
             return;
           }
-          if (mode === "dragLabel" || mode === "dragBox") {
+          if (mode === "dragLabel" || mode === "dragBox" || mode === "resizeBox") {
             clampBubblesToCanvas();
             saveCanvasInteractions();
             return;
@@ -4757,10 +5476,11 @@
         };
         cv.addEventListener("mouseup", onUp);
         cv.addEventListener("mouseleave", onUp);
+        window.addEventListener("mouseup", onUp);
         if (wrap) {
           wrap.addEventListener("wheel", (e) => {
-            if (e.shiftKey) return;
             e.preventDefault();
+            e.stopPropagation();
             const dir = e.deltaY > 0 ? -0.1 : 0.1;
             setCanvasZoom(bubbleCanvasZoom + dir, e);
           }, { passive: false });
@@ -4784,11 +5504,12 @@
           $("routeProductRefIn").value = "";
           renderCharacteristicSelect();
           renderCharacteristicGrid();
+          $("opQuickList").innerHTML = `<div class="mini">${tt("spacial.none.operations", "No operations")}</div>`;
           $("opCharList").innerHTML = `<div class="mini">${tt("spacial.none.operation", "Select or create an operation first.")}</div>`;
           $("routeOpSel").innerHTML = `<option value="">${tt("spacial.none.operations", "No operations")}</option>`;
           $("opFileSel").innerHTML = `<option value="">${tt("spacial.none.file", "No files")}</option>`;
           $("bubbleCharSel").innerHTML = `<option value="">${tt("spacial.annotation.noCharacteristic", "No linked characteristic")}</option>`;
-          $("bubbleTableBody").innerHTML = `<tr><td colspan="11" class="mini">${tt("spacial.none.routeSelected", "Select or create a route.")}</td></tr>`;
+          $("bubbleTableBody").innerHTML = `<div class="mini">${tt("spacial.none.routeSelected", "Select or create a route.")}</div>`;
           writeOperationToInputs(null);
           clearBubbleForm();
           selectedOpFileId = "";
@@ -4812,6 +5533,7 @@
         $("routeProductRefIn").value = routePlan.productRef || "";
         renderCharacteristicSelect();
         renderCharacteristicGrid();
+        renderOperationQuickList();
         renderOperationSelect();
         renderOperationFileSelect();
         writeOperationToInputs(operationById(selectedOpId));
@@ -5262,7 +5984,7 @@
         if (!op) return;
         const bubbles = selectedFileBubbles(op);
         const b = readBubbleForm();
-        if (!strOrEmpty(b.name) && strOrEmpty(b.characteristicId)) {
+        if (!strOrEmpty(b.name) && b.characteristicId) {
           const ch = characteristicById(b.characteristicId, currentRouteProductId());
           if (ch?.name) b.name = ch.name;
         }
@@ -5820,21 +6542,33 @@
         renderRoutingPanel();
       }
 
-      function drawOperationBubblesToCanvas(ctx, bubbles, theme) {
+      function exportShowBoxesEnabled() {
+        return !!$("bubbleShowBoxesChk")?.checked;
+      }
+
+      function exportPdfIncludeBlueprintEnabled() {
+        return !!$("bubblePdfIncludeImageChk")?.checked;
+      }
+
+      function drawOperationBubblesToCanvas(ctx, bubbles, theme, options = {}) {
         const accent = theme?.accent || "#4dafff";
         const ok = theme?.ok || accent;
         const text = theme?.text || "#ffffff";
         const bg = theme?.bg || "#0f1724";
+        const showBoxes = options?.showBoxes !== false;
+        const selectedId = strOrEmpty(options?.selectedId);
         for (let i = 0; i < bubbles.length; i++) {
           const b = bubbles[i];
           const box = normalizeBbox(b?.bbox);
           if (!box) continue;
-          const isSel = String(b.id || "") === String(selectedCanvasBubbleId || "");
-          ctx.strokeStyle = isSel ? ok : accent;
-          ctx.lineWidth = isSel ? 3 : 2;
-          ctx.fillStyle = isSel ? hexToRgba(ok, .10) : hexToRgba(accent, .08);
-          ctx.strokeRect(box.x1, box.y1, box.x2 - box.x1, box.y2 - box.y1);
-          ctx.fillRect(box.x1, box.y1, box.x2 - box.x1, box.y2 - box.y1);
+          const isSel = selectedId ? String(b.id || "") === selectedId : false;
+          if (showBoxes) {
+            ctx.strokeStyle = isSel ? ok : accent;
+            ctx.lineWidth = isSel ? 3 : 2;
+            ctx.fillStyle = isSel ? hexToRgba(ok, .10) : hexToRgba(accent, .08);
+            ctx.strokeRect(box.x1, box.y1, box.x2 - box.x1, box.y2 - box.y1);
+            ctx.fillRect(box.x1, box.y1, box.x2 - box.x1, box.y2 - box.y1);
+          }
           const label = bubbleLabelPosition(b);
           if (!label) continue;
           ctx.fillStyle = isSel ? hexToRgba(ok, .92) : hexToRgba(accent, .88);
@@ -5854,7 +6588,47 @@
         ctx.textBaseline = "alphabetic";
       }
 
-      function exportSelectedOperationAnnotatedJpg() {
+      function loadImageElement(dataUrl) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error("image-load-failed"));
+          img.src = String(dataUrl || "");
+        });
+      }
+
+      async function renderOperationExportCanvas(file, options = {}) {
+        const showBoxes = options?.showBoxes !== false;
+        const includeImage = options?.includeImage !== false;
+        let width = 1400;
+        let height = 900;
+        let img = null;
+        if (includeImage && isImageDataUrl(file?.dataUrl)) {
+          img = await loadImageElement(file.dataUrl);
+          width = Math.max(1, Number(img.width || width));
+          height = Math.max(1, Number(img.height || height));
+        }
+        const cv = document.createElement("canvas");
+        cv.width = width;
+        cv.height = height;
+        const ctx = cv.getContext("2d");
+        if (!ctx) return null;
+        ctx.fillStyle = options?.background || "#ffffff";
+        ctx.fillRect(0, 0, cv.width, cv.height);
+        if (img) ctx.drawImage(img, 0, 0, cv.width, cv.height);
+        drawOperationBubblesToCanvas(ctx, Array.isArray(file?.bubbles) ? file.bubbles : [], {
+          accent: cssThemeHex("--accent", "#4dafff"),
+          ok: cssThemeHex("--ok", "#00ff8f"),
+          text: cssThemeHex("--text", "#ffffff"),
+          bg: cssThemeHex("--bg", "#0f1724"),
+        }, {
+          showBoxes,
+          selectedId: "",
+        });
+        return cv;
+      }
+
+      async function exportSelectedOperationAnnotatedJpg() {
         const op = getSelectedOperation();
         const file = selectedOperationFile(op);
         if (!op || !file) return;
@@ -5862,20 +6636,13 @@
           alert(tt("spacial.alert.imageFileRequired", "Current file is not an image. Upload/select an image file first."));
           return;
         }
-        const img = new Image();
-        img.onload = () => {
-          const cv = document.createElement("canvas");
-          cv.width = img.width;
-          cv.height = img.height;
-          const ctx = cv.getContext("2d");
-          if (!ctx) return;
-          ctx.drawImage(img, 0, 0, cv.width, cv.height);
-          drawOperationBubblesToCanvas(ctx, Array.isArray(file.bubbles) ? file.bubbles : [], {
-            accent: cssThemeHex("--accent", "#4dafff"),
-            ok: cssThemeHex("--ok", "#00ff8f"),
-            text: cssThemeHex("--text", "#ffffff"),
-            bg: cssThemeHex("--bg", "#0f1724"),
+        try {
+          const cv = await renderOperationExportCanvas(file, {
+            includeImage: true,
+            showBoxes: exportShowBoxesEnabled(),
+            background: "#ffffff",
           });
+          if (!cv) throw new Error("canvas-create-failed");
           const name = safeFilename(`${routePlan?.routeName || routePlan?.productRef || "route"}_${op.seq || "op"}_${file.name || "file"}_annotated`, "operation_annotated");
           if (cv.toBlob) {
             cv.toBlob((blob) => {
@@ -5897,9 +6664,9 @@
             a.click();
             a.remove();
           }
-        };
-        img.onerror = () => alert(tt("spacial.alert.imageLoadFailed", "Failed to load image for export."));
-        img.src = file.dataUrl;
+        } catch {
+          alert(tt("spacial.alert.imageLoadFailed", "Failed to load image for export."));
+        }
       }
 
       function operationFileRowsForPdf(op, file) {
@@ -5944,11 +6711,33 @@
         const popupBorder = escHtml((cs.getPropertyValue("--border") || "").trim() || "#bbb");
         const popupMuted = escHtml((cs.getPropertyValue("--muted") || "").trim() || "#666");
         const opTitle = `${op.seq || ""} - ${op.name || tt("spacial.section.operations", "Operations")}`;
-        const blocks = files.map((file, idx) => `
+        const includeBlueprint = exportPdfIncludeBlueprintEnabled();
+        Promise.all(files.map(async (file, idx) => {
+          let previewHtml = "";
+          if (includeBlueprint) {
+            if (isImageDataUrl(file.dataUrl)) {
+              try {
+                const cv = await renderOperationExportCanvas(file, {
+                  includeImage: true,
+                  showBoxes: exportShowBoxesEnabled(),
+                  background: "#ffffff",
+                });
+                const dataUrl = cv ? cv.toDataURL("image/png") : "";
+                previewHtml = dataUrl
+                  ? `<img src="${dataUrl}" style="max-width:100%;max-height:420px;display:block;border:1px solid ${popupBorder};border-radius:6px;margin-bottom:8px;" />`
+                  : `<div style="margin:0 0 8px;font-size:12px;color:${popupMuted};">${escHtml(tt("spacial.file.previewNA", "Preview not available for this file type."))}</div>`;
+              } catch {
+                previewHtml = `<div style="margin:0 0 8px;font-size:12px;color:${popupMuted};">${escHtml(tt("spacial.file.previewNA", "Preview not available for this file type."))}</div>`;
+              }
+            } else {
+              previewHtml = `<div style="margin:0 0 8px;font-size:12px;color:${popupMuted};">${escHtml(tt("spacial.file.previewNA", "Preview not available for this file type."))}</div>`;
+            }
+          }
+          return `
           <section style="margin:0 0 18px;">
             <h3 style="margin:0 0 6px;">${escHtml(tt("spacial.file.label", "File"))} ${idx + 1}: ${escHtml(file.name || "")}</h3>
             <div style="margin:0 0 8px;font-size:11px;color:${popupMuted};">${escHtml(file.mime || "")}</div>
-            ${isImageDataUrl(file.dataUrl) ? `<img src="${file.dataUrl}" style="max-width:100%;max-height:420px;display:block;border:1px solid ${popupBorder};border-radius:6px;margin-bottom:8px;" />` : `<div style="margin:0 0 8px;font-size:12px;color:${popupMuted};">${escHtml(tt("spacial.file.previewNA", "Preview not available for this file type."))}</div>`}
+            ${previewHtml}
             <table style="width:100%;border-collapse:collapse;font-size:11px;">
               <thead>
                 <tr>
@@ -5970,7 +6759,8 @@
               <tbody>${operationFileRowsForPdf(op, file)}</tbody>
             </table>
           </section>
-        `).join("");
+        `;
+        })).then((blocks) => {
         win.document.write(`
           <!doctype html>
           <html>
@@ -5983,13 +6773,28 @@
               <h1>${escHtml(tt("spacial.routing.title", "Routing and Dimensional Control"))}</h1>
               <h2>${escHtml(opTitle)}</h2>
               <div style="margin:0 0 12px;font-size:12px;">${escHtml(tt("spacial.section.route", "Route"))}: ${escHtml(routePlan.routeName || "")} | ${escHtml(tt("spacial.stationDefault", "Station"))}: ${escHtml(routePlan.stationLabel || "")}</div>
-              ${blocks}
+              ${blocks.join("")}
             </body>
           </html>
         `);
         win.document.close();
         win.focus();
         win.print();
+        }).catch(() => {
+          win.document.write(`
+            <!doctype html>
+            <html>
+              <head><meta charset="utf-8" /><title>${escHtml(opTitle)}</title></head>
+              <body style="font-family:Arial,sans-serif;padding:14px;color:${popupText};">
+                <h1>${escHtml(tt("spacial.routing.title", "Routing and Dimensional Control"))}</h1>
+                <h2>${escHtml(opTitle)}</h2>
+                <div>${escHtml(tt("spacial.file.previewNA", "Preview not available for this file type."))}</div>
+              </body>
+            </html>
+          `);
+          win.document.close();
+          win.focus();
+        });
       }
 
       $("scopeTypeSel").addEventListener("change", () => {
@@ -6120,12 +6925,34 @@
         selectedOpId = strOrEmpty($("routeOpSel").value);
         selectedOpFileId = "";
         writeOperationToInputs(operationById(selectedOpId));
+        renderOperationQuickList();
         renderOperationCharacteristicList();
         renderOperationFileSelect();
         renderBubbleCharacteristicSelect();
         clearBubbleForm();
         renderBubbleTable();
         syncCanvasFromRoute();
+      });
+      $("opQuickList").addEventListener("click", (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        if (!target) return;
+        const openBtn = target.closest("[data-op-open]");
+        if (openBtn) {
+          const opId = strOrEmpty(openBtn.getAttribute("data-op-open"));
+          if (!opId) return;
+          selectOperationForAnnotations(opId);
+          renderRoutingPanel();
+          $("sectionBubblesPanel")?.scrollIntoView({ block: "start", behavior: "smooth" });
+          return;
+        }
+        const addBtn = target.closest("[data-op-add-bubble]");
+        if (addBtn) {
+          const opId = strOrEmpty(addBtn.getAttribute("data-op-add-bubble"));
+          if (!opId) return;
+          selectOperationForAnnotations(opId);
+          renderRoutingPanel();
+          addEmptyBubbleForSelectedOperation({ focus: true });
+        }
       });
       $("opFileSel").addEventListener("change", () => {
         const op = getSelectedOperation();
@@ -6233,7 +7060,9 @@
       $("charSaveBtn").addEventListener("click", saveSelectedCharacteristic);
       $("charClearBtn").addEventListener("click", clearCharacteristicForm);
       $("bubbleSaveBtn").addEventListener("click", saveBubbleFromInputs);
+      $("bubbleAddRowBtn").addEventListener("click", () => addEmptyBubbleForSelectedOperation({ focus: true }));
       $("bubbleClearBtn").addEventListener("click", clearBubbleForm);
+      $("bubbleRefreshThumbsBtn").addEventListener("click", refreshMissingThumbnailsForSelectedFile);
       $("bubbleCharSel").addEventListener("change", () => {
         const charId = strOrEmpty($("bubbleCharSel").value);
         applyCharacteristicToBubbleForm(charId, false);
@@ -6279,31 +7108,41 @@
           const bubbles = selectedFileBubbles(op);
           const src = bubbles[i];
           if (!src) return;
-          selectedCanvasBubbleId = String(src.id || "");
-          renderBubbleTable();
-          drawBubbleCanvas();
+          canvasPickBubble(src);
           return;
         }
-        const row = target.closest("tr[data-bubble-row-index]");
+        const thumbBtn = target.closest("[data-bubble-thumb-btn]");
+        if (thumbBtn) {
+          const i = Number(thumbBtn.getAttribute("data-bubble-thumb-btn"));
+          const op = operationById(selectedOpId);
+          const opFile = selectedOperationFile(op);
+          const bubbles = selectedFileBubbles(op);
+          const bubble = bubbles[i];
+          if (!op || !opFile || !bubble) return;
+          refreshBubbleThumbnail(bubble, opFile, ensureOcrUrlInput());
+          return;
+        }
+        const row = target.closest("[data-bubble-row-index]");
         if (!row) return;
         if (target.closest("button,input,select,textarea,label")) return;
+        const op = operationById(selectedOpId);
+        const bubbles = selectedFileBubbles(op);
         const bubbleId = strOrEmpty(row.getAttribute("data-bubble-row-id"));
-        if (!bubbleId) return;
-        selectedCanvasBubbleId = bubbleId;
-        renderBubbleTable();
-        drawBubbleCanvas();
+        const src = bubbles.find((bubble) => String(bubble?.id || "") === bubbleId);
+        if (!src) return;
+        canvasPickBubble(src);
       });
       $("bubbleTableBody").addEventListener("change", (e) => {
         const target = e.target instanceof Element ? e.target : null;
         if (!target || !target.closest("[data-bubble-grid-field]")) return;
-        const row = target.closest("tr[data-bubble-row-index]");
+        const row = target.closest("[data-bubble-row-index]");
         if (!row) return;
         scheduleBubbleGridRowSave(row);
       });
       $("bubbleTableBody").addEventListener("focusout", (e) => {
         const target = e.target instanceof Element ? e.target : null;
         if (!target || !target.closest("[data-bubble-grid-field]")) return;
-        const row = target.closest("tr[data-bubble-row-index]");
+        const row = target.closest("[data-bubble-row-index]");
         if (!row) return;
         scheduleBubbleGridRowSave(row);
       });
@@ -6358,6 +7197,8 @@
       $("bubbleZoomResetBtn").addEventListener("click", () => setCanvasZoom(1));
       $("bubbleZoomFitBtn").addEventListener("click", fitCanvasInView);
       $("bubbleFullscreenBtn").addEventListener("click", toggleCanvasFullscreen);
+      $("uiModeSimpleBtn").addEventListener("click", () => applyUiMode("simple"));
+      $("uiModeFullBtn").addEventListener("click", () => applyUiMode("full"));
       document.addEventListener("fullscreenchange", () => {
         const wrap = $("bubbleCanvasWrap");
         if (!wrap) return;
@@ -6399,6 +7240,7 @@
         applyOcrBusyState(bubbleOcrBusy);
         requestRefresh();
       });
+      loadUiMode();
       setInterval(() => {
         const env = readStateEnvelope();
         const moduleMetaUpdated = String(window.VMillData?.readModuleState?.()?.meta?.updatedAt || "");
@@ -6425,5 +7267,3 @@
   </script>
 </body>
 </html>
-
-

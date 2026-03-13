@@ -82,6 +82,24 @@ Notes:
 - Use `--onedir` bundles (more reliable than `--onefile` for OCR dependencies).
 - For Windows, build separately on Windows.
 
+Windows OCR portable bundle:
+
+```powershell
+pwsh -File .\scripts\build_portable_ocr_windows.ps1
+```
+
+Outputs on Windows:
+- `dist_portable\ocr-windows\`
+- `dist_portable\ocr-windows-portable.zip`
+
+The Windows OCR bundle now includes:
+- `ocr_server.exe`
+- bundled `.paddlex` cache
+- bundled `.paddleocr` cache
+- launcher `run_ocr_portable.cmd`
+
+This is the folder/zip you can copy to another Windows PC.
+
 ### 6) Stress-test sync/API (multi-user)
 
 Run a concurrent load test that:

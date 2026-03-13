@@ -324,6 +324,27 @@
       font-size: 12px;
       border-radius: 8px;
     }
+    .recordImageField {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 240px;
+    }
+    .recordImageField input {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .recordImageBtn {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 8px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
     .recordDropArea {
       margin: 8px 0 10px;
       display: grid;
@@ -496,6 +517,7 @@
 
       const tt = (key, fallback = "", vars) =>
         window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
+      let pendingRecordImageInput = null;
 
       function applyTexts() {
         document.title = tt("shop.title", "Shop Organizer");
@@ -678,14 +700,28 @@
         const own = normalizeTypeAttributes(type?.attributes);
         const defaults = normalizeTypeAttributes(coreRoleDefaultAttributes(type));
         if (!defaults.length) return own;
-        const byKey = new Map(
-          own.map((attr) => [canonicalFieldKey(attr?.key || attr?.name || ""), attr]).filter(([k]) => !!k),
-        );
-        const merged = own.slice();
+        const merged = [];
+        const knownTokens = new Set();
+        const rememberTokens = (attr) => {
+          const keyToken = canonicalFieldKey(attr?.key || attr?.name || "");
+          const nameToken = canonicalFieldKey(attr?.name || "");
+          if (keyToken) knownTokens.add(keyToken);
+          if (nameToken) knownTokens.add(nameToken);
+        };
+        // Deduplicate existing rows first (prefer earlier row order).
+        for (const attr of own) {
+          const keyToken = canonicalFieldKey(attr?.key || attr?.name || "");
+          const nameToken = canonicalFieldKey(attr?.name || "");
+          if ((keyToken && knownTokens.has(keyToken)) || (nameToken && knownTokens.has(nameToken))) continue;
+          merged.push(attr);
+          rememberTokens(attr);
+        }
         for (const row of defaults) {
-          const key = canonicalFieldKey(row?.key || row?.name || "");
-          if (!key || byKey.has(key)) continue;
+          const keyToken = canonicalFieldKey(row?.key || row?.name || "");
+          const nameToken = canonicalFieldKey(row?.name || "");
+          if ((keyToken && knownTokens.has(keyToken)) || (nameToken && knownTokens.has(nameToken))) continue;
           merged.push({ ...row, order: merged.length });
+          rememberTokens(row);
         }
         return normalizeTypeAttributes(merged);
       }
@@ -1218,6 +1254,7 @@
             const selected = id === String(state.selectedTypeId || "") ? " selected" : "";
             const childHtml = hasChild && open ? renderBranch(id) : "";
             const role = roleLabel(String(t.moduleRole || "custom"));
+            const canDelete = !t.base;
             return `
               <li>
                 <div class="treeNode${selected}" data-select-type="${esc(id)}" draggable="true" data-drag-type="${esc(id)}" data-drop-type="${esc(id)}">
@@ -1232,7 +1269,7 @@
                   <div class="nodeActions">
                     <button class="iconBtn" type="button" data-add-child="${esc(id)}">${esc(tt("shop.action.addChild", "+ Subfolder"))}</button>
                     <button class="iconBtn" type="button" data-rename-type="${esc(id)}">${esc(tt("shop.action.rename", "Rename"))}</button>
-                    <button class="iconBtn" type="button" data-delete-type="${esc(id)}">${esc(tt("shop.action.delete", "Delete"))}</button>
+                    <button class="iconBtn" type="button" data-delete-type="${esc(id)}" ${canDelete ? "" : "disabled"}>${esc(tt("shop.action.delete", "Delete"))}</button>
                   </div>
                 </div>
                 ${childHtml}
@@ -1253,6 +1290,7 @@
           const open = state.expanded.has(id);
           const selected = id === String(state.selectedTypeId || "") ? " selected" : "";
           const role = roleLabel(String(t.moduleRole || "custom"));
+          const canDelete = !t.base;
           const childHtml = hasChild && open ? renderBranch(id) : "";
           return `
             <li>
@@ -1268,7 +1306,7 @@
                 <div class="nodeActions">
                   <button class="iconBtn" type="button" data-add-child="${esc(id)}">${esc(tt("shop.action.addChild", "+ Subfolder"))}</button>
                   <button class="iconBtn" type="button" data-rename-type="${esc(id)}">${esc(tt("shop.action.rename", "Rename"))}</button>
-                  <button class="iconBtn" type="button" data-delete-type="${esc(id)}">${esc(tt("shop.action.delete", "Delete"))}</button>
+                  <button class="iconBtn" type="button" data-delete-type="${esc(id)}" ${canDelete ? "" : "disabled"}>${esc(tt("shop.action.delete", "Delete"))}</button>
                 </div>
               </div>
               ${childHtml}
@@ -1364,24 +1402,25 @@
           ? typeAttributes.map((attr) => {
             const isOwn = String(attr?.origin || "own") === "own";
             const isCore = !!attr?.core;
+            const canEdit = isOwn && !isCore;
             const attrKey = String(attr?.key || attr?.name || "");
             const displayName = String(attr?.name || "");
             return `
               <tr data-type-attr-row data-attr-origin="${esc(isOwn ? "own" : "inherited")}" data-attr-id="${esc(String(attr.id || ""))}" data-attr-core="${isCore ? "1" : "0"}" data-attr-key="${esc(attrKey)}" ${isOwn && !isCore ? 'draggable="true"' : ""}>
-                <td><input data-attr-field="name" type="text" value="${esc(displayName)}" ${isOwn ? "" : "readonly"} /></td>
+                <td><input data-attr-field="name" type="text" value="${esc(displayName)}" ${canEdit ? "" : "readonly"} /></td>
                 <td>
-                  <select data-attr-field="type" ${isOwn ? "" : "disabled"}>
+                  <select data-attr-field="type" ${canEdit ? "" : "disabled"}>
                     ${["string", "number", "boolean", "date", "timestamp", "text"].map((k) => `<option value="${esc(k)}" ${String(attr.type || "string") === k ? "selected" : ""}>${esc(k)}</option>`).join("")}
                   </select>
                 </td>
-                <td><input data-attr-field="required" type="checkbox" ${attr.required ? "checked" : ""} style="width:auto;" ${isOwn ? "" : "disabled"} /></td>
-                <td><input data-attr-field="enabled" type="checkbox" ${attr.enabled !== false ? "checked" : ""} style="width:auto;" ${isOwn ? "" : "disabled"} /></td>
+                <td><input data-attr-field="required" type="checkbox" ${attr.required ? "checked" : ""} style="width:auto;" ${canEdit ? "" : "disabled"} /></td>
+                <td><input data-attr-field="enabled" type="checkbox" ${attr.enabled !== false ? "checked" : ""} style="width:auto;" ${canEdit ? "" : "disabled"} /></td>
                 <td>${esc(String(attr?.sourceLabel || tt("shop.form.sourceInherited", "Inherited")))}</td>
-                <td>${isOwn ? `
+                <td>${canEdit ? `
                   <div class="attrActions">
-                    <button class="attrMoveBtn" type="button" data-move-attr="${esc(String(attr.id || ""))}" data-dir="up" title="${esc(tt("shop.action.moveUp", "Move up"))}" ${isCore ? "disabled" : ""}>↑</button>
-                    <button class="attrMoveBtn" type="button" data-move-attr="${esc(String(attr.id || ""))}" data-dir="down" title="${esc(tt("shop.action.moveDown", "Move down"))}" ${isCore ? "disabled" : ""}>↓</button>
-                    <button class="recordDeleteBtn" type="button" data-delete-attr-id="${esc(String(attr.id || ""))}" ${isCore ? "disabled" : ""}>${esc(tt("common.delete", "Delete"))}</button>
+                    <button class="attrMoveBtn" type="button" data-move-attr="${esc(String(attr.id || ""))}" data-dir="up" title="${esc(tt("shop.action.moveUp", "Move up"))}">↑</button>
+                    <button class="attrMoveBtn" type="button" data-move-attr="${esc(String(attr.id || ""))}" data-dir="down" title="${esc(tt("shop.action.moveDown", "Move down"))}">↓</button>
+                    <button class="recordDeleteBtn" type="button" data-delete-attr-id="${esc(String(attr.id || ""))}">${esc(tt("common.delete", "Delete"))}</button>
                   </div>
                 `
                   : `<span class="tiny">-</span>`}
@@ -1404,7 +1443,13 @@
               return `<input data-record-field="family" type="text" value="${esc(String(raw?.family || ""))}" />`;
             }
             if (key === "imageurl") {
-              return `<input data-record-field="imageUrl" type="url" value="${esc(String(raw?.imageUrl || ""))}" />`;
+              return `
+                <div class="recordImageField">
+                  <input data-record-field="imageUrl" type="url" value="${esc(String(raw?.imageUrl || ""))}" />
+                  <button class="recordImageBtn" type="button" data-record-image-pick>${esc(tt("shop.action.pickImage", "Pick"))}</button>
+                  <button class="recordImageBtn" type="button" data-record-image-clear>${esc(tt("shop.action.clearImage", "Clear"))}</button>
+                </div>
+              `;
             }
             if (key === "stationid") {
               const opts = [`<option value="">${esc(tt("shop.option.none", "(none)"))}</option>`, ...(state.app.stations || []).map((x) => {
@@ -1542,7 +1587,7 @@
             </div>
             <div class="row">
               <button class="btn ghost" id="newChildTypeBtn" type="button">${esc(tt("shop.action.addChild", "+ Subfolder"))}</button>
-              <button class="btn warn" id="deleteTypeBtn" type="button">${esc(tt("common.delete", "Delete"))}</button>
+              <button class="btn warn" id="deleteTypeBtn" type="button" ${type.base ? "disabled" : ""}>${esc(tt("common.delete", "Delete"))}</button>
             </div>
             <div class="sectionHead">
               <div class="sectionTitle">${esc(tt("shop.form.attributes", "Fields"))}</div>
@@ -1580,9 +1625,11 @@
                 </tbody>
               </table>
             </div>
+            <input id="recordImageFileIn" type="file" accept="image/*" hidden />
           </section>
         `;
         updateTypeVisualPreview();
+        pendingRecordImageInput = null;
       }
 
       function syncParentRule(typeId, parentTypeId, relation) {
@@ -1692,9 +1739,12 @@
           const body = document.getElementById("typeAttrBody");
           if (!(body instanceof HTMLElement)) return [];
           const roleKey = String(row?.moduleRole || "custom").trim().toLowerCase();
+          const reservedKeys = reservedRecordAttrNames(roleKey);
+          const coreDefaults = normalizeTypeAttributes(coreRoleDefaultAttributes(row));
+          const coreById = new Map(coreDefaults.map((attr) => [String(attr?.id || ""), attr]));
           const rows = Array.from(body.querySelectorAll('[data-type-attr-row][data-attr-origin="own"]'));
           const out = [];
-          let order = 0;
+          const seen = new Set();
           for (const tr of rows) {
             if (!(tr instanceof HTMLElement)) continue;
             const attrId = String(tr.getAttribute("data-attr-id") || makeId("attr"));
@@ -1704,10 +1754,26 @@
             const required = !!tr.querySelector('[data-attr-field="required"]')?.checked;
             const enabled = !!tr.querySelector('[data-attr-field="enabled"]')?.checked;
             if (!name) continue;
-            const keyNorm = canonicalFieldKey(name);
-            if ((roleKey === "product" || roleKey === "station") && keyNorm === "code") continue;
-            out.push({ id: attrId, name, type, required, enabled, order, key: name, core: isCore });
-            order += 1;
+            const rawKey = String(tr.getAttribute("data-attr-key") || "").trim();
+            const coreDef = coreById.get(attrId);
+            const stableKey = isCore
+              ? String(coreDef?.key || coreDef?.name || rawKey || name)
+              : String(rawKey || name);
+            const keyNorm = canonicalFieldKey(stableKey || name);
+            if (!keyNorm) continue;
+            if (!isCore && reservedKeys.has(keyNorm)) continue;
+            if (seen.has(keyNorm)) continue;
+            seen.add(keyNorm);
+            out.push({
+              id: attrId,
+              name,
+              type,
+              required,
+              enabled,
+              order: out.length,
+              key: stableKey || name,
+              core: isCore,
+            });
           }
           return normalizeTypeAttributes(out);
         };
@@ -1744,6 +1810,7 @@
         if (!id) return;
         const row = findType(id);
         if (!row) return;
+        if (row.base) return;
         if (!confirm(tt("shop.confirm.delete", "Delete folder \"{name}\"?", { name: row.nameSingular || id }))) return;
         const ok = !!window.VMillData.deleteEntityType?.(id);
         if (!ok) {
@@ -2362,6 +2429,30 @@
       detailWrap.addEventListener("click", (e) => {
         const target = e.target;
         if (!(target instanceof HTMLElement)) return;
+        const recordPickBtn = target.closest("[data-record-image-pick]");
+        if (recordPickBtn instanceof HTMLElement) {
+          const fieldWrap = recordPickBtn.closest(".recordImageField");
+          const valueInput = fieldWrap?.querySelector('[data-record-field="imageUrl"]');
+          const fileInput = detailWrap.querySelector("#recordImageFileIn");
+          if (valueInput instanceof HTMLInputElement && fileInput instanceof HTMLInputElement) {
+            pendingRecordImageInput = valueInput;
+            fileInput.value = "";
+            fileInput.click();
+          }
+          return;
+        }
+        const recordClearBtn = target.closest("[data-record-image-clear]");
+        if (recordClearBtn instanceof HTMLElement) {
+          const fieldWrap = recordClearBtn.closest(".recordImageField");
+          const valueInput = fieldWrap?.querySelector('[data-record-field="imageUrl"]');
+          const rowEl = recordClearBtn.closest("tr[data-record-id]");
+          const rowId = String(rowEl?.getAttribute("data-record-id") || "");
+          if (valueInput instanceof HTMLInputElement) valueInput.value = "";
+          if (rowId && rowEl instanceof HTMLElement) {
+            void saveRecordInline(rowId, rowEl);
+          }
+          return;
+        }
         if (target.id === "typeImageUploadBtn") {
           detailWrap.querySelector("#typeImageFileIn")?.click();
           return;
@@ -2377,6 +2468,24 @@
       detailWrap.addEventListener("change", (e) => {
         const target = e.target;
         if (!(target instanceof HTMLInputElement)) return;
+        if (target.id === "recordImageFileIn") {
+          const file = target.files && target.files[0];
+          const valueInput = pendingRecordImageInput;
+          pendingRecordImageInput = null;
+          target.value = "";
+          if (!file || !(valueInput instanceof HTMLInputElement)) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            valueInput.value = String(reader.result || "");
+            const rowEl = valueInput.closest("tr[data-record-id]");
+            const rowId = String(rowEl?.getAttribute("data-record-id") || "");
+            if (rowId && rowEl instanceof HTMLElement) {
+              void saveRecordInline(rowId, rowEl);
+            }
+          };
+          reader.readAsDataURL(file);
+          return;
+        }
         if (target.id !== "typeImageFileIn") return;
         const file = target.files && target.files[0];
         if (!file) return;

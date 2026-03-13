@@ -41,6 +41,7 @@ $PythonBin = $pythonInVenv
 $DistBase = Join-Path $RootDir "dist_portable\ocr-windows"
 $WorkDir = Join-Path $RootDir "build\pyinstaller-ocr-win"
 $SpecDir = Join-Path $RootDir "build"
+$ZipPath = Join-Path $RootDir "dist_portable\ocr-windows-portable.zip"
 
 Write-Host "[pack] building OCR portable Windows bundle with $PythonBin"
 & $PythonBin -m pip install --upgrade pip pyinstaller
@@ -67,6 +68,7 @@ if (Test-Path $DistBase) {
   New-Item -ItemType Directory -Path $DistBase | Out-Null
 }
 if (Test-Path $WorkDir) { Remove-Item $WorkDir -Recurse -Force }
+if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
 
 $pyiArgs = @(
   "--noconfirm",
@@ -128,28 +130,70 @@ echo [ocr-portable] starting on :%PORT%
 $runnerPath = Join-Path $DistBase "run_ocr_portable.cmd"
 Set-Content -Path $runnerPath -Value $runner -Encoding ASCII
 
-$paddlexTarget = Join-Path $DistBase "ocr_server\.paddlex\official_models"
-$candidateModelDirs = @(
-  (Join-Path $RootDir ".paddlex\official_models"),
-  (Join-Path $env:USERPROFILE ".paddlex\official_models")
-)
-$modelSource = $null
-foreach ($candidate in $candidateModelDirs) {
-  if (Test-Path $candidate) {
-    $modelSource = $candidate
-    break
+function Copy-PortableCache {
+  param(
+    [Parameter(Mandatory = $true)][string]$CacheName
+  )
+
+  $target = Join-Path $DistBase "ocr_server\$CacheName"
+  $candidates = @(
+    (Join-Path $RootDir $CacheName),
+    (Join-Path $env:USERPROFILE $CacheName)
+  )
+  $source = $null
+  foreach ($candidate in $candidates) {
+    if (Test-Path $candidate) {
+      $source = $candidate
+      break
+    }
   }
+  if (-not $source) {
+    Write-Host "[pack] no local $CacheName cache found; first portable startup may require internet."
+    return
+  }
+
+  New-Item -ItemType Directory -Path $target -Force | Out-Null
+  Copy-Item -Path (Join-Path $source "*") -Destination $target -Recurse -Force
+  Write-Host "[pack] copied $CacheName cache from $source"
 }
-if ($modelSource) {
-  New-Item -ItemType Directory -Path $paddlexTarget -Force | Out-Null
-  Copy-Item -Path (Join-Path $modelSource "*") -Destination $paddlexTarget -Recurse -Force
-  Write-Host "[pack] copied local PaddleX models from $modelSource"
-} else {
-  Write-Host "[pack] no local PaddleX model cache found; first portable startup may require internet."
-}
+
+Copy-PortableCache ".paddlex"
+Copy-PortableCache ".paddleocr"
+
+$portableReadme = @"
+Portable OCR Server Bundle
+==========================
+
+Contents
+- ocr_server\ocr_server.exe
+- ocr_server\.paddlex
+- ocr_server\.paddleocr
+- run_ocr_portable.cmd
+
+Use on another Windows PC
+1. Unzip the whole folder.
+2. Keep the folder structure exactly as-is.
+3. Run run_ocr_portable.cmd
+4. Default port is 8081
+
+Notes
+- This is a one-dir portable bundle. Do not move ocr_server.exe out of its folder.
+- The Paddle caches are bundled so you can copy this to another PC without re-downloading models.
+- If you already have newer .paddlex / .paddleocr folders on another PC, you can overwrite these bundled folders.
+- To change the port before launch:
+  set PORT=8081
+  run_ocr_portable.cmd
+"@
+
+$readmePath = Join-Path $DistBase "PORTABLE_README.txt"
+Set-Content -Path $readmePath -Value $portableReadme -Encoding ASCII
+
+Compress-Archive -Path (Join-Path $DistBase "*") -DestinationPath $ZipPath -Force
 
 Write-Host ""
 Write-Host "Built OCR portable bundle:"
 Write-Host "  $DistBase"
+Write-Host "Portable zip:"
+Write-Host "  $ZipPath"
 Write-Host "Run:"
 Write-Host "  $runnerPath"

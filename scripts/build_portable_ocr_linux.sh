@@ -17,12 +17,13 @@ PYTHON_BIN="${PYTHON_BIN:-python}"
 DIST_BASE="$ROOT_DIR/dist_portable/ocr-linux"
 WORK_DIR="$ROOT_DIR/build/pyinstaller-ocr"
 SPEC_DIR="$ROOT_DIR/build"
+ZIP_PATH="$ROOT_DIR/dist_portable/ocr-linux-portable.zip"
 
 echo "[pack] building OCR portable Linux bundle with ${PYTHON_BIN}"
 "$PYTHON_BIN" -m pip install --upgrade pip pyinstaller
 "$PYTHON_BIN" -m pip install -r "$ROOT_DIR/requirements_ocr.txt"
 
-rm -rf "$DIST_BASE" "$WORK_DIR"
+rm -rf "$DIST_BASE" "$WORK_DIR" "$ZIP_PATH"
 mkdir -p "$DIST_BASE"
 
 "$PYTHON_BIN" -m PyInstaller \
@@ -66,28 +67,65 @@ EOF
 
 chmod +x "$DIST_BASE/run_ocr_portable.sh"
 
-paddlex_target="$DIST_BASE/ocr_server/.paddlex/official_models"
-candidate_model_dirs=(
-  "$ROOT_DIR/.paddlex/official_models"
-  "$HOME/.paddlex/official_models"
-)
-model_source=""
-for candidate in "${candidate_model_dirs[@]}"; do
-  if [[ -d "$candidate" ]]; then
-    model_source="$candidate"
-    break
+copy_portable_cache() {
+  local cache_name="$1"
+  local target="$DIST_BASE/ocr_server/$cache_name"
+  local source=""
+  local candidate_dirs=(
+    "$ROOT_DIR/$cache_name"
+    "$HOME/$cache_name"
+  )
+  for candidate in "${candidate_dirs[@]}"; do
+    if [[ -d "$candidate" ]]; then
+      source="$candidate"
+      break
+    fi
+  done
+  if [[ -z "$source" ]]; then
+    echo "[pack] no local $cache_name cache found; first portable startup may require internet."
+    return
   fi
-done
-if [[ -n "$model_source" ]]; then
-  mkdir -p "$paddlex_target"
-  cp -a "$model_source"/. "$paddlex_target"/
-  echo "[pack] copied local PaddleX models from $model_source"
-else
-  echo "[pack] no local PaddleX model cache found; first portable startup may require internet."
-fi
+  mkdir -p "$target"
+  cp -a "$source"/. "$target"/
+  echo "[pack] copied $cache_name cache from $source"
+}
+
+copy_portable_cache ".paddlex"
+copy_portable_cache ".paddleocr"
+
+cat >"$DIST_BASE/PORTABLE_README.txt" <<'EOF'
+Portable OCR Server Bundle
+==========================
+
+Contents
+- ocr_server/ocr_server
+- ocr_server/.paddlex
+- ocr_server/.paddleocr
+- run_ocr_portable.sh
+
+Use on another Linux PC
+1. Unzip the whole folder.
+2. Keep the folder structure exactly as-is.
+3. Run ./run_ocr_portable.sh
+4. Default port is 8081
+
+Notes
+- This is a one-dir portable bundle. Do not move the ocr_server binary out of its folder.
+- The Paddle caches are bundled so you can copy this to another PC without re-downloading models.
+- If you already have newer .paddlex / .paddleocr folders on another PC, you can overwrite these bundled folders.
+- To change the port before launch:
+  PORT=8081 ./run_ocr_portable.sh
+EOF
+
+(
+  cd "$DIST_BASE"
+  zip -qr "$ZIP_PATH" .
+)
 
 echo
 echo "Built OCR portable bundle:"
 echo "  $DIST_BASE"
+echo "Portable zip:"
+echo "  $ZIP_PATH"
 echo "Run:"
 echo "  $DIST_BASE/run_ocr_portable.sh"

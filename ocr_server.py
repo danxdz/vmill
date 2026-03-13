@@ -2254,6 +2254,54 @@ def resize_image_for_speed(image_path, max_dimension=1024):
     
     return image_path
 
+def normalize_cardinal_rotation(angle, default=0):
+    """Normalize an angle to the nearest cardinal rotation (0/90/180/270)."""
+    try:
+        value = float(angle)
+    except (TypeError, ValueError):
+        return int(default)
+    if math.isnan(value) or math.isinf(value):
+        return int(default)
+    rounded = int(round(value / 90.0) * 90) % 360
+    return rounded if rounded in (0, 90, 180, 270) else int(default)
+
+def recommend_image_rotation_from_zones(zones):
+    """
+    Recommend corrective rotation for the full image based on detected zone orientation.
+    Returns: (detected_angle, confidence, votes)
+    """
+    votes = {0: 0.0, 90: 0.0, 180: 0.0, 270: 0.0}
+    total_weight = 0.0
+    for zone in zones or []:
+        if not isinstance(zone, dict):
+            continue
+        orient = normalize_cardinal_rotation(zone.get("rotation", zone.get("text_orientation", 0)), 0)
+        # Zone orientation says how text is rotated; corrective angle is the inverse.
+        correction = normalize_cardinal_rotation((360 - orient) % 360, 0)
+        text = str(zone.get("text", "") or "")
+        try:
+            conf = float(zone.get("confidence", 0) or 0)
+        except (TypeError, ValueError):
+            conf = 0.0
+        conf = max(0.0, min(1.0, conf))
+        weight = 0.2 + conf
+        if re.search(r"\d", text):
+            weight += 0.7
+        if zone.get("is_dimension"):
+            weight += 1.2
+        if isinstance(zone.get("tolerance_info"), dict) and zone.get("tolerance_info"):
+            weight += 0.8
+        votes[correction] += weight
+        total_weight += weight
+    best_rotation = 0
+    best_weight = -1.0
+    for angle, weight in votes.items():
+        if weight > best_weight:
+            best_rotation = int(angle)
+            best_weight = float(weight)
+    confidence = (best_weight / total_weight) if total_weight > 0 else 0.0
+    return best_rotation, confidence, votes
+
 def process_image(image_path, mode="fast", rotation=0):
     """Process a single image and return OCR results with specified mode"""
     logger.info(f">>> process_image CALLED! image_path={image_path}, mode={mode}, rotation={rotation}")
@@ -2423,6 +2471,7 @@ def process_image(image_path, mode="fast", rotation=0):
         
         # Apply post-processing
         zones = apply_post_processing(zones)
+        detected_angle, rotation_confidence, rotation_votes = recommend_image_rotation_from_zones(zones)
         
         # Clean up rotated image if created
         if rotation != 0 and os.path.exists(str(image_path)) and '_rotated' in str(image_path):
@@ -2442,7 +2491,10 @@ def process_image(image_path, mode="fast", rotation=0):
                 "original_zones_detected": len(zones),
                 "zones_merged": 0,
                 "overlay_path": overlay_path,
-                "detected_angle": 0,
+                "detected_angle": int(detected_angle),
+                "rotation_confidence": float(rotation_confidence),
+                "rotation_votes": {str(k): float(v) for k, v in rotation_votes.items()},
+                "applied_rotation": int(normalize_cardinal_rotation(rotation, 0)),
                 "source_width": int(source_width),
                 "source_height": int(source_height),
                 "ocr_width": int(width),
