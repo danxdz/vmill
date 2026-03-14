@@ -315,7 +315,7 @@
         const opName = op?.name || tt('spacial.canvas.noOp', 'No operation');
         const fileName = opFile?.name ? ` | ${tt('spacial.file.label', 'File')}: ${opFile.name}` : '';
         const sel = state.selectedCanvasBubbleId ? ` | ${tt('spacial.canvas.selected', 'Selected: {id}', { id: state.selectedCanvasBubbleId })}` : '';
-        info.textContent = `${tt('spacial.canvas.instructions.annotations', 'Operation: {op}{selected}. Left-drag to pan, drag box or dots to resize, Alt+drag to draw, wheel to zoom, double-click OCR.', { op: opName, selected: sel })}${fileName}`;
+        info.textContent = `${tt('spacial.canvas.instructions.annotations', 'Operation: {op}{selected}. Left-drag to pan, drag box or dots to resize, Alt+drag to draw, and wheel to zoom.', { op: opName, selected: sel })}${fileName}`;
       }
       if (op && Array.isArray(bubbles)) {
         bubbles.forEach((b, idx) => {

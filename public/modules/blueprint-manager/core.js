@@ -26,11 +26,10 @@ export function setBusyStatus(active, text = '') {
   const ids = [
     'uploadDocBtn',
     'buildPreviewBtn',
+    'autoOcrDocBtn',
     'saveDocBtn',
     'deleteDocBtn',
     'openInSpacialBtn',
-    'openInSpacialAutoBtn',
-    'openInSpacialClickBtn',
     'bubbleOcrSaveBtn',
     'bubbleOcrTestBtn',
   ];

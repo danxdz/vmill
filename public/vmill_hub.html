@@ -243,13 +243,33 @@
       justify-content: flex-start;
       text-align: left;
       line-height: 1.2;
-      padding: 9px 10px;
+      padding: 10px 12px;
+      font-weight: 700;
+      letter-spacing: .01em;
       transition: .15s ease;
     }
     .dockBtn:hover {
       color: var(--text);
       border-color: color-mix(in srgb, var(--accent) 54%, var(--border));
       background: rgba(var(--accent-rgb), .12);
+    }
+    .dockBtn.active,
+    .dockBtn[aria-current="page"] {
+      color: var(--text);
+      border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+      background: linear-gradient(135deg, rgba(var(--accent-rgb), .18), rgba(var(--accent-rgb), .08));
+      box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), .14);
+    }
+    .dockBtn.active::before,
+    .dockBtn[aria-current="page"]::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--accent);
+      margin-right: 10px;
+      box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .14);
+      flex: 0 0 auto;
     }
     .main {
       padding: 16px;
@@ -1529,12 +1549,13 @@
       <a class="dockBtn" data-dock-id="chrono" data-module-id="chrono" href="./chrono/chrono.html">Chrono</a>
       <a class="dockBtn" data-dock-id="chrono-camera" data-module-id="chrono-camera" href="./chrono/chrono_camera.html">Camera</a>
       <a class="dockBtn" data-dock-id="spacial" data-module-id="spacial" href="./SPaCial.html">SPaCial</a>
+      <a class="dockBtn" data-dock-id="blueprint-manager" data-module-id="blueprint-manager" href="./blueprint_manager.html">Drawings</a>
       <a class="dockBtn" data-dock-id="factory" data-module-id="factory" href="./factory_manager.html">Factory</a>
-      <a class="dockBtn" data-dock-id="shop-tree" data-module-id="shop-tree" href="./shop_tree.html">Shop Organizer</a>
+      <a class="dockBtn" data-dock-id="shop-tree" data-module-id="shop-tree" href="./shop_tree.html">Shop</a>
       <a class="dockBtn" data-dock-id="records" data-module-id="records" href="./records_manager.html">Records</a>
       <a class="dockBtn" data-dock-id="can-bus" data-module-id="can-bus" href="./logger.html">Logger</a>
       <a class="dockBtn" data-dock-id="contas" data-module-id="contas" href="./contas_calc.html">Contas</a>
-      <a class="dockBtn" data-dock-id="cnc-sim" data-module-id="cnc-sim" href="./cnc_sim.html">CNC Sim</a>
+      <a class="dockBtn" data-dock-id="cnc-sim" data-module-id="cnc-sim" href="./cnc_sim.html">CNC</a>
     </aside>
 
     <main class="main">
@@ -2075,12 +2096,13 @@
           ["chrono", "hub.dock.chrono", "Chrono"],
           ["chrono-camera", "hub.dock.camera", "Camera"],
           ["spacial", "hub.dock.spacial", "SPaCial"],
+          ["blueprint-manager", "", "Drawings"],
           ["factory", "hub.dock.factory", "Factory"],
-          ["shop-tree", "hub.dock.shopTree", "Shop Organizer"],
+          ["shop-tree", "hub.dock.shopTree", "Shop"],
           ["records", "hub.dock.records", "Records"],
           ["can-bus", "hub.dock.logger", "Logger"],
           ["contas", "hub.dock.contas", "Contas"],
-          ["cnc-sim", "hub.dock.cnc", "CNC Sim"],
+          ["cnc-sim", "hub.dock.cnc", "CNC"],
         ];
         for (const [id, key, fallback] of dockMap) {
           const el = document.querySelector(`.dock [data-dock-id="${id}"]`);
@@ -3089,8 +3111,12 @@
           if (path.includes("/chrono/chrono_camera.html")) return "chrono-camera";
           if (path.includes("/chrono/chrono.html")) return "chrono";
           if (path.includes("/spacial.html")) return "spacial";
+          if (path.includes("/blueprint_manager.html")) return "blueprint-manager";
+          if (path.includes("/factory_manager.html")) return "factory";
           if (path.includes("/shop_tree.html")) return "shop-tree";
+          if (path.includes("/records_manager.html")) return "records";
           if (path.includes("/logger.html")) return "can-bus";
+          if (path.includes("/contas_calc.html")) return "contas";
           if (path.includes("/theme_studio.html")) return "theme";
           if (path.includes("/translation_studio.html")) return "translations";
           if (path.endsWith("/index.html") || path === "/" || path.includes("/cnc_sim.html")) return "cnc-sim";
@@ -3698,6 +3724,10 @@
           const id = String(btn.dataset.dockId || "");
           const keep = id === "hub" || (canAccessModule(id) && isModuleEnabled(id));
           btn.style.display = keep ? "" : "none";
+          const active = keep && String(activeWorkspaceModuleId || "hub") === id;
+          btn.classList.toggle("active", active);
+          if (active) btn.setAttribute("aria-current", "page");
+          else btn.removeAttribute("aria-current");
         }
       }
 

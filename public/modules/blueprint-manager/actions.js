@@ -205,7 +205,108 @@ function deleteAnnotation(annotationId) {
   setStatus(`Deleted annotation ${current.id || annotationId}.`);
 }
 
-function openSpacialWithDocument(mode = '') {
+function normalizeBbox(raw) {
+  const x1 = Number(raw?.x1 ?? raw?.x ?? raw?.left);
+  const y1 = Number(raw?.y1 ?? raw?.y ?? raw?.top);
+  const x2Direct = Number(raw?.x2 ?? raw?.right);
+  const y2Direct = Number(raw?.y2 ?? raw?.bottom);
+  const width = Number(raw?.width);
+  const height = Number(raw?.height);
+  const x2 = Number.isFinite(x2Direct) ? x2Direct : (Number.isFinite(x1) && Number.isFinite(width) ? x1 + width : NaN);
+  const y2 = Number.isFinite(y2Direct) ? y2Direct : (Number.isFinite(y1) && Number.isFinite(height) ? y1 + height : NaN);
+  if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
+  const nx1 = Math.min(x1, x2);
+  const ny1 = Math.min(y1, y2);
+  const nx2 = Math.max(x1, x2);
+  const ny2 = Math.max(y1, y2);
+  if (nx2 - nx1 < 2 || ny2 - ny1 < 2) return null;
+  return { x1: nx1, y1: ny1, x2: nx2, y2: ny2 };
+}
+
+function bboxFromOcrZone(zone) {
+  const z = zone && typeof zone === 'object' ? zone : {};
+  if (z?.bbox && typeof z.bbox === 'object' && !Array.isArray(z.bbox)) return normalizeBbox(z.bbox);
+  if (Array.isArray(z?.bbox) && z.bbox.length >= 4) {
+    return normalizeBbox({ x1: z.bbox[0], y1: z.bbox[1], x2: z.bbox[2], y2: z.bbox[3] });
+  }
+  return normalizeBbox(z);
+}
+
+function extractOcrZones(payload) {
+  const src = payload && typeof payload === 'object' ? payload : {};
+  if (Array.isArray(src.zones)) return src.zones;
+  if (Array.isArray(src.data?.zones)) return src.data.zones;
+  if (Array.isArray(src.result?.zones)) return src.result.zones;
+  return [];
+}
+
+async function buildThumbForZone(imageDataUrl, bbox) {
+  if (!ocrApi || !imageDataUrl || !bbox) return '';
+  try {
+    const out = await ocrApi.callOcrThumbnailWithRetry(imageDataUrl, bbox, ocrApi.ensureOcrUrlInput(), 0);
+    return str(out?.thumbnail?.data_url || '');
+  } catch {
+    return '';
+  }
+}
+
+async function autoOcrCurrentDocument() {
+  const productId = str(state.selectedProductId);
+  const doc = selectedDocument();
+  if (!productId) {
+    setStatus('Pick a product first.');
+    return;
+  }
+  if (!doc) {
+    setStatus('Pick a document first.');
+    return;
+  }
+  if (!ocrApi) {
+    setStatus('OCR runtime is not available on this page.');
+    return;
+  }
+  const imageDataUrl = str(doc.previewDataUrl || doc.dataUrl || '');
+  const mime = str(doc.previewMime || doc.mime || '');
+  if (!/^data:image\//i.test(imageDataUrl) || /pdf/i.test(mime) && !str(doc.previewDataUrl)) {
+    setStatus('This drawing needs an image preview before OCR can run.');
+    return;
+  }
+  setBusyStatus(true, 'Running OCR on selected drawing...');
+  try {
+    const uploadFile = await dataUrlToFile(imageDataUrl, doc.name || 'drawing.png', mime || 'image/png');
+    const out = await ocrApi.callOcrProcessWithRetry(uploadFile, 'accurate', ocrApi.ensureOcrUrlInput(), 0);
+    const zones = extractOcrZones(out);
+    let imported = 0;
+    for (let idx = 0; idx < zones.length; idx += 1) {
+      const zone = zones[idx];
+      const bbox = bboxFromOcrZone(zone);
+      if (!bbox) continue;
+      const annId = str(zone?.id) || docsApi.normalizeProductAnnotation({}).id;
+      const thumb = await buildThumbForZone(imageDataUrl, bbox);
+      docsApi.upsertProductAnnotation({
+        id: annId,
+        productId,
+        documentId: doc.id,
+        sourceBubbleId: str(zone?.id || `ocr_zone_${idx + 1}`),
+        name: str(zone?.text || `OCR ${idx + 1}`),
+        method: 'OCR',
+        unit: 'mm',
+        bbox,
+        thumbnailDataUrl: thumb,
+        thumbnailBBox: bbox,
+      });
+      imported += 1;
+    }
+    refresh();
+    setStatus(imported ? `Imported ${imported} OCR annotation${imported === 1 ? '' : 's'} to this drawing.` : 'OCR found no usable annotation boxes.');
+  } catch (err) {
+    setStatus(`Auto OCR failed: ${err?.message || err || 'unknown error'}`);
+  } finally {
+    setBusyStatus(false);
+  }
+}
+
+function openSpacialWithDocument() {
   const product = getProductById(state.selectedProductId);
   const ann = selectedAnnotation();
   const doc = ann?.documentId
@@ -225,11 +326,9 @@ function openSpacialWithDocument(mode = '') {
     localStorage.setItem(PRODUCT_DOC_HANDOFF_KEY, JSON.stringify({
       productId: product?.id || '',
       documentId: doc.id,
-      ocrMode: str(mode),
       createdAt: new Date().toISOString(),
     }));
     url.searchParams.set('documentId', String(doc.id || ''));
-    if (str(mode)) url.searchParams.set('ocrMode', str(mode));
   }
   window.location.href = url.toString();
 }
@@ -277,12 +376,11 @@ function bindEvents() {
     }
   });
   $('buildPreviewBtn')?.addEventListener('click', buildCurrentDocumentPreview);
+  $('autoOcrDocBtn')?.addEventListener('click', autoOcrCurrentDocument);
   $('saveDocBtn')?.addEventListener('click', saveDocumentFromInputs);
   $('deleteDocBtn')?.addEventListener('click', deleteCurrentDocument);
-  $('openInSpacialBtn')?.addEventListener('click', () => openSpacialWithDocument(''));
-  $('openInSpacialAutoBtn')?.addEventListener('click', () => openSpacialWithDocument('auto'));
-  $('openInSpacialClickBtn')?.addEventListener('click', () => openSpacialWithDocument('click'));
-  $('annDetailOpenSpacialBtn')?.addEventListener('click', () => openSpacialWithDocument(''));
+  $('openInSpacialBtn')?.addEventListener('click', openSpacialWithDocument);
+  $('annDetailOpenSpacialBtn')?.addEventListener('click', openSpacialWithDocument);
   $('bubbleOcrUrlIn')?.addEventListener('change', () => {
     if (!ocrApi) return;
     const normalized = ocrApi.normalizeHttpBaseUrl($('bubbleOcrUrlIn').value);
