@@ -205,14 +205,7 @@ After first deploy, pushes to `main` auto-deploy both services (`autoDeploy: tru
 
 `vmill_server.py` is a long-running Python + SQLite service. This is not a good fit for Vercel serverless functions with ephemeral filesystem behavior.
 
-### Vercel (frontend)
 
-Your `vercel.json` is already present.
-
-If this folder is the project root:
-- Framework: `Vite`
-- Build command: `npm run build`
-- Output: `dist`
 
 ### Render (VMill backend)
 
