@@ -494,7 +494,7 @@ async def lifespan(app: FastAPI):
         except Exception as flag_error:
             logger.warning(f"Could not apply paddle runtime flags: {flag_error}")
 
-        use_textline_orientation = os.getenv("OCR_TEXTLINE_ORIENTATION", "0").strip() == "1"
+        use_textline_orientation = os.getenv("OCR_TEXTLINE_ORIENTATION", "1").strip() == "1"
         logger.info(f"OCR textline orientation enabled: {use_textline_orientation}")
         logger.info("Initializing PaddleOCR with auto GPU detection...")
         logger.info("Creating PaddleOCR object...")
