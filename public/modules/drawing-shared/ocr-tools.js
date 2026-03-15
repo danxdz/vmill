@@ -203,6 +203,16 @@
       }, preferredBaseUrl);
     }
 
+    async function callOcrProcessCenterWithRetry(imageDataUrl, point, rectangleBounds, preferredBaseUrl, rotation = 0) {
+      return callOcrJsonWithRetry('/ocr/process-center', {
+        image: imageDataUrl,
+        center_point: { x: Number(point?.x || 0), y: Number(point?.y || 0) },
+        rectangle_bounds: rectangleBounds || {},
+        use_rectangle: true,
+        rotation: Number(rotation || 0) || 0,
+      }, preferredBaseUrl);
+    }
+
     async function callOcrThumbnailWithRetry(imageDataUrl, bbox, preferredBaseUrl, rotation = 0) {
       return callOcrJsonWithRetry('/ocr/annotation-thumbnail', {
         image: imageDataUrl,
@@ -290,6 +300,7 @@
       callOcrPdfToImageWithRetry,
       callOcrJsonWithRetry,
       callOcrAnnotationClickWithRetry,
+      callOcrProcessCenterWithRetry,
       callOcrThumbnailWithRetry,
       defaultOcrUrl,
       ensureOcrUrlInput,

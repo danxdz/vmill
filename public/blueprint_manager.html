@@ -36,34 +36,62 @@
       border: 1px solid var(--border);
       border-radius: 14px;
       background: linear-gradient(180deg,var(--panel),var(--panel2));
-      padding: 12px;
+      padding: 10px;
       min-width: 0;
     }
     .hero { display:flex; justify-content:space-between; align-items:flex-end; gap:10px; flex-wrap:wrap; }
     h1 { margin: 0; font-size: 28px; letter-spacing: .02em; }
     .sub { margin-top: 4px; font-size: 13px; color: var(--muted); }
     .title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
-    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:6px; }
     .row > * { flex:1 1 180px; min-width:0; }
     .row.actions > * { flex:0 0 auto; }
     label { display:block; margin:0 0 6px; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
     input, select, textarea, button {
       width:100%; border-radius:10px; border:1px solid var(--border);
-      background:rgba(255,255,255,.03); color:var(--text); padding:9px 10px; font-size:13px;
+      background:rgba(255,255,255,.03); color:var(--text); padding:7px 9px; font-size:13px;
     }
     textarea { min-height: 72px; resize: vertical; }
     button { cursor:pointer; font-weight:700; }
-    .btn { width:auto; padding:9px 12px; white-space:nowrap; }
+    .btn { width:auto; padding:7px 11px; white-space:nowrap; }
     .btn.primary { border-color:rgba(var(--accent-rgb),.55); background:rgba(var(--accent-rgb),.16); color:var(--accent); }
     .btn.bad { border-color:rgba(255,138,138,.55); background:rgba(255,138,138,.12); color:var(--bad); }
     .btn.ok { border-color:rgba(126,231,162,.45); background:rgba(126,231,162,.12); color:var(--ok); }
-    .grid2 { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr); gap:10px; }
-    @media (max-width: 1080px) { .grid2 { grid-template-columns:1fr; } }
+    .grid2 { display:grid; grid-template-columns:1fr; gap:10px; }
     .previewWrap {
       border:1px solid var(--border); border-radius:12px; background:rgba(0,0,0,.18); min-height:440px;
       display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;
     }
     .previewWrap img, .previewWrap iframe { width:100%; height:100%; border:0; object-fit:contain; background:#fff; }
+    .annOverlayPopover {
+      position: absolute;
+      z-index: 100;
+      width: 188px;
+      max-width: 188px;
+      padding: 9px 10px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background:
+        radial-gradient(180px 90px at 0 0, rgba(var(--accent-rgb), .10), transparent 60%),
+        color-mix(in srgb, var(--panel) 97%, white);
+      box-shadow: 0 12px 28px rgba(0,0,0,.28);
+      pointer-events: auto;
+    }
+    .annOverlayPopoverHead { margin-bottom: 6px; }
+    .annOverlayPopoverTitle { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .annOverlayPopoverBody { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+    .annOverlayPopoverBody .annPopoverRow { display: flex; gap: 8px; align-items: stretch; }
+    .annOverlayPopoverBody .annPopoverCell { display: flex; flex-direction: column; align-items: stretch; gap: 3px; flex: 1; min-width: 0; }
+    .annOverlayPopoverBody .annPopoverCellWide { flex: 1 1 100%; }
+    .annOverlayPopoverBody .annPopoverCell label { margin: 0; font-size: 8px; color: var(--muted); white-space: nowrap; flex-shrink: 0; width: auto; }
+    .annOverlayPopoverBody .annPopoverIn { padding: 5px 6px; font-size: 12px; width: 100%; min-width: 0; max-width: none; box-sizing: border-box; border-radius: 8px; }
+    .annOverlayPopoverBody .annPopoverRotateSel { max-width: none; }
+    .annOverlayPopoverBody .annPopoverFooter { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; flex-wrap: wrap; }
+    .annOverlayPopoverBody .annPopoverConf { font-size: 9px; color: var(--muted); }
+    .annOverlayPopoverBody .annPopoverHint { color: var(--accent); font-weight: 600; }
+    .annOverlayPopoverBody .annPopoverRemove { padding: 5px 8px; font-size: 11px; flex-shrink: 0; min-width: 88px; }
+    .annOverlayPopoverBody .annPopoverRotate { min-width: 78px; font-size: 7px; padding: 1px 2px; }
+    .previewWrap.fullscreen .annOverlayPopover { max-width: 220px; width: 220px; }
     .empty { color:var(--muted); font-size:13px; padding:18px; text-align:center; }
     .list { display:grid; gap:8px; }
     .docCard, .annCard {
@@ -77,10 +105,43 @@
     @media (max-width: 1600px) { .annGrid { grid-template-columns: 92px minmax(180px,1fr) 96px 96px 96px 96px 96px 104px 72px minmax(120px,1fr); overflow:auto; } }
     .thumb { width:56px; height:56px; border-radius:10px; object-fit:cover; border:1px solid var(--border); background:#fff; }
     .thumbPlaceholder { width:56px; height:56px; border-radius:10px; border:1px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--muted); }
-    .thumbLarge { width:160px; height:160px; border-radius:14px; object-fit:contain; border:1px solid var(--border); background:#fff; }
-    .thumbLargePlaceholder { width:160px; height:160px; border-radius:14px; border:1px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--muted); background:rgba(255,255,255,.02); }
+    .annCardCompact { padding:6px 8px; gap:0; transition:background .12s ease, border-color .12s ease, transform .08s ease; }
+    .annCardCompact:hover { border-color: rgba(var(--accent-rgb), .55); background: rgba(255,255,255,.035); transform: translateY(-1px); }
+    .annCardRow { display:flex; align-items:center; gap:8px; min-height:44px; }
+    .annThumbWrap { flex-shrink:0; width:var(--ann-thumb-w, 50px); height:var(--ann-thumb-h, 50px); border-radius:10px; border:1px solid var(--border); background:var(--panel2); display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; cursor:pointer; }
+    .annThumbWrap:hover { border-color: var(--accent); }
+    .annThumbWrap .thumb { display:block; width:auto; height:auto; max-width:calc(100% - 10px); max-height:calc(100% - 10px); object-fit:contain; transform-origin:center center; }
+    .annThumbWrap .thumbPlaceholder { width:100%; height:100%; font-size:11px; color:var(--muted); display:flex; align-items:center; justify-content:center; }
+    .annThumbHint { position:absolute; bottom:0; left:0; right:0; font-size:8px; background:rgba(0,0,0,.68); color:var(--muted); text-align:center; padding:1px 2px; opacity:0; transition:opacity .15s; }
+    .annThumbWrap:hover .annThumbHint { opacity:1; }
+    .annMain { flex:1; min-width:0; display:grid; grid-template-columns:auto minmax(120px,1.4fr) 72px 72px 72px 58px auto auto; align-items:center; gap:8px; }
+    .annBadge { font-weight:700; font-size:11px; color:var(--accent); min-width:32px; padding:2px 6px; border-radius:999px; border:1px solid rgba(var(--accent-rgb), .24); background:rgba(var(--accent-rgb), .08); text-align:center; }
+    .annNameText { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; font-weight:600; color:var(--text); }
+    .annInlineInput { width:100%; min-width:0; height:28px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font-size:11px; box-sizing:border-box; }
+    .annInlineInput.annNameInline { font-weight:600; }
+    .annInlineInput.annNumInline { font-family:ui-monospace, monospace; }
+    .annInlineInput.annUnitInline { text-align:center; }
+    .annMetaChip { font-size:10px; line-height:1.2; padding:2px 6px; border-radius:999px; border:1px solid var(--border); color:var(--muted); background:rgba(255,255,255,.02); white-space:nowrap; }
+    .annMetaChip.ok { border-color: rgba(34,197,94,.45); color: #86efac; background: rgba(34,197,94,.12); }
+    .annMetaChip.warn { border-color: rgba(250,204,21,.38); color: #fde68a; background: rgba(250,204,21,.10); }
+    .annLinksChip { font-size:10px; padding:2px 6px; border-radius:999px; color:var(--muted); border:1px solid var(--border); background:rgba(255,255,255,.02); white-space:nowrap; }
+    .annQuickActions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+    .annQuickBtn { height:28px; min-width:56px; padding:0 8px; border-radius:8px; font-size:11px; }
+    .annRotateSel { height:28px; min-width:72px; max-width:88px; padding:0 6px; border-radius:8px; font-size:11px; }
+    .annDelBtn { flex-shrink:0; width:28px; height:28px; padding:0; min-width:28px; border-radius:8px; }
+    .annConfirmBtn { flex-shrink:0; width:28px; height:28px; padding:0; min-width:28px; border-radius:8px; font-weight:700; }
+    .annConfirmBtn.ok { color:#86efac; border-color: rgba(34,197,94,.35); }
+    .annConfirmBtn.bad { color:#fca5a5; }
+    .annInlineInput:disabled, .annQuickBtn:disabled, .annRotateSel:disabled { opacity:.58; cursor:not-allowed; }
+    @media (max-width: 900px) {
+      .annMain { grid-template-columns:auto minmax(0,1fr) 64px 64px 64px 52px; }
+      .annMetaChip, .annLinksChip, .annQuickBtn { display:none; }
+    }
+    .thumbLarge { width:var(--detail-thumb-w, 176px); height:var(--detail-thumb-h, 176px); border-radius:14px; object-fit:contain; border:1px solid var(--border); background:#fff; padding:10px; box-sizing:border-box; }
+    .thumbLargePlaceholder { width:var(--detail-thumb-w, 176px); height:var(--detail-thumb-h, 176px); border-radius:14px; border:1px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--muted); background:rgba(255,255,255,.02); }
     .chip { display:inline-flex; align-items:center; gap:6px; padding:4px 9px; border-radius:999px; border:1px solid var(--border); font-size:11px; }
     .status { border:1px dashed var(--border); border-radius:10px; padding:9px 10px; }
+    .status.statusAtViewerTop { margin-bottom: 8px; }
     .inline { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .detailGrid { display:grid; grid-template-columns:180px minmax(0,1fr); gap:12px; align-items:start; margin-top:12px; }
@@ -148,7 +209,7 @@
     <section class="card hero">
       <div>
         <h1 id="pageTitle">Drawing Manager</h1>
-        <div class="sub" id="pageSub">Product-level drawings, OCR sources, style settings, and master annotations. Prepare everything here, then link the results into Router operations.</div>
+        <div class="sub" id="pageSub">Product drawings, OCR, and bubbles for Router.</div>
       </div>
       <div class="row actions" style="margin:0;">
         <button class="btn" id="openHubBtn" type="button">Hub</button>
@@ -158,7 +219,7 @@
     </section>
 
     <section class="card">
-      <div class="title">Context</div>
+      <div class="title" id="contextTitle">Context</div>
       <div class="row">
         <div>
           <label for="productSel">Product</label>
@@ -192,21 +253,21 @@
         <button class="btn ok" id="openInSpacialBtn" type="button">Open In Router</button>
         <input id="docInput" type="file" accept="image/*,.pdf,application/pdf" multiple hidden />
       </div>
-      <div class="hint" id="docHint">Use this module to own product documents, master annotations, and drawing styles. Upload files here, build PDF previews here, then link the results into Router.</div>
+      <div class="hint" id="docHint">Use this page to manage product drawings, run OCR, and adjust bubbles before sending them to Router.</div>
     </section>
 
     <div class="modalOverlay" id="drawingSettingsModal" hidden>
       <section class="card modalCard">
         <div class="modalHead">
           <div>
-            <div class="title" style="margin:0;">Drawing Settings</div>
-            <div class="hint">OCR server, drawing display style, and export presets.</div>
+            <div class="title" id="drawingSettingsTitle" style="margin:0;">Drawing Settings</div>
+            <div class="hint" id="drawingSettingsSubHint">OCR server, drawing display style, and export presets.</div>
           </div>
           <button class="btn" id="closeDrawingSettingsBtn" type="button">Close</button>
         </div>
         <div class="settingsGrid">
           <section class="card">
-            <div class="title">Live Preview</div>
+            <div class="title" id="drawingSettingsLivePreviewTitle">Live Preview</div>
             <div class="hint" id="drawingSettingsPreviewHint">Current drawing with bubble style updates in real time.</div>
             <div class="settingsPreviewWrap" id="drawingSettingsPreviewWrap">
               <canvas id="drawingSettingsPreviewCanvas" width="960" height="420"></canvas>
@@ -215,26 +276,7 @@
           </section>
 
           <section class="card">
-            <div class="title">OCR Workflow</div>
-            <div class="row">
-              <div>
-                <label for="bubbleOcrUrlIn">OCR Server URL</label>
-                <input id="bubbleOcrUrlIn" type="text" placeholder="http://localhost:8000" />
-              </div>
-              <div>
-                <label for="bubbleOcrPortIn">Port</label>
-                <input id="bubbleOcrPortIn" type="number" min="1" max="65535" step="1" />
-              </div>
-            </div>
-            <div class="row actions">
-              <button class="btn" id="bubbleOcrSaveBtn" type="button">Save OCR Settings</button>
-              <button class="btn" id="bubbleOcrTestBtn" type="button">Test OCR Server</button>
-            </div>
-            <div class="hint" id="ocrHint">PDF previews are generated through the OCR server. OCR prepares the selected drawing here so Router can reuse the linked master marks later.</div>
-          </section>
-
-          <section class="card">
-            <div class="title">Drawing Display And Export</div>
+            <div class="title" id="drawingDisplayTitle">Drawing Display And Export</div>
             <div class="row">
               <div>
                 <label for="bubbleDisplayBoxColorIn">Box Color</label>
@@ -273,6 +315,24 @@
                   <option value="always">Always show</option>
                   <option value="never">Hide pins</option>
                 </select>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="bubbleDisplayThumbListMaxIn">List Thumb Max</label>
+                <input id="bubbleDisplayThumbListMaxIn" type="range" min="24" max="96" step="1" value="50" />
+              </div>
+              <div>
+                <label for="bubbleDisplayThumbListMinIn">List Thumb Min</label>
+                <input id="bubbleDisplayThumbListMinIn" type="range" min="16" max="64" step="1" value="24" />
+              </div>
+              <div>
+                <label for="bubbleDisplayThumbDetailMaxIn">Detail Thumb Max</label>
+                <input id="bubbleDisplayThumbDetailMaxIn" type="range" min="96" max="320" step="2" value="176" />
+              </div>
+              <div>
+                <label for="bubbleDisplayThumbDetailMinIn">Detail Thumb Min</label>
+                <input id="bubbleDisplayThumbDetailMinIn" type="range" min="48" max="180" step="2" value="72" />
               </div>
             </div>
             <div class="row">
@@ -326,33 +386,60 @@
             </div>
             <div class="hint" id="bubbleDisplaySettingsInfo">Bubble 14px | Font 12px | box + bubble + number | Export match (14px) | Pins on hover</div>
           </section>
+
+          <section class="card">
+            <div class="title" id="ocrWorkflowTitle">OCR Workflow</div>
+            <div class="row">
+              <div>
+                <label for="bubbleOcrUrlIn">OCR Server URL</label>
+                <input id="bubbleOcrUrlIn" type="text" placeholder="http://localhost:8000" />
+              </div>
+              <div style="max-width:120px;">
+                <label for="bubbleOcrPortIn">Port</label>
+                <input id="bubbleOcrPortIn" type="number" min="1" max="65535" step="1" />
+              </div>
+            </div>
+            <div class="row actions">
+              <button class="btn" id="bubbleOcrSaveBtn" type="button">Save OCR Settings</button>
+              <button class="btn" id="bubbleOcrTestBtn" type="button">Test OCR Server</button>
+            </div>
+            <div class="hint" id="ocrHint">PDF previews are generated through the OCR server so Router can reuse the same marks later.</div>
+          </section>
         </div>
       </section>
     </div>
 
     <div class="grid2">
       <section class="card">
-        <div class="title">Document Preview</div>
+        <div class="title" id="documentPreviewTitle">Document Preview</div>
+        <div class="list" id="docList" style="margin:0 0 10px 0;"></div>
+        <div class="status statusAtViewerTop" id="status">Ready.</div>
         <div class="previewWrap" id="docPreviewWrap">
           <div class="empty" id="docPreviewEmpty">Pick a product document to preview it here.</div>
           <img id="docImagePreview" alt="Blueprint preview" hidden />
           <iframe id="docPdfPreview" title="Blueprint PDF preview" hidden></iframe>
           <canvas id="docOverlayCanvas" hidden></canvas>
+          <div id="annOverlayPopover" class="annOverlayPopover" hidden>
+            <div class="annOverlayPopoverHead">
+              <span class="annOverlayPopoverTitle"></span>
+            </div>
+            <div class="annOverlayPopoverBody"></div>
+          </div>
         </div>
         <div class="row actions" style="margin-top:10px;">
           <span class="chip" id="docTypeChip">No document</span>
-          <span class="chip mono" id="docStatsChip">0 master annotations</span>
+          <span class="chip mono" id="docStatsChip">0 annotations</span>
           <button class="btn" id="docZoomOutBtn" type="button">-</button>
           <button class="btn" id="docZoomResetBtn" type="button">100%</button>
           <button class="btn" id="docZoomInBtn" type="button">+</button>
           <button class="btn" id="docZoomFitBtn" type="button">Fit</button>
+          <button class="btn" id="docFullscreenBtn" type="button" title="Expand to fullscreen">Fullscreen</button>
         </div>
         <div class="hint" id="docCanvasInfo" style="margin-top:8px;">Drawings mode: drag a box to move, drag corner pins to resize, and use wheel to zoom.</div>
-        <div class="list" id="docList" style="margin-top:10px;"></div>
       </section>
 
       <section class="card">
-        <div class="title">Master Annotations</div>
+        <div class="title" id="annotationsTitle">Annotations</div>
         <div class="row">
           <div>
             <label for="annSearchIn">Search</label>
@@ -366,11 +453,11 @@
             </select>
           </div>
         </div>
-        <div class="hint" id="annHint">These are the product-level master marks. Router should link them into operations instead of recreating them each time.</div>
+        <div class="hint" id="annHint">These are the saved marks for this product. Router links to them instead of recreating them each time.</div>
         <div class="list" id="annList" style="margin-top:10px;"></div>
         <div class="card" style="margin-top:10px; padding:10px;">
-          <div class="title" style="margin-bottom:6px;">Selected Annotation</div>
-          <div id="annDetailEmpty" class="empty">Pick a master annotation to inspect its thumbnail, characteristic link, and operation usage.</div>
+          <div class="title" id="selectedAnnotationTitle" style="margin-bottom:6px;">Selected Annotation</div>
+          <div id="annDetailEmpty" class="empty">Pick an annotation to inspect its thumbnail, characteristic link, and operation usage.</div>
           <div id="annDetailWrap" class="detailGrid" hidden>
             <div id="annDetailThumbHost"></div>
             <div class="detailMeta">
@@ -380,6 +467,18 @@
               </div>
               <div class="detailList" id="annDetailList"></div>
               <div class="row actions" style="margin-top:0;">
+                <button class="btn annQuickBtn" id="annDetailReocrBtn" type="button">Re-OCR</button>
+                <select id="annDetailRotateSel" class="annRotateSel">
+                  <option value="-180">-180°</option>
+                  <option value="-135">-135°</option>
+                  <option value="-90">-90°</option>
+                  <option value="-45">-45°</option>
+                  <option value="0">0°</option>
+                  <option value="45">+45°</option>
+                  <option value="90">+90°</option>
+                  <option value="135">+135°</option>
+                  <option value="180">+180°</option>
+                </select>
                 <button class="btn ok" id="annDetailOpenSpacialBtn" type="button">Open Doc In Router</button>
               </div>
             </div>
@@ -387,8 +486,6 @@
         </div>
       </section>
     </div>
-
-    <div class="status" id="status">Ready.</div>
   </div>
 
   <datalist id="tolSpecSuggestions">
@@ -404,6 +501,98 @@
     <option value="js7"></option>
     <option value="±0.1"></option>
     <option value="+0.1 -0.05"></option>
+  </datalist>
+  <datalist id="annUnitDatalist">
+    <option value="mm"></option>
+    <option value="cm"></option>
+    <option value="dm"></option>
+    <option value="m"></option>
+    <option value="km"></option>
+    <option value="µm"></option>
+    <option value="nm"></option>
+    <option value="mil"></option>
+    <option value="in"></option>
+    <option value="ft"></option>
+    <option value="yd"></option>
+    <option value="°"></option>
+    <option value="deg"></option>
+    <option value="rad"></option>
+    <option value="mg"></option>
+    <option value="g"></option>
+    <option value="kg"></option>
+    <option value="t"></option>
+    <option value="oz"></option>
+    <option value="lb"></option>
+    <option value="N"></option>
+    <option value="kN"></option>
+    <option value="MN"></option>
+    <option value="lbf"></option>
+    <option value="N·m"></option>
+    <option value="lbf·ft"></option>
+    <option value="Pa"></option>
+    <option value="kPa"></option>
+    <option value="MPa"></option>
+    <option value="GPa"></option>
+    <option value="bar"></option>
+    <option value="mbar"></option>
+    <option value="psi"></option>
+    <option value="atm"></option>
+    <option value="%"></option>
+    <option value="mm²"></option>
+    <option value="cm²"></option>
+    <option value="m²"></option>
+    <option value="in²"></option>
+    <option value="mm³"></option>
+    <option value="cm³"></option>
+    <option value="m³"></option>
+    <option value="L"></option>
+    <option value="mL"></option>
+    <option value="°C"></option>
+    <option value="°F"></option>
+    <option value="K"></option>
+    <option value="rpm"></option>
+    <option value="A"></option>
+    <option value="mA"></option>
+    <option value="µA"></option>
+    <option value="nA"></option>
+    <option value="kA"></option>
+    <option value="V"></option>
+    <option value="mV"></option>
+    <option value="µV"></option>
+    <option value="kV"></option>
+    <option value="Ω"></option>
+    <option value="kΩ"></option>
+    <option value="MΩ"></option>
+    <option value="W"></option>
+    <option value="mW"></option>
+    <option value="kW"></option>
+    <option value="MW"></option>
+    <option value="F"></option>
+    <option value="µF"></option>
+    <option value="nF"></option>
+    <option value="pF"></option>
+    <option value="H"></option>
+    <option value="mH"></option>
+    <option value="µH"></option>
+    <option value="S"></option>
+    <option value="mS"></option>
+    <option value="µS"></option>
+    <option value="Hz"></option>
+    <option value="kHz"></option>
+    <option value="MHz"></option>
+    <option value="GHz"></option>
+    <option value="THz"></option>
+    <option value="J"></option>
+    <option value="mJ"></option>
+    <option value="kJ"></option>
+    <option value="Wh"></option>
+    <option value="kWh"></option>
+    <option value="MW·h"></option>
+    <option value="lm"></option>
+    <option value="lx"></option>
+    <option value="cd"></option>
+    <option value="Bq"></option>
+    <option value="Sv"></option>
   </datalist>
 
   <script src="./modules/module-shell.js"></script>

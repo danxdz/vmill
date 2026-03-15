@@ -1155,7 +1155,7 @@
             <div class="chartTitle" id="bubbleCanvasTitle" style="margin-top:6px;">Linked Drawing Preview</div>
             <div class="routeTools toolBarCompact">
               <select id="opFileSel"></select>
-              <button id="opExportFileJpgBtn" class="fileExportBtn" type="button">Export Annotated JPG</button>
+              <button id="opExportFileJpgBtn" class="fileExportBtn" type="button">Export Annotated PNG</button>
               <button id="opExportAutocontrolBtn" class="fileExportBtn" type="button">Autocontrol XLSX</button>
               <button id="opExportPdfBtn" class="warn" type="button">Operation PDF</button>
             </div>
@@ -1170,7 +1170,7 @@
                 <div class="viewerMoreGrid">
                   <button id="bubbleOpenBlueprintMgrBtn" type="button">Drawing Manager</button>
                   <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;">
-                    <input id="bubblePdfIncludeImageChk" class="inlineCheck" type="checkbox" />
+                    <input id="bubblePdfIncludeImageChk" class="inlineCheck" type="checkbox" checked />
                     <span id="bubblePdfIncludeImageLbl">Include blueprint in PDF</span>
                   </label>
                   <div class="mini" style="grid-column:1 / -1;padding:8px 10px;border:1px dashed var(--border);border-radius:10px;">
@@ -1420,7 +1420,7 @@
         setTxt("bubbleGridHint", "spacial.annotation.gridHint", "Click Pick or a card to load it into the editor. Linked mark fields auto-save after edit.");
         setTxt("bubbleCanvasTitle", "spacial.canvas.title.annotation", "Linked Drawing Preview");
         setTxt("bubblePanelHint", "spacial.docs.routerPreviewOnly", "Master mark editing and drawing setup are managed in Drawings. Router only previews the linked drawing and exports operation outputs.");
-        setTxt("opExportFileJpgBtn", "spacial.file.exportJpg", "Export Annotated JPG");
+        setTxt("opExportFileJpgBtn", "spacial.file.exportJpg", "Export Annotated PNG");
         setTxt("opExportPdfBtn", "spacial.file.exportOpPdf", "Operation PDF");
         setTxt("bubbleOpenBlueprintMgrBtn", "spacial.docs.manager", "Edit In Drawings");
         setTxt("bubbleShowBoxesLbl", "spacial.canvas.showBoxes", "Boxes on viewer/export");
@@ -1514,9 +1514,28 @@
           handleMode: "hover",
         };
       }
-      function defaultBubbleOffset(settings = null) {
+      function defaultBubbleOffset(settings = null, bbox = null) {
         const cfg = normalizeBubbleDisplaySettings(settings || bubbleDisplaySettings || defaultBubbleDisplaySettings());
         const radius = clampDisplaySettingNumber(cfg?.bubbleSize, 6, 44, 14);
+        const raw = bbox && typeof bbox === "object" ? bbox : null;
+        const x1 = Number(raw?.x1);
+        const y1 = Number(raw?.y1);
+        const x2 = Number(raw?.x2);
+        const y2 = Number(raw?.y2);
+        if ([x1, y1, x2, y2].every(Number.isFinite)) {
+          const width = Math.max(1, Math.abs(x2 - x1));
+          const height = Math.max(1, Math.abs(y2 - y1));
+          if (height > width * 1.15) {
+            return {
+              x: -Math.round(radius * 1.15),
+              y: Math.round(height / 2),
+            };
+          }
+          return {
+            x: Math.round(Math.min(width * 0.2, radius * 1.1)),
+            y: -Math.round(radius * 0.45),
+          };
+        }
         return { x: -radius, y: -radius };
       }
       function clampDisplaySettingNumber(value, min, max, fallback) {
@@ -5256,7 +5275,7 @@
         const radius = clampDisplaySettingNumber(display?.bubbleSize, 6, 44, 14);
         let off = b?.bubbleOffset && Number.isFinite(Number(b.bubbleOffset.x)) && Number.isFinite(Number(b.bubbleOffset.y))
           ? { x: Number(b.bubbleOffset.x), y: Number(b.bubbleOffset.y) }
-          : defaultBubbleOffset(display);
+          : defaultBubbleOffset(display, box);
         if (cv && String(b?.bubbleOffsetSpace || "") === "source") {
           const op = getSelectedOperation();
           const opFile = selectedOperationFile(op);

@@ -299,7 +299,7 @@
     <section class="settings" id="settingsRow">
       <label class="toggle"><input id="activeChk" type="checkbox" checked /> show status bar</label>
       <label class="toggle"><input id="alertOnlyChk" type="checkbox" /> status: issues only</label>
-      <span class="mini">Position
+      <span class="mini" id="positionMini">Position
         <select id="posSel">
           <option value="bottom-right">bottom-right</option>
           <option value="bottom-left">bottom-left</option>
@@ -307,18 +307,18 @@
           <option value="top-left">top-left</option>
         </select>
       </span>
-      <span class="mini">Rows <input id="rowsRange" type="range" min="50" max="1200" step="10" /><span id="rowsVal">0</span></span>
+      <span class="mini" id="rowsMini">Rows <input id="rowsRange" type="range" min="50" max="1200" step="10" /><span id="rowsVal">0</span></span>
     </section>
 
     <div class="logWrap" id="logWrap">
       <table class="table">
         <thead>
           <tr>
-            <th>Time</th>
-            <th>Level</th>
-            <th>Type</th>
-            <th>Source</th>
-            <th>Summary</th>
+            <th id="thTime">Time</th>
+            <th id="thLevel">Level</th>
+            <th id="thType">Type</th>
+            <th id="thSource">Source</th>
+            <th id="thSummary">Summary</th>
           </tr>
         </thead>
         <tbody id="logBody"></tbody>
@@ -392,6 +392,9 @@
 
       const state = {
         paused: false,
+        ocrLogSeq: 0,
+        ocrLogPollTimer: null,
+        ocrLogPollError: "",
         ui: {
           position: "bottom-right",
           maxRows: 350,
@@ -409,18 +412,27 @@
       function applyI18n() {
         const loggerTitle = document.getElementById("loggerTitle");
         const openHubBtn = document.getElementById("openHubBtn");
+        const positionMini = document.getElementById("positionMini");
+        const rowsMini = document.getElementById("rowsMini");
         if (loggerTitle) loggerTitle.textContent = tt("logger.title", "Logger");
         if (openHubBtn) openHubBtn.textContent = tt("common.hub", "Hub");
         if (pauseBtn) pauseBtn.textContent = state.paused ? tt("logger.resume", "Resume") : tt("logger.pause", "Pause");
-        if (exportJsonBtn) exportJsonBtn.textContent = "Export JSON";
-        if (exportCsvBtn) exportCsvBtn.textContent = "Export CSV";
-        if (exportTxtBtn) exportTxtBtn.textContent = "Export TXT";
+        if (exportJsonBtn) exportJsonBtn.textContent = tt("logger.exportJson", "Export JSON");
+        if (exportCsvBtn) exportCsvBtn.textContent = tt("logger.exportCsv", "Export CSV");
+        if (exportTxtBtn) exportTxtBtn.textContent = tt("logger.exportTxt", "Export TXT");
         if (clearBtn) clearBtn.textContent = tt("hub.bus.clear", "Clear");
-        if (searchLbl) searchLbl.textContent = "Search";
-        if (searchIn) searchIn.placeholder = "type/source/payload...";
-        if (sourceLbl) sourceLbl.textContent = "Source";
-        if (categoryLbl) categoryLbl.textContent = "Category";
-        if (levelsLbl) levelsLbl.textContent = "Levels";
+        if (searchLbl) searchLbl.textContent = tt("common.search", "Search");
+        if (searchIn) searchIn.placeholder = tt("logger.searchPlaceholder", "type/source/payload...");
+        if (sourceLbl) sourceLbl.textContent = tt("common.source", "Source");
+        if (categoryLbl) categoryLbl.textContent = tt("common.category", "Category");
+        if (levelsLbl) levelsLbl.textContent = tt("logger.levels", "Levels");
+        if (positionMini) positionMini.firstChild.textContent = tt("logger.position", "Position");
+        if (rowsMini) rowsMini.firstChild.textContent = tt("logger.rows", "Rows ");
+        if (document.getElementById("thTime")) document.getElementById("thTime").textContent = tt("common.time", "Time");
+        if (document.getElementById("thLevel")) document.getElementById("thLevel").textContent = tt("common.level", "Level");
+        if (document.getElementById("thType")) document.getElementById("thType").textContent = tt("common.type", "Type");
+        if (document.getElementById("thSource")) document.getElementById("thSource").textContent = tt("common.source", "Source");
+        if (document.getElementById("thSummary")) document.getElementById("thSummary").textContent = tt("common.summary", "Summary");
       }
 
       function applyTheme(event) {
@@ -435,6 +447,57 @@
         } catch {
           return fallback;
         }
+      }
+
+      function resolveOcrBaseUrl() {
+        const raw = String(localStorage.getItem("vmill:ocr:url") || "").trim();
+        if (raw) return raw.replace(/\/+$/, "");
+        const port = String(localStorage.getItem("vmill:ocr:port") || "8000").trim() || "8000";
+        return `${window.location.protocol}//${window.location.hostname}:${port}`;
+      }
+
+      async function pollOcrServerLogs() {
+        const base = resolveOcrBaseUrl();
+        if (!base || !window.CANBus?.emit) return;
+        try {
+          const url = `${base}/ocr/logs/recent?after=${encodeURIComponent(String(state.ocrLogSeq || 0))}&limit=80`;
+          const res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const out = await res.json();
+          const items = Array.isArray(out?.items) ? out.items : [];
+          for (const item of items) {
+            const seq = Number(item?.seq || 0);
+            if (seq > state.ocrLogSeq) state.ocrLogSeq = seq;
+            window.CANBus.emit("ocr:server:log", {
+              seq,
+              ts: Number(item?.ts || Date.now()),
+              level: String(item?.level || "INFO"),
+              logger: String(item?.logger || "ocr"),
+              message: String(item?.message || ""),
+              baseUrl: base,
+            }, "ocr-server");
+          }
+          if (typeof out?.latest_seq === "number" && Number(out.latest_seq) > state.ocrLogSeq) {
+            state.ocrLogSeq = Number(out.latest_seq);
+          }
+          state.ocrLogPollError = "";
+        } catch (err) {
+          const msg = String(err?.message || err || "");
+          if (msg && msg !== state.ocrLogPollError) {
+            state.ocrLogPollError = msg;
+            window.CANBus.emit("ocr:server:status", {
+              online: false,
+              error: msg,
+              serverUrl: base,
+            }, "ocr-server");
+          }
+        }
+      }
+
+      function startOcrLogPolling() {
+        if (state.ocrLogPollTimer) clearInterval(state.ocrLogPollTimer);
+        pollOcrServerLogs();
+        state.ocrLogPollTimer = setInterval(pollOcrServerLogs, 2500);
       }
 
       function readUi() {
@@ -690,6 +753,7 @@
       applyUi();
       applyI18n();
       bind();
+      startOcrLogPolling();
       render();
     })();
   </script>

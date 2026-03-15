@@ -261,7 +261,8 @@
     }
 
     function exportPdfIncludeBlueprintEnabled() {
-      return !!$("bubblePdfIncludeImageChk")?.checked;
+      const input = $("bubblePdfIncludeImageChk");
+      return input ? input.checked !== false : true;
     }
 
     function rainbowPaletteHex() {
@@ -305,7 +306,7 @@
         }
         const offset = b?.bubbleOffset && Number.isFinite(Number(b.bubbleOffset.x)) && Number.isFinite(Number(b.bubbleOffset.y))
           ? { x: Number(b.bubbleOffset.x), y: Number(b.bubbleOffset.y) }
-          : defaultBubbleOffset(display);
+          : defaultBubbleOffset(display, box);
         const label = { x: box.x1 + offset.x, y: box.y1 + offset.y, r: bubbleRadius };
         if (!label || (!showBubble && !showText)) continue;
         ctx.font = `bold ${fontSize}px sans-serif`;
@@ -345,6 +346,27 @@
         img.onerror = () => reject(new Error("image-load-failed"));
         img.src = String(dataUrl || "");
       });
+    }
+
+    async function waitForPopupImages(win) {
+      if (!win?.document) return;
+      const images = Array.from(win.document.images || []);
+      if (!images.length) return;
+      await Promise.all(images.map((img) => {
+        if (img.complete && img.naturalWidth > 0) {
+          if (typeof img.decode === "function") {
+            return img.decode().catch(() => {});
+          }
+          return Promise.resolve();
+        }
+        return new Promise((resolve) => {
+          const done = () => resolve();
+          img.addEventListener("load", done, { once: true });
+          img.addEventListener("error", done, { once: true });
+        });
+      }));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise((resolve) => setTimeout(resolve, 120));
     }
 
     async function renderOperationExportCanvas(file, options = {}) {
@@ -404,16 +426,16 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `${name}.jpg`;
+            a.download = `${name}.png`;
             document.body.appendChild(a);
             a.click();
             a.remove();
             URL.revokeObjectURL(url);
-          }, "image/jpeg", 0.92);
+          }, "image/png");
         } else {
           const a = document.createElement("a");
-          a.href = cv.toDataURL("image/jpeg", 0.92);
-          a.download = `${name}.jpg`;
+          a.href = cv.toDataURL("image/png");
+          a.download = `${name}.png`;
           document.body.appendChild(a);
           a.click();
           a.remove();
@@ -989,7 +1011,21 @@
             <head>
               <meta charset="utf-8" />
               <title>${escHtml(opTitle)}</title>
-              <style>body{font-family:Arial,sans-serif;padding:14px;color:${popupText};} h1,h2,h3{margin:0 0 8px;}</style>
+              <style>
+                html,body{
+                  font-family:Arial,sans-serif;
+                  padding:0;
+                  margin:0;
+                  background:#ffffff;
+                  color:${popupText};
+                  -webkit-print-color-adjust:exact;
+                  print-color-adjust:exact;
+                }
+                body{padding:14px;}
+                h1,h2,h3{margin:0 0 8px;}
+                img{display:block;page-break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+                *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+              </style>
             </head>
             <body>
               <h1>${escHtml(tt("spacial.routing.title", "Routing and Dimensional Control"))}</h1>
@@ -1000,8 +1036,13 @@
           </html>
         `);
         win.document.close();
-        win.focus();
-        win.print();
+        waitForPopupImages(win).then(() => {
+          win.focus();
+          win.print();
+        }).catch(() => {
+          win.focus();
+          win.print();
+        });
       }).catch(() => {
         win.document.write(`
           <!doctype html>

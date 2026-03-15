@@ -144,6 +144,8 @@
         thumbnailBBox: normalizeBbox(src.thumbnailBBox || src.thumbnail?.source_bbox || null),
         thumbnailRotation: Number.isFinite(Number(src.thumbnailRotation)) ? Number(src.thumbnailRotation) : 0,
         ocrRotation: Number.isFinite(Number(src.ocrRotation)) ? Number(src.ocrRotation) : 0,
+        ocrConfidence: src.ocrConfidence != null && Number.isFinite(Number(src.ocrConfidence)) ? Number(src.ocrConfidence) : null,
+        validated: src.validated === true || src.locked === true,
         createdAt: str(src.createdAt || new Date().toISOString()),
         updatedAt: str(src.updatedAt || new Date().toISOString()),
       };
@@ -169,6 +171,7 @@
         out.bubbleOffset = Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
       }
       if (Object.prototype.hasOwnProperty.call(src, 'thumbnailBBox')) out.thumbnailBBox = normalizeBbox(src.thumbnailBBox || null);
+      if (Object.prototype.hasOwnProperty.call(src, 'validated')) out.validated = src.validated === true;
       return out;
     }
 
@@ -355,6 +358,7 @@
         thumbnailBBox: clone(source.thumbnailBBox, null),
         thumbnailRotation: source.thumbnailRotation,
         ocrRotation: source.ocrRotation,
+        validated: source.validated === true,
       }, 0, meta.productId, meta.documentId);
     }
 
@@ -383,6 +387,7 @@
         thumbnailBBox: clone(src.thumbnailBBox, null),
         thumbnailRotation: src.thumbnailRotation,
         ocrRotation: src.ocrRotation,
+        validated: src.validated === true,
       };
     }
 
@@ -415,7 +420,7 @@
         ocrRotation: numOrNull(source.ocrRotation),
       };
       const overrides = {};
-      const compareFields = ['name', 'characteristicId', 'nominal', 'lsl', 'usl', 'lowerDeviation', 'upperDeviation', 'toleranceSpec', 'unit', 'method', 'instrument', 'reactionPlan', 'thumbnailDataUrl', 'thumbnailRotation', 'ocrRotation', 'coordSpace', 'bubbleOffsetSpace'];
+      const compareFields = ['name', 'characteristicId', 'nominal', 'lsl', 'usl', 'lowerDeviation', 'upperDeviation', 'toleranceSpec', 'unit', 'method', 'instrument', 'reactionPlan', 'thumbnailDataUrl', 'thumbnailRotation', 'ocrRotation', 'coordSpace', 'bubbleOffsetSpace', 'validated'];
       for (const key of compareFields) {
         const current = normalized[key];
         const baseValue = base ? (base[key] ?? '') : undefined;

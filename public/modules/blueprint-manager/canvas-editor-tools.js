@@ -112,7 +112,7 @@
       bubble.thumbnailBBox = null;
       if (bubble.thumbnailRotation == null) bubble.thumbnailRotation = 0;
       if (bubble.ocrRotation == null) bubble.ocrRotation = 0;
-      if (!bubble.bubbleOffset) bubble.bubbleOffset = defaultBubbleOffset();
+      if (!bubble.bubbleOffset) bubble.bubbleOffset = defaultBubbleOffset(null, r);
       bubble.bubbleOffsetSpace = "canvas";
       setSelectedCanvasBubbleId(bubble.id);
       setEditingBubbleId("");

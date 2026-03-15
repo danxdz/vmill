@@ -1,10 +1,11 @@
 import { $, state, tt, setStatus, setBusyStatus, str, getProducts, getProductById, queryParams, docsApi, ocrApi } from './core.js';
-import { renderAll, renderDocuments, renderAnnotations, renderPreviewOverlay, renderSettingsLivePreview, writeDocumentToInputs, bindPreviewInteractions } from './render.js';
+import { renderAll, renderDocuments, renderAnnotations, renderPreviewOverlay, renderSettingsLivePreview, writeDocumentToInputs, bindPreviewInteractions, clearAnnPopover } from './render.js';
 
 const PRODUCT_DOC_HANDOFF_KEY = 'vmill:spacial:product-doc-handoff';
 const DISPLAY_SETTINGS_KEY = 'vmill:spacial:display';
 const NS_SPACIAL_CONFIG = 'spacial_config';
 const SPACIAL_DISPLAY_SETTINGS_ID = 'bubble_display';
+const thumbnailRefreshTimers = new Map();
 
 function defaultBubbleDisplaySettings() {
   return {
@@ -24,6 +25,10 @@ function defaultBubbleDisplaySettings() {
     exportBubbleSize: 14,
     handleSize: 4,
     handleMode: 'hover',
+    thumbListMax: 50,
+    thumbListMin: 24,
+    thumbDetailMax: 176,
+    thumbDetailMin: 72,
   };
 }
 
@@ -41,6 +46,10 @@ function normalizeHexColor(value, fallback) {
 function normalizeBubbleDisplaySettings(raw) {
   const src = raw && typeof raw === 'object' ? raw : {};
   const base = defaultBubbleDisplaySettings();
+  const thumbListMax = clampDisplaySettingNumber(src.thumbListMax, 24, 96, base.thumbListMax);
+  const thumbListMin = clampDisplaySettingNumber(src.thumbListMin, 16, 64, base.thumbListMin);
+  const thumbDetailMax = clampDisplaySettingNumber(src.thumbDetailMax, 96, 320, base.thumbDetailMax);
+  const thumbDetailMin = clampDisplaySettingNumber(src.thumbDetailMin, 48, 180, base.thumbDetailMin);
   return {
     boxColor: normalizeHexColor(src.boxColor, base.boxColor),
     bubbleColor: normalizeHexColor(src.bubbleColor, base.bubbleColor),
@@ -58,6 +67,10 @@ function normalizeBubbleDisplaySettings(raw) {
     exportBubbleSize: clampDisplaySettingNumber(src.exportBubbleSize, 6, 44, base.exportBubbleSize),
     handleSize: clampDisplaySettingNumber(src.handleSize, 2, 8, base.handleSize),
     handleMode: ['hover', 'always', 'never'].includes(String(src.handleMode || '')) ? String(src.handleMode) : base.handleMode,
+    thumbListMax: Math.max(thumbListMin, thumbListMax),
+    thumbListMin: Math.min(thumbListMin, thumbListMax),
+    thumbDetailMax: Math.max(thumbDetailMin, thumbDetailMax),
+    thumbDetailMin: Math.min(thumbDetailMin, thumbDetailMax),
   };
 }
 
@@ -94,6 +107,10 @@ function updateBubbleDisplaySettingsUi(settings = null) {
   if ($('bubbleDisplayExportSizeIn')) $('bubbleDisplayExportSizeIn').value = String(cfg.exportBubbleSize);
   if ($('bubbleDisplayHandleSizeIn')) $('bubbleDisplayHandleSizeIn').value = String(cfg.handleSize);
   if ($('bubbleDisplayHandleModeSel')) $('bubbleDisplayHandleModeSel').value = cfg.handleMode;
+  if ($('bubbleDisplayThumbListMaxIn')) $('bubbleDisplayThumbListMaxIn').value = String(cfg.thumbListMax);
+  if ($('bubbleDisplayThumbListMinIn')) $('bubbleDisplayThumbListMinIn').value = String(cfg.thumbListMin);
+  if ($('bubbleDisplayThumbDetailMaxIn')) $('bubbleDisplayThumbDetailMaxIn').value = String(cfg.thumbDetailMax);
+  if ($('bubbleDisplayThumbDetailMinIn')) $('bubbleDisplayThumbDetailMinIn').value = String(cfg.thumbDetailMin);
   const info = $('bubbleDisplaySettingsInfo');
   if (info) {
     const modeLabel = cfg.handleMode === 'always' ? 'always' : (cfg.handleMode === 'never' ? 'hidden' : 'on hover');
@@ -102,7 +119,7 @@ function updateBubbleDisplaySettingsUi(settings = null) {
     if (cfg.bubbleVisible) parts.push('bubble');
     if (cfg.textVisible) parts.push('number');
     const visualMode = parts.length ? parts.join(' + ') : 'hidden';
-    info.textContent = `Bubble ${cfg.bubbleSize}px | Font ${cfg.bubbleFontSize}px | ${visualMode} | Export ${cfg.exportPreset} (${cfg.exportBubbleSize}px)${cfg.rainbowExport ? ' + rainbow' : ''} | Pins ${modeLabel}`;
+    info.textContent = `Bubble ${cfg.bubbleSize}px | Font ${cfg.bubbleFontSize}px | Thumbs ${cfg.thumbListMax}/${cfg.thumbDetailMax}px | ${visualMode} | Export ${cfg.exportPreset} (${cfg.exportBubbleSize}px)${cfg.rainbowExport ? ' + rainbow' : ''} | Pins ${modeLabel}`;
   }
 }
 
@@ -156,6 +173,10 @@ function saveBubbleDisplaySettingsFromUi() {
     exportBubbleSize: $('bubbleDisplayExportSizeIn')?.value,
     handleSize: $('bubbleDisplayHandleSizeIn')?.value,
     handleMode: $('bubbleDisplayHandleModeSel')?.value,
+    thumbListMax: $('bubbleDisplayThumbListMaxIn')?.value,
+    thumbListMin: $('bubbleDisplayThumbListMinIn')?.value,
+    thumbDetailMax: $('bubbleDisplayThumbDetailMaxIn')?.value,
+    thumbDetailMin: $('bubbleDisplayThumbDetailMinIn')?.value,
   });
   renderPreviewOverlay();
 }
@@ -183,6 +204,7 @@ function readFileAsDataUrl(file) {
 function refresh() {
   const products = getProducts();
   state.products = products;
+  applyStaticUiText();
   if (!products.some((row) => String(row.id || '') === String(state.selectedProductId || ''))) {
     state.selectedProductId = products[0]?.id || '';
   }
@@ -200,15 +222,98 @@ function selectedAnnotation() {
   return docsApi.productAnnotationById(state.selectedAnnId, state.selectedProductId) || null;
 }
 
+function applyStaticUiText() {
+  document.title = tt('blueprint.pageTitle', 'Drawing Manager');
+  if ($('pageTitle')) $('pageTitle').textContent = tt('blueprint.pageTitle', 'Drawing Manager');
+  if ($('pageSub')) $('pageSub').textContent = tt('blueprint.pageSub', 'Product drawings, OCR, and bubbles for Router.');
+  if ($('openHubBtn')) $('openHubBtn').textContent = tt('common.hub', 'Hub');
+  if ($('openSpacialBtn')) $('openSpacialBtn').textContent = tt('common.router', 'Router');
+  if ($('openDrawingSettingsBtn')) $('openDrawingSettingsBtn').textContent = tt('blueprint.drawingSettings', 'Drawing Settings');
+  if ($('contextTitle')) $('contextTitle').textContent = tt('common.context', 'Context');
+  const setLabel = (forId, key, fallback) => {
+    const el = document.querySelector(`label[for="${forId}"]`);
+    if (el) el.textContent = tt(key, fallback);
+  };
+  setLabel('productSel', 'common.product', 'Product');
+  setLabel('docSel', 'common.document', 'Document');
+  setLabel('docRevisionIn', 'common.revision', 'Revision');
+  setLabel('docNameIn', 'blueprint.documentName', 'Document Name');
+  setLabel('docNotesIn', 'common.notes', 'Notes');
+  setLabel('annSearchIn', 'common.search', 'Search');
+  setLabel('annScopeSel', 'common.scope', 'Scope');
+  setLabel('bubbleOcrUrlIn', 'blueprint.ocrServerUrl', 'OCR Server URL');
+  setLabel('bubbleOcrPortIn', 'common.port', 'Port');
+  setLabel('bubbleDisplayBoxColorIn', 'blueprint.boxColor', 'Box Color');
+  setLabel('bubbleDisplayColorIn', 'blueprint.bubbleColor', 'Bubble Color');
+  setLabel('bubbleDisplaySelectedColorIn', 'blueprint.selectedColor', 'Selected Color');
+  setLabel('bubbleDisplayTextColorIn', 'blueprint.textColor', 'Text Color');
+  setLabel('bubbleDisplaySizeIn', 'blueprint.bubbleSize', 'Bubble Size');
+  setLabel('bubbleDisplayFontSizeIn', 'blueprint.fontSize', 'Font Size');
+  setLabel('bubbleDisplayHandleSizeIn', 'blueprint.resizePinSize', 'Resize Pin Size');
+  setLabel('bubbleDisplayHandleModeSel', 'blueprint.resizePins', 'Resize Pins');
+  setLabel('bubbleDisplayThumbListMaxIn', 'blueprint.listThumbMax', 'List Thumb Max');
+  setLabel('bubbleDisplayThumbListMinIn', 'blueprint.listThumbMin', 'List Thumb Min');
+  setLabel('bubbleDisplayThumbDetailMaxIn', 'blueprint.detailThumbMax', 'Detail Thumb Max');
+  setLabel('bubbleDisplayThumbDetailMinIn', 'blueprint.detailThumbMin', 'Detail Thumb Min');
+  setLabel('bubbleDisplayShowBoxChk', 'blueprint.showBox', 'Show Box');
+  setLabel('bubbleDisplayShowBubbleChk', 'blueprint.showBubble', 'Show Bubble');
+  setLabel('bubbleDisplayShowTextChk', 'blueprint.showNumber', 'Show Number');
+  setLabel('bubbleDisplayBubbleFillChk', 'blueprint.fillBubble', 'Fill Bubble');
+  setLabel('bubbleDisplayRainbowExportChk', 'blueprint.rainbowExport', 'Rainbow Export');
+  setLabel('bubbleDisplayExportPresetSel', 'blueprint.exportPreset', 'Export Preset');
+  setLabel('bubbleDisplayExportTextColorIn', 'blueprint.exportTextColor', 'Export Text Color');
+  setLabel('bubbleDisplayExportSizeIn', 'blueprint.exportBubbleSize', 'Export Bubble Size');
+  if ($('docRevisionIn')) $('docRevisionIn').placeholder = tt('blueprint.revisionPlaceholder', 'A / B / AB-000');
+  if ($('docNameIn')) $('docNameIn').placeholder = tt('blueprint.documentNamePlaceholder', 'Blueprint / PDF name');
+  if ($('docNotesIn')) $('docNotesIn').placeholder = tt('blueprint.documentNotesPlaceholder', 'Optional notes about this document or revision');
+  if ($('uploadDocBtn')) $('uploadDocBtn').textContent = tt('blueprint.addDocs', '+ Add Doc(s)');
+  if ($('buildPreviewBtn')) $('buildPreviewBtn').textContent = tt('blueprint.buildPdfPreview', 'Build PDF Preview');
+  if ($('autoOcrDocBtn')) $('autoOcrDocBtn').textContent = tt('blueprint.autoOcrDrawing', 'Auto OCR This Drawing');
+  if ($('saveDocBtn')) $('saveDocBtn').textContent = tt('blueprint.saveDoc', 'Save Doc');
+  if ($('deleteDocBtn')) $('deleteDocBtn').textContent = tt('blueprint.deleteDoc', 'Delete Doc');
+  if ($('openInSpacialBtn')) $('openInSpacialBtn').textContent = tt('blueprint.openInRouter', 'Open In Router');
+  if ($('drawingSettingsTitle')) $('drawingSettingsTitle').textContent = tt('blueprint.drawingSettings', 'Drawing Settings');
+  if ($('drawingSettingsSubHint')) $('drawingSettingsSubHint').textContent = tt('blueprint.drawingSettingsHint', 'OCR server, drawing display style, and export presets.');
+  if ($('closeDrawingSettingsBtn')) $('closeDrawingSettingsBtn').textContent = tt('common.close', 'Close');
+  if ($('drawingSettingsLivePreviewTitle')) $('drawingSettingsLivePreviewTitle').textContent = tt('blueprint.livePreview', 'Live Preview');
+  if ($('drawingSettingsPreviewHint')) $('drawingSettingsPreviewHint').textContent = tt('blueprint.livePreviewHint', 'Current drawing with bubble style updates in real time.');
+  if ($('drawingSettingsPreviewEmpty')) $('drawingSettingsPreviewEmpty').textContent = tt('blueprint.selectDrawingPreviewStyles', 'Select a drawing to preview style changes here.');
+  if ($('drawingDisplayTitle')) $('drawingDisplayTitle').textContent = tt('blueprint.drawingDisplayExport', 'Drawing Display And Export');
+  if ($('ocrWorkflowTitle')) $('ocrWorkflowTitle').textContent = tt('blueprint.ocrWorkflow', 'OCR Workflow');
+  if ($('bubbleOcrUrlIn')) $('bubbleOcrUrlIn').placeholder = tt('blueprint.ocrServerUrlPlaceholder', 'http://localhost:8000');
+  if ($('bubbleOcrSaveBtn')) $('bubbleOcrSaveBtn').textContent = tt('blueprint.saveOcrSettings', 'Save OCR Settings');
+  if ($('bubbleOcrTestBtn')) $('bubbleOcrTestBtn').textContent = tt('blueprint.testOcrServer', 'Test OCR Server');
+  if ($('ocrHint')) $('ocrHint').textContent = tt('blueprint.ocrHint', 'PDF previews are generated through the OCR server so Router can reuse the same marks later.');
+  if ($('documentPreviewTitle')) $('documentPreviewTitle').textContent = tt('blueprint.documentPreview', 'Document Preview');
+  if ($('docPreviewEmpty')) $('docPreviewEmpty').textContent = tt('blueprint.pickDocumentPreview', 'Pick a product document to preview it here.');
+  if ($('docImagePreview')) $('docImagePreview').alt = tt('blueprint.previewAlt', 'Blueprint preview');
+  if ($('docPdfPreview')) $('docPdfPreview').title = tt('blueprint.pdfPreviewTitle', 'Blueprint PDF preview');
+  if ($('docZoomFitBtn')) $('docZoomFitBtn').textContent = tt('common.fit', 'Fit');
+  if ($('docFullscreenBtn')) {
+    $('docFullscreenBtn').textContent = tt('common.fullscreen', 'Fullscreen');
+    $('docFullscreenBtn').title = tt('blueprint.expandFullscreen', 'Expand to fullscreen');
+  }
+  if ($('annotationsTitle')) $('annotationsTitle').textContent = tt('blueprint.annotations', 'Annotations');
+  if ($('annSearchIn')) $('annSearchIn').placeholder = tt('blueprint.annotationSearchPlaceholder', 'Filter by id, name, characteristic');
+  const scopeSel = $('annScopeSel');
+  if (scopeSel?.options?.[0]) scopeSel.options[0].text = tt('blueprint.scopeDocumentOnly', 'Selected document only');
+  if (scopeSel?.options?.[1]) scopeSel.options[1].text = tt('blueprint.scopeAllProduct', 'All product annotations');
+  if ($('annHint')) $('annHint').textContent = tt('blueprint.annotationsHint', 'These are the saved marks for this product. Router links to them instead of recreating them each time.');
+  if ($('selectedAnnotationTitle')) $('selectedAnnotationTitle').textContent = tt('blueprint.selectedAnnotation', 'Selected Annotation');
+  if ($('annDetailEmpty')) $('annDetailEmpty').textContent = tt('blueprint.annotationDetailEmpty', 'Pick an annotation to inspect its thumbnail, characteristic link, and operation usage.');
+  if ($('annDetailOpenSpacialBtn')) $('annDetailOpenSpacialBtn').textContent = tt('blueprint.openDocInRouter', 'Open Doc In Router');
+  if ($('bubbleDisplayResetBtn')) $('bubbleDisplayResetBtn').textContent = tt('blueprint.resetDisplay', 'Reset Display');
+}
+
 function saveDocumentFromInputs() {
   const productId = str(state.selectedProductId);
   if (!productId) {
-    setStatus('Pick a product first.');
+    setStatus(tt('blueprint.pickProductFirst', 'Pick a product first.'));
     return;
   }
   const current = selectedDocument();
   if (!current) {
-    setStatus('Upload or select a document first.');
+    setStatus(tt('blueprint.uploadOrSelectDocumentFirst', 'Upload or select a document first.'));
     return;
   }
   const next = docsApi.upsertProductDocument({
@@ -220,7 +325,7 @@ function saveDocumentFromInputs() {
   state.selectedDocId = next?.id || current.id;
   state.selectedAnnId = '';
   refresh();
-  setStatus(`Saved document ${next?.name || current.name}.`);
+  setStatus(tt('blueprint.documentSaved', `Saved document ${next?.name || current.name}.`));
 }
 
 function extensionForMimeType(mime = '') {
@@ -233,6 +338,27 @@ function extensionForMimeType(mime = '') {
   if (normalized === 'application/pdf') return '.pdf';
   if (normalized.startsWith('image/')) return '.png';
   return '';
+}
+
+function normalizeCardinalRotation(angle, defaultAngle = 0) {
+  const v = Number(angle);
+  if (!Number.isFinite(v)) return Number(defaultAngle) || 0;
+  const snapped = Math.round(v / 90) * 90;
+  const norm = ((snapped % 360) + 360) % 360;
+  return [0, 90, 180, 270].includes(norm) ? norm : (Number(defaultAngle) || 0);
+}
+
+function zoneRotationToCorrection(textRotation) {
+  const r = normalizeCardinalRotation(textRotation, 0);
+  return normalizeCardinalRotation((360 - r) % 360, 0);
+}
+
+function wrapDisplayRotation(angle) {
+  const v = Number(angle);
+  if (!Number.isFinite(v)) return 0;
+  let norm = ((v % 360) + 360) % 360;
+  if (norm > 180) norm -= 360;
+  return norm;
 }
 
 async function dataUrlToFile(dataUrl, filename, fallbackType = 'application/octet-stream') {
@@ -249,16 +375,16 @@ async function dataUrlToFile(dataUrl, filename, fallbackType = 'application/octe
 
 async function buildPdfPreviewForDocument(doc, options = {}) {
   if (!doc || !/pdf/i.test(doc.mime || '')) {
-    if (!options.silent) setStatus('Selected document is not a PDF.');
+    if (!options.silent) setStatus(tt('blueprint.selectedDocumentNotPdf', 'Selected document is not a PDF.'));
     return null;
   }
   if (!ocrApi) {
-    if (!options.silent) setStatus('OCR runtime is not available on this page.');
+    if (!options.silent) setStatus(tt('blueprint.ocrRuntimeUnavailable', 'OCR runtime is not available on this page.'));
     return null;
   }
   const sourceDataUrl = str(doc.dataUrl);
   if (!sourceDataUrl) {
-    if (!options.silent) setStatus('This document has no stored PDF data to convert.');
+    if (!options.silent) setStatus(tt('blueprint.documentNoStoredPdfData', 'This document has no stored PDF data to convert.'));
     return null;
   }
   setBusyStatus(true, tt('blueprint.previewBuilding', 'Building PDF preview through OCR server...'));
@@ -281,10 +407,10 @@ async function buildPdfPreviewForDocument(doc, options = {}) {
     });
     state.selectedDocId = next?.id || doc.id;
     refresh();
-    setStatus(`Preview ready for ${next?.name || doc.name || 'document'}.`);
+    setStatus(tt('blueprint.previewReadyForDocument', `Preview ready for ${next?.name || doc.name || 'document'}.`));
     return next || doc;
   } catch (err) {
-    if (!options.silent) setStatus(`PDF preview failed: ${err?.message || err || 'unknown error'}`);
+    if (!options.silent) setStatus(tt('blueprint.pdfPreviewFailed', `PDF preview failed: ${err?.message || err || 'unknown error'}`));
     return null;
   } finally {
     setBusyStatus(false);
@@ -294,7 +420,7 @@ async function buildPdfPreviewForDocument(doc, options = {}) {
 async function uploadDocuments(files) {
   const productId = str(state.selectedProductId);
   if (!productId) {
-    setStatus('Pick a product first.');
+    setStatus(tt('blueprint.pickProductFirst', 'Pick a product first.'));
     return;
   }
   const rows = Array.from(files || []).filter(Boolean);
@@ -315,7 +441,7 @@ async function uploadDocuments(files) {
     let sourcePageHeightPt = 0;
     if (isPdf && ocrApi) {
       try {
-        setBusyStatus(true, `Generating preview for ${file.name}...`);
+        setBusyStatus(true, tt('blueprint.generatingPreview', `Generating preview for ${file.name}...`));
         const out = await ocrApi.callOcrPdfToImageWithRetry(file, ocrApi.ensureOcrUrlInput(), 0, 220);
         previewDataUrl = str(out?.image?.data_url || out?.data_url || '');
         previewMime = str(out?.image?.mime || 'image/png');
@@ -356,27 +482,39 @@ async function uploadDocuments(files) {
   refresh();
   setStatus(
     pdfCount
-      ? `Imported ${rows.length} document${rows.length === 1 ? '' : 's'}. PDFs were converted to previews when the OCR server was available.`
-      : `Imported ${rows.length} document${rows.length === 1 ? '' : 's'}.`
+      ? tt('blueprint.documentsImportedWithPdfPreview', `Imported ${rows.length} document${rows.length === 1 ? '' : 's'}. PDFs were converted to previews when the OCR server was available.`)
+      : tt('blueprint.documentsImported', `Imported ${rows.length} document${rows.length === 1 ? '' : 's'}.`)
   );
 }
 
 function deleteCurrentDocument() {
   const doc = selectedDocument();
   if (!doc) return;
-  if (!confirm(`Delete document ${doc.name || doc.id} and its master annotations?`)) return;
+  if (!confirm(tt('blueprint.deleteDocumentConfirm', `Delete document ${doc.name || doc.id} and its annotations?`))) return;
   docsApi.deleteProductDocument(doc.id, { deleteAnnotations: true });
   state.selectedDocId = '';
   state.selectedAnnId = '';
   refresh();
-  setStatus(`Deleted ${doc.name || doc.id}.`);
+  setStatus(tt('blueprint.documentDeleted', `Deleted ${doc.name || doc.id}.`));
 }
 
 function updateAnnotationField(annotationId, field, value) {
   const current = docsApi.productAnnotationById(annotationId, state.selectedProductId);
   if (!current) return;
+  if (current.validated) {
+    setStatus(tt('blueprint.annotationLocked', 'Annotation is locked. Unlock it before editing.'));
+    return;
+  }
   const next = { ...current };
-  const numFields = ['nominal', 'lsl', 'usl', 'lowerDeviation', 'upperDeviation'];
+  if (field === 'thumbnailRotation') {
+    const desired = wrapDisplayRotation(value);
+    const autoCorrection = wrapDisplayRotation(zoneRotationToCorrection(Number(current.ocrRotation ?? 0)));
+    next.thumbnailRotation = wrapDisplayRotation(desired - autoCorrection);
+    docsApi.upsertProductAnnotation(next);
+    refresh();
+    return;
+  }
+  const numFields = ['nominal', 'lsl', 'usl', 'lowerDeviation', 'upperDeviation', 'thumbnailRotation', 'ocrRotation'];
   if (numFields.includes(field)) {
     const n = Number(String(value).replace(',', '.'));
     next[field] = value === '' || !Number.isFinite(n) ? null : n;
@@ -504,10 +642,67 @@ function updateAnnotationField(annotationId, field, value) {
 function deleteAnnotation(annotationId) {
   const current = docsApi.productAnnotationById(annotationId, state.selectedProductId);
   if (!current) return;
-  if (!confirm(`Delete master annotation ${current.id || annotationId}?`)) return;
+  state.pendingDeleteAnnId = '';
   docsApi.deleteProductAnnotation(annotationId);
   refresh();
-  setStatus(`Deleted annotation ${current.id || annotationId}.`);
+  setStatus(tt('blueprint.annotationDeleted', `Deleted annotation ${current.id || annotationId}.`));
+}
+
+function setPendingDeleteAnnotation(annotationId = '') {
+  state.pendingDeleteAnnId = str(annotationId || '');
+  renderAnnotations();
+}
+
+function setAnnotationValidated(annotationId, validated) {
+  const current = docsApi.productAnnotationById(annotationId, state.selectedProductId);
+  if (!current) return;
+  docsApi.upsertProductAnnotation({
+    ...current,
+    validated: validated === true,
+  });
+  state.pendingDeleteAnnId = '';
+  refresh();
+  setStatus(validated
+    ? tt('blueprint.annotationLockedStatus', 'Annotation validated and locked.')
+    : tt('blueprint.annotationUnlockedStatus', 'Annotation unlocked.'));
+}
+
+async function rebuildAnnotationThumbnail(annotationId) {
+  const annId = str(annotationId);
+  const current = docsApi.productAnnotationById(annId, state.selectedProductId);
+  if (!current || !ocrApi || !current.bbox) return false;
+  const doc = current.documentId
+    ? docsApi.productDocumentById(current.documentId, state.selectedProductId)
+    : selectedDocument();
+  const imageDataUrl = str(doc?.previewDataUrl || doc?.dataUrl || '');
+  if (!imageDataUrl) return false;
+  const ocrRotation = normalizeCardinalRotation(Number(current.ocrRotation ?? 0), 0);
+  const serverRotation = zoneRotationToCorrection(ocrRotation);
+  const thumb = await buildThumbForZone(imageDataUrl, current.bbox, serverRotation);
+  if (!thumb) return false;
+  docsApi.upsertProductAnnotation({
+    ...current,
+    thumbnailDataUrl: thumb,
+    thumbnailBBox: current.bbox,
+    thumbnailRotation: Number(current.thumbnailRotation ?? 0) || 0,
+  });
+  refresh();
+  return true;
+}
+
+function scheduleAnnotationThumbnailRefresh(annotationId, delayMs = 1000) {
+  const annId = str(annotationId);
+  if (!annId) return;
+  const prev = thumbnailRefreshTimers.get(annId);
+  if (prev) clearTimeout(prev);
+  const timer = setTimeout(async () => {
+    thumbnailRefreshTimers.delete(annId);
+    try {
+      const ok = await rebuildAnnotationThumbnail(annId);
+      if (ok) setStatus(tt('blueprint.thumbnailUpdated', `Updated thumbnail for ${annId}.`));
+    } catch {}
+  }, Math.max(0, Number(delayMs || 0)));
+  thumbnailRefreshTimers.set(annId, timer);
 }
 
 function normalizeBbox(raw) {
@@ -596,6 +791,28 @@ function normalizeOcrUnit(raw) {
   if (txt === 'inch' || txt === 'inches') return 'in';
   if (txt === '°' || txt === 'deg' || txt === 'degree') return 'deg';
   return txt;
+}
+
+function chooseInstrumentForTolerance(parsed) {
+  const n = Number(parsed?.nominal);
+  const lsl = Number(parsed?.lsl);
+  const usl = Number(parsed?.usl);
+  const lowerDev = Number(parsed?.lowerDeviation);
+  const upperDev = Number(parsed?.upperDeviation);
+  let span = NaN;
+  if (Number.isFinite(lsl) && Number.isFinite(usl)) {
+    span = Math.abs(usl - lsl);
+  } else if (Number.isFinite(lowerDev) && Number.isFinite(upperDev)) {
+    span = Math.abs(upperDev - lowerDev);
+  } else if (Number.isFinite(lowerDev) && Number.isFinite(n)) {
+    span = Math.abs(lowerDev) * 2;
+  } else if (Number.isFinite(upperDev) && Number.isFinite(n)) {
+    span = Math.abs(upperDev) * 2;
+  }
+  if (!Number.isFinite(span)) return '';
+  if (span < 0.05) return 'micrometer';
+  if (span >= 0.1) return 'caliper';
+  return '';
 }
 
 function parseOcrSpecFromText(rawText) {
@@ -714,21 +931,35 @@ function parseOcrSpecFromZone(zone, idx = 0) {
   const fallbackName = `OCR ${idx + 1}`;
   const text = str(z?.text || z?.value || z?.label || z?.name || fallbackName);
   const parsedText = parseOcrSpecFromText(text);
+  const plainNumericText = /^[Ø∅Φ]?\s*-?\d+(?:[.,]\d+)?(?:\s*(?:mm|cm|m|in|inch|inches|deg|°))?$/i.test(text);
+  const parsedLooksPrecise = Number.isFinite(parsedText.nominal) && /[.,]\d+/.test(text);
   const tolValue = numberOrNull(tol?.value ?? tol?.nominal);
   const tolPlus = toPositiveMagnitude(tol?.tolerance_plus ?? tol?.plus ?? tol?.upper ?? tol?.upper_tol ?? tol?.upperTolerance);
   const tolMinus = toPositiveMagnitude(tol?.tolerance_minus ?? tol?.minus ?? tol?.lower ?? tol?.lower_tol ?? tol?.lowerTolerance);
-  const nominal = numberOrNull(z?.nominal ?? z?.value_num ?? tolValue ?? parsedText.nominal);
-  let lsl = numberOrNull(z?.lsl ?? z?.min ?? parsedText.lsl);
-  let usl = numberOrNull(z?.usl ?? z?.max ?? parsedText.usl);
-  let lowerDeviation = numberOrNull(z?.lowerDeviation ?? z?.lower_deviation ?? parsedText.lowerDeviation);
-  let upperDeviation = numberOrNull(z?.upperDeviation ?? z?.upper_deviation ?? parsedText.upperDeviation);
+  const nominal = plainNumericText && parsedLooksPrecise
+    ? numberOrNull(parsedText.nominal)
+    : numberOrNull(z?.nominal ?? z?.value_num ?? tolValue ?? parsedText.nominal);
+  let lsl = plainNumericText && parsedLooksPrecise
+    ? null
+    : numberOrNull(z?.lsl ?? z?.min ?? parsedText.lsl);
+  let usl = plainNumericText && parsedLooksPrecise
+    ? null
+    : numberOrNull(z?.usl ?? z?.max ?? parsedText.usl);
+  let lowerDeviation = plainNumericText && parsedLooksPrecise
+    ? null
+    : numberOrNull(z?.lowerDeviation ?? z?.lower_deviation ?? parsedText.lowerDeviation);
+  let upperDeviation = plainNumericText && parsedLooksPrecise
+    ? null
+    : numberOrNull(z?.upperDeviation ?? z?.upper_deviation ?? parsedText.upperDeviation);
   if (upperDeviation == null && tolPlus != null) upperDeviation = Math.abs(tolPlus);
   if (lowerDeviation == null && tolMinus != null) lowerDeviation = -Math.abs(tolMinus);
   if (nominal != null) {
     if (lsl == null && lowerDeviation != null) lsl = nominal + lowerDeviation;
     if (usl == null && upperDeviation != null) usl = nominal + upperDeviation;
   }
-  let toleranceSpec = str(z?.toleranceSpec || z?.tolerance_spec || parsedText.toleranceSpec || '');
+  let toleranceSpec = plainNumericText && parsedLooksPrecise
+    ? ''
+    : str(z?.toleranceSpec || z?.tolerance_spec || parsedText.toleranceSpec || '');
   if (!toleranceSpec && tol?.tolerance_class) toleranceSpec = str(tol.tolerance_class);
   if (!toleranceSpec && upperDeviation != null && lowerDeviation != null) {
     const up = Math.abs(upperDeviation);
@@ -781,13 +1012,198 @@ function allocateNumericMarker(usedSet, preferred = 1) {
   return String(candidate);
 }
 
-async function buildThumbForZone(imageDataUrl, bbox) {
+async function buildThumbForZone(imageDataUrl, bbox, rotationCorrection = 0) {
   if (!ocrApi || !imageDataUrl || !bbox) return '';
   try {
-    const out = await ocrApi.callOcrThumbnailWithRetry(imageDataUrl, bbox, ocrApi.ensureOcrUrlInput(), 0);
+    const out = await ocrApi.callOcrThumbnailWithRetry(imageDataUrl, bbox, ocrApi.ensureOcrUrlInput(), rotationCorrection);
     return str(out?.thumbnail?.data_url || '');
   } catch {
     return '';
+  }
+}
+
+async function reocrAnnotation(annId) {
+  const doc = selectedDocument();
+  const productId = str(state.selectedProductId);
+  if (!doc || !productId || !ocrApi) {
+    setStatus('Select a document and ensure OCR server is configured.');
+    return;
+  }
+  const current = docsApi.productAnnotationById(annId, productId);
+  if (!current) {
+    setStatus('Annotation not found.');
+    return;
+  }
+  if (current.validated) {
+    setStatus(tt('blueprint.annotationLocked', 'Annotation is locked. Unlock it before editing.'));
+    return;
+  }
+  const imageDataUrl = str(doc.previewDataUrl || doc.dataUrl || '');
+  if (!/^data:image\//i.test(imageDataUrl)) {
+    setStatus('Document needs an image preview to re-OCR.');
+    return;
+  }
+  const bbox = current.bbox || {};
+  const x1 = Number(bbox.x1 ?? 0);
+  const y1 = Number(bbox.y1 ?? 0);
+  const x2 = Number(bbox.x2 ?? 0);
+  const y2 = Number(bbox.y2 ?? 0);
+  const centerX = (x1 + x2) / 2;
+  const centerY = (y1 + y2) / 2;
+  const effectiveRotation = wrapDisplayRotation(zoneRotationToCorrection(Number(current.ocrRotation ?? 0)) + (Number(current.thumbnailRotation ?? 0) || 0));
+  setBusyStatus(true, `Re-OCR zone ${current.sourceBubbleId || annId}...`);
+  try {
+    const out = Math.abs(effectiveRotation % 90) > 0.001
+      ? await ocrApi.callOcrProcessCenterWithRetry(
+          imageDataUrl,
+          { x: centerX, y: centerY },
+          { x1, y1, x2, y2 },
+          ocrApi.ensureOcrUrlInput(),
+          effectiveRotation
+        )
+      : await ocrApi.callOcrAnnotationClickWithRetry(
+          imageDataUrl,
+          { x: centerX, y: centerY },
+          'hardcore',
+          ocrApi.ensureOcrUrlInput(),
+          effectiveRotation
+        );
+    const zone = out?.zone;
+    if (!zone) {
+      setStatus('No text detected at this zone.');
+      return;
+    }
+    const parsed = parseOcrSpecFromZone(zone, 0);
+    const newBbox = zone.bbox
+      ? {
+          x1: Number(zone.bbox.x1 ?? x1),
+          y1: Number(zone.bbox.y1 ?? y1),
+          x2: Number(zone.bbox.x2 ?? x2),
+          y2: Number(zone.bbox.y2 ?? y2),
+          width: Number(zone.bbox.width ?? (zone.bbox.x2 - zone.bbox.x1)),
+          height: Number(zone.bbox.height ?? (zone.bbox.y2 - zone.bbox.y1)),
+        }
+      : current.bbox;
+    const rawRotation = Number(zone.rotation ?? zone.text_orientation ?? 0);
+    const detectedOcrRotation = normalizeCardinalRotation(rawRotation, 0);
+    const ocrRotation = current.ocrRotation == null
+      ? detectedOcrRotation
+      : normalizeCardinalRotation(Number(current.ocrRotation ?? 0), 0);
+    const thumbRotation = zoneRotationToCorrection(ocrRotation);
+    const thumbDataUrl = await buildThumbForZone(imageDataUrl, newBbox, thumbRotation) || (current.thumbnailDataUrl || '');
+    const conf = Number(zone.confidence);
+    const confPct = Number.isFinite(conf) ? Math.round(conf * 100) : null;
+    docsApi.upsertProductAnnotation({
+      ...current,
+      name: parsed?.name || str(zone.text) || current.name,
+      nominal: parsed?.nominal,
+      lsl: parsed?.lsl,
+      usl: parsed?.usl,
+      lowerDeviation: parsed?.lowerDeviation,
+      upperDeviation: parsed?.upperDeviation,
+      toleranceSpec: parsed?.toleranceSpec || current.toleranceSpec,
+      unit: parsed?.unit || current.unit || 'mm',
+      instrument: current.instrument || chooseInstrumentForTolerance(parsed) || '',
+      ocrConfidence: confPct != null ? confPct / 100 : (current.ocrConfidence ?? null),
+      bbox: newBbox,
+      thumbnailDataUrl: thumbDataUrl,
+      thumbnailBBox: newBbox,
+      thumbnailRotation: Number(current.thumbnailRotation ?? 0) || 0,
+      ocrRotation,
+    });
+    refresh();
+    setStatus(confPct != null ? `Re-OCR: "${zone.text}" (${confPct}% confidence)` : `Re-OCR: "${zone.text}"`);
+  } catch (err) {
+    setStatus(`Re-OCR failed: ${err?.message || err}`);
+  } finally {
+    setBusyStatus(false);
+  }
+}
+
+async function createAnnotationFromPreviewPoint(sourcePoint) {
+  const doc = selectedDocument();
+  const productId = str(state.selectedProductId);
+  if (!doc || !productId || !ocrApi) {
+    setStatus('Select a document and ensure OCR server is configured.');
+    return;
+  }
+  const x = Number(sourcePoint?.x);
+  const y = Number(sourcePoint?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  const imageDataUrl = str(doc.previewDataUrl || doc.dataUrl || '');
+  if (!/^data:image\//i.test(imageDataUrl)) {
+    setStatus('Document needs an image preview before OCR can run.');
+    return;
+  }
+  setBusyStatus(true, 'Creating OCR annotation from click...');
+  try {
+    const out = await ocrApi.callOcrAnnotationClickWithRetry(
+      imageDataUrl,
+      { x, y },
+      'hardcore',
+      ocrApi.ensureOcrUrlInput(),
+      0
+    );
+    const zone = out?.zone;
+    if (!zone) {
+      setStatus('No text detected at this click point.');
+      return;
+    }
+    const imageSize = await imageDimensionsFromDataUrl(imageDataUrl);
+    const bbox = scaleNormalizedBboxToImage(bboxFromOcrZone(zone), imageSize);
+    if (!bbox) {
+      setStatus('OCR found text but returned no usable box.');
+      return;
+    }
+    const existingDocAnnotations = docsApi.listProductAnnotations(productId, doc.id) || [];
+    const usedMarkers = new Set(
+      existingDocAnnotations
+        .map((row) => numericMarkerOrNull(row?.sourceBubbleId))
+        .filter((n) => n != null),
+    );
+    const sourceBubbleId = allocateNumericMarker(usedMarkers, existingDocAnnotations.length + 1);
+    const parsed = parseOcrSpecFromZone(zone, existingDocAnnotations.length);
+    const parsedName = str(parsed?.name || '');
+    const normalizedName = /^ocr[_\s-]*zone[_\s-]*\d+$/i.test(parsedName) ? sourceBubbleId : parsedName;
+    const rawRotation = Number(zone?.rotation ?? zone?.text_orientation ?? zone?.textOrientation ?? 0);
+    const ocrRotation = normalizeCardinalRotation(rawRotation, 0);
+    const thumbRotation = zoneRotationToCorrection(ocrRotation);
+    const thumbDataUrl = out?.thumbnail?.data_url
+      ? str(out.thumbnail.data_url)
+      : await buildThumbForZone(imageDataUrl, bbox, thumbRotation);
+    const zoneConf = Number(zone?.confidence);
+    const ocrConfidence = Number.isFinite(zoneConf) ? zoneConf : null;
+    const annId = str(zone?.id) || docsApi.normalizeProductAnnotation({}).id;
+    docsApi.upsertProductAnnotation({
+      id: annId,
+      productId,
+      documentId: doc.id,
+      sourceBubbleId,
+      name: normalizedName || sourceBubbleId,
+      nominal: parsed.nominal,
+      lsl: parsed.lsl,
+      usl: parsed.usl,
+      lowerDeviation: parsed.lowerDeviation,
+      upperDeviation: parsed.upperDeviation,
+      toleranceSpec: parsed.toleranceSpec,
+      method: 'OCR',
+      unit: parsed.unit || 'mm',
+      instrument: chooseInstrumentForTolerance(parsed),
+      ocrConfidence,
+      bbox,
+      thumbnailDataUrl: thumbDataUrl,
+      thumbnailBBox: bbox,
+      thumbnailRotation: 0,
+      ocrRotation,
+    });
+    state.selectedAnnId = annId;
+    refresh();
+    const confPct = Number.isFinite(zoneConf) ? Math.round(zoneConf * 100) : null;
+    setStatus(confPct != null ? `Created OCR annotation "${normalizedName || zone.text || sourceBubbleId}" (${confPct}% confidence)` : `Created OCR annotation "${normalizedName || zone.text || sourceBubbleId}"`);
+  } catch (err) {
+    setStatus(`Create OCR annotation failed: ${err?.message || err}`);
+  } finally {
+    setBusyStatus(false);
   }
 }
 
@@ -795,7 +1211,7 @@ async function autoOcrCurrentDocument() {
   const productId = str(state.selectedProductId);
   const doc = selectedDocument();
   if (!productId) {
-    setStatus('Pick a product first.');
+    setStatus(tt('blueprint.pickProductFirst', 'Pick a product first.'));
     return;
   }
   if (!doc) {
@@ -803,7 +1219,7 @@ async function autoOcrCurrentDocument() {
     return;
   }
   if (!ocrApi) {
-    setStatus('OCR runtime is not available on this page.');
+    setStatus(tt('blueprint.ocrRuntimeUnavailable', 'OCR runtime is not available on this page.'));
     return;
   }
   const imageDataUrl = str(doc.previewDataUrl || doc.dataUrl || '');
@@ -815,7 +1231,7 @@ async function autoOcrCurrentDocument() {
   setBusyStatus(true, 'Running OCR on selected drawing...');
   try {
     const uploadFile = await dataUrlToFile(imageDataUrl, doc.name || 'drawing.png', mime || 'image/png');
-    const out = await ocrApi.callOcrProcessWithRetry(uploadFile, 'accurate', ocrApi.ensureOcrUrlInput(), 0);
+    const out = await ocrApi.callOcrProcessWithRetry(uploadFile, 'hardcore', ocrApi.ensureOcrUrlInput(), 0);
     const zones = extractOcrZones(out);
     const imageSize = await imageDimensionsFromDataUrl(imageDataUrl);
     const existingDocAnnotations = docsApi.listProductAnnotations(productId, doc.id) || [];
@@ -840,7 +1256,16 @@ async function autoOcrCurrentDocument() {
         : allocateNumericMarker(usedMarkers, idx + 1);
       const parsedName = str(parsed?.name || '');
       const normalizedName = /^ocr[_\s-]*zone[_\s-]*\d+$/i.test(parsedName) ? sourceBubbleId : parsedName;
-      const thumb = await buildThumbForZone(imageDataUrl, bbox);
+      const rawRotation = Number(zone?.rotation ?? zone?.text_orientation ?? zone?.textOrientation ?? 0);
+      const detectedOcrRotation = normalizeCardinalRotation(rawRotation, 0);
+      const ocrRotation = existing?.ocrRotation == null
+        ? detectedOcrRotation
+        : normalizeCardinalRotation(Number(existing.ocrRotation ?? 0), 0);
+      const thumbRotation = zoneRotationToCorrection(ocrRotation);
+      const thumb = await buildThumbForZone(imageDataUrl, bbox, thumbRotation);
+      const instrument = chooseInstrumentForTolerance(parsed);
+      const zoneConf = Number(zone?.confidence);
+      const ocrConfidence = Number.isFinite(zoneConf) ? zoneConf : null;
       docsApi.upsertProductAnnotation({
         id: annId,
         productId,
@@ -855,9 +1280,13 @@ async function autoOcrCurrentDocument() {
         toleranceSpec: parsed.toleranceSpec,
         method: 'OCR',
         unit: parsed.unit,
+        instrument,
+        ocrConfidence,
         bbox,
         thumbnailDataUrl: thumb,
         thumbnailBBox: bbox,
+        thumbnailRotation: existing ? (Number(existing.thumbnailRotation ?? 0) || 0) : 0,
+        ocrRotation,
       });
       imported += 1;
     }
@@ -877,7 +1306,7 @@ function openSpacialWithDocument() {
     ? docsApi.productDocumentById(ann.documentId, state.selectedProductId)
     : selectedDocument();
   if (!product?.id) {
-    setStatus('Pick a product first.');
+    setStatus(tt('blueprint.pickProductFirst', 'Pick a product first.'));
     return;
   }
   if (doc?.mime?.includes('pdf') && !str(doc?.previewDataUrl)) {
@@ -953,6 +1382,20 @@ function bindEvents() {
   $('deleteDocBtn')?.addEventListener('click', deleteCurrentDocument);
   $('openInSpacialBtn')?.addEventListener('click', openSpacialWithDocument);
   $('annDetailOpenSpacialBtn')?.addEventListener('click', openSpacialWithDocument);
+  $('annDetailReocrBtn')?.addEventListener('click', (event) => {
+    const id = str(event.currentTarget?.getAttribute('data-ann-reocr-btn'));
+    if (!id) return;
+    reocrAnnotation(id);
+  });
+  $('annDetailRotateSel')?.addEventListener('change', (event) => {
+    const input = event.currentTarget;
+    const annId = str(input?.getAttribute('data-ann-id'));
+    if (!annId) return;
+    updateAnnotationField(annId, 'thumbnailRotation', input.value);
+    state.selectedAnnId = annId;
+    renderAnnotations();
+    setStatus(tt('blueprint.annotationUpdated', `Updated annotation ${annId}.`));
+  });
   $('bubbleOcrUrlIn')?.addEventListener('change', () => {
     if (!ocrApi) return;
     const normalized = ocrApi.normalizeHttpBaseUrl($('bubbleOcrUrlIn').value);
@@ -960,14 +1403,14 @@ function bindEvents() {
   });
   $('bubbleOcrSaveBtn')?.addEventListener('click', () => {
     if (!ocrApi) {
-      setStatus('OCR runtime is not available on this page.');
+      setStatus(tt('blueprint.ocrRuntimeUnavailable', 'OCR runtime is not available on this page.'));
       return;
     }
     ocrApi.saveOcrServerSettings();
   });
   $('bubbleOcrTestBtn')?.addEventListener('click', async () => {
     if (!ocrApi) {
-      setStatus('OCR runtime is not available on this page.');
+      setStatus(tt('blueprint.ocrRuntimeUnavailable', 'OCR runtime is not available on this page.'));
       return;
     }
     await ocrApi.testOcrConnection();
@@ -989,6 +1432,10 @@ function bindEvents() {
     'bubbleDisplayExportSizeIn',
     'bubbleDisplayHandleSizeIn',
     'bubbleDisplayHandleModeSel',
+    'bubbleDisplayThumbListMaxIn',
+    'bubbleDisplayThumbListMinIn',
+    'bubbleDisplayThumbDetailMaxIn',
+    'bubbleDisplayThumbDetailMinIn',
   ].forEach((id) => {
     $(id)?.addEventListener('input', saveBubbleDisplaySettingsFromUi);
     $(id)?.addEventListener('change', saveBubbleDisplaySettingsFromUi);
@@ -998,14 +1445,14 @@ function bindEvents() {
       const preset = btn.getAttribute('data-bubble-display-preset');
       applyBubbleDisplaySettings(bubbleDisplayPresetValues(preset));
       renderPreviewOverlay();
-      setStatus(`Applied drawing display preset: ${preset || 'default'}.`);
+      setStatus(tt('blueprint.appliedDisplayPreset', `Applied drawing display preset: ${preset || 'default'}.`));
     });
   });
   $('bubbleDisplayResetBtn')?.addEventListener('click', () => {
     localStorage.removeItem(DISPLAY_SETTINGS_KEY);
     applyBubbleDisplaySettings(defaultBubbleDisplaySettings());
     renderPreviewOverlay();
-    setStatus('Drawing display settings reset to factory defaults.');
+    setStatus(tt('blueprint.displaySettingsReset', 'Drawing display settings reset to factory defaults.'));
   });
   $('docList')?.addEventListener('click', (event) => {
     const card = event.target.closest('[data-doc-card]');
@@ -1015,10 +1462,41 @@ function bindEvents() {
     renderDocuments();
     renderAnnotations();
   });
+  $('annList')?.addEventListener('dblclick', async (event) => {
+    const wrap = event.target.closest('[data-ann-reocr]');
+    if (!wrap) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const annId = str(wrap.getAttribute('data-ann-reocr'));
+    if (!annId) return;
+    await reocrAnnotation(annId);
+  });
   $('annList')?.addEventListener('click', (event) => {
-    const delBtn = event.target.closest('[data-ann-delete]');
-    if (delBtn) {
-      deleteAnnotation(str(delBtn.getAttribute('data-ann-delete')));
+    const lockBtn = event.target.closest('[data-ann-lock]');
+    if (lockBtn) {
+      const annId = str(lockBtn.getAttribute('data-ann-lock'));
+      const nextValidated = str(lockBtn.getAttribute('data-ann-lock-next')) === '1';
+      setAnnotationValidated(annId, nextValidated);
+      return;
+    }
+    const reocrBtn = event.target.closest('[data-ann-reocr-btn]');
+    if (reocrBtn) {
+      reocrAnnotation(str(reocrBtn.getAttribute('data-ann-reocr-btn')));
+      return;
+    }
+    const delReqBtn = event.target.closest('[data-ann-delete-request]');
+    if (delReqBtn) {
+      setPendingDeleteAnnotation(str(delReqBtn.getAttribute('data-ann-delete-request')));
+      return;
+    }
+    const delConfirmBtn = event.target.closest('[data-ann-delete-confirm]');
+    if (delConfirmBtn) {
+      deleteAnnotation(str(delConfirmBtn.getAttribute('data-ann-delete-confirm')));
+      return;
+    }
+    const delCancelBtn = event.target.closest('[data-ann-delete-cancel]');
+    if (delCancelBtn) {
+      setPendingDeleteAnnotation('');
       return;
     }
     if (event.target.closest('input, textarea, select, button, label')) {
@@ -1036,10 +1514,51 @@ function bindEvents() {
     updateAnnotationField(str(input.getAttribute('data-ann-id')), str(input.getAttribute('data-ann-field')), input.value);
     state.selectedAnnId = str(input.getAttribute('data-ann-id'));
     renderAnnotations();
-    setStatus(`Updated annotation ${input.getAttribute('data-ann-id')}.`);
+    setStatus(tt('blueprint.annotationUpdated', `Updated annotation ${input.getAttribute('data-ann-id')}.`));
+  });
+  document.addEventListener('change', (event) => {
+    if (!event.target.closest('#annOverlayPopover')) return;
+    const input = event.target.closest('[data-ann-id][data-ann-field]');
+    if (!input) return;
+    updateAnnotationField(str(input.getAttribute('data-ann-id')), str(input.getAttribute('data-ann-field')), input.value);
+    state.selectedAnnId = str(input.getAttribute('data-ann-id'));
+    renderAnnotations();
+    setStatus(tt('blueprint.annotationUpdatedFromViewer', 'Updated annotation from viewer.'));
+  });
+  window.addEventListener('vmill:refresh-annotation-thumbnail', (event) => {
+    const raw = event && typeof event === 'object' && 'detail' in event ? event.detail : null;
+    const annId = str(raw?.id || '');
+    const delayMs = Number(raw?.delayMs || 1000) || 1000;
+    if (!annId) return;
+    scheduleAnnotationThumbnailRefresh(annId, delayMs);
+  });
+  document.addEventListener('click', (event) => {
+    const popoverRemove = event.target.closest('#annOverlayPopover [data-ann-delete]');
+    if (popoverRemove) {
+      deleteAnnotation(str(popoverRemove.getAttribute('data-ann-delete')));
+      clearAnnPopover();
+    }
+  });
+  window.addEventListener('vmill:delete-annotation', (event) => {
+    const id = event?.detail?.id;
+    if (id) deleteAnnotation(id);
+  });
+  window.addEventListener('vmill:reocr-annotation', async (event) => {
+    try {
+      const raw = event && typeof event === 'object' && 'detail' in event ? event.detail : null;
+      const annId = str(raw?.id || '');
+      if (annId) {
+        await reocrAnnotation(annId);
+        return;
+      }
+      if (raw?.sourcePoint) {
+        await createAnnotationFromPreviewPoint(raw.sourcePoint);
+      }
+    } catch {}
   });
   window.addEventListener('vmill:data:changed', refresh);
   window.addEventListener('storage', refresh);
+  window.addEventListener('vmill:lang:changed', refresh);
   window.addEventListener('resize', () => renderPreviewOverlay());
 }
 
@@ -1052,6 +1571,7 @@ export function boot() {
   bindPreviewInteractions();
   if (ocrApi?.updateOcrSettingsUi) ocrApi.updateOcrSettingsUi(ocrApi.defaultOcrUrl());
   updateBubbleDisplaySettingsUi(readBubbleDisplaySettings());
+  applyStaticUiText();
   refresh();
   if (state.selectedDocId) writeDocumentToInputs(selectedDocument());
   setStatus(tt('blueprint.ready', 'Drawing Manager ready.'));

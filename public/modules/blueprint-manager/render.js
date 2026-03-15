@@ -1,5 +1,37 @@
 import { $, state, tt, str, getProductById, docsApi, setStatus } from './core.js';
 
+function sendAgentDebugLog(payload) {
+  const body = JSON.stringify(payload);
+  fetch('http://127.0.0.1:7913/ingest/4e6d356f-c211-42df-bc7c-3351fc1a28b2', {
+    method: 'POST',
+    mode: 'no-cors',
+    keepalive: true,
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6d6734' },
+    body,
+  }).catch(() => {});
+  try {
+    const fallbackBase = String(localStorage.getItem('vmill:ocr:url') || '').replace(/\/+$/, '');
+    if (fallbackBase) {
+      fetch(`${fallbackBase}/debug-log`, {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      }).catch(() => {});
+    }
+  } catch {}
+  try {
+    if (window.location?.origin && window.location.origin !== 'null') {
+      fetch(`${window.location.origin}/debug-log`, {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      }).catch(() => {});
+    }
+  } catch {}
+}
+
 function esc(value) {
   return String(value == null ? '' : value)
     .replace(/&/g, '&amp;')
@@ -11,6 +43,81 @@ function esc(value) {
 
 function numText(value) {
   return value == null || value === '' || !Number.isFinite(Number(value)) ? '' : String(value);
+}
+
+function themeVar(name, fallback) {
+  try {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function wrapDisplayRotation(angle) {
+  const v = Number(angle);
+  if (!Number.isFinite(v)) return 0;
+  let norm = ((v % 360) + 360) % 360;
+  if (norm > 180) norm -= 360;
+  return norm;
+}
+
+function autoThumbCorrection(row) {
+  const ocrRotation = Number(row?.ocrRotation ?? 0);
+  if (!Number.isFinite(ocrRotation)) return 0;
+  const snapped = Math.round(ocrRotation / 90) * 90;
+  return wrapDisplayRotation((360 - snapped) % 360);
+}
+
+function rotationOptionsHtml(selectedValue) {
+  const selected = String(selectedValue ?? '0');
+  const options = [-180, -135, -90, -45, 0, 45, 90, 135, 180];
+  return options.map((angle) => {
+    const label = angle > 0 ? `+${angle}°` : `${angle}°`;
+    return `<option value="${angle}"${selected === String(angle) ? ' selected' : ''}>${label}</option>`;
+  }).join('');
+}
+
+function readThumbDisplaySettings() {
+  const toInt = (id, fallback, min, max) => {
+    const n = Number($(id)?.value);
+    if (!Number.isFinite(n)) return fallback;
+    return clamp(Math.round(n), min, max);
+  };
+  const listMax = toInt('bubbleDisplayThumbListMaxIn', 50, 24, 96);
+  const listMin = Math.min(toInt('bubbleDisplayThumbListMinIn', 24, 16, 64), listMax);
+  const detailMax = toInt('bubbleDisplayThumbDetailMaxIn', 176, 96, 320);
+  const detailMin = Math.min(toInt('bubbleDisplayThumbDetailMinIn', 72, 48, 180), detailMax);
+  return { listMax, listMin, detailMax, detailMin };
+}
+
+function thumbFrameSize(row, maxSize, minSize, angle = 0) {
+  const box = row?.thumbnailBBox || row?.bbox || null;
+  const x1 = Number(box?.x1);
+  const y1 = Number(box?.y1);
+  const x2 = Number(box?.x2);
+  const y2 = Number(box?.y2);
+  const width = Math.max(1, Math.abs((Number.isFinite(x2) ? x2 : 0) - (Number.isFinite(x1) ? x1 : 0)));
+  const height = Math.max(1, Math.abs((Number.isFinite(y2) ? y2 : 0) - (Number.isFinite(y1) ? y1 : 0)));
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return { width: maxSize, height: maxSize };
+  }
+  const radians = (Number(angle || 0) * Math.PI) / 180;
+  const cosV = Math.abs(Math.cos(radians));
+  const sinV = Math.abs(Math.sin(radians));
+  const rotatedWidth = (width * cosV) + (height * sinV);
+  const rotatedHeight = (width * sinV) + (height * cosV);
+  const ratio = rotatedWidth / Math.max(1e-6, rotatedHeight);
+  if (ratio >= 1) {
+    return {
+      width: maxSize,
+      height: Math.max(minSize, Math.round(maxSize / Math.max(1e-6, ratio))),
+    };
+  }
+  return {
+    width: Math.max(minSize, Math.round(maxSize * ratio)),
+    height: maxSize,
+  };
 }
 
 function currentDocuments() {
@@ -59,6 +166,8 @@ const previewRuntime = {
   startBox: null,
   draftBox: null,
   lastDocKey: '',
+  hoveredAnnId: '',
+  popoverHideTimeout: null,
 };
 
 function clamp(value, min, max) {
@@ -208,14 +317,51 @@ function previewRowBoxInSource(row, metrics) {
   return normalizeOverlayBbox(row?.bbox, metrics?.srcW || 0, metrics?.srcH || 0);
 }
 
+function bubbleCenterAndRadius(row, box, metrics) {
+  if (!box || !metrics) return null;
+  const p1 = sourceToCanvasPoint(box.x1, box.y1, metrics);
+  const p2 = sourceToCanvasPoint(box.x2, box.y2, metrics);
+  if (!p1 || !p2) return null;
+  const x = Math.min(p1.x, p2.x);
+  const y = Math.min(p1.y, p2.y);
+  const w = Math.abs(p2.x - p1.x);
+  const h = Math.abs(p2.y - p1.y);
+  const cfg = readDisplaySettingsFromUi();
+  const radius = Number(cfg?.bubbleSize ?? 14);
+  const defaultOff = h > w * 1.15
+    ? { x: -((w / 2) + (radius * 1.15)), y: 0 }
+    : { x: (Math.min(w * 0.2, radius * 1.1)) - (w / 2), y: -((h / 2) + (radius * 0.45)) };
+  const rawOff = row?.bubbleOffset && typeof row.bubbleOffset === 'object'
+    ? { x: Number(row.bubbleOffset.x || 0), y: Number(row.bubbleOffset.y || 0) }
+    : defaultOff;
+  return {
+    lx: x + w / 2 + rawOff.x,
+    ly: y + h / 2 + rawOff.y,
+    radius: Math.max(radius, 10),
+  };
+}
+
 function hitPreviewBox(point, metrics) {
   const rows = currentPreviewAnnotations();
-  if (!rows.length) return { row: null, handle: '' };
+  if (!rows.length) return { row: null, handle: '', onBubble: false };
   const selected = selectedOverlayBox(metrics);
   if (selected) {
     const handles = overlayResizeHandles(selected.box, metrics);
     const hitHandle = handles.find((h) => Math.hypot(point.x - h.x, point.y - h.y) <= h.r + 3);
-    if (hitHandle) return { row: selected.row, handle: hitHandle.name };
+    if (hitHandle) return { row: selected.row, handle: hitHandle.name, onBubble: false };
+    const bubble = bubbleCenterAndRadius(selected.row, selected.box, metrics);
+    if (bubble && Math.hypot(point.x - bubble.lx, point.y - bubble.ly) <= bubble.radius + 2) {
+      return { row: selected.row, handle: '', onBubble: true };
+    }
+  }
+  for (let i = rows.length - 1; i >= 0; i -= 1) {
+    const row = rows[i];
+    const box = previewRowBoxInSource(row, metrics);
+    if (!box) continue;
+    const bubble = bubbleCenterAndRadius(row, box, metrics);
+    if (bubble && Math.hypot(point.x - bubble.lx, point.y - bubble.ly) <= bubble.radius + 2) {
+      return { row, handle: '', onBubble: true };
+    }
   }
   for (let i = rows.length - 1; i >= 0; i -= 1) {
     const row = rows[i];
@@ -229,10 +375,10 @@ function hitPreviewBox(point, metrics) {
     const x2 = Math.max(p1.x, p2.x);
     const y2 = Math.max(p1.y, p2.y);
     if (point.x >= x1 && point.x <= x2 && point.y >= y1 && point.y <= y2) {
-      return { row, handle: '' };
+      return { row, handle: '', onBubble: false };
     }
   }
-  return { row: null, handle: '' };
+  return { row: null, handle: '', onBubble: false };
 }
 
 function resizeSourceBoxFromHandle(startBox, handle, point, metrics) {
@@ -358,15 +504,17 @@ export function renderPreviewOverlay() {
   if (info) {
     info.textContent = tt(
       'blueprint.preview.controls',
-      'Drawings mode: drag a box to move, drag corner pins to resize, and use wheel to zoom.',
+      'Drawings mode: drag the number circle (bubble) to move it; drag the red box to move the zone; drag corner pins to resize; wheel to zoom.',
     );
   }
+  const hoveredId = String(previewRuntime.hoveredAnnId || '');
   const rows = currentPreviewAnnotations();
   rows.forEach((row, idx) => {
     const draftMatch = String(row?.id || '') === activeId && previewRuntime.draftBox;
     const box = draftMatch ? normalizeEditableBbox(previewRuntime.draftBox) : normalizeOverlayBbox(row?.bbox, srcW, srcH);
     if (!box) return;
     const isSel = String(row?.id || '') === selectedId;
+    const isHovered = String(row?.id || '') === hoveredId;
     const stroke = isSel ? cfg.selectedColor : cfg.boxColor;
     const bubbleColor = isSel ? cfg.selectedColor : cfg.bubbleColor;
 
@@ -384,7 +532,7 @@ export function renderPreviewOverlay() {
     if (showHandles) {
       const handles = overlayResizeHandles(box, m);
       for (const handle of handles) {
-        ctx.fillStyle = '#0f1724';
+        ctx.fillStyle = themeVar('--vm-theme-panel-2', '#0f1724');
         ctx.beginPath();
         ctx.arc(handle.x, handle.y, handle.r + 1.5, 0, Math.PI * 2);
         ctx.fill();
@@ -397,12 +545,15 @@ export function renderPreviewOverlay() {
 
     const label = String(row?.sourceBubbleId || row?.id || idx + 1);
     const radius = cfg.bubbleSize;
-    const rawOff = row?.bubbleOffset && typeof row.bubbleOffset === 'object'
-      ? {
-          x: Number(row.bubbleOffset.x || 0),
-          y: Number(row.bubbleOffset.y || 0),
-        }
-      : { x: -24, y: -24 };
+    const defaultOff = h > w * 1.15
+      ? { x: -((w / 2) + (radius * 1.15)), y: 0 }
+      : { x: (Math.min(w * 0.2, radius * 1.1)) - (w / 2), y: -((h / 2) + (radius * 0.45)) };
+    const isActiveBubbleDrag = String(row?.id || '') === String(previewRuntime.activeAnnId || '') && previewRuntime.draftBubbleOffset;
+    const rawOff = isActiveBubbleDrag
+      ? { x: Number(previewRuntime.draftBubbleOffset.x || 0), y: Number(previewRuntime.draftBubbleOffset.y || 0) }
+      : (row?.bubbleOffset && typeof row.bubbleOffset === 'object'
+          ? { x: Number(row.bubbleOffset.x || 0), y: Number(row.bubbleOffset.y || 0) }
+          : defaultOff);
     let lx = x + (w / 2) + rawOff.x;
     let ly = y + (h / 2) + rawOff.y;
     lx = clamp(lx, offsetX + radius, offsetX + drawW - radius);
@@ -427,7 +578,7 @@ export function renderPreviewOverlay() {
       ctx.textBaseline = 'middle';
       if (!cfg.bubbleVisible) {
         ctx.lineWidth = Math.max(2, Math.round(cfg.bubbleFontSize / 4));
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = themeVar('--vm-theme-text', '#ffffff');
         ctx.strokeText(label, lx, ly);
       }
       ctx.fillStyle = cfg.bubbleTextColor;
@@ -471,7 +622,7 @@ export function renderSettingsLivePreview() {
   const offsetY = (height - drawH) / 2;
 
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = themeVar('--vm-theme-surface', '#ffffff');
   ctx.fillRect(0, 0, width, height);
   ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
 
@@ -499,9 +650,12 @@ export function renderSettingsLivePreview() {
 
     const label = String(row?.sourceBubbleId || row?.id || idx + 1);
     const radius = cfg.bubbleSize;
+    const defaultOff = h > w * 1.15
+      ? { x: -((w / 2) + (radius * 1.15)), y: 0 }
+      : { x: (Math.min(w * 0.2, radius * 1.1)) - (w / 2), y: -((h / 2) + (radius * 0.45)) };
     const rawOff = row?.bubbleOffset && typeof row.bubbleOffset === 'object'
       ? { x: Number(row.bubbleOffset.x || 0), y: Number(row.bubbleOffset.y || 0) }
-      : { x: -24, y: -24 };
+      : defaultOff;
     let lx = x + (w / 2) + rawOff.x;
     let ly = y + (h / 2) + rawOff.y;
     lx = clamp(lx, offsetX + radius, offsetX + drawW - radius);
@@ -526,7 +680,7 @@ export function renderSettingsLivePreview() {
       ctx.textBaseline = 'middle';
       if (!cfg.bubbleVisible) {
         ctx.lineWidth = Math.max(2, Math.round(cfg.bubbleFontSize / 4));
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = themeVar('--vm-theme-text', '#ffffff');
         ctx.strokeText(label, lx, ly);
       }
       ctx.fillStyle = cfg.bubbleTextColor;
@@ -595,7 +749,7 @@ export function renderDocuments() {
             <strong>${esc(doc.name || 'Document')}</strong>
             <span class="chip">${esc(doc.mime?.includes('pdf') ? 'PDF' : 'Image')}</span>
           </div>
-          <div class="docMeta">${esc(doc.revision ? `Rev ${doc.revision} | ` : '')}${esc(`${annCount} master annotation(s) | ${linkCount} operation link(s)`)}</div>
+          <div class="docMeta">${esc(doc.revision ? `Rev ${doc.revision} | ` : '')}${esc(`${annCount} annotation(s) | ${linkCount} link(s)`)}</div>
           <div class="docMeta mono">${esc(doc.id)}</div>
         </article>
       `;
@@ -616,9 +770,11 @@ export function renderPreview() {
   if (!img || !frame || !empty || !typeChip || !statsChip) return;
   const annCount = doc ? docsApi.listProductAnnotations(state.selectedProductId, doc.id).length : 0;
   const previewState = doc
-    ? (doc.previewDataUrl ? 'preview ready' : (doc.mime?.includes('pdf') ? 'preview needed' : 'image ready'))
-    : 'no preview';
-  statsChip.textContent = `${annCount} master annotation${annCount === 1 ? '' : 's'} | ${previewState}`;
+    ? (doc.previewDataUrl
+      ? tt('blueprint.previewReady', 'preview ready')
+      : (doc.mime?.includes('pdf') ? tt('blueprint.previewNeeded', 'preview needed') : tt('blueprint.imageReady', 'image ready')))
+    : tt('blueprint.noPreview', 'no preview');
+  statsChip.textContent = `${annCount} ${tt(annCount === 1 ? 'blueprint.annotationSingular' : 'blueprint.annotationPlural', annCount === 1 ? 'annotation' : 'annotations')} | ${previewState}`;
   const imageUrl = doc?.previewDataUrl || doc?.dataUrl || '';
   if (!doc || (!doc.dataUrl && !imageUrl)) {
     previewRuntime.mode = 'idle';
@@ -633,12 +789,12 @@ export function renderPreview() {
     frame.hidden = true;
     if (canvas) canvas.hidden = true;
     empty.hidden = false;
-    typeChip.textContent = 'No document';
+    typeChip.textContent = tt('blueprint.noDocument', 'No document');
     return;
   }
   typeChip.textContent = doc.mime?.includes('pdf')
-    ? (doc.previewDataUrl ? 'PDF document | OCR preview ready' : 'PDF document')
-    : 'Image document';
+    ? (doc.previewDataUrl ? tt('blueprint.pdfPreviewReady', 'PDF document | OCR preview ready') : tt('blueprint.pdfDocument', 'PDF document'))
+    : tt('blueprint.imageDocument', 'Image document');
   const docKey = `${String(doc?.id || '')}|${String(imageUrl || '')}`;
   if (docKey !== previewRuntime.lastDocKey) {
     previewRuntime.lastDocKey = docKey;
@@ -710,8 +866,170 @@ function saveOverlayDraft() {
     bbox: box,
     coordSpace: 'source',
   });
-  setStatus(`Updated annotation ${annId}.`);
+  try {
+    window.dispatchEvent(new CustomEvent('vmill:refresh-annotation-thumbnail', { detail: { id: annId, delayMs: 1000 } }));
+  } catch {}
+  setStatus(tt('blueprint.annotationUpdated', `Updated annotation ${annId}.`));
   return true;
+}
+
+function saveOverlayBubbleOffset() {
+  const annId = String(previewRuntime.activeAnnId || '');
+  const off = previewRuntime.draftBubbleOffset;
+  if (!annId || !off) return false;
+  const current = docsApi.productAnnotationById(annId, state.selectedProductId);
+  if (!current) return false;
+  docsApi.upsertProductAnnotation({
+    ...current,
+    bubbleOffset: { x: Number(off.x || 0), y: Number(off.y || 0) },
+    bubbleOffsetSpace: 'canvas',
+  });
+  setStatus(tt('blueprint.bubbleMoved', `Moved bubble for ${annId}.`));
+  return true;
+}
+
+export function updateAnnPopover(row, metrics) {
+  const pop = $('annOverlayPopover');
+  const titleEl = pop?.querySelector('.annOverlayPopoverTitle');
+  const bodyEl = pop?.querySelector('.annOverlayPopoverBody');
+  if (!pop || !bodyEl) return;
+  if (!row || !metrics) {
+    pop.hidden = true;
+    return;
+  }
+  const box = normalizeOverlayBbox(row?.bbox, metrics.srcW, metrics.srcH);
+  if (!box) {
+    pop.hidden = true;
+    return;
+  }
+  const canvas = $('docOverlayCanvas');
+  const wrap = $('docPreviewWrap');
+  if (!canvas || !wrap) return;
+  const x = metrics.offsetX + (box.x1 / metrics.srcW) * metrics.drawW;
+  const y = metrics.offsetY + (box.y1 / metrics.srcH) * metrics.drawH;
+  const w = ((box.x2 - box.x1) / metrics.srcW) * metrics.drawW;
+  const h = ((box.y2 - box.y1) / metrics.srcH) * metrics.drawH;
+  const scaleX = canvas.clientWidth / Math.max(1, canvas.width);
+  const scaleY = canvas.clientHeight / Math.max(1, canvas.height);
+  const wrapRect = wrap.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  const annId = esc(String(row?.id || ''));
+  const name = esc(String(row?.name ?? ''));
+  const nominal = esc(String(row?.nominal ?? ''));
+  const lsl = esc(String(row?.lsl ?? ''));
+  const usl = esc(String(row?.usl ?? ''));
+  const unit = esc(String(row?.unit ?? ''));
+  const tol = esc(String(row?.toleranceSpec ?? ''));
+  const conf = row?.ocrConfidence != null ? Number(row.ocrConfidence) : null;
+  const confPct = Number.isFinite(conf) ? Math.round(conf * 100) : null;
+  const confLabel = confPct != null ? `${confPct}%` : '—';
+  const maybeRadius = (name === '61' || name === '62') ? ` <span class="annPopoverHint">(${tt('blueprint.radiusHint', name === '61' ? 'R1?' : 'R2?')})</span>` : '';
+  if (titleEl) titleEl.textContent = `#${row?.sourceBubbleId ?? row?.id ?? ''}`;
+  bodyEl.innerHTML = `
+    <div class="annPopoverRow">
+      <span class="annPopoverCell"><label>${tt('common.name', 'Name')}${maybeRadius}</label><input type="text" data-ann-id="${annId}" data-ann-field="name" value="${name}" placeholder="${esc(tt('common.name', 'Name'))}" class="annPopoverIn" /></span>
+      <span class="annPopoverCell"><label>${tt('blueprint.nomShort', 'Nom')}</label><input type="text" data-ann-id="${annId}" data-ann-field="nominal" value="${nominal}" placeholder="—" class="annPopoverIn" /></span>
+    </div>
+    <div class="annPopoverRow">
+      <span class="annPopoverCell"><label>${tt('blueprint.lsl', 'LSL')}</label><input type="text" data-ann-id="${annId}" data-ann-field="lsl" value="${lsl}" placeholder="${esc(tt('blueprint.lsl', 'LSL'))}" class="annPopoverIn" /></span>
+      <span class="annPopoverCell"><label>${tt('blueprint.usl', 'USL')}</label><input type="text" data-ann-id="${annId}" data-ann-field="usl" value="${usl}" placeholder="${esc(tt('blueprint.usl', 'USL'))}" class="annPopoverIn" /></span>
+    </div>
+    <div class="annPopoverRow">
+      <span class="annPopoverCell"><label>${tt('common.unit', 'Unit')}</label><input type="text" data-ann-id="${annId}" data-ann-field="unit" value="${unit}" placeholder="mm" list="annUnitDatalist" class="annPopoverIn" /></span>
+      <span class="annPopoverCell"><label>${tt('blueprint.tolShort', 'Tol')}</label><input type="text" data-ann-id="${annId}" data-ann-field="toleranceSpec" value="${tol}" placeholder="±0" class="annPopoverIn" /></span>
+    </div>
+    <div class="annPopoverRow">
+      <span class="annPopoverCell annPopoverCellWide"><label>${tt('blueprint.rotate', 'Rot')}</label><select data-ann-id="${annId}" data-ann-field="thumbnailRotation" class="annPopoverIn annPopoverRotateSel">
+        <option value="-180">-180°</option>
+        <option value="-135">-135°</option>
+        <option value="-90">-90°</option>
+        <option value="-45">-45°</option>
+        <option value="0">0°</option>
+        <option value="45">+45°</option>
+        <option value="90">+90°</option>
+        <option value="135">+135°</option>
+        <option value="180">+180°</option>
+      </select></span>
+    </div>
+    <div class="annPopoverFooter">
+      <span class="annPopoverConf">${esc(tt('blueprint.ocrLabel', 'OCR'))}: ${esc(confLabel)}</span>
+      <button type="button" class="btn bad annPopoverRemove" data-ann-delete="${annId}" title="${esc(tt('blueprint.deleteAnnotation', 'Delete this annotation'))}">${tt('common.remove', 'Remove')}</button>
+    </div>
+  `;
+  const rotateSel = bodyEl.querySelector('.annPopoverRotateSel');
+  if (rotateSel) {
+    const manualRotation = wrapDisplayRotation(Number(row?.thumbnailRotation ?? 0) || 0);
+    rotateSel.value = String(wrapDisplayRotation(autoThumbCorrection(row) + manualRotation));
+  }
+  // #region agent log
+  sendAgentDebugLog({sessionId:'6d6734',runId:'initial',hypothesisId:'H2',location:'render.js:updateAnnPopover:824',message:'popover content rendered',data:{annId:String(row?.id || ''),nameLength:String(row?.name || '').length,nominalLength:String(row?.nominal ?? '').length,unitLength:String(row?.unit ?? '').length,toleranceLength:String(row?.toleranceSpec ?? '').length,box:{x1:box.x1,y1:box.y1,x2:box.x2,y2:box.y2}},timestamp:Date.now()});
+  // #endregion
+  cancelPopoverHide();
+  pop.hidden = false;
+  const popW = Math.max(176, Math.min(220, pop.offsetWidth || 188));
+  const popH = pop.offsetHeight || 170;
+  const gap = 6;
+  const boxLeftInWrap = (canvasRect.left - wrapRect.left) + x * scaleX;
+  const boxRightInWrap = boxLeftInWrap + w * scaleX;
+  const boxTopInWrap = (canvasRect.top - wrapRect.top) + y * scaleY;
+  const boxCenterYInWrap = boxTopInWrap + (h * scaleY) / 2;
+  const wrapW = wrapRect.width;
+  const wrapH = wrapRect.height;
+  const spaceRight = wrapW - (boxRightInWrap + gap);
+  const spaceLeft = boxLeftInWrap - gap;
+  const preferRight = spaceRight >= popW;
+  const preferLeft = spaceLeft >= popW;
+  let leftInWrap;
+  if (preferRight) {
+    leftInWrap = Math.min(wrapW - popW - 4, boxRightInWrap + gap);
+  } else if (preferLeft) {
+    leftInWrap = Math.max(4, boxLeftInWrap - popW - gap);
+  } else {
+    leftInWrap = spaceRight >= spaceLeft
+      ? Math.min(wrapW - popW - 4, boxRightInWrap + gap)
+      : Math.max(4, boxLeftInWrap - popW - gap);
+  }
+  const topInWrap = Math.max(4, Math.min(wrapH - popH - 4, boxCenterYInWrap - popH / 2));
+  pop.style.width = `${popW}px`;
+  pop.style.left = `${leftInWrap}px`;
+  pop.style.top = `${topInWrap}px`;
+  const boxBottomInWrap = boxTopInWrap + h * scaleY;
+  const popRightInWrap = leftInWrap + popW;
+  const popBottomInWrap = topInWrap + popH;
+  const overlapX = boxLeftInWrap < popRightInWrap && boxRightInWrap > leftInWrap;
+  const overlapY = boxTopInWrap < popBottomInWrap && boxBottomInWrap > topInWrap;
+  const side = leftInWrap >= boxRightInWrap ? 'right' : (popRightInWrap <= boxLeftInWrap ? 'left' : 'overlap');
+  // #region agent log
+  sendAgentDebugLog({sessionId:'6d6734',runId:'initial',hypothesisId:'H1',location:'render.js:updateAnnPopover:861',message:'popover positioned',data:{annId:String(row?.id || ''),wrap:{width:wrapW,height:wrapH},box:{left:boxLeftInWrap,right:boxRightInWrap,top:boxTopInWrap,bottom:boxBottomInWrap},popover:{left:leftInWrap,right:popRightInWrap,top:topInWrap,bottom:popBottomInWrap,width:popW,height:popH},space:{left:spaceLeft,right:spaceRight},side,overlap:overlapX && overlapY},timestamp:Date.now()});
+  // #endregion
+}
+
+const POPOVER_HIDE_DELAY_MS = 280;
+
+export function clearAnnPopover() {
+  if (previewRuntime.popoverHideTimeout) {
+    clearTimeout(previewRuntime.popoverHideTimeout);
+    previewRuntime.popoverHideTimeout = null;
+  }
+  const pop = $('annOverlayPopover');
+  if (pop) pop.hidden = true;
+  previewRuntime.hoveredAnnId = '';
+}
+
+function schedulePopoverHide() {
+  if (previewRuntime.popoverHideTimeout) clearTimeout(previewRuntime.popoverHideTimeout);
+  previewRuntime.popoverHideTimeout = setTimeout(() => {
+    previewRuntime.popoverHideTimeout = null;
+    clearAnnPopover();
+    renderPreviewOverlay();
+  }, POPOVER_HIDE_DELAY_MS);
+}
+
+function cancelPopoverHide() {
+  if (previewRuntime.popoverHideTimeout) {
+    clearTimeout(previewRuntime.popoverHideTimeout);
+    previewRuntime.popoverHideTimeout = null;
+  }
 }
 
 export function bindPreviewInteractions() {
@@ -719,6 +1037,9 @@ export function bindPreviewInteractions() {
   const wrap = $('docPreviewWrap');
   if (!canvas || !wrap || previewRuntime.bound) return;
   previewRuntime.bound = true;
+  // #region agent log
+  sendAgentDebugLog({sessionId:'6d6734',runId:'initial',hypothesisId:'H6',location:'render.js:bindPreviewInteractions:902',message:'render instrumentation active',data:{canvasId:canvas.id,wrapId:wrap.id},timestamp:Date.now()});
+  // #endregion
   canvas.style.pointerEvents = 'auto';
   canvas.style.touchAction = 'none';
 
@@ -762,25 +1083,42 @@ export function bindPreviewInteractions() {
     if (previewRuntime.mode === 'resize') {
       previewRuntime.draftBox = resizeSourceBoxFromHandle(startBox, previewRuntime.activeHandle, p, m);
       renderPreviewOverlay();
+      return;
+    }
+    if (previewRuntime.mode === 'dragBubble' && previewRuntime.startBubbleOffset) {
+      const dx = event.clientX - previewRuntime.startClientX;
+      const dy = event.clientY - previewRuntime.startClientY;
+      previewRuntime.draftBubbleOffset = {
+        x: Number(previewRuntime.startBubbleOffset.x || 0) + dx,
+        y: Number(previewRuntime.startBubbleOffset.y || 0) + dy,
+      };
+      renderPreviewOverlay();
     }
   };
 
   const onPointerUp = (event) => {
     if (previewRuntime.pointerId == null || previewRuntime.pointerId !== event.pointerId) return;
-    const changed = (previewRuntime.mode === 'move' || previewRuntime.mode === 'resize') && !!previewRuntime.draftBox;
+    const boxChanged = (previewRuntime.mode === 'move' || previewRuntime.mode === 'resize') && !!previewRuntime.draftBox;
+    const bubbleChanged = previewRuntime.mode === 'dragBubble' && !!previewRuntime.draftBubbleOffset;
     if (canvas.hasPointerCapture(event.pointerId)) {
       try { canvas.releasePointerCapture(event.pointerId); } catch {}
     }
     previewRuntime.pointerId = null;
+    const prevMode = previewRuntime.mode;
     previewRuntime.mode = 'idle';
     previewRuntime.startBox = null;
     previewRuntime.activeHandle = '';
-    if (changed && saveOverlayDraft()) {
+    previewRuntime.startBubbleOffset = null;
+    if (boxChanged && saveOverlayDraft()) {
       previewRuntime.draftBox = null;
+      renderAnnotations();
+    } else if (bubbleChanged && saveOverlayBubbleOffset()) {
+      previewRuntime.draftBubbleOffset = null;
       renderAnnotations();
     } else {
       previewRuntime.draftBox = null;
-      renderPreviewOverlay();
+      previewRuntime.draftBubbleOffset = null;
+      if (prevMode === 'dragBubble' || prevMode === 'move' || prevMode === 'resize') renderPreviewOverlay();
     }
   };
 
@@ -806,8 +1144,20 @@ export function bindPreviewInteractions() {
     previewRuntime.activeHandle = String(hit.handle || '');
     previewRuntime.startBox = hit.row ? previewRowBoxInSource(hit.row, m) : null;
     previewRuntime.draftBox = null;
-    if (event.button === 1 || event.shiftKey || !hit.row) previewRuntime.mode = 'pan';
-    else previewRuntime.mode = hit.handle ? 'resize' : 'move';
+    previewRuntime.draftBubbleOffset = null;
+    previewRuntime.startBubbleOffset = null;
+    if (event.button === 1 || event.shiftKey || !hit.row) {
+      previewRuntime.mode = 'pan';
+    } else if (hit.onBubble) {
+      const raw = hit.row?.bubbleOffset && typeof hit.row.bubbleOffset === 'object'
+        ? { x: Number(hit.row.bubbleOffset.x || 0), y: Number(hit.row.bubbleOffset.y || 0) }
+        : { x: -24, y: -24 };
+      previewRuntime.mode = 'dragBubble';
+      previewRuntime.startBubbleOffset = { x: raw.x, y: raw.y };
+      previewRuntime.draftBubbleOffset = { x: raw.x, y: raw.y };
+    } else {
+      previewRuntime.mode = hit.handle ? 'resize' : 'move';
+    }
     try { canvas.setPointerCapture(event.pointerId); } catch {}
     event.preventDefault();
   });
@@ -818,9 +1168,46 @@ export function bindPreviewInteractions() {
     if (!m) return;
     const point = canvasEventPoint(event, m.canvas);
     const hit = hitPreviewBox(point, m);
+    const nextHoverId = hit?.row?.id != null ? String(hit.row.id) : '';
+    if (nextHoverId !== String(previewRuntime.hoveredAnnId || '')) {
+      previewRuntime.hoveredAnnId = nextHoverId;
+      updateAnnPopover(hit?.row || null, m);
+      renderPreviewOverlay();
+    } else if (hit?.row) {
+      updateAnnPopover(hit.row, m);
+    }
     if (hit?.handle) canvas.style.cursor = 'nwse-resize';
+    else if (hit?.onBubble) canvas.style.cursor = 'move';
     else if (hit?.row) canvas.style.cursor = 'move';
     else canvas.style.cursor = 'grab';
+  });
+
+  canvas.addEventListener('pointerleave', (event) => {
+    const pop = $('annOverlayPopover');
+    if (event.relatedTarget && pop?.contains(event.relatedTarget)) return;
+    if (previewRuntime.hoveredAnnId) schedulePopoverHide();
+  });
+  $('annOverlayPopover')?.addEventListener('pointerenter', () => cancelPopoverHide());
+  $('annOverlayPopover')?.addEventListener('pointerleave', (event) => {
+    const canvasEl = $('docOverlayCanvas');
+    if (event.relatedTarget && canvasEl?.contains(event.relatedTarget)) return;
+    if (previewRuntime.hoveredAnnId) schedulePopoverHide();
+  });
+
+  canvas.addEventListener('dblclick', (event) => {
+    const m = previewMetrics();
+    if (!m) return;
+    const point = canvasEventPoint(event, m.canvas);
+    const hit = hitPreviewBox(point, m);
+    const annId = String(hit?.row?.id || '');
+    const sourcePoint = canvasToSourcePoint(point.x, point.y, m);
+    const insideImage = !!sourcePoint
+      && sourcePoint.x >= 0 && sourcePoint.y >= 0
+      && sourcePoint.x <= m.srcW && sourcePoint.y <= m.srcH;
+    if (!annId && !insideImage) return;
+    try {
+      window.dispatchEvent(new CustomEvent('vmill:reocr-annotation', { detail: annId ? { id: annId } : { sourcePoint } }));
+    } catch {}
   });
 
   window.addEventListener('pointermove', onPointerMove);
@@ -837,44 +1224,88 @@ export function bindPreviewInteractions() {
   $('docZoomInBtn')?.addEventListener('click', () => setPreviewZoom(Number(previewRuntime.zoom || 1) + 0.1));
   $('docZoomResetBtn')?.addEventListener('click', () => setPreviewZoom(1));
   $('docZoomFitBtn')?.addEventListener('click', fitPreviewInView);
+  const fullscreenBtn = $('docFullscreenBtn');
+  function updateFullscreenButton() {
+    const isFs = !!document.fullscreenElement;
+    if (wrap) wrap.classList.toggle('fullscreen', isFs);
+    if (fullscreenBtn) fullscreenBtn.textContent = isFs ? 'Exit fullscreen' : 'Fullscreen';
+  }
+  fullscreenBtn?.addEventListener('click', () => {
+    if (!wrap) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen().then(updateFullscreenButton).catch(() => {});
+    } else {
+      wrap.requestFullscreen().then(updateFullscreenButton).catch(() => {});
+    }
+  });
+  document.addEventListener('fullscreenchange', updateFullscreenButton);
 }
 
 export function renderAnnotations() {
   const host = $('annList');
   if (!host) return;
   const rows = currentAnnotations();
+  const thumbDisplay = readThumbDisplaySettings();
   const annLinkCounts = new Map();
   for (const link of docsApi.listOperationAnnotationLinks({ productId: state.selectedProductId })) {
     const key = String(link.masterAnnotationId || '');
     if (!key) continue;
     annLinkCounts.set(key, Number(annLinkCounts.get(key) || 0) + 1);
   }
-  host.innerHTML = rows.length ? rows.map((row) => `
-    <article class="annCard ${String(row.id) === String(state.selectedAnnId) ? 'sel' : ''}" data-ann-card="${esc(row.id)}">
-      <div class="annHead">
-        <div class="inline">
-          ${row.thumbnailDataUrl ? `<img class="thumb" src="${esc(row.thumbnailDataUrl)}" alt="thumb" />` : `<div class="thumbPlaceholder">${esc('none')}</div>`}
-          <div>
-            <div><strong>${esc(row.id || '--')}</strong> <span class="annMeta">${esc(row.sourceBubbleId ? `source ${row.sourceBubbleId}` : '')}</span></div>
-            <div class="annMeta">${esc(row.documentId || 'No document')} | ${esc(row.characteristicId || 'No linked characteristic')} | ${esc(`${Number(annLinkCounts.get(String(row.id || '')) || 0)} operation link(s)`)}</div>
-          </div>
+  host.innerHTML = rows.length ? rows.map((row) => {
+    const primaryLabel = String(row.sourceBubbleId || '').trim() || String(row.id || '--');
+    const rotation = wrapDisplayRotation(autoThumbCorrection(row) + (Number(row?.thumbnailRotation ?? 0) || 0));
+    const thumbStyle = `transform: rotate(${rotation}deg);`;
+    const thumbFrame = thumbFrameSize(row, thumbDisplay.listMax, thumbDisplay.listMin, rotation);
+    const thumbWrapStyle = `--ann-thumb-w:${thumbFrame.width}px; --ann-thumb-h:${thumbFrame.height}px;`;
+    const linkCount = Number(annLinkCounts.get(String(row.id || '')) || 0);
+    const nominalStr = numText(row.nominal);
+    const lowerDevStr = numText(row.lowerDeviation);
+    const upperDevStr = numText(row.upperDeviation);
+    const nameLabel = String(row.name || row.characteristicId || `#${primaryLabel}`);
+    const toleranceLabel = String(row.toleranceSpec || '').trim();
+    const instrumentLabel = String(row.instrument || '').trim();
+    const displayRotation = String(rotation);
+    const confPct = row.ocrConfidence != null && Number.isFinite(Number(row.ocrConfidence))
+      ? Math.round(Number(row.ocrConfidence) * 100)
+      : null;
+    const isLocked = row.validated === true;
+    const pendingDelete = String(state.pendingDeleteAnnId || '') === String(row.id || '');
+    const disabledAttr = isLocked ? ' disabled' : '';
+    return `
+    <article class="annCard annCardCompact ${String(row.id) === String(state.selectedAnnId) ? 'sel' : ''}" data-ann-card="${esc(row.id)}">
+      <div class="annCardRow">
+        <div class="annThumbWrap" data-ann-reocr="${esc(row.id)}" title="Double-click to re-OCR" style="${thumbWrapStyle}">
+          ${row.thumbnailDataUrl ? `<img class="thumb" src="${esc(row.thumbnailDataUrl)}" alt="" style="${thumbStyle}" />` : `<div class="thumbPlaceholder">—</div>`}
+          <span class="annThumbHint">2× re-OCR</span>
         </div>
-        <button class="btn bad" type="button" data-ann-delete="${esc(row.id)}">Delete</button>
-      </div>
-      <div class="annGrid">
-        <input class="mono" data-ann-field="id" data-ann-id="${esc(row.id)}" type="text" value="${esc(row.id || '')}" readonly />
-        <input data-ann-field="name" data-ann-id="${esc(row.id)}" type="text" value="${esc(row.name || '')}" placeholder="Name" />
-        <input data-ann-field="nominal" data-ann-id="${esc(row.id)}" type="number" step="0.001" value="${esc(numText(row.nominal))}" placeholder="Nominal" />
-        <input data-ann-field="lsl" data-ann-id="${esc(row.id)}" type="number" step="0.001" value="${esc(numText(row.lsl))}" placeholder="Min" />
-        <input data-ann-field="usl" data-ann-id="${esc(row.id)}" type="number" step="0.001" value="${esc(numText(row.usl))}" placeholder="Max" />
-        <input data-ann-field="lowerDeviation" data-ann-id="${esc(row.id)}" type="number" step="0.001" value="${esc(numText(row.lowerDeviation))}" placeholder="-tol" title="Lower deviation from nominal (usually negative)." />
-        <input data-ann-field="upperDeviation" data-ann-id="${esc(row.id)}" type="number" step="0.001" value="${esc(numText(row.upperDeviation))}" placeholder="+tol" title="Upper deviation from nominal (usually positive)." />
-        <input data-ann-field="toleranceSpec" data-ann-id="${esc(row.id)}" type="text" value="${esc(row.toleranceSpec || '')}" placeholder="H6 / ±0.1" list="tolSpecSuggestions" title="Tolerance class or explicit tolerance (example: H6, h6, ±0.1, +0.1 -0.05)." />
-        <input data-ann-field="unit" data-ann-id="${esc(row.id)}" type="text" value="${esc(row.unit || '')}" placeholder="Unit" />
-        <input data-ann-field="instrument" data-ann-id="${esc(row.id)}" type="text" value="${esc(row.instrument || '')}" placeholder="Instrument" />
+        <div class="annMain">
+          <span class="annBadge">#${esc(primaryLabel)}</span>
+          <input class="annInlineInput annNameInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="name" value="${esc(nameLabel)}" title="${esc(tt('common.name', 'Name'))}" placeholder="${esc(tt('common.name', 'Name'))}"${disabledAttr} />
+          <input class="annInlineInput annNumInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="nominal" value="${esc(nominalStr)}" title="${esc(tt('blueprint.nominal', 'Nom'))}" placeholder="${esc(tt('blueprint.nominal', 'Nom'))}"${disabledAttr} />
+          <input class="annInlineInput annNumInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="lowerDeviation" value="${esc(lowerDevStr)}" title="${esc(tt('blueprint.tolMinus', 'Tol -'))}" placeholder="${esc(tt('blueprint.tolMinus', 'Tol -'))}"${disabledAttr} />
+          <input class="annInlineInput annNumInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="upperDeviation" value="${esc(upperDevStr)}" title="${esc(tt('blueprint.tolPlus', 'Tol +'))}" placeholder="${esc(tt('blueprint.tolPlus', 'Tol +'))}"${disabledAttr} />
+          <input class="annInlineInput annUnitInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="unit" value="${esc(row.unit || 'mm')}" title="${esc(tt('common.unit', 'Unit'))}" placeholder="mm" list="annUnitDatalist"${disabledAttr} />
+          ${confPct != null ? `<span class="annMetaChip warn" title="${esc(tt('blueprint.ocrConfidence', 'OCR confidence'))}">${esc(`${confPct}% sure`)}</span>` : ''}
+          ${isLocked ? `<span class="annMetaChip ok" title="${esc(tt('blueprint.validatedLocked', 'Validated and locked'))}">${esc(tt('blueprint.locked', 'Locked'))}</span>` : ''}
+          ${toleranceLabel ? `<span class="annMetaChip" title="${esc(toleranceLabel)}">${esc(toleranceLabel)}</span>` : ''}
+          ${instrumentLabel ? `<span class="annMetaChip" title="${esc(instrumentLabel)}">${esc(instrumentLabel)}</span>` : ''}
+          ${linkCount > 0 ? `<span class="annLinksChip">${linkCount === 1 ? '1 link' : `${linkCount} links`}</span>` : ''}
+        </div>
+        <div class="annQuickActions">
+          <button class="btn annQuickBtn" type="button" data-ann-lock="${esc(row.id)}" data-ann-lock-next="${isLocked ? '0' : '1'}">${isLocked ? tt('common.unlock', 'Unlock') : tt('blueprint.validate', 'Validate')}</button>
+          <button class="btn annQuickBtn" type="button" data-ann-reocr-btn="${esc(row.id)}"${disabledAttr}>${tt('blueprint.reocr', 'Re-OCR')}</button>
+          <select class="annRotateSel" data-ann-id="${esc(row.id)}" data-ann-field="thumbnailRotation" title="${esc(tt('blueprint.rotate', 'Rotate'))}"${disabledAttr}>
+            ${rotationOptionsHtml(displayRotation)}
+          </select>
+        </div>
+        ${pendingDelete
+          ? `<button class="btn annConfirmBtn ok" type="button" data-ann-delete-confirm="${esc(row.id)}" title="${esc(tt('common.confirm', 'Confirm'))}">V</button>
+             <button class="btn bad annConfirmBtn" type="button" data-ann-delete-cancel="${esc(row.id)}" title="${esc(tt('common.cancel', 'Cancel'))}">X</button>`
+          : `<button class="btn bad annDelBtn" type="button" data-ann-delete-request="${esc(row.id)}" title="${esc(tt('blueprint.deleteAnnotation', 'Delete'))}">✕</button>`}
       </div>
     </article>
-  `).join('') : `<div class="empty">${esc(tt('blueprint.noAnnotations', 'No master annotations for this scope yet. Prepare them here, then link them from Router.'))}</div>`;
+  `; }).join('') : `<div class="empty">${esc(tt('blueprint.noAnnotations', 'No master annotations for this scope yet. Prepare them here, then link them from Router.'))}</div>`;
   renderAnnotationDetails();
   renderPreviewOverlay();
 }
@@ -886,11 +1317,19 @@ export function renderAnnotationDetails() {
   const idChip = $('annDetailIdChip');
   const usageChip = $('annDetailUsageChip');
   const list = $('annDetailList');
-  if (!empty || !wrap || !thumbHost || !idChip || !usageChip || !list) return;
+  const rotateSel = $('annDetailRotateSel');
+  const reocrBtn = $('annDetailReocrBtn');
+  if (!empty || !wrap || !thumbHost || !idChip || !usageChip || !list || !rotateSel || !reocrBtn) return;
   const row = currentSelectedAnnotation();
   if (!row) {
     empty.hidden = false;
     wrap.hidden = true;
+    rotateSel.value = '0';
+    rotateSel.dataset.annId = '';
+    rotateSel.dataset.annField = 'thumbnailRotation';
+    rotateSel.disabled = true;
+    reocrBtn.dataset.annReocrBtn = '';
+    reocrBtn.disabled = true;
     return;
   }
   const usageCount = docsApi.listOperationAnnotationLinks({ productId: state.selectedProductId })
@@ -898,17 +1337,30 @@ export function renderAnnotationDetails() {
   empty.hidden = true;
   wrap.hidden = false;
   idChip.textContent = row.id || '--';
-  usageChip.textContent = `${usageCount} operation link${usageCount === 1 ? '' : 's'}`;
+  usageChip.textContent = `${usageCount} ${tt(usageCount === 1 ? 'blueprint.operationLinkSingular' : 'blueprint.operationLinkPlural', usageCount === 1 ? 'operation link' : 'operation links')}`;
+  const rotation = wrapDisplayRotation(autoThumbCorrection(row) + (Number(row?.thumbnailRotation ?? 0) || 0));
+  const displayRotation = String(rotation);
+  const thumbDisplay = readThumbDisplaySettings();
+  const detailThumbFrame = thumbFrameSize(row, thumbDisplay.detailMax, thumbDisplay.detailMin, rotation);
+  const detailThumbStyle = `--detail-thumb-w:${detailThumbFrame.width}px; --detail-thumb-h:${detailThumbFrame.height}px; transform: rotate(${rotation}deg);`;
+  const detailPlaceholderStyle = `--detail-thumb-w:${detailThumbFrame.width}px; --detail-thumb-h:${detailThumbFrame.height}px;`;
   thumbHost.innerHTML = row.thumbnailDataUrl
-    ? `<img class="thumbLarge" src="${esc(row.thumbnailDataUrl)}" alt="annotation thumb" />`
-    : `<div class="thumbLargePlaceholder">${esc('No thumb')}</div>`;
+    ? `<img class="thumbLarge" src="${esc(row.thumbnailDataUrl)}" alt="${esc(tt('blueprint.annotationThumbAlt', 'annotation thumb'))}" style="${detailThumbStyle}" />`
+    : `<div class="thumbLargePlaceholder" style="${detailPlaceholderStyle}">${esc(tt('blueprint.noThumb', 'No thumb'))}</div>`;
+  rotateSel.innerHTML = rotationOptionsHtml(displayRotation);
+  rotateSel.value = displayRotation;
+  rotateSel.dataset.annId = String(row.id || '');
+  rotateSel.dataset.annField = 'thumbnailRotation';
+  rotateSel.disabled = false;
+  reocrBtn.dataset.annReocrBtn = String(row.id || '');
+  reocrBtn.disabled = false;
   list.innerHTML = [
-    `<div><strong>Name:</strong> ${esc(row.name || '--')}</div>`,
-    `<div><strong>Document:</strong> <span class="mono">${esc(row.documentId || '--')}</span></div>`,
-    `<div><strong>Characteristic:</strong> ${esc(row.characteristicId || 'No linked characteristic')}</div>`,
-    `<div><strong>Nominal / Limits:</strong> ${esc(`${numText(row.nominal) || '-'} | ${numText(row.lsl) || '-'} -> ${numText(row.usl) || '-'}`)}</div>`,
-    `<div><strong>Deviations / Spec:</strong> ${esc(`${numText(row.lowerDeviation) || '-'} / ${numText(row.upperDeviation) || '-'} | ${row.toleranceSpec || '-'}`)}</div>`,
-    `<div><strong>Method / Instrument:</strong> ${esc(`${row.method || '-'} | ${row.instrument || '-'}`)}</div>`,
+    `<div><strong>${esc(tt('common.name', 'Name'))}:</strong> ${esc(row.name || '--')}</div>`,
+    `<div><strong>${esc(tt('common.document', 'Document'))}:</strong> <span class="mono">${esc(row.documentId || '--')}</span></div>`,
+    `<div><strong>${esc(tt('blueprint.characteristic', 'Characteristic'))}:</strong> ${esc(row.characteristicId || tt('blueprint.noLinkedCharacteristic', 'No linked characteristic'))}</div>`,
+    `<div><strong>${esc(tt('blueprint.nominalLimits', 'Nominal / Limits'))}:</strong> ${esc(`${numText(row.nominal) || '-'} | ${numText(row.lsl) || '-'} -> ${numText(row.usl) || '-'}`)}</div>`,
+    `<div><strong>${esc(tt('blueprint.deviationsSpec', 'Deviations / Spec'))}:</strong> ${esc(`${numText(row.lowerDeviation) || '-'} / ${numText(row.upperDeviation) || '-'} | ${row.toleranceSpec || '-'}`)}</div>`,
+    `<div><strong>${esc(tt('blueprint.methodInstrument', 'Method / Instrument'))}:</strong> ${esc(`${row.method || '-'} | ${row.instrument || '-'}`)}</div>`,
   ].join('');
 }
 
@@ -920,7 +1372,7 @@ export function renderAll(products) {
   const hint = $('docHint');
   if (hint) {
     hint.textContent = product
-      ? `Managing product-level documents for ${product.code || '--'} - ${product.name || 'Product'}. Build previews and master marks here, then link them into Router.`
-      : 'Pick a product to manage its global blueprint documents and master annotations.';
+      ? tt('blueprint.manageProductDrawings', 'Managing drawings for the selected product. Build previews and marks here, then link them into Router.')
+      : tt('blueprint.pickProductManageDrawings', 'Pick a product to manage its drawings and annotations.');
   }
 }

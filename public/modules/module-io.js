@@ -56,6 +56,10 @@
   function levelFromMessage(msg) {
     const type = String(msg?.type || "").toLowerCase();
     const payload = msg?.payload && typeof msg.payload === "object" ? msg.payload : {};
+    const payloadLevel = String(payload?.level || "").toLowerCase();
+    if (payloadLevel === "error") return "error";
+    if (payloadLevel === "warn" || payloadLevel === "warning") return "warn";
+    if (payloadLevel === "info") return "info";
     const serialized = JSON.stringify(payload || {});
     if (
       type.includes("error")
@@ -87,6 +91,16 @@
   function summarizeMessage(msg) {
     const type = String(msg?.type || "");
     const p = msg?.payload && typeof msg.payload === "object" ? msg.payload : {};
+    if (type === "ocr:server:log") {
+      const lvl = String(p?.level || "INFO").toUpperCase();
+      const text = String(p?.message || "").trim();
+      return text ? `[${lvl}] ${text}` : `[${lvl}] OCR server log`;
+    }
+    if (type === "ocr:server:status") {
+      const server = String(p?.serverUrl || "");
+      const err = String(p?.error || "");
+      return ["offline", server, err].filter(Boolean).join(" | ");
+    }
     if (type === "auth:changed") {
       const user = p?.user?.username || p?.user?.name || "";
       return p?.loggedIn ? `login ${user || "user"}` : "logout";

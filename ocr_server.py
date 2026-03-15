@@ -7,7 +7,8 @@ FastAPI HTTP Server for OCR Service using PaddleOCR
 import sys
 try:
     from fastapi import FastAPI, File, UploadFile, HTTPException, Query, Body, Request
-    from fastapi.responses import JSONResponse, Response
+    from fastapi.responses import JSONResponse, Response, FileResponse
+    from fastapi.staticfiles import StaticFiles
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.middleware.trustedhost import TrustedHostMiddleware
     import uvicorn
@@ -27,7 +28,7 @@ import re
 import warnings
 from pathlib import Path
 import logging
-from collections import defaultdict
+from collections import defaultdict, deque
 import time
 import asyncio
 import concurrent.futures
@@ -79,6 +80,51 @@ except ImportError:
 # Set up logging first
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+OCR_RECENT_LOGS = deque(maxlen=400)
+OCR_RECENT_LOGS_LOCK = threading.Lock()
+OCR_RECENT_LOG_SEQ = 0
+
+
+class RecentOcrLogHandler(logging.Handler):
+    def emit(self, record):
+        global OCR_RECENT_LOG_SEQ
+        try:
+            msg = self.format(record)
+            with OCR_RECENT_LOGS_LOCK:
+                OCR_RECENT_LOG_SEQ += 1
+                OCR_RECENT_LOGS.append({
+                    "seq": int(OCR_RECENT_LOG_SEQ),
+                    "ts": int(time.time() * 1000),
+                    "level": str(record.levelname or "INFO"),
+                    "logger": str(record.name or ""),
+                    "message": str(msg or ""),
+                })
+        except Exception:
+            pass
+
+
+_recent_ocr_log_handler = RecentOcrLogHandler()
+_recent_ocr_log_handler.setLevel(logging.INFO)
+_recent_ocr_log_handler.setFormatter(logging.Formatter("%(message)s"))
+logging.getLogger().addHandler(_recent_ocr_log_handler)
+
+
+def debug_session_log(message: str, data: dict, hypothesis_id: str, location: str, run_id: str = "initial") -> None:
+    # region agent log
+    try:
+        with open(r"c:\works\git_clone\vmill\debug-6d6734.log", "a", encoding="utf-8") as debug_fp:
+            debug_fp.write(json.dumps({
+                "sessionId": "6d6734",
+                "runId": run_id,
+                "hypothesisId": hypothesis_id,
+                "location": location,
+                "message": message,
+                "data": data,
+                "timestamp": int(time.time() * 1000),
+            }, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+    # endregion
 
 def env_flag(name: str, default: bool = False) -> bool:
     raw = str(os.getenv(name, "1" if default else "0")).strip().lower()
@@ -557,6 +603,32 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+
+@app.post("/debug-log")
+async def debug_log_ingest(request: dict = Body(...)):
+    # region agent log
+    try:
+        payload = dict(request or {})
+        with open(r"c:\works\git_clone\vmill\debug-6d6734.log", "a", encoding="utf-8") as debug_fp:
+            debug_fp.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+    # endregion
+    return {"ok": True}
+
+
+@app.get("/ocr/logs/recent")
+async def ocr_logs_recent(after: int = Query(0), limit: int = Query(80)):
+    safe_after = max(0, int(after or 0))
+    safe_limit = max(1, min(200, int(limit or 80)))
+    with OCR_RECENT_LOGS_LOCK:
+        rows = [row for row in OCR_RECENT_LOGS if int(row.get("seq", 0)) > safe_after]
+    return {
+        "ok": True,
+        "items": rows[:safe_limit],
+        "latest_seq": int(rows[-1]["seq"]) if rows else safe_after,
+    }
 
 # Add CORS middleware with proper security
 ALLOWED_ORIGINS = [
@@ -1244,8 +1316,8 @@ def detect_text_orientation_advanced(polygon, text):
         
         logger.info(f"🔍 Orientation: bbox={bbox_width:.1f}x{bbox_height:.1f}, aspect={aspect_ratio:.2f}, angle={angle:.1f}°")
         
-        # Simplified orientation detection
-        if aspect_ratio > 1.3:  # Clearly vertical (height > width * 1.3)
+        # Simplified orientation detection (1.2 = catch more vertical text)
+        if aspect_ratio > 1.2:  # Vertical (height > width * 1.2)
             # For vertical text, determine if it's 90° or 270°
             if 45 <= angle <= 135:  # Text reads from bottom to top
                 return 90
@@ -1373,6 +1445,24 @@ def clean_ocr_text_advanced(text):
         cleaned = cleaned[:-1]
         logger.info(f"🧹 Removed trailing period: '{text}' -> '{cleaned}'")
     
+    # Fix diameter symbol: OCR often reads Φ as $, 4, 0 or 9
+    if '$' in cleaned:
+        cleaned = cleaned.replace('$', '\u03a6')  # Φ (Greek capital Phi)
+    # Leading 0 + 2 digits in dimension context → Φ + 2 digits (e.g. 044 → Φ44, 026 → Φ26)
+    if re.match(r'^0(\d{2})(?:\s|±|\+|\-|$)', cleaned):
+        cleaned = '\u03a6' + cleaned[1:]
+    # 4 or 9 + 2 digits (10-99) at start (common Φ misread, e.g. 926→Φ26, 448→Φ48)
+    m = re.match(r'^[49](\d{2})(?:\s|±|\+|\-|\.|$)', cleaned)
+    if m and 10 <= int(m.group(1)) <= 99:
+        cleaned = '\u03a6' + cleaned[1:]
+
+    # Radius notation often gets misread as leading 6 (R1,5 -> 61,5; R2 -> 62).
+    # Repair the common radius forms before the broader numeric substitutions run.
+    radius_match = re.match(r'^6([12])([.,]\d+)?$', cleaned)
+    if radius_match:
+        cleaned = f"R{radius_match.group(1)}{radius_match.group(2) or ''}"
+        logger.info(f"🧹 Applied radius fix: '{text}' -> '{cleaned}'")
+
     # Fix common OCR mistakes in dimension text
     replacements = {
         'O': '0',  # Letter O to number 0 in numeric contexts
@@ -1389,7 +1479,6 @@ def clean_ocr_text_advanced(text):
         'T': '7',  # Letter T to number 7
         'J': '1',  # Letter J to number 1
         'P': '9',  # Letter P to number 9
-        'R': '6',  # Letter R to number 6
         'F': '7',  # Letter F to number 7
         'E': '8',  # Letter E to number 8
     }
@@ -1739,105 +1828,6 @@ def crop_image_to_rectangle(image_path, rectangle_bounds):
         logger.error(f"Failed to crop image: {e}")
         return None, False
 
-def detect_and_process_vertical_text(img):
-    """Detect vertical text regions and process them with rotation for better OCR"""
-    try:
-        logger.info("🔍 Detecting vertical text regions...")
-        
-        # Convert to grayscale
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        
-        # Use edge detection to find text-like regions
-        edges = cv2.Canny(gray, 50, 150)
-        
-        # Find contours
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        vertical_zones = []
-        logger.info(f"🔍 Found {len(contours)} contours from edge detection")
-        
-        for i, contour in enumerate(contours):
-            # Get bounding rectangle
-            x, y, w, h = cv2.boundingRect(contour)
-            
-            # Filter by size (text-like dimensions)
-            if w < 10 or h < 10 or w > 200 or h > 200:
-                continue
-            
-            # Check if region looks like vertical text (height > width)
-            aspect_ratio = h / w if w > 0 else 0
-            logger.info(f"🔍 Contour {i}: w={w}, h={h}, aspect_ratio={aspect_ratio:.2f}")
-            
-            if aspect_ratio < 1.2:  # More lenient threshold
-                continue
-            
-            # Extract region
-            region = img[y:y+h, x:x+w]
-            
-            # Rotate region 90 degrees counter-clockwise for better OCR
-            rotated_region = cv2.rotate(region, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            
-            # Save rotated region temporarily
-            temp_path = f"temp_vertical_{x}_{y}.jpg"
-            cv2.imwrite(temp_path, rotated_region)
-            
-            try:
-                # Run OCR on rotated region
-                result = ocr_predict_safe(temp_path)
-                
-                if result and result[0]:
-                    for detection in result[0]:
-                        if detection and len(detection) >= 2:
-                            text = detection[1][0] if detection[1] else ""
-                            confidence = detection[1][1] if detection[1] and len(detection[1]) > 1 else 0
-                            
-                            if confidence > 0.3 and text.strip():  # Only keep confident detections
-                                # Convert coordinates back to original image
-                                # The rotated region coordinates need to be mapped back
-                                rotated_bbox = detection[0]
-                                
-                                # Map rotated coordinates back to original image
-                                # Since we rotated 90° counter-clockwise, we need to rotate back
-                                orig_x1 = x + (h - rotated_bbox[2][1])  # y becomes x
-                                orig_y1 = y + rotated_bbox[0][0]       # x becomes y
-                                orig_x2 = x + (h - rotated_bbox[0][1])
-                                orig_y2 = y + rotated_bbox[2][0]
-                                
-                                zone = {
-                                    "text": text,
-                                    "confidence": confidence,
-                                    "bbox": {
-                                        "x1": int(orig_x1),
-                                        "y1": int(orig_y1),
-                                        "x2": int(orig_x2),
-                                        "y2": int(orig_y2),
-                                        "width": int(orig_x2 - orig_x1),
-                                        "height": int(orig_y2 - orig_y1)
-                                    },
-                                    "text_orientation": 90,  # Mark as vertical
-                                    "rotation": 90,
-                                    "is_dimension": is_dimension_text_advanced(text),
-                                    "tolerance_info": parse_tolerance(text)
-                                }
-                                
-                                vertical_zones.append(zone)
-                                logger.info(f"🔍 Found vertical text: '{text}' at ({orig_x1},{orig_y1},{orig_x2},{orig_y2})")
-                
-                # Clean up temp file
-                os.unlink(temp_path)
-                
-            except Exception as e:
-                logger.error(f"Error processing vertical region: {e}")
-                if os.path.exists(temp_path):
-                    os.unlink(temp_path)
-        
-        logger.info(f"🔍 Found {len(vertical_zones)} vertical text zones")
-        return vertical_zones
-        
-    except Exception as e:
-        logger.error(f"Error in vertical text detection: {e}")
-        return []
-
 def smart_text_completion(zones):
     """Smart text completion for common patterns like .5 -> 11.5"""
     logger.info("🧠 Running smart text completion...")
@@ -2125,6 +2115,73 @@ def create_overlay_image(image_path, zones, lines=None, dimension_lines=None):
         logger.error(f"Traceback: {traceback.format_exc()}")
         return None
 
+def _text_conf_from_ocr_result(result):
+    """Extract (text, confidence) from raw OCR result for a single zone crop. Returns ('', 0.0) if empty."""
+    if not result or len(result) == 0:
+        return "", 0.0
+    if hasattr(result[0], 'json'):
+        for res in result:
+            if hasattr(res, 'json') and 'res' in res.json:
+                r = res.json['res']
+                texts = r.get('rec_texts', [])
+                scores = r.get('rec_scores', [])
+                if texts and scores:
+                    return (str(texts[0]).strip(), float(scores[0]))
+        return "", 0.0
+    for line in result:
+        if line:
+            for item in line:
+                if len(item) >= 2:
+                    text_info = item[1]
+                    if isinstance(text_info, (tuple, list)) and len(text_info) >= 2:
+                        return (str(text_info[0]).strip(), float(text_info[1]))
+                    if isinstance(text_info, str):
+                        return (text_info.strip(), 0.9)
+    return "", 0.0
+
+
+def ocr_zone_thumbnail(img_crop, good_confidence_threshold=0.6):
+    """
+    Run OCR on a zone crop (numpy image). If confidence is below threshold,
+    try rotations 90, 180, 270 and return best (text, confidence, orientation_deg).
+    """
+    if img_crop is None or img_crop.size == 0:
+        return "", 0.0, 0
+    rotations = [
+        (0, None),
+        (90, cv2.ROTATE_90_CLOCKWISE),
+        (180, cv2.ROTATE_180),
+        (270, cv2.ROTATE_90_COUNTERCLOCKWISE),
+    ]
+    best_text, best_conf, best_angle = "", 0.0, 0
+    fd, tmp_path = tempfile.mkstemp(suffix=".jpg")
+    os.close(fd)
+    try:
+        for angle, rot_code in rotations:
+            if rot_code is not None:
+                crop = cv2.rotate(img_crop, rot_code)
+            else:
+                crop = img_crop
+            cv2.imwrite(tmp_path, crop)
+            try:
+                res = ocr_predict_safe(tmp_path)
+                text, conf = _text_conf_from_ocr_result(res)
+                if conf > best_conf:
+                    best_text, best_conf, best_angle = text, conf, angle
+                if best_conf >= good_confidence_threshold:
+                    break
+            except Exception as e:
+                logger.debug(f"OCR zone thumbnail angle {angle}: {e}")
+                continue
+        return best_text, best_conf, best_angle
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+
 def process_ocr_result(result, mode="fast"):
     """Process OCR result and extract zones"""
     zones = []
@@ -2153,6 +2210,25 @@ def process_predict_format(result):
                 texts = res_data['rec_texts']
                 scores = res_data['rec_scores']
                 dt_polys = res_data.get('dt_polys', [])
+                # region agent log
+                debug_session_log(
+                    "raw predict texts",
+                    {
+                        "textCount": len(texts),
+                        "polyCount": len(dt_polys),
+                        "items": [
+                            {
+                                "index": i,
+                                "text": str(text),
+                                "score": round(float(score or 0), 3),
+                            }
+                            for i, (text, score) in enumerate(zip(texts[:20], scores[:20]))
+                        ],
+                    },
+                    "H7",
+                    "ocr_server.py:process_predict_format:2163",
+                )
+                # endregion
                 
                 logger.info(f"📝 Found {len(texts)} texts: {texts}")
                 logger.info(f"📊 Found {len(scores)} scores: {[f'{s:.3f}' for s in scores]}")
@@ -2202,10 +2278,10 @@ def create_zone_from_predict(text, score, dt_polys, index):
     if not text.strip() or index >= len(dt_polys):
         return None
     
-    # Filter out meaningless text
+    # Filter out meaningless text (slightly lower threshold to keep more annotations)
     if (len(text.strip()) < 1 or 
         text.strip() in ['.', '-', ',', ':', ';'] or 
-        score <= 0.3):
+        score <= 0.22):
         return None
     
     poly = dt_polys[index]
@@ -2243,7 +2319,8 @@ def create_zone_from_predict(text, score, dt_polys, index):
     if clean_text.endswith('.') and not re.search(r'\d+\.\d*$', clean_text):
         clean_text = clean_text[:-1]
         logger.info(f"🧹 Cleaned trailing period: '{text}' -> '{clean_text}'")
-    
+    clean_text = clean_ocr_text_advanced(clean_text)
+
     # Detect category automatically
     detected_category = detect_zone_category(clean_text)
     
@@ -2289,12 +2366,14 @@ def create_zone_from_ocr(text, confidence, bbox, index):
         x1 >= x2 or y1 >= y2 or x2 - x1 < 1 or y2 - y1 < 1):
         return None
     
-    # Basic orientation detection
+    # Basic orientation detection (1.2 = catch more vertical text)
     text_orientation = 0
     width_bbox = x2 - x1
     height_bbox = y2 - y1
-    if height_bbox > width_bbox * 1.5:
+    if width_bbox > 0 and height_bbox > width_bbox * 1.2:
         text_orientation = 90
+
+    text = clean_ocr_text_advanced(text.strip()) or text.strip()
     
     # Detect category automatically
     detected_category = detect_zone_category(text)
@@ -2364,6 +2443,139 @@ def normalize_cardinal_rotation(angle, default=0):
     rounded = int(round(value / 90.0) * 90) % 360
     return rounded if rounded in (0, 90, 180, 270) else int(default)
 
+
+def rotate_point_to_original(x, y, orig_w, orig_h, rotation):
+    """Map a point from a rotated image back to original image coordinates."""
+    rot = normalize_cardinal_rotation(rotation, 0)
+    if rot == 90:
+        return float(y), float(orig_h - 1 - x)
+    if rot == 180:
+        return float(orig_w - 1 - x), float(orig_h - 1 - y)
+    if rot == 270:
+        return float(orig_w - 1 - y), float(x)
+    return float(x), float(y)
+
+
+def remap_zone_from_rotated_pass(zone, orig_w, orig_h, rotation):
+    """Remap a zone detected on a rotated full-image pass back to original coordinates."""
+    if not isinstance(zone, dict):
+        return None
+    rot = normalize_cardinal_rotation(rotation, 0)
+    if rot == 0:
+        return zone
+    poly = zone.get("polygon") or []
+    remapped_poly = []
+    if isinstance(poly, list) and poly:
+        for point in poly:
+            if not isinstance(point, (list, tuple)) or len(point) < 2:
+                continue
+            ox, oy = rotate_point_to_original(point[0], point[1], orig_w, orig_h, rot)
+            remapped_poly.append([float(ox), float(oy)])
+    bbox = zone.get("bbox") or {}
+    corners = [
+        [bbox.get("x1", 0), bbox.get("y1", 0)],
+        [bbox.get("x2", 0), bbox.get("y1", 0)],
+        [bbox.get("x2", 0), bbox.get("y2", 0)],
+        [bbox.get("x1", 0), bbox.get("y2", 0)],
+    ]
+    remapped_corners = [rotate_point_to_original(px, py, orig_w, orig_h, rot) for px, py in corners]
+    xs = [pt[0] for pt in remapped_corners]
+    ys = [pt[1] for pt in remapped_corners]
+    out = dict(zone)
+    out["bbox"] = {
+        "x1": int(round(min(xs))),
+        "y1": int(round(min(ys))),
+        "x2": int(round(max(xs))),
+        "y2": int(round(max(ys))),
+        "width": int(round(max(xs) - min(xs))),
+        "height": int(round(max(ys) - min(ys))),
+    }
+    if remapped_poly:
+        out["polygon"] = remapped_poly
+    zone_rot = normalize_cardinal_rotation(zone.get("rotation", zone.get("text_orientation", 0)), 0)
+    original_rot = normalize_cardinal_rotation(zone_rot + rot, 0)
+    out["text_orientation"] = original_rot
+    out["rotation"] = original_rot
+    return out
+
+
+def bbox_iou(box_a, box_b):
+    if not isinstance(box_a, dict) or not isinstance(box_b, dict):
+        return 0.0
+    ax1, ay1, ax2, ay2 = float(box_a.get("x1", 0)), float(box_a.get("y1", 0)), float(box_a.get("x2", 0)), float(box_a.get("y2", 0))
+    bx1, by1, bx2, by2 = float(box_b.get("x1", 0)), float(box_b.get("y1", 0)), float(box_b.get("x2", 0)), float(box_b.get("y2", 0))
+    inter_x1, inter_y1 = max(ax1, bx1), max(ay1, by1)
+    inter_x2, inter_y2 = min(ax2, bx2), min(ay2, by2)
+    inter_w = max(0.0, inter_x2 - inter_x1)
+    inter_h = max(0.0, inter_y2 - inter_y1)
+    inter = inter_w * inter_h
+    if inter <= 0:
+        return 0.0
+    area_a = max(0.0, ax2 - ax1) * max(0.0, ay2 - ay1)
+    area_b = max(0.0, bx2 - bx1) * max(0.0, by2 - by1)
+    denom = area_a + area_b - inter
+    return (inter / denom) if denom > 0 else 0.0
+
+
+def merge_zone_lists(base_zones, extra_zones):
+    """Merge additional OCR zones, preferring higher-confidence detections and avoiding duplicates."""
+    merged = list(base_zones or [])
+    for extra in extra_zones or []:
+        extra_box = extra.get("bbox") if isinstance(extra, dict) else None
+        if not extra_box:
+            continue
+        extra_text = str(extra.get("text", "") or "").strip()
+        extra_conf = float(extra.get("confidence", 0) or 0)
+        replaced = False
+        for idx, current in enumerate(merged):
+            cur_box = current.get("bbox") if isinstance(current, dict) else None
+            if not cur_box:
+                continue
+            overlap = bbox_iou(cur_box, extra_box)
+            cur_text = str(current.get("text", "") or "").strip()
+            cur_conf = float(current.get("confidence", 0) or 0)
+            same_text = extra_text and cur_text and extra_text == cur_text
+            if overlap >= 0.55 or (overlap >= 0.30 and same_text):
+                if extra_conf > cur_conf or (not cur_text and extra_text):
+                    merged[idx] = extra
+                replaced = True
+                break
+        if not replaced:
+            merged.append(extra)
+    return merged
+
+
+def run_rotated_full_image_pass(img, mode, rotation):
+    """Run OCR on a cardinally rotated full image and remap zones back to original coordinates."""
+    rot = normalize_cardinal_rotation(rotation, 0)
+    if rot == 90:
+        rotated = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+    elif rot == 180:
+        rotated = cv2.rotate(img, cv2.ROTATE_180)
+    elif rot == 270:
+        rotated = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    else:
+        rotated = img
+    fd, tmp_path = tempfile.mkstemp(suffix=f"_rot{rot}.jpg")
+    os.close(fd)
+    try:
+        cv2.imwrite(tmp_path, rotated)
+        result = ocr_predict_safe(tmp_path)
+        zones = process_ocr_result(result, mode)
+        orig_h, orig_w = img.shape[:2]
+        remapped = []
+        for zone in zones:
+            mapped = remap_zone_from_rotated_pass(zone, orig_w, orig_h, rot)
+            if mapped:
+                remapped.append(mapped)
+        return remapped
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
 def recommend_image_rotation_from_zones(zones):
     """
     Recommend corrective rotation for the full image based on detected zone orientation.
@@ -2413,9 +2625,10 @@ def process_image(image_path, mode="fast", rotation=0):
     if src_img is not None:
         source_height, source_width = src_img.shape[:2]
 
-    # Resize image for faster processing (except in hardcore mode)
+    # Resize image for faster processing (except in hardcore mode); use larger size for more annotations
     if mode != "hardcore":
-        image_path = resize_image_for_speed(image_path, max_dimension=1024)
+        max_dim = 1600 if mode == "accurate" else 1400
+        image_path = resize_image_for_speed(image_path, max_dimension=max_dim)
     
     # Preprocessing if hardcore mode
     if mode == "hardcore":
@@ -2437,12 +2650,16 @@ def process_image(image_path, mode="fast", rotation=0):
         
         # Apply rotation if specified
         if rotation != 0:
-            center = (width // 2, height // 2)
-            rotation_matrix = cv2.getRotationMatrix2D(center, rotation, 1.0)
-            img = cv2.warpAffine(img, rotation_matrix, (width, height))
+            rot = normalize_cardinal_rotation(rotation, 0)
+            if rot == 90:
+                img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+            elif rot == 180:
+                img = cv2.rotate(img, cv2.ROTATE_180)
+            elif rot == 270:
+                img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            height, width = img.shape[:2]
             
             # Save rotated image temporarily
-            import tempfile
             rotated_fd, rotated_path = tempfile.mkstemp(suffix='_rotated.jpg')
             os.close(rotated_fd)  # Close the file descriptor
             cv2.imwrite(rotated_path, img)
@@ -2495,72 +2712,128 @@ def process_image(image_path, mode="fast", rotation=0):
                 logger.error(f"❌ Fallback OCR also failed: {fallback_error}")
                 return {"zones": [], "metadata": {"error": f"OCR processing failed: {str(ocr_error)}"}}
         
-        # Process OCR result using helper functions
+        # Process OCR result: one pass gives zone bboxes (and initial text)
         zones = process_ocr_result(result, mode)
+        has_vertical_zone = any(
+            normalize_cardinal_rotation(zone.get("rotation", zone.get("text_orientation", 0)), 0) in (90, 270)
+            for zone in zones
+            if isinstance(zone, dict)
+        )
+        if rotation == 0 and not has_vertical_zone:
+            try:
+                logger.info("🔄 No vertical zones found on base pass; running 90°/270° full-image OCR assist...")
+                rotated_90 = run_rotated_full_image_pass(img, mode, 90)
+                rotated_270 = run_rotated_full_image_pass(img, mode, 270)
+                zones = merge_zone_lists(zones, rotated_90)
+                zones = merge_zone_lists(zones, rotated_270)
+                logger.info(f"✅ Rotated assist merged zones: total={len(zones)}")
+            except Exception as rotated_pass_error:
+                logger.warning(f"Rotated full-image assist failed: {rotated_pass_error}")
+        # region agent log
+        debug_session_log(
+            "initial zones detected",
+            {
+                "mode": mode,
+                "zoneCount": len(zones),
+                "zones": [
+                    {
+                        "id": str(zone.get("id", "")),
+                        "text": str(zone.get("text", "")),
+                        "conf": round(float(zone.get("confidence", 0) or 0), 3),
+                        "rotation": int(zone.get("rotation", zone.get("text_orientation", 0)) or 0),
+                        "bbox": zone.get("bbox", {}),
+                    }
+                    for zone in zones[:12]
+                ],
+            },
+            "H3",
+            "ocr_server.py:process_image_async:2500",
+        )
+        # endregion
+        # region agent log
+        if len(zones) <= 6:
+            probe_fd, probe_path = tempfile.mkstemp(suffix="_debug_rot90.jpg")
+            os.close(probe_fd)
+            try:
+                cv2.imwrite(probe_path, cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE))
+                probe_result = ocr_predict_safe(probe_path)
+                probe_zones = process_ocr_result(probe_result, mode)
+                debug_session_log(
+                    "rotated full-image probe",
+                    {
+                        "zoneCount": len(probe_zones),
+                        "zones": [
+                            {
+                                "id": str(zone.get("id", "")),
+                                "text": str(zone.get("text", "")),
+                                "conf": round(float(zone.get("confidence", 0) or 0), 3),
+                                "rotation": int(zone.get("rotation", zone.get("text_orientation", 0)) or 0),
+                            }
+                            for zone in probe_zones[:12]
+                        ],
+                    },
+                    "H8",
+                    "ocr_server.py:process_image_async:2538",
+                )
+            except Exception as probe_error:
+                debug_session_log(
+                    "rotated full-image probe failed",
+                    {"error": str(probe_error)},
+                    "H8",
+                    "ocr_server.py:process_image_async:2538",
+                )
+            finally:
+                if os.path.exists(probe_path):
+                    try:
+                        os.unlink(probe_path)
+                    except OSError:
+                        pass
+        # endregion
         
-        # ENHANCED VERTICAL TEXT DETECTION
-        logger.info("🔍 Running enhanced vertical text detection...")
-        logger.info(f"🔍 Image shape: {img.shape}, zones before vertical detection: {len(zones)}")
-        
-        # First, check existing zones for vertical text that might be misclassified
-        logger.info("🔍 Checking existing zones for vertical text...")
+        # Per-zone: crop thumbnail, run OCR on thumbnail; if confidence low, try rotations and take best
+        logger.info(f"🔍 Refining {len(zones)} zones with thumbnail OCR (orientation/rotate-retry)...")
         for i, zone in enumerate(zones):
             bbox = zone.get('bbox', {})
-            if bbox:
-                w = bbox.get('width', 0)
-                h = bbox.get('height', 0)
-                aspect_ratio = h / w if w > 0 else 0
-                logger.info(f"🔍 Zone {i}: '{zone.get('text', '')}' w={w}, h={h}, aspect_ratio={aspect_ratio:.2f}")
-                
-                # If aspect ratio suggests vertical text but orientation is wrong, try re-OCR
-                if aspect_ratio > 1.2 and zone.get('text_orientation', 0) == 0:
-                    logger.info(f"🔍 Zone {i} might be vertical text - aspect ratio {aspect_ratio:.2f} but orientation 0°")
-                    # Try re-OCR with 90° rotation
-                    try:
-                        # Create a temporary rotated version of this zone
-                        zone_img = img[bbox.get('y1', 0):bbox.get('y2', 0), bbox.get('x1', 0):bbox.get('x2', 0)]
-                        rotated_zone = cv2.rotate(zone_img, cv2.ROTATE_90_COUNTERCLOCKWISE)
-                        
-                        # Save and OCR the rotated zone
-                        temp_path = f"temp_zone_{i}_rotated.jpg"
-                        cv2.imwrite(temp_path, rotated_zone)
-                        
-                        try:
-                            result = ocr_predict_safe(temp_path)
-                            if result and result[0]:
-                                for detection in result[0]:
-                                    if detection and len(detection) >= 2:
-                                        rotated_text = detection[1][0] if detection[1] else ""
-                                        rotated_conf = detection[1][1] if detection[1] and len(detection[1]) > 1 else 0
-                                    
-                                    if rotated_conf > zone.get('confidence', 0):
-                                        logger.info(f"🔍 Zone {i} rotated OCR better: '{zone.get('text', '')}' → '{rotated_text}' ({rotated_conf:.2f})")
-                                        # Update the zone with rotated results
-                                        zone['text'] = rotated_text
-                                        zone['confidence'] = rotated_conf
-                                        zone['text_orientation'] = 90
-                                        zone['rotation'] = 90
-                        except Exception as ocr_error:
-                            logger.error(f"🔍 OCR error for rotated zone {i}: {ocr_error}")
-                        
-                        # Clean up
-                        if os.path.exists(temp_path):
-                            os.unlink(temp_path)
-                            
-                    except Exception as e:
-                        logger.error(f"🔍 Error re-OCR zone {i}: {e}")
-        
-        try:
-            vertical_zones = detect_and_process_vertical_text(img)
-            logger.info(f"🔍 Vertical detection completed, found {len(vertical_zones)} zones")
-            if vertical_zones:
-                logger.info(f"🔍 Vertical zones details: {[z.get('text', '') for z in vertical_zones]}")
-            zones.extend(vertical_zones)
-            logger.info(f"🔍 Added {len(vertical_zones)} vertical text zones to total zones")
-        except Exception as e:
-            logger.error(f"🔍 Error in vertical text detection: {e}")
-            import traceback
-            logger.error(f"🔍 Traceback: {traceback.format_exc()}")
+            if not bbox:
+                continue
+            y1 = max(0, int(bbox.get('y1', 0)))
+            y2 = max(0, int(bbox.get('y2', 0)))
+            x1 = max(0, int(bbox.get('x1', 0)))
+            x2 = max(0, int(bbox.get('x2', 0)))
+            if y2 <= y1 or x2 <= x1:
+                continue
+            try:
+                crop = img[y1:y2, x1:x2]
+                text, conf, angle = ocr_zone_thumbnail(crop, good_confidence_threshold=0.6)
+                if text or conf > 0:
+                    raw = text or zone.get('text', '')
+                    zone['text'] = clean_ocr_text_advanced(raw) or raw
+                    zone['confidence'] = conf if conf > 0 else zone.get('confidence', 0)
+                    zone['text_orientation'] = angle
+                    zone['rotation'] = angle
+                    zone['is_dimension'] = is_dimension_text_advanced(zone['text'])
+                    zone['tolerance_info'] = parse_tolerance(zone['text'])
+            except Exception as e:
+                logger.debug(f"Zone {i} thumbnail OCR: {e}")
+        # region agent log
+        debug_session_log(
+            "zones after thumbnail refinement",
+            {
+                "zoneCount": len(zones),
+                "zones": [
+                    {
+                        "id": str(zone.get("id", "")),
+                        "text": str(zone.get("text", "")),
+                        "conf": round(float(zone.get("confidence", 0) or 0), 3),
+                        "rotation": int(zone.get("rotation", zone.get("text_orientation", 0)) or 0),
+                    }
+                    for zone in zones[:12]
+                ],
+            },
+            "H4",
+            "ocr_server.py:process_image_async:2534",
+        )
+        # endregion
         
         # Smart text completion for common patterns like .5 -> 11.5
         zones = smart_text_completion(zones)
@@ -2571,6 +2844,27 @@ def process_image(image_path, mode="fast", rotation=0):
         # Apply post-processing
         zones = apply_post_processing(zones)
         detected_angle, rotation_confidence, rotation_votes = recommend_image_rotation_from_zones(zones)
+        # region agent log
+        debug_session_log(
+            "zones after merge and post process",
+            {
+                "zoneCount": len(zones),
+                "zones": [
+                    {
+                        "id": str(zone.get("id", "")),
+                        "text": str(zone.get("text", "")),
+                        "conf": round(float(zone.get("confidence", 0) or 0), 3),
+                        "rotation": int(zone.get("rotation", zone.get("text_orientation", 0)) or 0),
+                    }
+                    for zone in zones[:12]
+                ],
+                "detectedAngle": int(detected_angle),
+                "rotationConfidence": round(float(rotation_confidence), 3),
+            },
+            "H5",
+            "ocr_server.py:process_image_async:2564",
+        )
+        # endregion
         
         # Clean up rotated image if created
         if rotation != 0 and os.path.exists(str(image_path)) and '_rotated' in str(image_path):
@@ -2979,13 +3273,32 @@ def make_annotation_thumbnail(
     crop = img[y1:y2, x1:x2]
     if crop is None or crop.size == 0:
         return None
-    rotation = normalize_cardinal_rotation(rotation, 0)
-    if rotation == 90:
+    rotation = float(rotation or 0)
+    normalized_rotation = rotation % 360
+    if normalized_rotation == 90:
         crop = cv2.rotate(crop, cv2.ROTATE_90_CLOCKWISE)
-    elif rotation == 180:
+    elif normalized_rotation == 180:
         crop = cv2.rotate(crop, cv2.ROTATE_180)
-    elif rotation == 270:
+    elif normalized_rotation == 270:
         crop = cv2.rotate(crop, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    elif abs(normalized_rotation) > 1e-3:
+        ch, cw = crop.shape[:2]
+        center = (cw / 2.0, ch / 2.0)
+        matrix = cv2.getRotationMatrix2D(center, normalized_rotation, 1.0)
+        cos_v = abs(matrix[0, 0])
+        sin_v = abs(matrix[0, 1])
+        bound_w = int((ch * sin_v) + (cw * cos_v))
+        bound_h = int((ch * cos_v) + (cw * sin_v))
+        matrix[0, 2] += (bound_w / 2.0) - center[0]
+        matrix[1, 2] += (bound_h / 2.0) - center[1]
+        crop = cv2.warpAffine(
+            crop,
+            matrix,
+            (max(1, bound_w), max(1, bound_h)),
+            flags=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(255, 255, 255),
+        )
     ch, cw = crop.shape[:2]
     wanted = max(24, int(max_size or 160))
     scale = min(1.0, wanted / max(cw, ch))
@@ -3010,7 +3323,7 @@ def make_annotation_thumbnail(
             "width": int(x2 - x1),
             "height": int(y2 - y1),
         },
-        "rotation": int(rotation),
+        "rotation": int(round(normalized_rotation)),
     }
 
 
@@ -3022,7 +3335,7 @@ async def annotation_thumbnail(request: dict = Body(...)):
     max_size = int(request.get("max_size", 160) or 160)
     padding = int(request.get("padding", 8) or 8)
     quality = int(request.get("quality", 85) or 85)
-    rotation = normalize_cardinal_rotation(request.get("rotation", 0), 0)
+    rotation = float(request.get("rotation", 0) or 0)
 
     temp_path = decode_image_data_to_temp(image_data, suffix=".jpg")
     try:
@@ -3696,13 +4009,6 @@ def find_lines_near_dimensions(zones, lines, max_distance=50):
     
     return dimension_lines
 
-# Telegram Bot Integration
-import requests
-import json
-from fastapi import Request
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
-
 def resolve_static_dir() -> str:
     """Resolve static assets directory for source and frozen runtimes."""
     candidates = []
@@ -3735,313 +4041,6 @@ def resolve_static_dir() -> str:
 static_dir = resolve_static_dir()
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 logger.info(f"Static files mounted from: {static_dir}")
-
-def send_telegram_message(message, chat_id=None):
-    """Send message to Telegram"""
-    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    if not bot_token:
-        return False
-    
-    target_chat_id = chat_id or os.getenv('TELEGRAM_CHAT_ID')
-    if not target_chat_id:
-        return False
-    
-    # Try multiple Telegram API endpoints for better connectivity
-    api_urls = [
-        "https://api.telegram.org",
-        "https://api.telegram.org:443"
-    ]
-    
-    for api_url in api_urls:
-        try:
-            url = f"{api_url}/bot{bot_token}/sendMessage"
-            data = {
-                'chat_id': target_chat_id,
-                'text': message,
-                'parse_mode': 'Markdown'
-            }
-            
-            # Add timeout and retry logic
-            session = requests.Session()
-            session.timeout = 10
-            
-            response = session.post(url, data=data, timeout=10)
-            if response.status_code == 200:
-                logger.info(f"Successfully sent Telegram message via {api_url}")
-                return True
-                
-        except Exception as e:
-            logger.warning(f"Failed to send via {api_url}: {e}")
-            continue
-    
-    logger.error("Failed to send Telegram message via all endpoints")
-    return False
-
-def send_telegram_photo(image_path, caption="", chat_id=None):
-    """Send photo to Telegram"""
-    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    if not bot_token:
-        return False
-    
-    target_chat_id = chat_id or os.getenv('TELEGRAM_CHAT_ID')
-    if not target_chat_id:
-        return False
-    
-    url = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
-    
-    try:
-        with open(image_path, 'rb') as photo:
-            files = {'photo': photo}
-            data = {
-                'chat_id': target_chat_id,
-                'caption': caption
-            }
-            response = requests.post(url, files=files, data=data)
-            return response.status_code == 200
-    except Exception as e:
-        logger.error(f"Failed to send Telegram photo: {e}")
-        return False
-
-def send_telegram_document(file_path, caption="", chat_id=None):
-    """Send document to Telegram"""
-    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    if not bot_token:
-        return False
-    
-    target_chat_id = chat_id or os.getenv('TELEGRAM_CHAT_ID')
-    if not target_chat_id:
-        return False
-    
-    url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
-    
-    try:
-        with open(file_path, 'rb') as document:
-            files = {'document': document}
-            data = {
-                'chat_id': target_chat_id,
-                'caption': caption
-            }
-            response = requests.post(url, files=files, data=data)
-            return response.status_code == 200
-    except Exception as e:
-        logger.error(f"Failed to send Telegram document: {e}")
-        return False
-
-def send_correction_to_telegram(correction_data):
-    """Send correction data to Telegram channel"""
-    try:
-        # Create message
-        message = f"""📊 New Training Data Received
-
-🆔 Image ID: {correction_data.get('image_id', 'unknown')}
-👤 User: {correction_data.get('user_id', 'unknown')}
-⏰ Time: {correction_data.get('timestamp', 'unknown')}
-
-📈 Statistics:
-• Original zones: {len(correction_data.get('original_zones', []))}
-• Corrected zones: {len(correction_data.get('corrected_zones', []))}
-• Text fixed: {sum(1 for zone in correction_data.get('corrected_zones', []) if zone.get('correction_type') == 'text_fixed')}
-• Boxes moved: {sum(1 for zone in correction_data.get('corrected_zones', []) if zone.get('correction_type') == 'box_moved')}
-• New zones added: {sum(1 for zone in correction_data.get('corrected_zones', []) if zone.get('correction_type') == 'new_zone')}
-• Zones deleted: {sum(1 for zone in correction_data.get('corrected_zones', []) if zone.get('correction_type') == 'deleted')}
-• Validated (OK): {sum(1 for zone in correction_data.get('corrected_zones', []) if zone.get('correction_type') == 'validated')}
-
-✅ Data saved for model training"""
-
-        # Send message
-        send_telegram_message(message)
-        
-        # Create JSON file with training data
-        import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(correction_data, f, indent=2)
-            json_path = f.name
-        
-        # Send JSON file
-        send_telegram_document(json_path, "Training data JSON")
-        
-        # Clean up
-        os.unlink(json_path)
-        
-        return True
-    except Exception as e:
-        logger.error(f"Failed to send correction to Telegram: {e}")
-        return False
-
-@app.get("/telegram/status")
-async def telegram_status():
-    """Check Telegram bot configuration"""
-    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    chat_id = os.getenv('TELEGRAM_CHAT_ID')
-    
-    return {
-        "configured": bool(bot_token and chat_id),
-        "bot_token_set": bool(bot_token),
-        "chat_id_set": bool(chat_id),
-        "connection": "ok" if (bot_token and chat_id) else "missing_config",
-        "bot_username": "unknown"  # Would need to fetch from Telegram API
-    }
-
-@app.post("/telegram/set-webhook")
-async def set_telegram_webhook(webhook_url: str = Query(...)):
-    """Set Telegram webhook URL"""
-    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    if not bot_token:
-        return {"success": False, "message": "Bot token not configured"}
-    
-    url = f"https://api.telegram.org/bot{bot_token}/setWebhook"
-    data = {"url": webhook_url}
-    
-    try:
-        response = requests.post(url, data=data)
-        result = response.json()
-        return {
-            "success": result.get("ok", False),
-            "message": result.get("description", "Unknown error"),
-            "webhook_url": webhook_url,
-            "telegram_response": result
-        }
-    except Exception as e:
-        return {"success": False, "message": f"Error setting webhook: {str(e)}"}
-
-@app.post("/telegram/webhook")
-async def telegram_webhook(request: Request):
-    """Handle incoming Telegram messages"""
-    try:
-        data = await request.json()
-        logger.info(f"Received Telegram webhook: {data}")
-        
-        # Extract message info
-        message = data.get('message', {})
-        chat_id = message.get('chat', {}).get('id')
-        user_id = message.get('from', {}).get('id')
-        text = message.get('text', '')
-        photo = message.get('photo', [])
-        
-        # Handle text commands
-        if text:
-            if text.startswith('/start'):
-                # Log the command but don't send response due to DNS issues
-                logger.info(f"User {user_id} sent /start command")
-                # Just return success - user can access mini app directly
-                pass
-            
-            elif text.startswith('/help'):
-                logger.info(f"User {user_id} requested help")
-                # Just return success
-                pass
-            
-            elif text.startswith('/status'):
-                logger.info(f"User {user_id} checked status")
-                # Just return success
-                pass
-        
-        # Handle photo uploads
-        elif photo:
-            # Get the largest photo
-            largest_photo = max(photo, key=lambda x: x.get('file_size', 0))
-            file_id = largest_photo.get('file_id')
-            
-            # Download photo
-            photo_path = await download_telegram_photo(file_id)
-            if photo_path:
-                try:
-                    # Process with OCR
-                    result = process_image(photo_path, mode="fast")
-                    
-                    if result and result.get('zones'):
-                        zones = result['zones']
-                        logger.info(f"Processed photo for user {user_id}: Found {len(zones)} zones")
-                        
-                        # Log the results instead of sending message
-                        for i, zone in enumerate(zones[:5]):
-                            logger.info(f"Zone {i+1}: {zone.get('text', '')} ({int(zone.get('confidence', 0)*100)}%)")
-                        
-                        if len(zones) > 5:
-                            logger.info(f"... and {len(zones)-5} more zones")
-                    else:
-                        logger.info(f"No text detected in photo from user {user_id}")
-                    
-                except Exception as ocr_error:
-                    logger.error(f"OCR processing error for user {user_id}: {ocr_error}")
-                finally:
-                    # Clean up
-                    if os.path.exists(photo_path):
-                        os.unlink(photo_path)
-        
-        return {"status": "ok"}
-        
-    except Exception as e:
-        logger.error(f"Error handling Telegram webhook: {e}")
-        return {"status": "error", "message": str(e)}
-
-def send_telegram_message_with_keyboard(message, chat_id, keyboard):
-    """Send message with inline keyboard"""
-    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    if not bot_token:
-        return False
-    
-    # Try multiple Telegram API endpoints for better connectivity
-    api_urls = [
-        "https://api.telegram.org",
-        "https://api.telegram.org:443"
-    ]
-    
-    for api_url in api_urls:
-        try:
-            url = f"{api_url}/bot{bot_token}/sendMessage"
-            data = {
-                'chat_id': chat_id,
-                'text': message,
-                'parse_mode': 'Markdown',
-                'reply_markup': json.dumps(keyboard)
-            }
-            
-            # Add timeout and retry logic
-            session = requests.Session()
-            session.timeout = 10
-            
-            response = session.post(url, data=data, timeout=10)
-            if response.status_code == 200:
-                logger.info(f"Successfully sent Telegram message with keyboard via {api_url}")
-                return True
-                
-        except Exception as e:
-            logger.warning(f"Failed to send keyboard message via {api_url}: {e}")
-            continue
-    
-    logger.error("Failed to send Telegram message with keyboard via all endpoints")
-    return False
-
-async def download_telegram_photo(file_id):
-    """Download photo from Telegram"""
-    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    if not bot_token:
-        return None
-    
-    try:
-        # Get file info
-        url = f"https://api.telegram.org/bot{bot_token}/getFile"
-        response = requests.get(url, params={'file_id': file_id})
-        file_info = response.json()
-        
-        if not file_info.get('ok'):
-            return None
-        
-        file_path = file_info['result']['file_path']
-        
-        # Download file
-        download_url = f"https://api.telegram.org/file/bot{bot_token}/{file_path}"
-        response = requests.get(download_url)
-        
-        # Save to temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
-            tmp_file.write(response.content)
-            return tmp_file.name
-            
-    except Exception as e:
-        logger.error(f"Failed to download Telegram photo: {e}")
-        return None
 
 @app.get("/camera")
 async def camera_mini_app():
@@ -4539,16 +4538,11 @@ async def submit_corrections(request: Request):
     """Submit corrections for training data"""
     try:
         data = await request.json()
-        
-        # Send to Telegram channel
-        success = send_correction_to_telegram(data)
-        
         return {
-            "status": "success" if success else "error",
-            "message": "Corrections submitted successfully" if success else "Failed to submit corrections",
+            "status": "success",
+            "message": "Corrections submitted successfully",
             "total_zones": len(data.get('corrected_zones', []))
         }
-        
     except Exception as e:
         logger.error(f"Error submitting corrections: {e}")
         return {"status": "error", "message": str(e)}

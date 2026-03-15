@@ -19,7 +19,7 @@ export function tt(key, fallback) {
 
 export function setStatus(text) {
   const el = $('status');
-  if (el) el.textContent = text || 'Ready.';
+  if (el) el.textContent = text || tt('common.ready', 'Ready.');
 }
 
 export function setBusyStatus(active, text = '') {
