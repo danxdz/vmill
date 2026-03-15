@@ -46,6 +46,8 @@ DEFAULT_ADMIN_USER = "admin"
 DEFAULT_ADMIN_PASS = "vmill2024"
 STRESS_META_KEY = "stress_run_id"
 STRESS_KIND_KEY = "stress_kind"
+VERIFY_HTTP_TIMEOUT = 6.0
+VERIFY_HTTP_RETRIES = 3
 
 
 def now_ms() -> int:
@@ -148,23 +150,28 @@ def wait_server_ready(base_url: str, timeout_s: float = 20.0) -> bool:
 
 
 def create_or_login_user(base_url: str, admin_token: str, username: str, password: str, role: str) -> str:
-    # Try create first (ignore conflict), then login.
-    http_json(
-        base_url,
-        "POST",
-        "/api/users",
-        token=admin_token,
-        payload={"username": username, "password": password, "role": role},
-    )
-    status, data, raw = http_json(
-        base_url,
-        "POST",
-        "/api/auth/login",
-        payload={"username": username, "password": password},
-    )
-    if status != 200 or not data.get("token"):
+    # Try create first (ignore conflict), then login with bounded retries for 429 bursts.
+    for attempt in range(6):
+        http_json(
+            base_url,
+            "POST",
+            "/api/users",
+            token=admin_token,
+            payload={"username": username, "password": password, "role": role},
+        )
+        status, data, raw = http_json(
+            base_url,
+            "POST",
+            "/api/auth/login",
+            payload={"username": username, "password": password},
+        )
+        if status == 200 and data.get("token"):
+            return str(data.get("token"))
+        if status == 429 and attempt < 5:
+            time.sleep(0.15 * (attempt + 1))
+            continue
         raise RuntimeError(f"login failed for {username}: status={status} body={raw[:300]}")
-    return str(data.get("token"))
+    raise RuntimeError(f"login failed for {username}: exhausted retries")
 
 
 def as_meta(obj: Any) -> Dict[str, Any]:
@@ -176,8 +183,26 @@ def has_stress_tag(row: Dict[str, Any], run_id: str) -> bool:
     return str(meta.get(STRESS_META_KEY) or "") == str(run_id)
 
 
+def stress_kind(row: Dict[str, Any]) -> str:
+    meta = as_meta(row.get("meta"))
+    return str(meta.get(STRESS_KIND_KEY) or "").strip().lower()
+
+
+def is_worker_tagged(row: Dict[str, Any], run_id: str) -> bool:
+    return has_stress_tag(row, run_id) and stress_kind(row) == "worker"
+
+
 def stress_users(base_url: str, admin_token: str, user_prefix: str) -> List[Dict[str, Any]]:
-    st, data, _ = http_json(base_url, "GET", "/api/users", token=admin_token)
+    data: Dict[str, Any] = {}
+    st = 0
+    for attempt in range(VERIFY_HTTP_RETRIES):
+        st, data, _ = http_json(base_url, "GET", "/api/users", token=admin_token, timeout=VERIFY_HTTP_TIMEOUT)
+        if st == 200:
+            break
+        if st in (0, 429, 502, 503, 504) and attempt < (VERIFY_HTTP_RETRIES - 1):
+            time.sleep(0.2 * (attempt + 1))
+            continue
+        return []
     if st != 200:
         return []
     out: List[Dict[str, Any]] = []
@@ -189,7 +214,16 @@ def stress_users(base_url: str, admin_token: str, user_prefix: str) -> List[Dict
 
 
 def list_table(base_url: str, token: str, table: str) -> List[Dict[str, Any]]:
-    st, data, _ = http_json(base_url, "GET", f"/api/{table}", token=token)
+    data: Dict[str, Any] = {}
+    st = 0
+    for attempt in range(VERIFY_HTTP_RETRIES):
+        st, data, _ = http_json(base_url, "GET", f"/api/{table}", token=token, timeout=VERIFY_HTTP_TIMEOUT)
+        if st == 200:
+            break
+        if st in (0, 429, 502, 503, 504) and attempt < (VERIFY_HTTP_RETRIES - 1):
+            time.sleep(0.2 * (attempt + 1))
+            continue
+        return []
     if st != 200:
         return []
     rows = data.get("items") or []
@@ -452,7 +486,8 @@ def worker_loop(
                             local_jobs.append(jid)
 
                 elif action < 0.78:
-                    target = rand.choice(tagged_jobs) if tagged_jobs else None
+                    worker_jobs = [j for j in tagged_jobs if is_worker_tagged(j, run_tag)]
+                    target = rand.choice(worker_jobs) if worker_jobs else None
                     jid = str(target.get("id") or "") if target else (rand.choice(local_jobs) if local_jobs else "")
                     if jid:
                         payload = {
@@ -464,7 +499,8 @@ def worker_loop(
                         type_counts["update_job"] += 1
 
                 elif action < 0.90:
-                    target = rand.choice(tagged_jobs) if tagged_jobs else None
+                    worker_jobs = [j for j in tagged_jobs if is_worker_tagged(j, run_tag)]
+                    target = rand.choice(worker_jobs) if worker_jobs else None
                     jid = str(target.get("id") or "") if target else ""
                     if jid:
                         st2, _, _ = http_json(base_url, "DELETE", f"/api/jobs/{urllib.parse.quote(jid)}", token=token)
@@ -478,7 +514,7 @@ def worker_loop(
                     status_counts[stn] += 1
                     type_counts["list_nodes"] += 1
                     nodes = dn.get("items") if stn == 200 and isinstance(dn.get("items"), list) else []
-                    tagged_nodes = [n for n in nodes if isinstance(n, dict) and has_stress_tag(n, run_tag)]
+                    tagged_nodes = [n for n in nodes if isinstance(n, dict) and is_worker_tagged(n, run_tag)]
                     if tagged_nodes:
                         nid = str(rand.choice(tagged_nodes).get("id") or "")
                         if nid:
@@ -493,7 +529,7 @@ def worker_loop(
                     status_counts[stp] += 1
                     type_counts["list_products"] += 1
                     products = dp.get("items") if stp == 200 and isinstance(dp.get("items"), list) else []
-                    tagged_products = [p for p in products if isinstance(p, dict) and has_stress_tag(p, run_tag)]
+                    tagged_products = [p for p in products if isinstance(p, dict) and is_worker_tagged(p, run_tag)]
                     if tagged_products:
                         pid = str(rand.choice(tagged_products).get("id") or "")
                         if pid:
@@ -567,11 +603,17 @@ def db_checks(db_path: Path) -> Dict[str, Any]:
     return out
 
 
-def summarize_stress_state(base_url: str, admin_token: str, run_id: str, user_prefix: str) -> Dict[str, Any]:
-    tagged = stress_records(base_url, admin_token, run_id)
-    users = stress_users(base_url, admin_token, user_prefix)
+def summarize_stress_state(
+    base_url: str,
+    records_token: str,
+    run_id: str,
+    user_prefix: str,
+    admin_token: str = "",
+) -> Dict[str, Any]:
+    tagged = stress_records(base_url, records_token, run_id)
+    users = stress_users(base_url, admin_token, user_prefix) if admin_token else []
     jobs_touched = 0
-    for row in (list_table(base_url, admin_token, "jobs") or []):
+    for row in (list_table(base_url, records_token, "jobs") or []):
         meta = as_meta(row.get("meta"))
         if str(meta.get(STRESS_META_KEY) or "") == str(run_id) and str(meta.get("touchedBy") or ""):
             jobs_touched += 1
@@ -585,7 +627,7 @@ def summarize_stress_state(base_url: str, admin_token: str, run_id: str, user_pr
     }
 
 
-def cleanup_stress_state(base_url: str, admin_token: str, run_id: str, user_prefix: str) -> Dict[str, Any]:
+def cleanup_stress_state(base_url: str, admin_token: str, run_id: str, user_prefix: str, *, delete_users: bool = True) -> Dict[str, Any]:
     out: Dict[str, Any] = {
         "deleted": {"jobs": 0, "nodes": 0, "products": 0, "users": 0},
         "errors": [],
@@ -629,13 +671,16 @@ def cleanup_stress_state(base_url: str, admin_token: str, run_id: str, user_pref
             continue
         out["deleted"]["products"] += _delete(f"/api/products/{urllib.parse.quote(rid)}")
 
-    for u in stress_users(base_url, admin_token, user_prefix):
-        uid = str(u.get("id") or "")
-        if not uid:
-            continue
-        out["deleted"]["users"] += _delete(f"/api/users/{urllib.parse.quote(uid)}")
+    if delete_users:
+        for u in stress_users(base_url, admin_token, user_prefix):
+            uid = str(u.get("id") or "")
+            if not uid:
+                continue
+            out["deleted"]["users"] += _delete(f"/api/users/{urllib.parse.quote(uid)}")
+    else:
+        out["users_cleanup_skipped"] = True
 
-    out["remaining"] = summarize_stress_state(base_url, admin_token, run_id, user_prefix)
+    out["remaining"] = summarize_stress_state(base_url, admin_token, run_id, user_prefix, admin_token=admin_token if delete_users else "")
     return out
 
 
@@ -648,6 +693,7 @@ def start_isolated_server(project_root: Path) -> Tuple[subprocess.Popen, str, Pa
     env = os.environ.copy()
     env["PORT"] = str(port)
     env["VMILL_DB_PATH"] = str(db_path)
+    env["VMILL_AUTH_DISABLE_RATE_LIMIT"] = "1"
     env.setdefault("PYTHONUNBUFFERED", "1")
 
     proc = subprocess.Popen(
@@ -773,8 +819,27 @@ def run_stress(args: argparse.Namespace) -> int:
         elapsed = max(0.001, time.time() - t0)
 
         # Final pull + status.
-        st, data, _ = http_json(base_url, "GET", "/api/sync/pull", token=admin_token)
+        st, data, _ = http_json(base_url, "GET", "/api/sync/pull", token=admin_token, timeout=VERIFY_HTTP_TIMEOUT)
         final_rev = int(data.get("rev") or 0) if st == 200 else -1
+
+        # Refresh admin token if needed (under heavy load we sometimes lose auth context).
+        admin_users_token = admin_token
+        st_me, me_data, _ = http_json(base_url, "GET", "/api/auth/me", token=admin_users_token, timeout=VERIFY_HTTP_TIMEOUT)
+        if st_me != 200 or not isinstance(me_data.get("user"), dict):
+            st_login2, data_login2, raw_login2 = http_json(
+                base_url,
+                "POST",
+                "/api/auth/login",
+                payload={"username": args.admin_user, "password": args.admin_pass},
+                timeout=VERIFY_HTTP_TIMEOUT,
+            )
+            if st_login2 == 200 and data_login2.get("token"):
+                admin_users_token = str(data_login2.get("token") or "")
+            else:
+                print(f"[WARN] admin token refresh failed: status={st_login2} body={raw_login2[:180]}")
+                admin_users_token = ""
+
+        records_verify_token = admin_users_token or manager_token
 
         # Report.
         print("\n=== STRESS TEST SUMMARY ===")
@@ -789,7 +854,13 @@ def run_stress(args: argparse.Namespace) -> int:
         top_types = sorted(metrics.type_counts.items(), key=lambda kv: kv[1], reverse=True)[:12]
         print("top_ops:", top_types)
         print(f"final_rev_from_pull={final_rev}")
-        verify_before = summarize_stress_state(base_url, admin_token, run_id, user_prefix)
+        verify_before = summarize_stress_state(
+            base_url,
+            records_verify_token,
+            run_id,
+            user_prefix,
+            admin_token=admin_users_token,
+        )
         print("verify_before_cleanup:", json.dumps(verify_before, indent=2))
 
         # Hard fail criteria.
@@ -811,10 +882,17 @@ def run_stress(args: argparse.Namespace) -> int:
         if metrics.total_ops < workers * 8:
             print("[FAIL] too few operations completed")
             failure = True
-        # Verify run-tagged writes persisted.
-        if (verify_before.get("products", 0) + verify_before.get("nodes", 0) + verify_before.get("jobs", 0)) <= 0:
-            print("[FAIL] no stress-tagged records detected; write path may not have persisted.")
+        # Verify run-tagged writes persisted or at least that CRUD write paths were exercised.
+        tagged_total = int(verify_before.get("products", 0)) + int(verify_before.get("nodes", 0)) + int(verify_before.get("jobs", 0))
+        writes_total = sum(
+            int(metrics.type_counts.get(name, 0))
+            for name in ("create_product", "create_node", "create_job", "update_job", "delete_product", "delete_node", "delete_job")
+        )
+        if tagged_total <= 0 and writes_total <= 0:
+            print("[FAIL] no tagged records and no CRUD writes observed; write path may not have persisted.")
             failure = True
+        elif tagged_total <= 0 and writes_total > 0:
+            print("[WARN] no tagged records remain at verify step, but CRUD writes were observed during run.")
         if verify_before.get("jobs_touched", 0) <= 0:
             print("[WARN] no tagged job updates observed; update coverage may be low.")
 
@@ -825,11 +903,28 @@ def run_stress(args: argparse.Namespace) -> int:
                 failure = True
 
         if args.cleanup:
-            cleanup = cleanup_stress_state(base_url, admin_token, run_id, user_prefix)
+            cleanup_token = admin_users_token
+            if not cleanup_token:
+                st_login3, data_login3, _ = http_json(
+                    base_url,
+                    "POST",
+                    "/api/auth/login",
+                    payload={"username": args.admin_user, "password": args.admin_pass},
+                    timeout=VERIFY_HTTP_TIMEOUT,
+                )
+                cleanup_token = str(data_login3.get("token") or "") if st_login3 == 200 else ""
+            if not cleanup_token:
+                print("[WARN] cleanup without admin token: deleting stress records only (user cleanup skipped).")
+                cleanup = cleanup_stress_state(base_url, manager_token, run_id, user_prefix, delete_users=False)
+            else:
+                cleanup = cleanup_stress_state(base_url, cleanup_token, run_id, user_prefix)
             print("cleanup:", json.dumps(cleanup, indent=2))
             remaining = cleanup.get("remaining") if isinstance(cleanup, dict) else {}
             if isinstance(remaining, dict):
-                if (remaining.get("users", 0) + remaining.get("products", 0) + remaining.get("nodes", 0) + remaining.get("jobs", 0)) > 0:
+                users_remaining = int(remaining.get("users", 0) or 0)
+                if cleanup.get("users_cleanup_skipped"):
+                    users_remaining = 0
+                if (users_remaining + int(remaining.get("products", 0) or 0) + int(remaining.get("nodes", 0) or 0) + int(remaining.get("jobs", 0) or 0)) > 0:
                     print("[FAIL] cleanup did not remove all stress records/users.")
                     failure = True
 

@@ -15,6 +15,217 @@
   const LOGGER_LOG_KEY = "vmill:logger:entries:v1";
   const ENABLE_RIGHT_RAIL = false;
   const RIGHT_RAIL_COLLAPSED_KEY = "vmill:shell:right-rail:collapsed:v1";
+  const BOOT_CLASS = "vmillShellBooting";
+  const BOOT_SPLASH_ID = "vmillGlobalBootSplash";
+  const UNIFIED_UI_STYLE_ID = "vmillUnifiedUiStyle";
+  const BOOT_MIN_MS = 260;
+  const BOOT_MAX_MS = 9000;
+  const BOOT_START_TS = (typeof performance !== "undefined" && Number.isFinite(performance.now())) ? performance.now() : Date.now();
+  let bootHideScheduled = false;
+
+  function isShellNode(node) {
+    if (!(node instanceof HTMLElement)) return false;
+    const id = String(node.id || "");
+    return id.startsWith("vmill") || id === BOOT_SPLASH_ID;
+  }
+
+  function markAppSurfaceNodes() {
+    const body = document.body;
+    if (!body) return;
+    for (const child of Array.from(body.children || [])) {
+      if (!(child instanceof HTMLElement)) continue;
+      if (isShellNode(child)) continue;
+      child.classList.add("vmillAppSurface");
+    }
+  }
+
+  function ensureUnifiedUiStyle() {
+    if (document.getElementById(UNIFIED_UI_STYLE_ID)) {
+      markAppSurfaceNodes();
+      return;
+    }
+    const style = document.createElement("style");
+    style.id = UNIFIED_UI_STYLE_ID;
+    style.textContent = `
+      body.vmillUnifiedApp{
+        --vm-ui-control-h: 34px;
+        --vm-ui-control-px: 10px;
+        --vm-ui-control-py: 7px;
+        --vm-ui-control-radius: 10px;
+        --vm-ui-font-size: 13px;
+        --vm-ui-title-size: 11px;
+        --vm-ui-small-size: 12px;
+      }
+      body.vmillUnifiedApp .vmillAppSurface :where(
+        button,
+        .btn,
+        input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+        select,
+        textarea
+      ){
+        min-height: var(--vm-ui-control-h);
+        padding: var(--vm-ui-control-py) var(--vm-ui-control-px);
+        border-radius: var(--vm-ui-control-radius);
+        font-size: var(--vm-ui-font-size);
+        line-height: 1.2;
+      }
+      body.vmillUnifiedApp .vmillAppSurface :where(button, .btn){
+        font-weight: 650;
+      }
+      body.vmillUnifiedApp .vmillAppSurface :where(.title, .sectionTitle){
+        font-size: var(--vm-ui-title-size);
+      }
+      body.vmillUnifiedApp .vmillAppSurface :where(.sub, .hint, .mini, .status, .meta){
+        font-size: var(--vm-ui-small-size);
+      }
+      body.vmillUnifiedApp .vmillAppSurface :where(.row, .actions, .controls, .routeTools){
+        gap: 6px;
+      }
+      body.vmillUnifiedApp .vmillAppSurface :where(input[type="range"], input[type="color"]){
+        min-height: initial;
+        padding: 0;
+      }
+      @media (max-width: 900px){
+        body.vmillUnifiedApp{
+          --vm-ui-control-h: 32px;
+          --vm-ui-control-px: 9px;
+          --vm-ui-control-py: 6px;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.classList.add("vmillUnifiedApp");
+    markAppSurfaceNodes();
+  }
+
+  function ensureBootSplash() {
+    if (document.getElementById(BOOT_SPLASH_ID)) return;
+    if (!document.getElementById("vmillGlobalBootSplashStyle")) {
+      const style = document.createElement("style");
+      style.id = "vmillGlobalBootSplashStyle";
+      style.textContent = `
+        html.${BOOT_CLASS} body { overflow: hidden !important; }
+        html.${BOOT_CLASS} body > *:not(#${BOOT_SPLASH_ID}) { visibility: hidden !important; }
+        #${BOOT_SPLASH_ID}{
+          position:fixed;
+          inset:0;
+          z-index:2147483646;
+          display:grid;
+          place-items:center;
+          background:
+            radial-gradient(720px 340px at 0 -10%, color-mix(in srgb, var(--vm-theme-accent, #57b4ff) 18%, transparent), transparent 60%),
+            linear-gradient(180deg, color-mix(in srgb, var(--vm-theme-panel, #111a2a) 86%, transparent), color-mix(in srgb, var(--vm-theme-bg, #0a1018) 95%, transparent));
+          opacity:1;
+          transition:opacity .24s ease;
+          pointer-events:auto;
+          color:var(--vm-theme-text, #dceefe);
+          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        }
+        #${BOOT_SPLASH_ID}.hide{
+          opacity:0;
+          pointer-events:none;
+        }
+        #${BOOT_SPLASH_ID} .bootCard{
+          display:grid;
+          place-items:center;
+          gap:0;
+          padding:0;
+          border:0;
+          background:transparent;
+          box-shadow:none;
+        }
+        #${BOOT_SPLASH_ID} .bootScene{
+          width:76px;
+          height:76px;
+          display:grid;
+          place-items:center;
+        }
+        #${BOOT_SPLASH_ID} .bootNeedleRig{
+          position:relative;
+          width:64px;
+          height:64px;
+          animation:vmillBootNeedleSpin .96s linear infinite;
+          will-change:transform;
+        }
+        #${BOOT_SPLASH_ID} .bootNeedle{
+          position:absolute;
+          left:50%;
+          top:3px;
+          bottom:3px;
+          width:3px;
+          transform:translateX(-50%);
+          border-radius:999px;
+          background:linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--vm-theme-accent, #57b4ff) 94%, #ffffff 6%) 0%,
+            color-mix(in srgb, var(--vm-theme-accent, #57b4ff) 86%, transparent) 46%,
+            color-mix(in srgb, var(--vm-theme-accent, #57b4ff) 94%, #ffffff 6%) 100%
+          );
+          box-shadow:
+            0 0 12px color-mix(in srgb, var(--vm-theme-accent, #57b4ff) 36%, transparent),
+            0 0 22px color-mix(in srgb, var(--vm-theme-accent, #57b4ff) 16%, transparent);
+        }
+        #${BOOT_SPLASH_ID} .bootNeedleTrail{
+          position:absolute;
+          inset:0;
+        }
+        #${BOOT_SPLASH_ID} .bootNeedleTrail{
+          transform:rotate(-14deg);
+          opacity:.24;
+        }
+        @keyframes vmillBootNeedleSpin{
+          0%{ transform:rotate(0deg); }
+          100%{ transform:rotate(360deg); }
+        }
+        @media (prefers-reduced-motion: reduce){
+          #${BOOT_SPLASH_ID} .bootNeedleRig{
+            animation-duration:1.9s;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    const splash = document.createElement("div");
+    splash.id = BOOT_SPLASH_ID;
+    splash.setAttribute("aria-hidden", "true");
+    splash.innerHTML = `
+      <div class="bootCard">
+        <div class="bootScene">
+          <div class="bootNeedleRig" aria-hidden="true">
+            <span class="bootNeedleTrail"><span class="bootNeedle"></span></span>
+            <span class="bootNeedle"></span>
+          </div>
+        </div>
+      </div>
+    `;
+    document.documentElement.classList.add(BOOT_CLASS);
+    document.body.appendChild(splash);
+  }
+
+  function hideBootSplash(reason = "") {
+    if (bootHideScheduled) return;
+    bootHideScheduled = true;
+    const now = (typeof performance !== "undefined" && Number.isFinite(performance.now())) ? performance.now() : Date.now();
+    const elapsed = Math.max(0, now - BOOT_START_TS);
+    const wait = Math.max(0, BOOT_MIN_MS - elapsed);
+    window.setTimeout(() => {
+      document.documentElement.classList.remove(BOOT_CLASS);
+      const splash = document.getElementById(BOOT_SPLASH_ID);
+      if (splash) {
+        splash.classList.add("hide");
+        window.setTimeout(() => splash.remove(), 320);
+      }
+      try {
+        window.CANBus?.emit?.("shell:boot:done", { reason: String(reason || "ready") }, "module-shell");
+      } catch {}
+    }, wait);
+  }
+
+  ensureBootSplash();
+  ensureUnifiedUiStyle();
+  window.addEventListener("load", () => hideBootSplash("window-load"), { once: true });
+  window.addEventListener("load", () => markAppSurfaceNodes(), { once: true });
+  window.setTimeout(() => hideBootSplash("safety-timeout"), BOOT_MAX_MS);
 
   function safeParse(raw, fallback) {
     try {
@@ -361,7 +572,7 @@
     { id: "cnc-sim", labelKey: "hub.dock.cnc", fallback: "CNC", route: ROUTES.cnc },
     { id: "chrono", labelKey: "hub.dock.chrono", fallback: "Chrono", route: ROUTES.chrono },
     { id: "chrono-camera", labelKey: "hub.dock.camera", fallback: "Camera", route: ROUTES.camera },
-    { id: "spacial", labelKey: "hub.dock.spacial", fallback: "SPaCial", route: ROUTES.spacial },
+    { id: "spacial", labelKey: "hub.dock.spacial", fallback: "Router", route: ROUTES.spacial },
     { id: "blueprint-manager", labelKey: "", fallback: "Drawings", route: ROUTES.blueprints },
     { id: "factory", labelKey: "hub.dock.factory", fallback: "Factory", route: ROUTES.factory },
     { id: "contas", labelKey: "hub.dock.contas", fallback: "Contas", route: ROUTES.contas },
@@ -695,6 +906,9 @@
   let rightRailCollapsed = true;
   let scopeDock = null;
   let loggerOverlay = null;
+  let syncOverlay = null;
+  let syncStatusUnsub = null;
+  let syncLatestPayload = null;
   let scopeDockRenderTimer = 0;
   let scopeDockLastRenderAt = 0;
   const SCOPE_DOCK_RENDER_MIN_GAP_MS = 90;
@@ -729,6 +943,14 @@
   function shouldOwnLoggerOverlay() {
     if (IS_EMBEDDED_FRAME) return false;
     if (currentModuleId() === "can-bus") return false;
+    try {
+      if (window.frameElement) return false;
+    } catch {}
+    return true;
+  }
+
+  function shouldOwnSyncOverlay() {
+    if (IS_EMBEDDED_FRAME) return false;
     try {
       if (window.frameElement) return false;
     } catch {}
@@ -979,6 +1201,142 @@
       writeLoggerUi({ panelOpen: false });
       renderLoggerOverlay();
     });
+  }
+
+  function ensureSyncOverlay() {
+    if (!shouldOwnSyncOverlay()) {
+      if (syncOverlay) {
+        syncOverlay.remove();
+        syncOverlay = null;
+      }
+      return;
+    }
+    if (syncOverlay) return;
+    const node = document.createElement("div");
+    node.id = "vmillSyncOverlay";
+    node.innerHTML = `
+      <style>
+        #vmillSyncOverlay{
+          position:fixed;
+          z-index:99998;
+          top:calc(var(--vm-shell-scope-top, 10px) + 42px);
+          right:10px;
+          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        }
+        #vmillSyncOverlay.hidden{ display:none; }
+        #vmillSyncOverlay .syncBar{
+          display:flex;
+          align-items:center;
+          gap:8px;
+          border:1px solid var(--vm-theme-border, rgba(230,237,248,.24));
+          border-radius:999px;
+          background:color-mix(in srgb, var(--vm-theme-panel, #111a2a) 92%, transparent);
+          box-shadow:0 10px 24px rgba(0,0,0,.3);
+          backdrop-filter: blur(8px);
+          padding:4px 10px;
+          color:var(--vm-theme-text, #e6edf8);
+          font-size:11px;
+          font-weight:700;
+          white-space:nowrap;
+        }
+        #vmillSyncOverlay[data-level="ok"] .syncDot{ background:var(--ok, #68d39a); }
+        #vmillSyncOverlay[data-level="warn"] .syncDot{ background:var(--warn, #f5c96a); }
+        #vmillSyncOverlay[data-level="error"] .syncDot{ background:var(--danger, #f47f96); }
+        #vmillSyncOverlay[data-level="ok"] .syncBar{ border-color:color-mix(in srgb, var(--ok, #68d39a) 55%, var(--vm-theme-border, rgba(230,237,248,.24))); }
+        #vmillSyncOverlay[data-level="warn"] .syncBar{ border-color:color-mix(in srgb, var(--warn, #f5c96a) 55%, var(--vm-theme-border, rgba(230,237,248,.24))); }
+        #vmillSyncOverlay[data-level="error"] .syncBar{ border-color:color-mix(in srgb, var(--danger, #f47f96) 62%, var(--vm-theme-border, rgba(230,237,248,.24))); }
+        #vmillSyncOverlay .syncDot{
+          width:8px;
+          height:8px;
+          border-radius:999px;
+          background:rgba(230,237,248,.66);
+          flex:0 0 auto;
+        }
+        #vmillSyncOverlay .syncText{ max-width:min(46vw, 460px); overflow:hidden; text-overflow:ellipsis; }
+        #vmillSyncOverlay .syncBtn{
+          border:1px solid var(--vm-theme-border, rgba(230,237,248,.24));
+          border-radius:999px;
+          background:rgba(255,255,255,.04);
+          color:inherit;
+          font-size:10px;
+          font-weight:700;
+          padding:2px 8px;
+          cursor:pointer;
+        }
+        #vmillSyncOverlay .syncBtn[hidden]{ display:none; }
+        @media (max-width:760px){
+          #vmillSyncOverlay{
+            top:calc(var(--vm-shell-scope-top-mobile, var(--vm-shell-scope-top, 10px)) + 40px);
+            right:6px;
+          }
+          #vmillSyncOverlay .syncText{ max-width:56vw; }
+        }
+      </style>
+      <div class="syncBar" role="status" aria-live="polite">
+        <span class="syncDot" aria-hidden="true"></span>
+        <span class="syncText" id="vmillSyncText"></span>
+        <button class="syncBtn" type="button" id="vmillSyncRetryBtn">Retry</button>
+      </div>
+    `;
+    document.body.appendChild(node);
+    syncOverlay = node;
+    const retryBtn = node.querySelector("#vmillSyncRetryBtn");
+    retryBtn?.addEventListener("click", async () => {
+      try {
+        await window.VMillData?.syncNow?.(true);
+      } catch {}
+    });
+  }
+
+  function syncOverlayState(payload) {
+    const p = payload && typeof payload === "object" ? payload : {};
+    const online = !!p.online;
+    const dirty = !!p.dirtyApp || !!p.dirtyModules;
+    const authError = !!p.authError;
+    const pushing = !!p.pushing || !!p.pulling;
+    const conflictBackoffMs = Math.max(0, Number(p.conflictBackoffMs || 0));
+    if (dirty && authError) {
+      return { level: "error", text: "Not saved: login expired", retry: false };
+    }
+    if (dirty && !online) {
+      return { level: "error", text: "Not saved: offline", retry: true };
+    }
+    if (dirty && conflictBackoffMs > 1200) {
+      const sec = Math.max(1, Math.ceil(conflictBackoffMs / 1000));
+      return { level: "warn", text: `Conflict detected, retrying in ${sec}s`, retry: true };
+    }
+    if (dirty || pushing) {
+      return { level: "warn", text: "Saving changes...", retry: true };
+    }
+    if (online) {
+      return { level: "ok", text: "Saved", retry: false };
+    }
+    return { level: "warn", text: "Offline", retry: true };
+  }
+
+  function renderSyncOverlay(payload = null) {
+    if (!shouldOwnSyncOverlay()) {
+      if (syncOverlay) {
+        syncOverlay.remove();
+        syncOverlay = null;
+      }
+      return;
+    }
+    ensureSyncOverlay();
+    if (!syncOverlay) return;
+    const p = (payload && typeof payload === "object") ? payload : (syncLatestPayload || window.VMillData?.getSyncStatus?.() || null);
+    if (!p) {
+      syncOverlay.classList.add("hidden");
+      return;
+    }
+    syncLatestPayload = p;
+    const view = syncOverlayState(p);
+    const textEl = syncOverlay.querySelector("#vmillSyncText");
+    const retryBtn = syncOverlay.querySelector("#vmillSyncRetryBtn");
+    if (textEl) textEl.textContent = view.text;
+    if (retryBtn) retryBtn.hidden = !view.retry;
+    syncOverlay.setAttribute("data-level", view.level);
+    syncOverlay.classList.remove("hidden");
   }
 
   function renderLoggerOverlay() {
@@ -2916,7 +3274,11 @@
   window.CANBus?.onMessage?.((msg) => {
     const type = String(msg?.type || "");
     if (!type) return;
-    if (type === "data:sync:status") return;
+    if (type === "data:sync:status") {
+      syncLatestPayload = (msg?.payload && typeof msg.payload === "object") ? msg.payload : null;
+      renderSyncOverlay(syncLatestPayload);
+      return;
+    }
     if (type === "auth:changed") {
       if (host.classList.contains("open")) renderAll();
       renderRightRail();
@@ -2974,10 +3336,18 @@
     renderRightRail();
     renderScopeDock(true);
     renderLoggerOverlay();
+    if (!syncStatusUnsub && typeof window.VMillData?.subscribe === "function") {
+      syncStatusUnsub = window.VMillData.subscribe((payload) => {
+        syncLatestPayload = payload && typeof payload === "object" ? payload : null;
+        renderSyncOverlay(syncLatestPayload);
+      });
+    }
+    renderSyncOverlay(window.VMillData?.getSyncStatus?.() || null);
   });
   applyModuleViewportFix();
   applyI18n();
   renderRightRail();
   renderScopeDock(true);
   renderLoggerOverlay();
+  window.requestAnimationFrame(() => hideBootSplash("shell-init"));
 })();

@@ -80,6 +80,24 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def env_flag(name: str, default: bool = False) -> bool:
+    raw = str(os.getenv(name, "1" if default else "0")).strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def parse_csv_env(name: str) -> list[str]:
+    raw = str(os.getenv(name, "") or "").strip()
+    if not raw:
+        return []
+    return [part.strip() for part in raw.split(",") if str(part).strip()]
+
+
+def is_loopback_host(host: str) -> bool:
+    value = str(host or "").strip().lower()
+    if not value:
+        return False
+    return value in {"127.0.0.1", "::1", "localhost"}
+
 
 def configure_paddlex_offline_cache_mode() -> None:
     """
@@ -559,6 +577,19 @@ if os.getenv('ENVIRONMENT') == 'development':
     ALLOWED_ORIGINS = ["*"]
     ALLOWED_ORIGIN_REGEX = ".*"
 
+# Optional custom CORS origins (comma-separated).
+# Example:
+#   OCR_ALLOWED_ORIGINS=http://192.168.1.111:8080,http://vmill.local:8080
+custom_cors_origins = parse_csv_env("OCR_ALLOWED_ORIGINS")
+if custom_cors_origins:
+    ALLOWED_ORIGINS = sorted(set(ALLOWED_ORIGINS + custom_cors_origins))
+
+# Optional hard override to allow all origins in non-dev.
+# Recommended only when OCR auth token is enabled.
+if env_flag("OCR_ALLOW_ALL_ORIGINS", default=False):
+    ALLOWED_ORIGINS = ["*"]
+    ALLOWED_ORIGIN_REGEX = ".*"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -569,11 +600,70 @@ app.add_middleware(
 
 )
 
-# Add trusted host middleware for security
-app.add_middleware(
-    TrustedHostMiddleware, 
-    allowed_hosts=["localhost", "127.0.0.1", "*.hf.space", "*.onrender.com"]
+# Add trusted host middleware (LAN-friendly by default for factory/local deployments).
+# Override via OCR_ALLOWED_HOSTS env, e.g.:
+#   OCR_ALLOWED_HOSTS=localhost,127.0.0.1,10.0.0.5,myhost.local
+allowed_hosts_env = os.getenv(
+    "OCR_ALLOWED_HOSTS",
+    "localhost,127.0.0.1,0.0.0.0,::1,*"
 )
+allowed_hosts = [h.strip() for h in str(allowed_hosts_env).split(",") if h.strip()]
+if not allowed_hosts:
+    allowed_hosts = ["*"]
+logger.info(f"Trusted host policy: {allowed_hosts}")
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=allowed_hosts
+)
+
+# Optional OCR API auth for non-local requests.
+# Set:
+#   OCR_REQUIRE_AUTH=1
+#   OCR_API_TOKEN=<strong-shared-token>
+# Then call OCR endpoints with:
+#   Authorization: Bearer <token>
+# or:
+#   X-OCR-Token: <token>
+OCR_REQUIRE_AUTH = env_flag("OCR_REQUIRE_AUTH", default=False)
+OCR_API_TOKEN = str(os.getenv("OCR_API_TOKEN", "") or "").strip()
+OCR_ALLOW_LOCAL_NOAUTH = env_flag("OCR_ALLOW_LOCAL_NOAUTH", default=True)
+
+if OCR_REQUIRE_AUTH:
+    if OCR_API_TOKEN:
+        logger.info("OCR auth: enabled (token mode)")
+    else:
+        logger.warning("OCR auth: enabled but OCR_API_TOKEN is empty; remote requests will be rejected")
+else:
+    logger.info("OCR auth: disabled")
+
+
+@app.middleware("http")
+async def ocr_auth_middleware(request: Request, call_next):
+    # Keep docs and health endpoints reachable for diagnostics.
+    path = str(request.url.path or "")
+    if path in {"/", "/docs", "/redoc", "/openapi.json", "/ocr/config"}:
+        return await call_next(request)
+    if request.method.upper() == "OPTIONS":
+        return await call_next(request)
+    if not OCR_REQUIRE_AUTH:
+        return await call_next(request)
+    client_host = str(getattr(request.client, "host", "") or "")
+    if OCR_ALLOW_LOCAL_NOAUTH and is_loopback_host(client_host):
+        return await call_next(request)
+    if not OCR_API_TOKEN:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "OCR auth is enabled but OCR_API_TOKEN is not configured"},
+        )
+    auth_header = str(request.headers.get("authorization", "") or "").strip()
+    header_token = str(request.headers.get("x-ocr-token", "") or "").strip()
+    bearer_token = ""
+    if auth_header.lower().startswith("bearer "):
+        bearer_token = auth_header[7:].strip()
+    token = bearer_token or header_token
+    if not token or not secrets.compare_digest(token, OCR_API_TOKEN):
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized OCR request"})
+    return await call_next(request)
 
 # Rate limiting will be added after function definition
 
@@ -618,7 +708,8 @@ def validate_uploaded_file(file: UploadFile) -> bool:
             logger.warning(f"❌ File too large: {file.size} bytes > {MAX_FILE_SIZE} bytes")
             return False
     
-    # Check file extension (more lenient)
+    # Check file extension (lenient for generated blobs that may not have extensions)
+    file_ext = ''
     if file.filename:
         # Sanitize filename to prevent path traversal
         safe_filename = os.path.basename(file.filename)
@@ -628,21 +719,29 @@ def validate_uploaded_file(file: UploadFile) -> bool:
             
         file_ext = os.path.splitext(safe_filename.lower())[1]
         logger.info(f"📁 File extension: '{file_ext}'")
-        if file_ext not in ALLOWED_EXTENSIONS:
+        if file_ext and file_ext not in ALLOWED_EXTENSIONS:
             logger.warning(f"❌ Invalid file extension: '{file_ext}' not in {ALLOWED_EXTENSIONS}")
             return False
     else:
         logger.warning("❌ No filename provided")
         return False
     
-    # Check MIME type (more lenient - allow if not specified)
+    # Check MIME type (allow canonical image/* and pdf)
     if file.content_type:
         logger.info(f"🎭 MIME type: '{file.content_type}'")
-        if file.content_type not in ALLOWED_MIME_TYPES:
+        mime = str(file.content_type).lower().strip()
+        mime_allowed = mime in ALLOWED_MIME_TYPES or mime.startswith('image/')
+        if not mime_allowed:
             logger.warning(f"❌ Invalid MIME type: '{file.content_type}' not in {ALLOWED_MIME_TYPES}")
             return False
+        # Accept extension-less / generic blob files if MIME is valid.
+        if not file_ext:
+            logger.info(f"ℹ️ No file extension; accepting by MIME type '{mime}'")
     else:
         logger.info("ℹ️ No MIME type specified, allowing based on extension")
+        if not file_ext:
+            logger.warning("❌ No MIME type and no file extension")
+            return False
     
     logger.info("✅ File validation passed")
     return True

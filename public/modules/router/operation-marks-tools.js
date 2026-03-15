@@ -43,6 +43,14 @@
       const n = Number(value);
       return Number.isFinite(n) ? n : null;
     });
+    const bubbleMoreOpenIds = new Set();
+
+    function resolveBubbleCharacteristicLink(bubble, productId = "") {
+      const cid = strOrEmpty(bubble?.characteristicId || "");
+      const existing = cid ? characteristicById(cid, productId) : null;
+      if (existing) return cid;
+      return strOrEmpty(upsertCharacteristicFromAnnotation(bubble, productId) || "");
+    }
 
     function renderBubbleCharacteristicSelect(preferredId = "") {
       const sel = $("bubbleCharSel");
@@ -282,7 +290,7 @@
         if (!options?.silent) alert(tt("spacial.alert.annotationNameRequired", "Annotation name is required."));
         return false;
       }
-      const linkedCharId = upsertCharacteristicFromAnnotation(next, productId);
+      const linkedCharId = resolveBubbleCharacteristicLink(next, productId);
       if (linkedCharId) next.characteristicId = linkedCharId;
       if (prev?.bbox && !next?.bbox) next.bbox = prev.bbox;
       if (prev?.bubbleOffset && !next?.bubbleOffset) next.bubbleOffset = prev.bubbleOffset;
@@ -300,9 +308,42 @@
       return true;
     }
 
+    function reorderBubbleInSelectedOperation(index, direction = 0, options = {}) {
+      const routePlan = getRoutePlan();
+      if (!routePlan) return false;
+      const op = operationById(getSelectedOpId());
+      if (!op) return false;
+      const opFile = selectedOperationFile(op);
+      if (!opFile || !Array.isArray(opFile.bubbles) || opFile.bubbles.length < 2) return false;
+      const from = Number(index);
+      const dir = Number(direction);
+      if (!Number.isFinite(from) || from < 0 || from >= opFile.bubbles.length) return false;
+      if (!Number.isFinite(dir) || !dir) return false;
+      const to = from + (dir > 0 ? 1 : -1);
+      if (to < 0 || to >= opFile.bubbles.length) return false;
+      const next = opFile.bubbles.slice();
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      opFile.bubbles = next.map((bubble, idx) => normalizeBubble(bubble, idx));
+      syncOperationCharacteristicIdsFromBubbles(op);
+      const selectedId = strOrEmpty(getSelectedCanvasBubbleId() || "");
+      if (selectedId) {
+        const keep = opFile.bubbles.find((bubble) => String(bubble?.id || "") === selectedId);
+        if (keep) setSelectedCanvasBubbleId(keep.id);
+      }
+      writeRoutePlan(routePlan);
+      if (options?.render !== false) renderRoutingPanel();
+      return true;
+    }
+
     function renderBubbleTable() {
       const body = $("bubbleTableBody");
       if (!body) return;
+      const openDetails = body.querySelectorAll("details.bubbleCardMore[data-bubble-more-for][open]");
+      openDetails.forEach((node) => {
+        const key = strOrEmpty(node.getAttribute("data-bubble-more-for"));
+        if (key) bubbleMoreOpenIds.add(key);
+      });
       const op = operationById(getSelectedOpId());
       if (!op) {
         body.innerHTML = `<div class="mini">${tt("spacial.none.operation", "Select or create an operation first.")}</div>`;
@@ -317,6 +358,9 @@
       }
       body.innerHTML = bubbles.map((b, idx) => {
         const box = normalizeBbox(b?.bbox);
+        const bubbleId = strOrEmpty(b?.id || "");
+        const moreKey = bubbleId || `idx_${idx}`;
+        const isMoreOpen = bubbleMoreOpenIds.has(moreKey);
         const linkState = bubbleLinkState(b, productId);
         const hasMaster = !!linkState.master;
         const linkedChar = characteristicById(b.characteristicId, productId);
@@ -326,6 +370,8 @@
         const lowerDevText = b.lowerDeviation == null ? "" : String(b.lowerDeviation);
         const upperDevText = b.upperDeviation == null ? "" : String(b.upperDeviation);
         const moreId = `bubble_more_${idx}_${String(b.id || "").replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+        const isSelected = String(getSelectedCanvasBubbleId() || "") === String(b.id || "");
+        const shouldInlineThumb = isSelected || idx < 24;
         const statusChip = hasMaster
           ? `<span class="bubbleChip master" title="${escHtml(tt("spacial.tip.masterLinked", "This drawing characteristic is linked to a product-level master annotation."))}">${escHtml(tt("spacial.annotation.masterLinked", "Product master"))}</span>`
           : "";
@@ -333,10 +379,12 @@
           ? `<span class="bubbleChip override" title="${escHtml(tt("spacial.tip.opOverride", "Some fields are overridden only for this operation."))}">${escHtml(tt("spacial.annotation.operationOverride", "Operation override"))}</span>`
           : "";
         return `
-          <article class="bubbleCard ${String(getSelectedCanvasBubbleId() || "") === String(b.id || "") ? "sel" : ""}" data-bubble-row-index="${idx}" data-bubble-row-id="${escHtml(String(b.id || ""))}">
+          <article class="bubbleCard ${isSelected ? "sel" : ""}" data-bubble-row-index="${idx}" data-bubble-row-id="${escHtml(String(b.id || ""))}">
             <div class="bubbleCardRow">
               ${strOrEmpty(b.thumbnailDataUrl)
-                ? `<img class="annThumb" src="${escHtml(b.thumbnailDataUrl)}" alt="thumb" />`
+                ? (shouldInlineThumb
+                  ? `<img class="annThumb" src="${escHtml(b.thumbnailDataUrl)}" loading="lazy" decoding="async" alt="thumb" />`
+                  : `<img class="annThumb" data-thumb-src="${escHtml(b.thumbnailDataUrl)}" loading="lazy" decoding="async" alt="thumb" />`)
                 : `<div class="annThumbPlaceholder">${escHtml(tt("spacial.annotation.thumbEmpty", "none"))}</div>`}
               <div class="bubbleCardMain">
                 <div class="bubbleCardTitleRow">
@@ -359,13 +407,15 @@
                 </div>
               </div>
               <div class="bubbleCardActions">
+                <button data-bubble-up="${idx}" type="button" ${idx <= 0 ? "disabled" : ""} title="${escHtml(tt("spacial.moveUp", "Move Up"))}">↑</button>
+                <button data-bubble-down="${idx}" type="button" ${idx >= (bubbles.length - 1) ? "disabled" : ""} title="${escHtml(tt("spacial.moveDown", "Move Down"))}">↓</button>
                 <button data-bubble-pick-btn="${idx}" type="button" title="${escHtml(tt("spacial.tip.pick", "Load this row into the editor and select it on the blueprint."))}">${tt("spacial.pick", "Pick")}</button>
                 <button data-bubble-more-btn="${idx}" type="button" aria-controls="${escHtml(moreId)}" title="${escHtml(tt("spacial.tip.more", "Show linked characteristic, fit code, method, instrument, and reaction fields."))}">${tt("spacial.annotation.more", "More")}</button>
                 ${hasMaster ? `<button data-bubble-reset-master="${idx}" class="bubbleActionSoft" type="button" title="${escHtml(tt("spacial.tip.resetToMaster", "Restore inherited values from the product-level master annotation."))}">${tt("spacial.annotation.resetToMaster", "Reset")}</button>` : ""}
                 <button data-bubble-del="${idx}" type="button" class="danger" title="${escHtml(tt("spacial.tip.delete", "Delete this drawing characteristic."))}">${tt("spacial.delete", "Delete")}</button>
               </div>
             </div>
-            <details class="bubbleCardMore" id="${escHtml(moreId)}">
+            <details class="bubbleCardMore" id="${escHtml(moreId)}" data-bubble-more-for="${escHtml(moreKey)}" ${isMoreOpen ? "open" : ""}>
               <summary>${escHtml(tt("spacial.annotation.more", "More fields"))}</summary>
               <div class="bubbleCardMetaRow">
                 ${statusChip}
@@ -386,6 +436,36 @@
           </article>
         `;
       }).join("");
+      body.querySelectorAll("details.bubbleCardMore[data-bubble-more-for]").forEach((details) => {
+        details.addEventListener("toggle", () => {
+          const key = strOrEmpty(details.getAttribute("data-bubble-more-for"));
+          if (!key) return;
+          if (details.open) bubbleMoreOpenIds.add(key);
+          else bubbleMoreOpenIds.delete(key);
+        });
+      });
+      const deferredThumbs = [...body.querySelectorAll("img[data-thumb-src]")];
+      if (deferredThumbs.length) {
+        let cursor = 0;
+        const hydrateChunk = () => {
+          for (let i = 0; i < 8 && cursor < deferredThumbs.length; i += 1, cursor += 1) {
+            const img = deferredThumbs[cursor];
+            if (!(img instanceof HTMLImageElement)) continue;
+            const src = strOrEmpty(img.getAttribute("data-thumb-src"));
+            if (!src) continue;
+            img.src = src;
+            img.removeAttribute("data-thumb-src");
+          }
+          if (cursor < deferredThumbs.length) {
+            window.requestAnimationFrame(hydrateChunk);
+          }
+        };
+        if (typeof window.requestIdleCallback === "function") {
+          window.requestIdleCallback(() => window.requestAnimationFrame(hydrateChunk), { timeout: 1000 });
+        } else {
+          window.setTimeout(() => window.requestAnimationFrame(hydrateChunk), 120);
+        }
+      }
     }
 
     function saveBubbleFromInputs() {
@@ -408,7 +488,7 @@
         alert(tt("spacial.alert.annotationNameRequired", "Annotation name is required."));
         return;
       }
-      const linkedCharId = upsertCharacteristicFromAnnotation(b, currentRouteProductId());
+      const linkedCharId = resolveBubbleCharacteristicLink(b, currentRouteProductId());
       if (linkedCharId) b.characteristicId = linkedCharId;
       const editIdx = bubbles.findIndex((x) => String(x.id || "") === String(getEditingBubbleId() || ""));
       const idIdx = bubbles.findIndex((x) => String(x.id || "") === String(b.id || ""));
@@ -564,7 +644,7 @@
           }
           if (!imported.length) throw new Error(tt("spacial.import.noValid.annotations", "No valid annotations found."));
           for (const b of imported) {
-            const linkedCharId = upsertCharacteristicFromAnnotation(b, currentRouteProductId());
+            const linkedCharId = resolveBubbleCharacteristicLink(b, currentRouteProductId());
             if (linkedCharId) b.characteristicId = linkedCharId;
             const idx = bubbles.findIndex((x) => String(x.id || "") === String(b.id || ""));
             if (idx >= 0) bubbles[idx] = b;
@@ -593,6 +673,7 @@
       bubbleCharacteristicOptionsHtml,
       readBubbleRowFromInputs,
       saveBubbleFromGridRow,
+      reorderBubbleInSelectedOperation,
       renderBubbleTable,
       saveBubbleFromInputs,
       importBubblesCsv,

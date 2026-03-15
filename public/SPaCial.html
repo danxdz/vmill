@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SPaCial</title>
+  <title>Router</title>
+  <link rel="icon" href="data:," />
   <style>
     :root{
       --bg:var(--vm-theme-bg, #0a1018);
@@ -45,6 +46,43 @@
     }
     .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;}
     .headTools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    .routeHeaderBar{
+      display:grid;
+      grid-template-columns:minmax(260px,1.25fr) auto;
+      gap:8px;
+      align-items:center;
+    }
+    .routeGhostFields{display:none;}
+    .compactActions{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .compactActions > button,
+    .compactActions > select,
+    .compactActions > details,
+    .compactActions > label{
+      width:auto;
+      flex:0 0 auto;
+      min-width:0;
+    }
+    .compactActions > button,
+    .compactActions > select{
+      padding:7px 10px;
+      font-size:12px;
+      min-height:0;
+    }
+    .compactActions > .grow{
+      flex:1 1 220px;
+      width:auto;
+      min-width:180px;
+    }
+    .compactActions.tight > button,
+    .compactActions.tight > select{
+      padding:6px 10px;
+      font-size:12px;
+    }
     .modeBtn{
       width:auto;
       min-width:108px;
@@ -147,6 +185,45 @@
     }
     .section > summary::-webkit-details-marker{display:none;}
     .sectionBody{padding:10px;}
+    .modalOverlay{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      background:rgba(4,8,14,.72);
+      backdrop-filter:blur(4px);
+      z-index:120;
+    }
+    .modalOverlay.show{display:flex;}
+    .modalCard{
+      width:min(1120px,100%);
+      max-height:88dvh;
+      overflow:auto;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background:linear-gradient(180deg,var(--panel),var(--panel2));
+      box-shadow:0 30px 80px rgba(0,0,0,.4);
+    }
+    .modalHead{
+      position:sticky;
+      top:0;
+      z-index:2;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:12px 14px;
+      border-bottom:1px solid color-mix(in srgb,var(--text) 12%, transparent);
+      background:color-mix(in srgb,var(--panel) 92%, transparent);
+    }
+    .modalTitle{
+      font-size:13px;
+      font-weight:800;
+      letter-spacing:.03em;
+    }
+    .modalBody{padding:12px 14px 14px;}
     .chartBox > .section:last-of-type{flex:0 0 auto;}
     canvas{width:100%;height:auto;display:block;}
     .mini{font-size:11px;color:var(--muted);}
@@ -300,6 +377,9 @@
     }
     #sectionCharsPanel{display:none !important;}
     #charLegacyEditor{display:none !important;}
+    #sectionBubblesPanel{display:none !important;}
+    #sectionBubblesPanel .bubbleLegacyForm{display:none !important;}
+    #opSpecsPanel{display:none !important;}
     .mono{
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size:11px;
@@ -329,6 +409,16 @@
       padding:0;
       margin:0;
     }
+    #opAnnLinkList input[type="checkbox"]{
+      width:auto;
+      min-width:14px;
+      padding:0;
+      margin:0;
+      border:0;
+      background:transparent;
+      box-shadow:none;
+      accent-color:var(--accent);
+    }
     .tbl tr.sel td{
       background:color-mix(in srgb,var(--accent) 16%, transparent);
     }
@@ -336,6 +426,65 @@
       white-space:nowrap;
       color:color-mix(in srgb,var(--text) 85%, transparent);
       font-size:11px;
+    }
+    .opCharMatrixWrap{
+      max-height:320px;
+      min-height:120px;
+    }
+    .opCharMatrix{
+      min-width:720px;
+      border-collapse:collapse;
+    }
+    .opCharMatrix th,
+    .opCharMatrix td{
+      border-bottom:1px solid color-mix(in srgb,var(--text) 10%, transparent);
+      padding:7px 8px;
+      text-align:left;
+      vertical-align:middle;
+      font-size:12px;
+    }
+    .opCharMatrix th{
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.03em;
+    }
+    .opCharMatrix td:first-child,
+    .opCharMatrix th:first-child{
+      min-width:280px;
+      position:sticky;
+      left:0;
+      background:color-mix(in srgb,var(--panel) 98%, transparent);
+      z-index:2;
+    }
+    .opCharMatrix .opCharOpHead{
+      min-width:120px;
+      text-align:center;
+    }
+    .opCharMatrix .opCharCell{
+      text-align:center;
+      white-space:nowrap;
+    }
+    .opCharMatrix .opCharCell input[type="checkbox"]{
+      width:auto;
+      padding:0;
+      margin:0;
+      transform:scale(1.05);
+    }
+    .opCharSourceChip{
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      margin-left:6px;
+      padding:2px 6px;
+      border-radius:999px;
+      font-size:10px;
+      border:1px solid color-mix(in srgb,var(--text) 16%, transparent);
+      color:var(--muted);
+    }
+    .opCharSourceChip.linked{
+      color:color-mix(in srgb,var(--ok) 86%, var(--text));
+      border-color:color-mix(in srgb,var(--ok) 42%, transparent);
+      background:color-mix(in srgb,var(--ok) 10%, transparent);
     }
     .annIdCell{
       display:flex;
@@ -702,9 +851,16 @@
         padding:10px;
         border-radius:12px;
       }
+      .routeHeaderBar{
+        grid-template-columns:1fr;
+      }
       .controls{
         grid-template-columns:1fr;
         gap:6px;
+      }
+      .compactActions > .grow{
+        min-width:0;
+        flex:1 1 100%;
       }
       .routeGrid{
         grid-template-columns:1fr;
@@ -734,8 +890,8 @@
   <div class="wrap">
     <div class="head">
       <div>
-        <h1 id="spacialTitle" style="margin:0;">SPaCial</h1>
-        <div class="sub" id="spacialSubtitle">Dimensional control and blueprint characteristic planning.</div>
+        <h1 id="spacialTitle" style="margin:0;">Router</h1>
+        <div class="sub" id="spacialSubtitle">Route and operation planning with linked drawings and control exports.</div>
       </div>
       <div class="headTools">
         <button id="uiModeSimpleBtn" type="button" class="modeBtn">Simple View</button>
@@ -743,47 +899,26 @@
       </div>
     </div>
     <section class="card">
-      <div class="controls">
+      <div class="routeGhostFields">
         <select id="scopeTypeSel"></select>
         <select id="scopeItemSel"></select>
         <select id="productFilterSel" class="moduleLocalScope"></select>
         <select id="stationFilterSel" class="moduleLocalScope"></select>
         <select id="jobSel" class="moduleLocalScope"></select>
-        <select id="routeSel"></select>
-        <button class="primary" id="routeNewBtn" type="button">+ Route</button>
-        <button id="routeDupBtn" type="button">Duplicate Route</button>
-        <button class="danger" id="routeDeleteBtn" type="button">Delete Route</button>
+      </div>
+      <div class="routeHeaderBar">
+        <select id="routeSel" class="grow"></select>
+        <div class="compactActions tight">
+          <button id="spcImportOpenBtn" type="button">Import</button>
+          <button class="primary" id="routeNewBtn" type="button">+ Route</button>
+          <button id="routeDupBtn" type="button">Duplicate Route</button>
+          <button class="danger" id="routeDeleteBtn" type="button">Delete Route</button>
+        </div>
       </div>
       <div class="mini" id="stateInfo" style="margin-top:8px;"></div>
       <div class="chartBox" style="margin-top:10px;">
-        <div id="routingTitle" style="font-weight:700;">Routing and Dimensional Control</div>
+        <div id="routingTitle" style="font-weight:700;">Router and Operations</div>
         <div class="mini" id="routeInfo" style="margin-top:8px;"></div>
-
-        <details class="section" id="sectionImportPanel" open>
-          <summary id="sectionImportSummary">Structured Import</summary>
-          <div class="sectionBody">
-            <div class="mini" id="spcImportHint" style="margin-top:2px;">Load structured export files, pick products, and import products, characteristics, routes, and operation annotations.</div>
-            <div class="routeGrid3" style="margin-top:8px;">
-              <button id="spcImportLoadBtn" class="primary" type="button">Load Export File</button>
-              <input id="spcImportSearchIn" type="text" placeholder="Filter imported products" />
-              <select id="spcImportProductSel"></select>
-              <button id="spcImportProductBtn" type="button">Import Selected Product</button>
-              <button id="spcImportAllBtn" type="button">Import All Products</button>
-              <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;">
-                <input id="spcImportReplaceChk" type="checkbox" style="width:auto;padding:0;" checked />
-                <span id="spcImportReplaceLbl">Replace previous imported route and characteristics</span>
-              </label>
-              <input id="spcImportFile" type="file" accept=".csv,.cap,.txt,.gam" multiple style="display:none;" />
-            </div>
-            <div class="mini" id="spcImportInfo" style="margin-top:8px;"></div>
-            <div class="mini" id="spcImportPreview" style="margin-top:4px;"></div>
-            <div class="importTreeActions">
-              <button id="spcImportSelectVisibleBtn" type="button">Select Visible</button>
-              <button id="spcImportClearVisibleBtn" type="button">Clear Visible</button>
-            </div>
-            <div class="importTree" id="spcImportTree"></div>
-          </div>
-        </details>
 
         <details class="section" id="sectionRoutePanel" open>
           <summary id="sectionRouteSummary">Route</summary>
@@ -794,7 +929,7 @@
               <input id="routeProductRefIn" type="text" placeholder="Product / Drawing ref" />
               <button id="routeSaveBtn" class="primary" type="button">Save Route</button>
             </div>
-            <div class="routeTools">
+            <div class="routeTools compactActions">
               <button id="routeResetBtn" type="button">Reload</button>
               <button id="routeExportJsonBtn" type="button">Route JSON</button>
               <button id="routeExportCsvBtn" type="button">Route CSV</button>
@@ -806,12 +941,12 @@
         <details class="section" id="sectionOpsPanel" open>
           <summary id="sectionOpsSummary">Operations</summary>
           <div class="sectionBody">
-            <div class="routeGrid3" style="margin-top:2px;">
-              <select id="routeOpSel"></select>
+            <div class="routeTools compactActions" style="margin-top:2px;">
+              <select id="routeOpSel" class="grow"></select>
               <button id="opAddBtn" class="primary" type="button">+ Operation</button>
               <button id="opDeleteBtn" class="danger" type="button">Delete Operation</button>
             </div>
-            <div class="routeTools">
+            <div class="routeTools compactActions">
               <button id="opUpBtn" type="button">Move Up</button>
               <button id="opDownBtn" type="button">Move Down</button>
             </div>
@@ -830,7 +965,7 @@
               <input id="opControlMethodIn" type="text" placeholder="Control method" />
               <input id="opNotesIn" type="text" placeholder="Operation notes" />
             </div>
-            <div class="routeTools">
+            <div class="routeTools compactActions">
               <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;">
                 <input id="opCriticalChk" type="checkbox" style="width:auto;padding:0;" />
                 <span id="opCriticalLbl">Critical operation</span>
@@ -839,23 +974,50 @@
               <button id="opOpenChronoBtn" type="button">Open Chrono Study</button>
             </div>
             <div class="chartBox" style="margin-top:10px;">
+              <div class="mini" id="opTaskHint">Operation tasks/elements (step-by-step) used for Chrono studies.</div>
+              <div class="routeTools compactActions" style="margin-top:8px;">
+                <button id="opTaskAddBtn" type="button">+ Task</button>
+              </div>
+              <div class="tableWrap" style="max-height:240px;min-height:120px;margin-top:8px;">
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th>Seq</th>
+                      <th>Task</th>
+                      <th>Type</th>
+                      <th>Notes</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="opTaskBody"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="chartBox" style="margin-top:10px;">
               <div class="mini" id="opDrawingHint">Link product drawings to this operation, then choose which master annotations belong here.</div>
-              <div class="routeTools" style="margin-top:8px;">
-                <select id="opProductDocSel"></select>
+              <div class="routeTools compactActions" style="margin-top:8px;">
+                <select id="opProductDocSel" class="grow"></select>
                 <button id="opLinkProductDocBtn" class="primary" type="button">Link Drawing</button>
                 <button id="opUnlinkDrawingBtn" class="danger" type="button">Unlink Current Drawing</button>
                 <button id="opOpenDrawingMgrBtn" type="button">Open Drawing Manager</button>
               </div>
               <div class="mini" id="opLinkedDocInfo" style="margin-top:8px;">No linked drawing selected.</div>
-              <div class="routeTools" style="margin-top:8px;">
+              <div class="routeTools compactActions" style="margin-top:8px;">
                 <button id="opAnnSelectAllBtn" type="button">Select All Drawing Annotations</button>
                 <button id="opAnnClearBtn" type="button">Clear Operation Annotations</button>
               </div>
+              <div class="routeTools compactActions" style="margin-top:8px;">
+                <input id="opAnnSearchIn" class="grow" type="text" placeholder="Filter annotations (ID, name, or spec)" />
+                <div id="opAnnCounts" class="mini mono" style="padding:8px 10px;border:1px solid var(--border);border-radius:10px;min-width:160px;text-align:center;">0/0 selected</div>
+              </div>
+              <div id="opAnnDebug" class="mini mono" style="margin-top:6px;opacity:.82;word-break:break-word;"></div>
               <div id="opAnnLinkList" class="tableWrap" style="max-height:260px;min-height:120px;margin-top:8px;"></div>
             </div>
-            <div class="chartBox" style="margin-top:10px;">
-              <div class="mini" id="opCharHint">Operation-linked specs (derived from drawing characteristics). Edit in Product Specs.</div>
+            <div class="chartBox" id="opSpecsPanel" style="margin-top:10px;">
+              <div class="mini" id="opCharHint">Specs = measurable characteristics (Nominal/LSL/USL). Derived from linked drawing marks plus manual picks.</div>
               <div id="opCharList" class="tableWrap" style="max-height:260px;min-height:120px;margin-top:8px;"></div>
+              <div class="mini" id="opCharMatrixHint" style="margin-top:8px;">Route matrix: rows are specs, columns are operations. One spec can belong to multiple operations.</div>
+              <div id="opCharMatrix" class="tableWrap opCharMatrixWrap" style="margin-top:8px;"></div>
             </div>
           </div>
         </details>
@@ -933,24 +1095,24 @@
           </div>
         </details>
 
-        <details class="section" id="sectionBubblesPanel" open>
-          <summary id="sectionBubblesSummary">Drawing Characteristics</summary>
+        <details class="section" id="sectionBubblesPanel">
+          <summary id="sectionBubblesSummary">Operation Marks</summary>
           <div class="sectionBody">
-            <div class="mini" id="bubbleSectionHint" style="margin-top:2px;">Drawing characteristics are the marks on the blueprint. Product specs are the linked measurable specs.</div>
-            <div class="routeGrid" style="margin-top:8px;">
+            <div class="mini" id="bubbleSectionHint" style="margin-top:2px;">Use Drawings to prepare the master blueprint marks. This section adjusts the linked marks used by the current route.</div>
+            <div class="routeGrid bubbleLegacyForm" style="margin-top:8px;">
               <input id="bubbleIdIn" type="text" placeholder="Drawing Characteristic ID (e.g. A01)" title="Unique ID for this drawing mark or bubble." />
               <input id="bubbleNameIn" type="text" placeholder="Drawing characteristic name" title="Name shown for this drawing characteristic." />
               <input id="bubbleNomIn" type="number" step="0.001" placeholder="Nominal" title="Nominal target value." />
               <input id="bubbleTolSpecIn" type="text" list="fitCodeList" placeholder="Tolerance spec (e.g. +0,1/0, H7)" title="Optional fit or tolerance code. Example: +0,1/0, 0/-0,05, H7, h6." />
             </div>
-            <div class="routeTools">
+            <div class="routeTools bubbleLegacyForm">
               <button id="bubbleAddRowBtn" type="button" title="Add a new empty drawing characteristic row.">+ Empty Drawing Characteristic</button>
               <button id="bubbleSaveBtn" class="primary" type="button" title="Save the current drawing characteristic form.">Save Drawing Characteristic</button>
               <button id="bubbleClearBtn" type="button" title="Clear the current drawing characteristic form.">Clear Drawing Characteristic Form</button>
               <button id="bubbleImportBtn" type="button">Import Drawing Characteristics CSV</button>
               <input id="bubbleImportFile" type="file" accept=".csv,text/csv" style="display:none;" />
             </div>
-            <details class="sectionMinor">
+            <details class="sectionMinor bubbleLegacyForm">
               <summary id="bubbleAdvancedSummary">Advanced drawing characteristic fields</summary>
               <div class="sectionMinorBody">
                 <div class="routeGrid3" style="margin-top:8px;">
@@ -979,7 +1141,7 @@
                 </div>
               </div>
             </details>
-            <div class="bubbleGridHint" id="bubbleGridHint">Click Pick or a card to load it into the editor. Put nominal + tolerance spec and SPaCial auto-calculates limits.</div>
+            <div class="bubbleGridHint" id="bubbleGridHint">Inline autosave is active. Edit fields directly in each row and changes are saved automatically.</div>
             <div class="tableWrap bubbleTableWrap">
               <div id="bubbleTableBody" class="bubbleCardList"></div>
             </div>
@@ -987,9 +1149,10 @@
         </details>
 
         <details class="section" id="sectionBlueprintPanel">
-          <summary id="sectionBlueprintSummary">Blueprint</summary>
+          <summary id="sectionBlueprintSummary">Linked Drawing</summary>
           <div class="sectionBody">
-            <div class="chartTitle" id="bubbleCanvasTitle" style="margin-top:2px;">Blueprint Characteristics</div>
+            <div class="mini" id="bubblePanelHint" style="margin-top:2px;">Master mark editing and drawing setup are managed in Drawings. Router only previews the linked drawing and exports operation outputs.</div>
+            <div class="chartTitle" id="bubbleCanvasTitle" style="margin-top:6px;">Linked Drawing Preview</div>
             <div class="routeTools toolBarCompact">
               <select id="opFileSel"></select>
               <button id="opExportFileJpgBtn" class="fileExportBtn" type="button">Export Annotated JPG</button>
@@ -1007,110 +1170,17 @@
                 <div class="viewerMoreGrid">
                   <button id="bubbleOpenBlueprintMgrBtn" type="button">Drawing Manager</button>
                   <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;">
-                    <input id="bubbleShowBoxesChk" class="inlineCheck" type="checkbox" checked />
-                    <span id="bubbleShowBoxesLbl">Boxes on viewer/export</span>
-                  </label>
-                  <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;">
                     <input id="bubblePdfIncludeImageChk" class="inlineCheck" type="checkbox" />
                     <span id="bubblePdfIncludeImageLbl">Include blueprint in PDF</span>
                   </label>
-                  <details id="bubbleDisplaySettings" style="grid-column:1 / -1;">
-                    <summary id="bubbleDisplaySettingsSummary">Display Settings</summary>
-                    <div style="padding-top:8px;display:grid;gap:8px;">
-                      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Box color</span>
-                          <input id="bubbleDisplayBoxColorIn" type="color" value="#ff6b6b" />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Bubble color</span>
-                          <input id="bubbleDisplayColorIn" type="color" value="#4dafff" />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Selected color</span>
-                          <input id="bubbleDisplaySelectedColorIn" type="color" value="#00ff8f" />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Text color</span>
-                          <input id="bubbleDisplayTextColorIn" type="color" value="#0f1724" />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Bubble size</span>
-                          <input id="bubbleDisplaySizeIn" type="range" min="6" max="44" step="1" value="14" />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Font size</span>
-                          <input id="bubbleDisplayFontSizeIn" type="range" min="6" max="36" step="1" value="12" />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Handle size</span>
-                          <input id="bubbleDisplayHandleSizeIn" type="range" min="2" max="8" step="1" value="4" />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Show box</span>
-                          <input id="bubbleDisplayShowBoxChk" class="inlineCheck" type="checkbox" checked />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Show bubble</span>
-                          <input id="bubbleDisplayShowBubbleChk" class="inlineCheck" type="checkbox" checked />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Show number</span>
-                          <input id="bubbleDisplayShowTextChk" class="inlineCheck" type="checkbox" checked />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Fill bubble</span>
-                          <input id="bubbleDisplayBubbleFillChk" class="inlineCheck" type="checkbox" checked />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Rainbow export</span>
-                          <input id="bubbleDisplayRainbowExportChk" class="inlineCheck" type="checkbox" />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Export preset</span>
-                          <select id="bubbleDisplayExportPresetSel">
-                            <option value="match">Match viewer</option>
-                            <option value="print">Print clean</option>
-                            <option value="number">Number only</option>
-                            <option value="box-number">Box + number</option>
-                            <option value="rainbow">Rainbow bubbles</option>
-                          </select>
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Export text color</span>
-                          <input id="bubbleDisplayExportTextColorIn" type="color" value="#0f1724" />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Export bubble size</span>
-                          <input id="bubbleDisplayExportSizeIn" type="range" min="6" max="44" step="1" value="14" />
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Resize pins</span>
-                          <select id="bubbleDisplayHandleModeSel">
-                            <option value="hover">Show on hover</option>
-                            <option value="always">Always show</option>
-                            <option value="never">Hide pins</option>
-                          </select>
-                        </label>
-                        <label style="display:grid;gap:4px;">
-                          <span class="mini">Preview</span>
-                          <div class="mini" id="bubbleDisplaySettingsInfo">Bubble 14px | Font 12px | Pins on hover</div>
-                        </label>
-                      </div>
-                      <div class="routeTools" style="margin-top:0;">
-                        <button data-bubble-display-preset="classic" type="button">Classic</button>
-                        <button data-bubble-display-preset="number-only" type="button">Number Only</button>
-                        <button data-bubble-display-preset="box-number" type="button">Box + Number</button>
-                        <button data-bubble-display-preset="rainbow-pdf" type="button">Rainbow PDF</button>
-                        <button id="bubbleDisplayResetBtn" type="button">Reset Display</button>
-                      </div>
-                    </div>
-                  </details>
+                  <div class="mini" style="grid-column:1 / -1;padding:8px 10px;border:1px dashed var(--border);border-radius:10px;">
+                    Drawing preview and export styles are managed in Drawing Manager.
+                  </div>
                 </div>
               </details>
             </div>
             <div class="mini" id="bubbleOcrStatus"></div>
-            <div class="mini" id="bubbleCanvasInfo">Left-drag to pan, drag box or dots to resize, Alt+drag to draw, and wheel to zoom.</div>
+            <div class="mini" id="bubbleCanvasInfo">Viewer mode: pan and zoom only. Edit marks in Drawings.</div>
             <div class="canvasWrap" id="bubbleCanvasWrap">
               <canvas id="bubbleCanvas" width="1000" height="560"></canvas>
             </div>
@@ -1118,6 +1188,38 @@
         </details>
       </div>
     </section>
+  </div>
+  <div id="spcImportModal" class="modalOverlay" aria-hidden="true">
+    <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="sectionImportSummary">
+      <div class="modalHead">
+        <div>
+          <div class="modalTitle" id="sectionImportSummary">Structured Import</div>
+          <div class="mini" id="spcImportHint" style="margin-top:4px;">Load structured export files, pick products, and import products, characteristics, routes, and operation annotations.</div>
+        </div>
+        <button id="spcImportCloseBtn" type="button">Close</button>
+      </div>
+      <div class="modalBody">
+        <div class="routeGrid3" style="margin-top:0;">
+          <button id="spcImportLoadBtn" class="primary" type="button">Load Export File</button>
+          <input id="spcImportSearchIn" type="text" placeholder="Filter imported products" />
+          <select id="spcImportProductSel"></select>
+          <button id="spcImportProductBtn" type="button">Import Selected Product</button>
+          <button id="spcImportAllBtn" type="button">Import All Products</button>
+          <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;">
+            <input id="spcImportReplaceChk" type="checkbox" style="width:auto;padding:0;" checked />
+            <span id="spcImportReplaceLbl">Replace previous imported route and characteristics</span>
+          </label>
+          <input id="spcImportFile" type="file" accept=".csv,.cap,.txt,.gam" multiple style="display:none;" />
+        </div>
+        <div class="mini" id="spcImportInfo" style="margin-top:8px;"></div>
+        <div class="mini" id="spcImportPreview" style="margin-top:4px;"></div>
+        <div class="importTreeActions">
+          <button id="spcImportSelectVisibleBtn" type="button">Select Visible</button>
+          <button id="spcImportClearVisibleBtn" type="button">Clear Visible</button>
+        </div>
+        <div class="importTree" id="spcImportTree"></div>
+      </div>
+    </div>
   </div>
   <datalist id="fitCodeList">
     <option value="H5"></option>
@@ -1139,14 +1241,14 @@
   <script src="./modules/module-lang.js"></script>
   <script src="./modules/module-data.js"></script>
   <script src="./modules/module-theme.js"></script>
-  <script src="./modules/spacial/ocr-tools.js"></script>
-  <script src="./modules/spacial/canvas-tools.js"></script>
-  <script src="./modules/spacial/canvas-editor-tools.js"></script>
-  <script src="./modules/spacial/annotations-tools.js"></script>
-  <script src="./modules/spacial/characteristics-tools.js"></script>
-  <script src="./modules/spacial/export-tools.js"></script>
-  <script src="./modules/spacial/operations-tools.js"></script>
-  <script src="./modules/spacial/product-docs-tools.js"></script>
+  <script src="./modules/drawing-shared/ocr-tools.js"></script>
+  <script src="./modules/drawing-shared/canvas-tools.js"></script>
+  <script src="./modules/blueprint-manager/canvas-editor-tools.js"></script>
+  <script src="./modules/router/operation-marks-tools.js"></script>
+  <script src="./modules/router/characteristics-tools.js"></script>
+  <script src="./modules/router/export-tools.js"></script>
+  <script src="./modules/router/operations-tools.js"></script>
+  <script src="./modules/drawing-shared/product-docs-tools.js"></script>
   <script>
     (function () {
       function applyGlobalTheme(event) {
@@ -1221,6 +1323,8 @@
       let bubbleDisplaySettings = null;
       const charGridSaveTimers = new WeakMap();
       const bubbleGridSaveTimers = new WeakMap();
+      const opTaskSaveTimers = new WeakMap();
+      let opAnnLocalWriteMuteUntil = 0;
       let refreshRaf = 0;
       function requestRefresh() {
         if (refreshRaf) return;
@@ -1230,6 +1334,12 @@
         });
       }
       const $ = (id) => document.getElementById(id);
+      function setImportModal(open) {
+        const modal = $("spcImportModal");
+        if (!modal) return;
+        modal.classList.toggle("show", !!open);
+        modal.setAttribute("aria-hidden", open ? "false" : "true");
+      }
       if (IN_HUB_WORKSPACE) {
         document.body.classList.add("hubScopeOnly");
       }
@@ -1245,20 +1355,22 @@
           const el = $(id);
           if (el) el.placeholder = tt(key, fallback);
         };
-        setTxt("spacialTitle", "spacial.title", "SPaCial");
-        setTxt("spacialSubtitle", "spacial.subtitle.annotations", "Dimensional control and blueprint characteristic planning.");
+        setTxt("spacialTitle", "spacial.title", "Router");
+        setTxt("spacialSubtitle", "spacial.subtitle.annotations", "Route and operation planning with linked drawings and control exports.");
         setTxt("uiModeSimpleBtn", "spacial.ui.simple", "Simple View");
         setTxt("uiModeFullBtn", "spacial.ui.full", "Full View");
+        setTxt("spcImportOpenBtn", "spacial.import.open", "Import");
+        setTxt("spcImportCloseBtn", "common.close", "Close");
         setTxt("routeNewBtn", "spacial.route.new", "+ Route");
         setTxt("routeDupBtn", "spacial.route.duplicate", "Duplicate Route");
         setTxt("routeDeleteBtn", "spacial.route.delete", "Delete Route");
-        setTxt("routingTitle", "spacial.routing.title", "Routing and Dimensional Control");
+        setTxt("routingTitle", "spacial.routing.title", "Router and Operations");
         setTxt("sectionImportSummary", "spacial.section.import", "Structured Import");
         setTxt("sectionRouteSummary", "spacial.section.route", "Route");
         setTxt("sectionOpsSummary", "spacial.section.operations", "Operations");
         setTxt("sectionCharsSummary", "spacial.section.characteristics", "Product Specs");
-        setTxt("sectionBubblesSummary", "spacial.section.annotations", "Drawing Characteristics");
-        setTxt("sectionBlueprintSummary", "spacial.section.blueprint", "Blueprint");
+        setTxt("sectionBubblesSummary", "spacial.section.annotations", "Operation Marks");
+        setTxt("sectionBlueprintSummary", "spacial.section.blueprint", "Linked Drawing");
         setTxt("spcImportHint", "spacial.import.structuredHint", "Load structured export files, pick products, and import products, characteristics, routes, and operation annotations.");
         setTxt("spcImportLoadBtn", "spacial.import.loadFile", "Load Export File");
         setTxt("spcImportProductBtn", "spacial.import.product", "Import Selected Product");
@@ -1277,13 +1389,16 @@
         setTxt("opSaveBtn", "spacial.op.save", "Save Operation");
         setTxt("opOpenChronoBtn", "spacial.op.openChrono", "Open Chrono Study");
         setTxt("opQuickHint", "spacial.op.quickHint", "Quick jump between operations and add annotation rows directly.");
+        setTxt("opTaskHint", "spacial.op.taskHint", "Operation tasks/elements (step-by-step) used for Chrono studies.");
+        setTxt("opTaskAddBtn", "spacial.task.add", "+ Task");
         setTxt("opDrawingHint", "spacial.op.drawingHint", "Link product drawings to this operation, then choose which master annotations belong here.");
         setTxt("opLinkProductDocBtn", "spacial.op.linkDrawing", "Link Drawing");
         setTxt("opUnlinkDrawingBtn", "spacial.op.unlinkDrawing", "Unlink Current Drawing");
         setTxt("opOpenDrawingMgrBtn", "spacial.docs.manager", "Open Drawing Manager");
         setTxt("opAnnSelectAllBtn", "spacial.op.selectAllAnnotations", "Select All Drawing Annotations");
         setTxt("opAnnClearBtn", "spacial.op.clearOperationAnnotations", "Clear Operation Annotations");
-        setTxt("opCharHint", "spacial.op.characteristicsAutoHint", "Operation-linked specs (derived from drawing characteristics). Edit in Product Specs.");
+        setTxt("opCharHint", "spacial.op.characteristicsAutoHint", "Specs = measurable characteristics (Nominal/LSL/USL). Derived from linked drawing marks plus manual picks.");
+        setTxt("opCharMatrixHint", "spacial.op.matrixHint", "Route matrix: rows are specs, columns are operations. One spec can belong to multiple operations.");
         setTxt("charSectionHint", "spacial.characteristics.hint", "Measurable spec catalog linked to the selected product.");
         setTxt("charGridAddBtn", "spacial.characteristics.new", "+ Spec");
         setTxt("charLegacySummary", "spacial.characteristics.advanced", "Advanced spec editor (legacy)");
@@ -1291,7 +1406,7 @@
         setTxt("charDeleteBtn", "spacial.characteristics.delete", "Delete");
         setTxt("charSaveBtn", "spacial.characteristics.save", "Save Spec");
         setTxt("charClearBtn", "spacial.characteristics.clear", "Clear Form");
-        setTxt("bubbleSectionHint", "spacial.annotations.title", "Drawing characteristics are the marks on the blueprint. Product specs are the linked measurable specs.");
+        setTxt("bubbleSectionHint", "spacial.annotations.title", "Use Drawings to prepare the master blueprint marks. This section adjusts the linked marks used by the current route.");
         setTxt("bubbleAdvancedSummary", "spacial.annotations.advanced", "Advanced drawing characteristic fields");
         setTxt("bubbleAddRowBtn", "spacial.annotation.newEmpty", "+ Empty Drawing Characteristic");
         setTxt("bubbleSaveBtn", "spacial.annotation.save", "Save Drawing Characteristic");
@@ -1302,11 +1417,12 @@
         setTxt("bubbleHeadName", "spacial.annotation.linkedCharacteristic", "Linked Char");
         setTxt("bubbleHeadSpec", "spacial.table.name", "Name");
         setTxt("bubbleHeadActions", "spacial.table.actions", "Actions");
-        setTxt("bubbleGridHint", "spacial.annotation.gridHint", "Click Pick or a card to load it into the editor. Drawing characteristic fields auto-save after edit.");
-        setTxt("bubbleCanvasTitle", "spacial.canvas.title.annotation", "Operation Drawing Preview");
+        setTxt("bubbleGridHint", "spacial.annotation.gridHint", "Click Pick or a card to load it into the editor. Linked mark fields auto-save after edit.");
+        setTxt("bubbleCanvasTitle", "spacial.canvas.title.annotation", "Linked Drawing Preview");
+        setTxt("bubblePanelHint", "spacial.docs.routerPreviewOnly", "Master mark editing and drawing setup are managed in Drawings. Router only previews the linked drawing and exports operation outputs.");
         setTxt("opExportFileJpgBtn", "spacial.file.exportJpg", "Export Annotated JPG");
         setTxt("opExportPdfBtn", "spacial.file.exportOpPdf", "Operation PDF");
-        setTxt("bubbleOpenBlueprintMgrBtn", "spacial.docs.manager", "Drawing Manager");
+        setTxt("bubbleOpenBlueprintMgrBtn", "spacial.docs.manager", "Edit In Drawings");
         setTxt("bubbleShowBoxesLbl", "spacial.canvas.showBoxes", "Boxes on viewer/export");
         setTxt("bubblePdfIncludeImageLbl", "spacial.pdf.includeBlueprint", "Include blueprint in PDF");
         setTxt("bubbleZoomOutBtn", "spacial.canvas.zoomOut", "-");
@@ -1315,7 +1431,7 @@
         setTxt("bubbleZoomInBtn", "spacial.canvas.zoomIn", "+");
         setTxt("bubbleFullscreenBtn", "spacial.canvas.fullscreen", "Fullscreen");
         setTxt("bubbleCanvasMoreSummary", "spacial.canvas.moreTools", "More tools");
-        setTxt("bubbleCanvasInfo", "spacial.canvas.help.annotations", "Left-drag to pan, drag box or dots to resize, Alt+drag to draw, and wheel to zoom.");
+        setTxt("bubbleCanvasInfo", "spacial.canvas.help.annotations", "Pan with left-drag, resize with box handles, Alt+drag to place a mark, and wheel to zoom.");
         setPh("routeNameIn", "spacial.routeName", "Route name");
         setPh("routeRevisionIn", "spacial.routeRev", "Revision (A, B...)");
         setPh("routeProductRefIn", "spacial.routeProductRef", "Product / Drawing ref");
@@ -1329,6 +1445,7 @@
         setPh("opFrequencyIn", "spacial.op.frequency", "Frequency (e.g. 1/30min)");
         setPh("opControlMethodIn", "spacial.op.method", "Control method");
         setPh("opNotesIn", "spacial.op.notes", "Operation notes");
+        setPh("opAnnSearchIn", "spacial.op.annotationFilter", "Filter annotations (ID, name, or spec)");
         setPh("charIdIn", "spacial.characteristics.id", "Spec ID (e.g. C01)");
         setPh("charNameIn", "spacial.characteristics.name", "Spec name");
         setPh("charNomIn", "spacial.characteristics.nominal", "Nominal");
@@ -1862,6 +1979,35 @@
         const opName = strOrEmpty(op?.name);
         return [productCode, routeName, opName].filter(Boolean).join(" - ") || opName || routeName || "Chrono Study";
       }
+      function chronoElementTypeFromTaskType(taskType = "") {
+        const type = strOrEmpty(taskType).toUpperCase();
+        if (type === "MACHINE") return "MACHINE";
+        return "HUMAN";
+      }
+      function operationTasksToChronoElements(op, previousByTaskId = new Map()) {
+        const tasks = ensureOperationTasks(op);
+        if (!tasks.length) {
+          return [{
+            id: uid("el"),
+            name: strOrEmpty(op?.name) || "Operation",
+            type: "HUMAN",
+          }];
+        }
+        return tasks.map((task, idx) => {
+          const taskId = strOrEmpty(task?.id || "");
+          const previous = taskId ? previousByTaskId.get(taskId) : null;
+          return {
+            id: strOrEmpty(previous?.id) || uid("el"),
+            name: strOrEmpty(task?.name) || `${tt("spacial.task.default", "Task")} ${idx + 1}`,
+            type: chronoElementTypeFromTaskType(task?.type),
+            meta: {
+              ...(previous?.meta && typeof previous.meta === "object" ? previous.meta : {}),
+              operationTaskId: taskId,
+              operationTaskSeq: Number(task?.seq || 0) || 0,
+            },
+          };
+        });
+      }
       function openChronoStudyForOperation() {
         if (!routePlan) return;
         const op = operationById(selectedOpId);
@@ -1889,13 +2035,7 @@
             stationId,
             allowancePct: 12,
             ratingPct: 100,
-            elements: [
-              {
-                id: uid("el"),
-                name: strOrEmpty(op.name) || "Operation",
-                type: "HUMAN",
-              },
-            ],
+            elements: operationTasksToChronoElements(op),
             cycles: [],
             categoryIds: [],
             status: "active",
@@ -1923,12 +2063,16 @@
             operationSeq: Number(op.seq || 0) || 0,
           };
           if (!Array.isArray(study.elements)) study.elements = [];
-          if (!study.elements.length) {
-            study.elements.push({
-              id: uid("el"),
-              name: strOrEmpty(op.name) || "Operation",
-              type: "HUMAN",
-            });
+          const hasCycles = Array.isArray(study.cycles) && study.cycles.length > 0;
+          if (!hasCycles) {
+            const previousByTaskId = new Map(
+              study.elements
+                .map((el) => [strOrEmpty(el?.meta?.operationTaskId || ""), el])
+                .filter(([taskId]) => !!taskId)
+            );
+            study.elements = operationTasksToChronoElements(op, previousByTaskId);
+          } else if (!study.elements.length) {
+            study.elements = operationTasksToChronoElements(op);
           }
         }
         state.activeProductId = productId || state.activeProductId || "";
@@ -3273,6 +3417,9 @@
             bubbles,
           }, 0);
           const characteristicIdsForOp = [...new Set(bubbles.map((bubble) => String(bubble?.characteristicId || "")).filter(Boolean))];
+          const sourceTasks = Array.isArray(sourceOp?.tasks)
+            ? sourceOp.tasks
+            : (Array.isArray(sourceOp?.steps) ? sourceOp.steps : []);
           return normalizeOperation({
             id: uid("op"),
             seq: Number(sourceOp?.seq || (opIdx + 1) * 10),
@@ -3286,6 +3433,7 @@
             critical: false,
             notes: sourceOp?.description || "",
             characteristicIds: characteristicIdsForOp,
+            tasks: sourceTasks,
             files: [opFile],
           }, opIdx);
         });
@@ -3524,15 +3672,176 @@
         }
         return out;
       }
+      function ensureOpManualCharacteristicRefs(op) {
+        if (!op || typeof op !== "object") return [];
+        if (!Array.isArray(op.manualCharacteristicIds)) {
+          op.manualCharacteristicIds = [];
+          return op.manualCharacteristicIds;
+        }
+        op.manualCharacteristicIds = normalizeIdList(op.manualCharacteristicIds);
+        return op.manualCharacteristicIds;
+      }
       function syncOperationCharacteristicIdsFromBubbles(op) {
         if (!op || typeof op !== "object") return [];
-        const nextIds = deriveOperationCharacteristicIdsFromBubbles(op);
-        op.characteristicIds = normalizeIdList(nextIds);
+        const derivedIds = deriveOperationCharacteristicIdsFromBubbles(op);
+        const manualIds = ensureOpManualCharacteristicRefs(op);
+        const nextIds = normalizeIdList([...derivedIds, ...manualIds]);
+        op.characteristicIds = nextIds;
         return op.characteristicIds;
       }
       function annotationCountForOperation(op) {
         if (!op || typeof op !== "object") return 0;
         return ensureOperationFiles(op).reduce((acc, file) => acc + (Array.isArray(file?.bubbles) ? file.bubbles.length : 0), 0);
+      }
+      function normalizeOperationTask(raw, idx = 0) {
+        const src = raw && typeof raw === "object" ? raw : {};
+        const seqNum = Number(src.seq ?? src.order ?? src.step ?? src.position);
+        const name = strOrEmpty(src.name || src.label || src.title || src.description);
+        const typeRaw = strOrEmpty(src.type || src.kind || src.mode).toUpperCase();
+        const type = (typeRaw === "MACHINE" || typeRaw === "WAIT") ? typeRaw : "HUMAN";
+        return {
+          id: strOrEmpty(src.id) || uid("task"),
+          seq: Number.isFinite(seqNum) ? seqNum : ((idx + 1) * 10),
+          name: name || `${tt("spacial.task.default", "Task")} ${idx + 1}`,
+          type,
+          notes: strOrEmpty(src.notes || src.note || ""),
+        };
+      }
+      function ensureOperationTasks(op) {
+        if (!op || typeof op !== "object") return [];
+        const source = Array.isArray(op.tasks)
+          ? op.tasks
+          : (Array.isArray(op.elements) ? op.elements : []);
+        op.tasks = source.map((task, idx) => normalizeOperationTask(task, idx));
+        op.tasks.sort((a, b) => Number(a?.seq || 0) - Number(b?.seq || 0));
+        return op.tasks;
+      }
+      function operationTaskTypeOptionsHtml(selectedType = "HUMAN") {
+        const wanted = strOrEmpty(selectedType).toUpperCase() || "HUMAN";
+        const rows = [
+          { value: "HUMAN", label: tt("spacial.task.type.human", "Human") },
+          { value: "MACHINE", label: tt("spacial.task.type.machine", "Machine") },
+          { value: "WAIT", label: tt("spacial.task.type.wait", "Wait") },
+        ];
+        return rows.map((row) => `<option value="${row.value}"${row.value === wanted ? " selected" : ""}>${escHtml(row.label)}</option>`).join("");
+      }
+      function renderOperationTaskList() {
+        const body = $("opTaskBody");
+        if (!body) return;
+        const op = operationById(selectedOpId);
+        if (!op) {
+          body.innerHTML = `<tr><td colspan="5" class="mini">${escHtml(tt("spacial.none.operation", "Select or create an operation first."))}</td></tr>`;
+          return;
+        }
+        const tasks = ensureOperationTasks(op);
+        if (!tasks.length) {
+          body.innerHTML = `<tr><td colspan="5" class="mini">${escHtml(tt("spacial.task.none", "No tasks yet for this operation."))}</td></tr>`;
+          return;
+        }
+        body.innerHTML = tasks.map((task, idx) => `
+          <tr data-op-task-row="${idx}" data-op-task-id="${escHtml(String(task.id || ""))}">
+            <td><input data-op-task-field="seq" type="number" step="1" value="${escHtml(task.seq == null ? "" : task.seq)}" /></td>
+            <td><input data-op-task-field="name" type="text" value="${escHtml(task.name || "")}" /></td>
+            <td><select data-op-task-field="type">${operationTaskTypeOptionsHtml(task.type)}</select></td>
+            <td><input data-op-task-field="notes" type="text" value="${escHtml(task.notes || "")}" /></td>
+            <td class="cellActions">
+              <button class="cellAction" data-op-task-up="${escHtml(String(task.id || ""))}" type="button">↑</button>
+              <button class="cellAction" data-op-task-down="${escHtml(String(task.id || ""))}" type="button">↓</button>
+              <button class="cellAction danger" data-op-task-del="${escHtml(String(task.id || ""))}" type="button">${escHtml(tt("spacial.delete", "Delete"))}</button>
+            </td>
+          </tr>
+        `).join("");
+      }
+      function saveOperationTaskRow(row, options = {}) {
+        if (!routePlan || !row) return false;
+        const op = operationById(selectedOpId);
+        if (!op) return false;
+        const tasks = ensureOperationTasks(op);
+        const idx = Number(row.getAttribute("data-op-task-row"));
+        if (!Number.isFinite(idx) || idx < 0 || idx >= tasks.length) return false;
+        const prev = tasks[idx];
+        const readVal = (field) => strOrEmpty(row.querySelector(`[data-op-task-field="${field}"]`)?.value || "");
+        const seqNum = Number(readVal("seq"));
+        const next = normalizeOperationTask({
+          ...prev,
+          seq: Number.isFinite(seqNum) ? seqNum : prev.seq,
+          name: readVal("name") || prev.name,
+          type: readVal("type") || prev.type,
+          notes: readVal("notes"),
+        }, idx);
+        if (!strOrEmpty(next.name)) {
+          if (!options?.silent) alert(tt("spacial.task.nameRequired", "Task name is required."));
+          return false;
+        }
+        tasks[idx] = next;
+        tasks.sort((a, b) => Number(a?.seq || 0) - Number(b?.seq || 0));
+        op.tasks = tasks;
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+        return true;
+      }
+      function focusOperationTaskName(taskId = "") {
+        const safeId = String(taskId || "");
+        if (!safeId) return;
+        const row = document.querySelector(`[data-op-task-id="${CSS.escape(safeId)}"]`);
+        if (!row) return;
+        const input = row.querySelector('[data-op-task-field="name"]');
+        if (input && typeof input.focus === "function") {
+          input.focus();
+          if (typeof input.select === "function") input.select();
+        }
+      }
+      function addTaskToSelectedOperation(options = {}) {
+        if (!routePlan) return null;
+        const op = operationById(selectedOpId);
+        if (!op) return null;
+        const tasks = ensureOperationTasks(op);
+        const maxSeq = tasks.reduce((acc, task) => Math.max(acc, Number(task?.seq || 0)), 0);
+        const next = normalizeOperationTask({
+          seq: maxSeq + 10,
+          name: `${tt("spacial.task.default", "Task")} ${tasks.length + 1}`,
+          type: "HUMAN",
+          notes: "",
+        }, tasks.length);
+        tasks.push(next);
+        tasks.sort((a, b) => Number(a?.seq || 0) - Number(b?.seq || 0));
+        op.tasks = tasks;
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+        if (options?.focus !== false) setTimeout(() => focusOperationTaskName(next.id), 0);
+        return next;
+      }
+      function deleteOperationTask(taskId = "") {
+        if (!routePlan) return false;
+        const op = operationById(selectedOpId);
+        const wanted = strOrEmpty(taskId);
+        if (!op || !wanted) return false;
+        const tasks = ensureOperationTasks(op);
+        const next = tasks.filter((task) => String(task?.id || "") !== wanted);
+        if (next.length === tasks.length) return false;
+        op.tasks = next;
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+        return true;
+      }
+      function moveOperationTask(taskId = "", dir = 0) {
+        if (!routePlan) return false;
+        const op = operationById(selectedOpId);
+        const wanted = strOrEmpty(taskId);
+        if (!op || !wanted) return false;
+        const tasks = ensureOperationTasks(op);
+        const idx = tasks.findIndex((task) => String(task?.id || "") === wanted);
+        if (idx < 0) return false;
+        const target = idx + Number(dir || 0);
+        if (target < 0 || target >= tasks.length) return false;
+        const tmp = tasks[idx];
+        tasks[idx] = tasks[target];
+        tasks[target] = tmp;
+        tasks.forEach((task, i) => { task.seq = (i + 1) * 10; });
+        op.tasks = tasks;
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+        return true;
       }
       function focusBubbleRowInput(bubbleId, field = "name") {
         const safeId = String(bubbleId || "");
@@ -3591,13 +3900,10 @@
       }
       function ensureOpCharacteristicRefs(op) {
         if (!op || typeof op !== "object") return [];
-        const base = normalizeIdList(op.characteristicIds);
-        if (base.length) {
-          op.characteristicIds = base;
-          return base;
-        }
-        const fromLegacy = normalizeIdList(op.characteristics);
-        op.characteristicIds = fromLegacy;
+        ensureOpManualCharacteristicRefs(op);
+        const derived = deriveOperationCharacteristicIdsFromBubbles(op);
+        const manual = normalizeIdList(op.manualCharacteristicIds);
+        op.characteristicIds = normalizeIdList([...derived, ...manual]);
         return op.characteristicIds;
       }
       function normalizeBubble(raw, idx = 0) {
@@ -3624,6 +3930,8 @@
           id: id || `B${String(idx + 1).padStart(3, "0")}`,
           linkId: strOrEmpty(raw?.linkId || raw?.operationLinkId || ""),
           masterAnnotationId: strOrEmpty(raw?.masterAnnotationId || raw?.productAnnotationId || raw?.masterId || ""),
+          coordSpace: strOrEmpty(raw?.coordSpace || raw?.coordinateSpace || ""),
+          bubbleOffsetSpace: strOrEmpty(raw?.bubbleOffsetSpace || ""),
           characteristicId,
           name: name || `Dimension ${idx + 1}`,
           nominal: numOrNull(raw?.nominal),
@@ -3705,6 +4013,19 @@
         const wantedId = String(selectedOpFileId || targetOp.activeFileId || "");
         let file = files.find((f) => String(f.id || "") === wantedId) || files[0] || null;
         if (file) {
+          if (!strOrEmpty(file.dataUrl)) {
+            const linkedDocId = strOrEmpty(file.productDocumentId || "");
+            const linkedDoc = linkedDocId
+              ? (productDocumentById(linkedDocId, currentRouteProductId()) || productDocumentById(linkedDocId, ""))
+              : null;
+            const fallbackDataUrl = strOrEmpty(linkedDoc?.previewDataUrl || linkedDoc?.dataUrl || file.sourceDataUrl || "");
+            if (fallbackDataUrl) {
+              file.dataUrl = fallbackDataUrl;
+              if (!strOrEmpty(file.mime)) {
+                file.mime = strOrEmpty(linkedDoc?.previewMime || linkedDoc?.mime || file.sourceMime || (isImageDataUrl(fallbackDataUrl) ? "image/*" : ""));
+              }
+            }
+          }
           selectedOpFileId = String(file.id || "");
           targetOp.activeFileId = selectedOpFileId;
           materializeOperationFileBubbles(targetOp, file);
@@ -3960,7 +4281,7 @@
         const previewDataUrl = strOrEmpty(doc.previewDataUrl || doc.dataUrl);
         const previewMime = strOrEmpty(doc.previewMime || doc.mime);
         if (!previewDataUrl || /^data:application\/pdf/i.test(previewDataUrl) || /pdf/i.test(previewMime || doc.mime || "") && !/^data:image\//i.test(previewDataUrl)) {
-          if (!options?.silent) alert(tt("spacial.docs.previewRequired", "This product document needs an image preview before SPaCial can load annotations on top of it."));
+          if (!options?.silent) alert(tt("spacial.docs.previewRequired", "This product document needs an image preview before Router can load linked marks on top of it."));
           return null;
         }
         if (!opFile) {
@@ -3979,14 +4300,15 @@
         opFile.sourceName = doc.sourceName || doc.name || opFile.sourceName;
         opFile.sourcePage = Number(doc.sourcePage || 0) || 0;
         const masters = listProductAnnotations(productId, doc.id);
-        opFile.bubbles = masters.map((row, idx) => productAnnotationToBubble(row, idx));
+        const preloadMasters = options?.preloadMasters === true;
+        opFile.bubbles = preloadMasters ? masters.map((row, idx) => productAnnotationToBubble(row, idx)) : [];
         syncOperationCharacteristicIdsFromBubbles(op);
         selectedCanvasBubbleId = opFile.bubbles[0]?.id || "";
         writeRoutePlan(routePlan);
         renderRoutingPanel();
         setOcrStatus("ok", tt("spacial.docs.importDone", "Loaded product doc \"{name}\" with {count} master annotation(s).", {
           name: doc.name || tt("spacial.file.default", "File"),
-          count: masters.length,
+          count: preloadMasters ? masters.length : 0,
         }));
         return doc;
       }
@@ -4023,7 +4345,11 @@
         const files = Array.isArray(raw?.files) ? raw.files.map((f, i) => normalizeOperationFile(f, i)) : [];
         const legacyBubbles = Array.isArray(raw?.bubbles) ? raw.bubbles.map((b, i) => normalizeBubble(b, i)) : [];
         const rawCharIds = normalizeIdList(raw?.characteristicIds);
-        const legacyCharIds = normalizeIdList(raw?.characteristics);
+        const manualCharIds = normalizeIdList(raw?.manualCharacteristicIds);
+        const manualOrMigratedIds = manualCharIds.length ? manualCharIds : rawCharIds;
+        const rawTasks = Array.isArray(raw?.tasks)
+          ? raw.tasks
+          : (Array.isArray(raw?.elements) ? raw.elements : []);
         const op = {
           id: strOrEmpty(raw?.id) || uid("op"),
           seq: Number.isFinite(seqNum) ? seqNum : ((idx + 1) * 10),
@@ -4037,11 +4363,14 @@
           critical: !!raw?.critical,
           notes: strOrEmpty(raw?.notes),
           activeFileId: strOrEmpty(raw?.activeFileId),
-          characteristicIds: rawCharIds.length ? rawCharIds : legacyCharIds,
+          characteristicIds: rawCharIds,
+          manualCharacteristicIds: manualOrMigratedIds,
+          tasks: rawTasks.map((task, taskIdx) => normalizeOperationTask(task, taskIdx)),
           files,
           bubbles: legacyBubbles,
         };
         ensureOperationFiles(op);
+        ensureOperationTasks(op);
         ensureOpCharacteristicRefs(op);
         return op;
       }
@@ -4305,7 +4634,7 @@
           operations: [],
         }, explicitJob, station, product);
       }
-      function writeRoutePlan(plan) {
+      function writeRoutePlan(plan, options = {}) {
         if (!plan || !window.VMillData?.upsertRecord) return;
         const state = readState();
         const scope = currentScope(state);
@@ -4323,7 +4652,27 @@
           || null;
         plan.id = nextRouteId;
         plan.productId = strOrEmpty(plan.productId || targetProduct?.id || targetJob?.productId);
-        syncRoutePlanOperationAnnotationLinks(plan, nextRouteId, plan.productId);
+        const linkScope = strOrEmpty(options?.linkScope || "all").toLowerCase();
+        if (linkScope === "current") {
+          const opId = strOrEmpty(options?.operationId || selectedOpId);
+          const fileId = strOrEmpty(options?.fileId || selectedOpFileId);
+          const scopedOp = (plan.operations || []).find((row) => String(row?.id || "") === opId) || null;
+          if (scopedOp) {
+            const scopedFiles = ensureOperationFiles(scopedOp);
+            const filesToSync = fileId
+              ? scopedFiles.filter((row) => String(row?.id || "") === fileId)
+              : scopedFiles;
+            if (filesToSync.length) {
+              filesToSync.forEach((opFile) => persistOperationFileLinks(scopedOp, opFile, nextRouteId, plan.productId));
+            } else {
+              syncRoutePlanOperationAnnotationLinks(plan, nextRouteId, plan.productId);
+            }
+          } else {
+            syncRoutePlanOperationAnnotationLinks(plan, nextRouteId, plan.productId);
+          }
+        } else if (linkScope !== "none") {
+          syncRoutePlanOperationAnnotationLinks(plan, nextRouteId, plan.productId);
+        }
         const normalized = normalizeRoutePlan(
           {
             ...plan,
@@ -4345,7 +4694,10 @@
       function operationById(opId) {
         if (!routePlan || !Array.isArray(routePlan.operations)) return null;
         const op = routePlan.operations.find((x) => String(x.id || "") === String(opId || "")) || null;
-        if (op) ensureOperationFiles(op);
+        if (op) {
+          ensureOperationFiles(op);
+          ensureOperationTasks(op);
+        }
         return op;
       }
       function refreshRouteInfo() {
@@ -4372,7 +4724,9 @@
         clearBubbleForm,
         readBubbleForm,
         applyBubbleToleranceForm,
+        applyBubbleRowTolerance,
         saveBubbleFromGridRow,
+        reorderBubbleInSelectedOperation,
         renderBubbleTable,
         saveBubbleFromInputs,
         importBubblesCsv,
@@ -4420,7 +4774,10 @@
         selectedProductDocumentForUi,
         ensureOperationFileForProductDocument,
         operationFileForProductDocument,
+        setAnnotationFilterQuery,
+        getAnnotationFilterQuery,
         syncSelectedMasterAnnotationsToCurrentFile,
+        reorderSelectedMasterForCurrentFile,
         renderOperationDrawingLinks,
         createNewRoute,
         addOperation,
@@ -4448,6 +4805,7 @@
         setSelectedOpId: (value) => { selectedOpId = strOrEmpty(value); },
         getSelectedOpFileId: () => selectedOpFileId,
         setSelectedOpFileId: (value) => { selectedOpFileId = strOrEmpty(value); },
+        getSelectedCanvasBubbleId: () => selectedCanvasBubbleId,
         setSelectedCanvasBubbleId: (value) => { selectedCanvasBubbleId = strOrEmpty(value); },
         getSelectedProductDocUiValue: () => $("opProductDocSel")?.value || "",
         createRouteFromScope,
@@ -4462,7 +4820,7 @@
         renderBubbleCharacteristicSelect,
         clearBubbleForm,
         renderBubbleTable,
-        syncCanvasFromRoute,
+        syncCanvasFromRoute: (...args) => syncCanvasFromRoute(...args),
         refresh,
         numOrNull,
         sanitizeRouteName,
@@ -4470,6 +4828,72 @@
         sanitizeStructuredMarker,
         uid,
       });
+      function updateOperationAnnotationUiMeta() {
+        const host = $("opAnnLinkList");
+        const counts = $("opAnnCounts");
+        const total = host ? host.querySelectorAll('input[data-op-ann-link]').length : 0;
+        const selected = host ? host.querySelectorAll('input[data-op-ann-link]:checked').length : 0;
+        const visible = total;
+        if (counts) {
+          const filtered = !!strOrEmpty(getAnnotationFilterQuery?.() || "");
+          counts.textContent = filtered
+            ? `${selected}/${total} selected · ${visible} shown`
+            : `${selected}/${total} selected`;
+        }
+      }
+      function operationAnnotationDebugSnapshot() {
+        const host = $("opAnnLinkList");
+        const op = operationById(selectedOpId);
+        const opFile = selectedOperationFile(op);
+        const productId = currentRouteProductId();
+        const docId = strOrEmpty(host?.dataset?.docId || $("opProductDocSel")?.value || opFile?.productDocumentId || "");
+        const checkedIds = host
+          ? [...host.querySelectorAll('input[data-op-ann-link]:checked')]
+            .map((el) => strOrEmpty(el.getAttribute("data-op-ann-link")))
+            .filter(Boolean)
+          : [];
+        const bubbleMasterIds = Array.isArray(opFile?.bubbles)
+          ? opFile.bubbles.map((b) => strOrEmpty(b?.masterAnnotationId || "")).filter(Boolean)
+          : [];
+        const linkMasterIds = listOperationAnnotationLinks({
+          productId,
+          routeId: strOrEmpty(routePlan?.id || ""),
+          operationId: strOrEmpty(op?.id || ""),
+          operationFileId: strOrEmpty(opFile?.id || ""),
+          productDocumentId: docId,
+        }).map((row) => strOrEmpty(row?.masterAnnotationId || "")).filter(Boolean);
+        return {
+          opId: strOrEmpty(op?.id || ""),
+          fileId: strOrEmpty(opFile?.id || ""),
+          docId,
+          checkedIds,
+          bubbleMasterIds,
+          linkMasterIds,
+        };
+      }
+      function renderOperationAnnotationDebug(tag = "") {
+        const el = $("opAnnDebug");
+        if (!el) return;
+        const debugEnabled = String(localStorage.getItem("vmill:router:ann-debug") || "").trim() === "1";
+        if (!debugEnabled) {
+          el.textContent = "";
+          el.style.display = "none";
+          return;
+        }
+        el.style.display = "";
+        const snap = operationAnnotationDebugSnapshot();
+        const checked = snap.checkedIds.length;
+        const bubbles = snap.bubbleMasterIds.length;
+        const links = snap.linkMasterIds.length;
+        const warn = (checked !== bubbles || checked !== links) ? " mismatch!" : "";
+        el.textContent = `[ann-debug${tag ? `:${tag}` : ""}] doc=${snap.docId || "-"} file=${snap.fileId || "-"} op=${snap.opId || "-"} checked=${checked} bubbles=${bubbles} links=${links}${warn}`;
+      }
+      function renderOperationDrawingLinksUi() {
+        setAnnotationFilterQuery?.($("opAnnSearchIn")?.value || "");
+        renderOperationDrawingLinks();
+        updateOperationAnnotationUiMeta();
+        renderOperationAnnotationDebug("render");
+      }
       const {
         nextCharacteristicId,
         clearCharacteristicForm,
@@ -4564,7 +4988,7 @@
       }
       function operationCharacteristicIdsFromUi() {
         const op = operationById(selectedOpId);
-        return op ? deriveOperationCharacteristicIdsFromBubbles(op) : [];
+        return op ? ensureOpCharacteristicRefs(op) : [];
       }
       function renderOperationQuickList() {
         const wrap = $("opQuickList");
@@ -4578,10 +5002,11 @@
           const isSel = String(op?.id || "") === String(selectedOpId || "");
           const fileCount = ensureOperationFiles(op).length;
           const annCount = annotationCountForOperation(op);
+          const taskCount = ensureOperationTasks(op).length;
           return `
             <div class="opQuickCard ${isSel ? "sel" : ""}">
               <div class="opQuickTitle">${escHtml(`${op?.seq || "--"} - ${op?.name || tt("spacial.section.operations", "Operations")}`)}</div>
-              <div class="opQuickMeta">${escHtml(tt("spacial.op.quickMeta", "{files} file(s) | {anns} annotation(s)", { files: fileCount, anns: annCount }))}</div>
+              <div class="opQuickMeta">${escHtml(tt("spacial.op.quickMeta2", "{files} drawing(s) | {anns} annotation(s) | {tasks} task(s)", { files: fileCount, anns: annCount, tasks: taskCount }))}</div>
               <div class="opQuickMeta">${escHtml(strOrEmpty(op?.stationCode || op?.workstation || op?.controlMethod || tt("spacial.op.quickNoMeta", "No station/method yet")))}</div>
               <div class="opQuickActions">
                 <button type="button" data-op-open="${escHtml(String(op?.id || ""))}">${escHtml(tt("spacial.op.openAnnotations", "Open"))}</button>
@@ -4602,10 +5027,14 @@
         const productId = currentRouteProductId();
         const rows = listProductCharacteristics(productId);
         const byId = new Map(rows.map((x) => [String(x.id || ""), x]));
-        const linkedIds = deriveOperationCharacteristicIdsFromBubbles(op);
-        op.characteristicIds = linkedIds.slice();
-        if (!linkedIds.length) {
-          wrap.innerHTML = `<div class="mini">${tt("spacial.op.noLinkedCharacteristics", "No linked characteristics yet. Save/import annotations first.")}</div>`;
+        const derivedIds = deriveOperationCharacteristicIdsFromBubbles(op);
+        const derivedSet = new Set(derivedIds.map((x) => String(x || "")));
+        const manualIds = ensureOpManualCharacteristicRefs(op).filter((cid) => !derivedSet.has(String(cid || "")));
+        const allIds = normalizeIdList([...derivedIds, ...manualIds]);
+        op.characteristicIds = allIds.slice();
+
+        if (!allIds.length) {
+          wrap.innerHTML = `<div class="mini">${tt("spacial.op.noLinkedCharacteristics", "No linked specs yet. Link drawing marks or assign specs in the matrix below.")}</div>`;
           return;
         }
         const bubbleCounts = new Map();
@@ -4616,22 +5045,140 @@
             bubbleCounts.set(cid, Number(bubbleCounts.get(cid) || 0) + 1);
           }
         }
-        const totalAnnotations = linkedIds.reduce((acc, cid) => acc + Number(bubbleCounts.get(String(cid || "")) || 0), 0);
-        const unresolved = linkedIds.filter((cid) => !byId.get(String(cid || ""))).length;
-        const preview = linkedIds
-          .slice(0, 6)
-          .map((cid) => {
-            const id = String(cid || "");
-            const ch = byId.get(id);
-            return ch ? `${ch.id || id} - ${ch.name || ""}` : `${id} (${tt("spacial.annotation.legacy", "legacy")})`;
-          })
-          .join(" | ");
-        const extra = linkedIds.length > 6 ? ` | +${linkedIds.length - 6}` : "";
+        const totalAnnotations = allIds.reduce((acc, cid) => acc + Number(bubbleCounts.get(String(cid || "")) || 0), 0);
+        const unresolved = allIds.filter((cid) => !byId.get(String(cid || ""))).length;
+        const listRows = allIds.map((cid) => {
+          const id = String(cid || "");
+          const ch = byId.get(id);
+          const source = derivedSet.has(id)
+            ? tt("spacial.op.charSourceLinked", "linked mark")
+            : tt("spacial.op.charSourceManual", "manual");
+          const sourceClass = derivedSet.has(id) ? "ok" : "";
+          const annCount = Number(bubbleCounts.get(id) || 0);
+          const removeBtn = derivedSet.has(id)
+            ? ""
+            : `<button type="button" data-op-char-remove="${escHtml(id)}">${escHtml(tt("spacial.remove", "Remove"))}</button>`;
+          return `
+            <div class="importTreeRow" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-bottom:1px solid color-mix(in srgb,var(--text) 8%, transparent);">
+              <div style="min-width:0;">
+                <div>${escHtml(ch ? `${ch.id || id} - ${ch.name || ""}` : `${id} (${tt("spacial.annotation.notInCatalog", "not in Product Specs")})`)}</div>
+                <div class="mini ${sourceClass}">${escHtml(source)}${annCount ? ` | ${annCount} ${tt("spacial.table.annotation", "Annotation")}` : ""}</div>
+              </div>
+              ${removeBtn}
+            </div>
+          `;
+        }).join("");
         wrap.innerHTML = `
-          <div class="mini">${escHtml(tt("spacial.op.linkedSummary", "{chars} linked characteristic(s) from {ann} annotation(s).", { chars: linkedIds.length, ann: totalAnnotations }))}</div>
-          <div class="mini" style="margin-top:6px;">${escHtml(preview + extra)}</div>
-          ${unresolved ? `<div class="mini" style="margin-top:6px;">${escHtml(tt("spacial.op.linkedLegacyNotice", "{count} linked item(s) are legacy IDs not in product catalog.", { count: unresolved }))}</div>` : ""}
+          <div class="mini">${escHtml(tt("spacial.op.linkedSummary", "{chars} operation spec(s) from {ann} annotation(s).", { chars: allIds.length, ann: totalAnnotations }))}</div>
+          <div class="tableWrap" style="max-height:220px;min-height:90px;margin-top:8px;">${listRows}</div>
+          ${unresolved ? `<div class="mini" style="margin-top:6px;">${escHtml(tt("spacial.op.linkedLegacyNotice", "{count} linked item(s) are not in Product Specs.", { count: unresolved }))}</div>` : ""}
         `;
+      }
+      function renderOperationCharacteristicMatrix() {
+        const host = $("opCharMatrix");
+        if (!host) return;
+        if (!routePlan) {
+          host.innerHTML = `<div class="mini">${tt("spacial.none.routeSelected", "Select or create a route.")}</div>`;
+          return;
+        }
+        const ops = Array.isArray(routePlan?.operations) ? routePlan.operations : [];
+        if (!ops.length) {
+          host.innerHTML = `<div class="mini">${tt("spacial.none.operations", "No operations")}</div>`;
+          return;
+        }
+        const productId = currentRouteProductId();
+        const rows = listProductCharacteristics(productId);
+        if (!rows.length) {
+          host.innerHTML = `<div class="mini">${tt("spacial.op.noCharacteristicsOnProduct", "No product specs yet. Create specs in Product Specs first.")}</div>`;
+          return;
+        }
+        const derivedByOp = new Map();
+        const manualByOp = new Map();
+        for (const op of ops) {
+          const opId = String(op?.id || "");
+          derivedByOp.set(opId, new Set(deriveOperationCharacteristicIdsFromBubbles(op).map((x) => String(x || ""))));
+          manualByOp.set(opId, new Set(ensureOpManualCharacteristicRefs(op).map((x) => String(x || ""))));
+        }
+        const head = ops.map((op) => {
+          const opId = String(op?.id || "");
+          const isSel = opId === String(selectedOpId || "") ? " style=\"color:var(--accent);\"" : "";
+          return `<th class="opCharOpHead"${isSel}>${escHtml(`${op?.seq || "--"} ${op?.name || tt("spacial.section.operations", "Operations")}`)}</th>`;
+        }).join("");
+        const body = rows.map((ch) => {
+          const cid = String(ch?.id || "");
+          const cells = ops.map((op) => {
+            const opId = String(op?.id || "");
+            const derivedSet = derivedByOp.get(opId) || new Set();
+            const manualSet = manualByOp.get(opId) || new Set();
+            const isDerived = derivedSet.has(cid);
+            const isManual = manualSet.has(cid);
+            const checked = isDerived || isManual;
+            const disabled = isDerived ? " disabled" : "";
+            const reason = isDerived
+              ? tt("spacial.op.matrixLinkedByMark", "Linked by drawing mark. Remove mark link to unassign.")
+              : tt("spacial.op.matrixManualPick", "Manual operation assignment.");
+            const chip = isDerived
+              ? `<span class="opCharSourceChip linked">${escHtml(tt("spacial.op.charSourceLinked", "linked mark"))}</span>`
+              : (isManual ? `<span class="opCharSourceChip">${escHtml(tt("spacial.op.charSourceManual", "manual"))}</span>` : "");
+            return `
+              <td class="opCharCell">
+                <input
+                  type="checkbox"
+                  data-op-char-matrix-op="${escHtml(opId)}"
+                  data-op-char-matrix-char="${escHtml(cid)}"
+                  title="${escHtml(reason)}"
+                  ${checked ? "checked" : ""}${disabled}
+                />
+                ${chip}
+              </td>
+            `;
+          }).join("");
+          return `
+            <tr>
+              <td>
+                <strong>${escHtml(ch?.id || "--")}</strong>
+                <span class="mini">${escHtml(ch?.name || "")}</span>
+              </td>
+              ${cells}
+            </tr>
+          `;
+        }).join("");
+        host.innerHTML = `
+          <table class="tbl opCharMatrix">
+            <thead>
+              <tr>
+                <th>${escHtml(tt("spacial.characteristics.name", "Characteristic"))}</th>
+                ${head}
+              </tr>
+            </thead>
+            <tbody>${body}</tbody>
+          </table>
+        `;
+      }
+      function removeManualCharacteristicFromSelectedOperation(charId = "") {
+        const op = operationById(selectedOpId);
+        const wanted = strOrEmpty(charId);
+        if (!op || !wanted) return false;
+        const manual = ensureOpManualCharacteristicRefs(op).filter((id) => String(id || "") !== wanted);
+        op.manualCharacteristicIds = normalizeIdList(manual);
+        syncOperationCharacteristicIdsFromBubbles(op);
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
+        return true;
+      }
+      function toggleManualCharacteristicForOperation(opId = "", charId = "", enabled = false) {
+        const op = operationById(opId);
+        const cid = strOrEmpty(charId);
+        if (!op || !cid) return false;
+        const derivedSet = new Set(deriveOperationCharacteristicIdsFromBubbles(op).map((x) => String(x || "")));
+        if (derivedSet.has(cid)) return false;
+        const manual = ensureOpManualCharacteristicRefs(op);
+        const next = enabled
+          ? normalizeIdList([...manual, cid])
+          : manual.filter((id) => String(id || "") !== cid);
+        op.manualCharacteristicIds = normalizeIdList(next);
+        syncOperationCharacteristicIdsFromBubbles(op);
+        return true;
       }
       function applyCharacteristicToleranceForm() {
         return applyToleranceValuesToFields({
@@ -4660,17 +5207,70 @@
         const nx2 = Math.max(x1, x2);
         const ny1 = Math.min(y1, y2);
         const ny2 = Math.max(y1, y2);
-        if (nx2 - nx1 < 2 || ny2 - ny1 < 2) return null;
+        if (Math.abs(nx2 - nx1) < 1e-6 || Math.abs(ny2 - ny1) < 1e-6) return null;
         return { x1: nx1, y1: ny1, x2: nx2, y2: ny2 };
       }
       function bubbleLabelPosition(b) {
-        const box = normalizeBbox(b?.bbox);
+        const raw = b?.bbox && typeof b.bbox === "object" ? b.bbox : null;
+        const rx1 = Number(raw?.x1);
+        const ry1 = Number(raw?.y1);
+        const rx2 = Number(raw?.x2);
+        const ry2 = Number(raw?.y2);
+        if (![rx1, ry1, rx2, ry2].every(Number.isFinite)) return null;
+        let box = {
+          x1: Math.min(rx1, rx2),
+          y1: Math.min(ry1, ry2),
+          x2: Math.max(rx1, rx2),
+          y2: Math.max(ry1, ry2),
+        };
+        const cv = $("bubbleCanvas");
+        const looksNormalized = [box.x1, box.y1, box.x2, box.y2].every((v) => v >= -0.02 && v <= 1.02);
+        if (cv && looksNormalized) {
+          box = {
+            x1: box.x1 * Math.max(1, Number(cv.width || 1)),
+            y1: box.y1 * Math.max(1, Number(cv.height || 1)),
+            x2: box.x2 * Math.max(1, Number(cv.width || 1)),
+            y2: box.y2 * Math.max(1, Number(cv.height || 1)),
+          };
+        }
+        if (cv && String(b?.coordSpace || "") === "source") {
+          const op = getSelectedOperation();
+          const opFile = selectedOperationFile(op);
+          const srcW = Math.max(0, Number(opFile?.imageWidth || 0) || 0);
+          const srcH = Math.max(0, Number(opFile?.imageHeight || 0) || 0);
+          const dstW = Math.max(1, Number(cv.width || 1));
+          const dstH = Math.max(1, Number(cv.height || 1));
+          if (srcW > 0 && srcH > 0) {
+            box = {
+              x1: box.x1 * (dstW / srcW),
+              y1: box.y1 * (dstH / srcH),
+              x2: box.x2 * (dstW / srcW),
+              y2: box.y2 * (dstH / srcH),
+            };
+          }
+        }
+        if (!Number.isFinite(box.x1) || !Number.isFinite(box.y1) || !Number.isFinite(box.x2) || !Number.isFinite(box.y2)) return null;
+        if (box.x2 - box.x1 < 1 || box.y2 - box.y1 < 1) return null;
         if (!box) return null;
         const display = bubbleDisplaySettings || defaultBubbleDisplaySettings();
         const radius = clampDisplaySettingNumber(display?.bubbleSize, 6, 44, 14);
-        const off = b?.bubbleOffset && Number.isFinite(Number(b.bubbleOffset.x)) && Number.isFinite(Number(b.bubbleOffset.y))
+        let off = b?.bubbleOffset && Number.isFinite(Number(b.bubbleOffset.x)) && Number.isFinite(Number(b.bubbleOffset.y))
           ? { x: Number(b.bubbleOffset.x), y: Number(b.bubbleOffset.y) }
           : defaultBubbleOffset(display);
+        if (cv && String(b?.bubbleOffsetSpace || "") === "source") {
+          const op = getSelectedOperation();
+          const opFile = selectedOperationFile(op);
+          const srcW = Math.max(0, Number(opFile?.imageWidth || 0) || 0);
+          const srcH = Math.max(0, Number(opFile?.imageHeight || 0) || 0);
+          const dstW = Math.max(1, Number(cv.width || 1));
+          const dstH = Math.max(1, Number(cv.height || 1));
+          if (srcW > 0 && srcH > 0) {
+            off = {
+              x: off.x * (dstW / srcW),
+              y: off.y * (dstH / srcH),
+            };
+          }
+        }
         return { x: box.x1 + off.x, y: box.y1 + off.y, r: radius };
       }
       const canvasRuntimeState = {
@@ -4735,6 +5335,7 @@
         renderBubbleTable,
         writeRoutePlan,
         getDisplaySettings: () => (bubbleDisplaySettings || defaultBubbleDisplaySettings()),
+        editingEnabled: false,
         state: canvasRuntimeState,
       });
       const {
@@ -4773,7 +5374,13 @@
         setSelectedCanvasBubbleId: (value) => { selectedCanvasBubbleId = strOrEmpty(value); },
         getEditingBubbleId: () => editingBubbleId,
         setEditingBubbleId: (value) => { editingBubbleId = strOrEmpty(value); },
+        editingEnabled: false,
       });
+      function syncCanvasFromRouteIfVisible() {
+        const panel = $("sectionBlueprintPanel");
+        if (panel && !panel.open) return;
+        syncCanvasFromRoute();
+      }
       function renderRoutingPanel() {
         bindBubbleCanvas();
         const state = readState();
@@ -4789,7 +5396,9 @@
           renderCharacteristicSelect();
           renderCharacteristicGrid();
           $("opQuickList").innerHTML = `<div class="mini">${tt("spacial.none.operations", "No operations")}</div>`;
+          $("opTaskBody").innerHTML = `<tr><td colspan="5" class="mini">${tt("spacial.none.operation", "Select or create an operation first.")}</td></tr>`;
           $("opCharList").innerHTML = `<div class="mini">${tt("spacial.none.operation", "Select or create an operation first.")}</div>`;
+          $("opCharMatrix").innerHTML = `<div class="mini">${tt("spacial.none.routeSelected", "Select or create a route.")}</div>`;
           $("routeOpSel").innerHTML = `<option value="">${tt("spacial.none.operations", "No operations")}</option>`;
           $("opFileSel").innerHTML = `<option value="">${tt("spacial.none.file", "No files")}</option>`;
           $("opProductDocSel").innerHTML = `<option value="">${tt("spacial.none.file", "No files")}</option>`;
@@ -4823,15 +5432,17 @@
         renderOperationQuickList();
         renderOperationSelect();
         renderOperationFileSelect();
-        renderOperationDrawingLinks();
+        renderOperationDrawingLinksUi();
         writeOperationToInputs(operationById(selectedOpId));
+        renderOperationTaskList();
         renderOperationCharacteristicList();
+        renderOperationCharacteristicMatrix();
         if (!routePlan.operations.some((op) => ensureOperationFiles(op).some((f) => (f.bubbles || []).some((b) => String(b.id || "") === String(selectedCanvasBubbleId || ""))))) {
           selectedCanvasBubbleId = "";
         }
         renderBubbleCharacteristicSelect();
         renderBubbleTable();
-        syncCanvasFromRoute();
+        syncCanvasFromRouteIfVisible();
         refreshRouteInfo();
       }
       function normalizeState(state) {
@@ -5337,6 +5948,11 @@
         }
         refresh();
       });
+      $("spcImportOpenBtn")?.addEventListener("click", () => setImportModal(true));
+      $("spcImportCloseBtn")?.addEventListener("click", () => setImportModal(false));
+      $("spcImportModal")?.addEventListener("click", (e) => {
+        if (e.target === $("spcImportModal")) setImportModal(false);
+      });
       $("spcImportLoadBtn").addEventListener("click", () => $("spcImportFile").click());
       $("spcImportFile").addEventListener("change", async (e) => {
         const files = Array.from(e.target.files || []);
@@ -5425,13 +6041,17 @@
         selectedOpFileId = "";
         writeOperationToInputs(operationById(selectedOpId));
         renderOperationQuickList();
+        renderOperationTaskList();
         renderOperationCharacteristicList();
         renderOperationFileSelect();
-        renderOperationDrawingLinks();
+        renderOperationDrawingLinksUi();
         renderBubbleCharacteristicSelect();
         clearBubbleForm();
         renderBubbleTable();
-        syncCanvasFromRoute();
+        syncCanvasFromRouteIfVisible();
+      });
+      $("sectionBlueprintPanel")?.addEventListener("toggle", () => {
+        if ($("sectionBlueprintPanel")?.open) syncCanvasFromRouteIfVisible();
       });
       $("opQuickList").addEventListener("click", (e) => {
         const target = e.target instanceof Element ? e.target : null;
@@ -5454,6 +6074,57 @@
           addEmptyBubbleForSelectedOperation({ focus: true });
         }
       });
+      const scheduleOperationTaskRowSave = (row) => {
+        if (!row) return;
+        const prev = opTaskSaveTimers.get(row);
+        if (prev) clearTimeout(prev);
+        const timer = window.setTimeout(() => {
+          opTaskSaveTimers.delete(row);
+          if (row.contains(document.activeElement)) return;
+          saveOperationTaskRow(row, { silent: true });
+        }, 220);
+        opTaskSaveTimers.set(row, timer);
+      };
+      $("opTaskAddBtn")?.addEventListener("click", () => addTaskToSelectedOperation({ focus: true }));
+      $("opTaskBody")?.addEventListener("click", (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        if (!target) return;
+        const delBtn = target.closest("[data-op-task-del]");
+        if (delBtn) {
+          const taskId = strOrEmpty(delBtn.getAttribute("data-op-task-del"));
+          if (!taskId) return;
+          deleteOperationTask(taskId);
+          return;
+        }
+        const upBtn = target.closest("[data-op-task-up]");
+        if (upBtn) {
+          const taskId = strOrEmpty(upBtn.getAttribute("data-op-task-up"));
+          if (!taskId) return;
+          moveOperationTask(taskId, -1);
+          return;
+        }
+        const downBtn = target.closest("[data-op-task-down]");
+        if (downBtn) {
+          const taskId = strOrEmpty(downBtn.getAttribute("data-op-task-down"));
+          if (!taskId) return;
+          moveOperationTask(taskId, 1);
+        }
+      });
+      $("opTaskBody")?.addEventListener("change", (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        if (!target || !target.closest("[data-op-task-field]")) return;
+        const row = target.closest("[data-op-task-row]");
+        if (!row) return;
+        const saved = saveOperationTaskRow(row, { silent: true });
+        if (!saved) scheduleOperationTaskRowSave(row);
+      });
+      $("opTaskBody")?.addEventListener("focusout", (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        if (!target || !target.closest("[data-op-task-field]")) return;
+        const row = target.closest("[data-op-task-row]");
+        if (!row || !document.body.contains(row)) return;
+        scheduleOperationTaskRowSave(row);
+      });
       $("opFileSel").addEventListener("change", () => {
         const op = getSelectedOperation();
         if (!op) return;
@@ -5461,16 +6132,62 @@
         op.activeFileId = selectedOpFileId;
         selectedCanvasBubbleId = "";
         clearBubbleForm();
-        writeRoutePlan(routePlan);
-        renderRoutingPanel();
+        renderOperationDrawingLinksUi();
+        renderOperationCharacteristicList();
+        renderOperationCharacteristicMatrix();
+        renderBubbleCharacteristicSelect();
+        renderBubbleTable();
+        syncCanvasFromRouteIfVisible();
+        refreshRouteInfo();
       });
+      const ensureUiSelectedOperation = () => {
+        let op = operationById(selectedOpId);
+        if (op) return op;
+        const ops = Array.isArray(routePlan?.operations) ? routePlan.operations : [];
+        if (!ops.length) return null;
+        op = ops[0];
+        selectedOpId = strOrEmpty(op.id || "");
+        const opSel = $("routeOpSel");
+        if (opSel) opSel.value = selectedOpId;
+        return op;
+      };
+      const currentUiProductDoc = () => {
+        const docs = currentProductDocs();
+        const docId = strOrEmpty($("opProductDocSel")?.value || "");
+        if (docId) return docs.find((row) => String(row?.id || "") === docId) || null;
+        return selectedProductDocumentForUi();
+      };
       $("opProductDocSel")?.addEventListener("change", () => {
-        renderOperationDrawingLinks();
+        const op = ensureUiSelectedOperation();
+        const doc = currentUiProductDoc();
+        if (op && doc) {
+          const linkedFile = ensureOperationFileForProductDocument(doc, { create: true, select: true });
+          if (!linkedFile) return;
+          selectedOpFileId = strOrEmpty(linkedFile.id || "");
+          op.activeFileId = selectedOpFileId;
+          selectedCanvasBubbleId = "";
+          clearBubbleForm();
+          writeRoutePlan(routePlan, { linkScope: "current", operationId: op.id, fileId: linkedFile.id });
+          renderOperationFileSelect();
+          renderOperationDrawingLinksUi();
+          renderOperationCharacteristicList();
+          renderOperationCharacteristicMatrix();
+          renderBubbleCharacteristicSelect();
+          renderBubbleTable();
+          syncCanvasFromRouteIfVisible();
+          refreshRouteInfo();
+          return;
+        }
+        renderOperationDrawingLinksUi();
       });
       $("opLinkProductDocBtn")?.addEventListener("click", () => {
-        const op = operationById(selectedOpId);
-        const doc = selectedProductDocumentForUi();
-        if (!op || !doc) {
+        const op = ensureUiSelectedOperation();
+        if (!op) {
+          alert(tt("spacial.none.operation", "Select or create an operation first."));
+          return;
+        }
+        const doc = currentUiProductDoc();
+        if (!doc) {
           alert(tt("spacial.docs.noProductDocs", "No product-level blueprint documents exist for this product yet."));
           return;
         }
@@ -5480,13 +6197,20 @@
         op.activeFileId = selectedOpFileId;
         selectedCanvasBubbleId = "";
         clearBubbleForm();
-        writeRoutePlan(routePlan);
-        renderRoutingPanel();
+        writeRoutePlan(routePlan, { linkScope: "current", operationId: op.id, fileId: opFile.id });
+        renderOperationFileSelect();
+        renderOperationDrawingLinksUi();
+        renderOperationCharacteristicList();
+        renderOperationCharacteristicMatrix();
+        renderBubbleCharacteristicSelect();
+        renderBubbleTable();
+        syncCanvasFromRouteIfVisible();
+        refreshRouteInfo();
         setOcrStatus("ok", tt("spacial.docs.operationLinked", "Linked drawing \"{name}\" to this operation.", { name: doc.name || tt("spacial.file.default", "File") }));
       });
       $("opUnlinkDrawingBtn")?.addEventListener("click", () => {
-        const op = operationById(selectedOpId);
-        const doc = selectedProductDocumentForUi();
+        const op = ensureUiSelectedOperation();
+        const doc = currentUiProductDoc();
         if (!op) return;
         const targetFile = operationFileForProductDocument(op, doc?.id || "") || selectedOperationFile(op);
         if (!targetFile) return;
@@ -5498,29 +6222,186 @@
         selectedCanvasBubbleId = "";
         clearBubbleForm();
         syncOperationCharacteristicIdsFromBubbles(op);
-        writeRoutePlan(routePlan);
-        renderRoutingPanel();
+        writeRoutePlan(routePlan, { linkScope: "current", operationId: op.id, fileId: selectedOpFileId });
+        renderOperationFileSelect();
+        renderOperationDrawingLinksUi();
+        renderOperationCharacteristicList();
+        renderOperationCharacteristicMatrix();
+        renderBubbleCharacteristicSelect();
+        renderBubbleTable();
+        syncCanvasFromRouteIfVisible();
+        refreshRouteInfo();
       });
       $("opOpenDrawingMgrBtn")?.addEventListener("click", openBlueprintManager);
+      function refreshAfterOperationAnnotationLinkSync(options = {}) {
+        if (options.refreshLinks !== false) renderOperationDrawingLinksUi();
+        renderOperationCharacteristicList();
+        renderOperationCharacteristicMatrix();
+        renderBubbleCharacteristicSelect();
+        renderBubbleTable();
+        syncCanvasFromRouteIfVisible();
+        refreshRouteInfo();
+      }
+      function applySelectedMasterAnnotationsToCurrentOperationFile(selectedMasterIds = [], options = {}) {
+        const op = operationById(selectedOpId);
+        if (!op) return false;
+        const productId = currentRouteProductId();
+        const docs = currentProductDocs();
+        const docId = strOrEmpty(options?.docId || $("opProductDocSel")?.value || selectedOperationFile(op)?.productDocumentId || "");
+        if (!docId) return false;
+        const doc = docs.find((row) => String(row?.id || "") === docId)
+          || productDocumentById(docId, productId)
+          || productDocumentById(docId, "")
+          || null;
+        let opFile = operationFileForProductDocument(op, docId);
+        if (!opFile && doc) {
+          opFile = ensureOperationFileForProductDocument(doc, { create: true, select: false });
+        }
+        if (!opFile) return false;
+        selectedOpFileId = strOrEmpty(opFile.id || "");
+        op.activeFileId = selectedOpFileId;
+        const materialized = selectedOperationFile(op);
+        if (materialized && String(materialized.id || "") === String(opFile.id || "")) {
+          opFile = materialized;
+        }
+        const wantedIds = [];
+        const seen = new Set();
+        for (const rawId of (Array.isArray(selectedMasterIds) ? selectedMasterIds : [])) {
+          const id = strOrEmpty(rawId);
+          if (!id || seen.has(id)) continue;
+          seen.add(id);
+          wantedIds.push(id);
+        }
+        const masters = listProductAnnotations(productId, docId);
+        const byMasterId = new Map(
+          masters
+            .map((row) => [strOrEmpty(row?.id || ""), row])
+            .filter(([id]) => !!id)
+        );
+        const existingByMasterId = new Map(
+          (Array.isArray(opFile?.bubbles) ? opFile.bubbles : [])
+            .map((bubble) => [strOrEmpty(bubble?.masterAnnotationId || ""), bubble])
+            .filter(([id]) => !!id)
+        );
+        const nextBubbles = [];
+        wantedIds.forEach((masterId) => {
+          const existing = existingByMasterId.get(masterId);
+          if (existing) {
+            nextBubbles.push(normalizeBubble(existing, nextBubbles.length));
+            return;
+          }
+          const master = byMasterId.get(masterId);
+          if (!master) return;
+          const bubble = normalizeBubble(productAnnotationToBubble(master, nextBubbles.length), nextBubbles.length);
+          if (!strOrEmpty(bubble?.coordSpace || "")) bubble.coordSpace = "source";
+          if (!strOrEmpty(bubble?.bubbleOffsetSpace || "")) bubble.bubbleOffsetSpace = "source";
+          nextBubbles.push(bubble);
+        });
+        opFile.bubbles = nextBubbles;
+        syncOperationCharacteristicIdsFromBubbles(op);
+        if (!nextBubbles.some((bubble) => String(bubble?.id || "") === String(selectedCanvasBubbleId || ""))) {
+          selectedCanvasBubbleId = strOrEmpty(nextBubbles[0]?.id || "");
+        }
+        writeRoutePlan(routePlan, { linkScope: "current", operationId: op.id, fileId: opFile.id });
+        return true;
+      }
       $("opAnnSelectAllBtn")?.addEventListener("click", () => {
-        const doc = selectedProductDocumentForUi();
-        if (!doc) return;
-        const ids = listProductAnnotations(currentRouteProductId(), doc.id).map((row) => row.id);
-        syncSelectedMasterAnnotationsToCurrentFile(ids, { docId: doc.id, ensureFile: true });
+        const host = $("opAnnLinkList");
+        if (!host) return;
+        host.querySelectorAll('input[data-op-ann-link]').forEach((input) => {
+          if (input instanceof HTMLInputElement && !input.disabled) input.checked = true;
+        });
+        opAnnLocalWriteMuteUntil = Date.now() + 1200;
+        syncOperationAnnotationLinksFromUi();
       });
       $("opAnnClearBtn")?.addEventListener("click", () => {
-        const doc = selectedProductDocumentForUi();
-        if (!doc) return;
-        syncSelectedMasterAnnotationsToCurrentFile([], { docId: doc.id, ensureFile: false });
+        const host = $("opAnnLinkList");
+        if (!host) return;
+        host.querySelectorAll('input[data-op-ann-link]').forEach((input) => {
+          if (input instanceof HTMLInputElement && !input.disabled) input.checked = false;
+        });
+        opAnnLocalWriteMuteUntil = Date.now() + 1200;
+        syncOperationAnnotationLinksFromUi();
       });
+      $("opAnnSearchIn")?.addEventListener("input", () => {
+        const list = $("opAnnLinkList");
+        const prevTop = list ? list.scrollTop : 0;
+        renderOperationDrawingLinksUi();
+        if (list) list.scrollTop = prevTop;
+      });
+      const syncOperationAnnotationLinksFromUi = () => {
+        const host = $("opAnnLinkList");
+        if (!host) return;
+        const prevTop = host.scrollTop;
+        const selectedIds = [...host.querySelectorAll('input[data-op-ann-link]:checked')]
+          .map((el) => strOrEmpty(el.getAttribute("data-op-ann-link")))
+          .filter(Boolean);
+        const docId = strOrEmpty(host?.dataset?.docId || $("opProductDocSel")?.value || currentUiProductDoc()?.id || "");
+        opAnnLocalWriteMuteUntil = Date.now() + 1200;
+        applySelectedMasterAnnotationsToCurrentOperationFile(selectedIds, { docId });
+        refreshAfterOperationAnnotationLinkSync({ refreshLinks: true });
+        updateOperationAnnotationUiMeta();
+        const snap = operationAnnotationDebugSnapshot();
+        const mismatch = selectedIds.length !== snap.bubbleMasterIds.length || selectedIds.length !== snap.linkMasterIds.length;
+        if (mismatch) {
+          applySelectedMasterAnnotationsToCurrentOperationFile(selectedIds, { docId });
+          refreshAfterOperationAnnotationLinkSync({ refreshLinks: true });
+          updateOperationAnnotationUiMeta();
+          renderOperationAnnotationDebug("retry");
+        } else {
+          renderOperationAnnotationDebug("sync");
+        }
+        const nextHost = $("opAnnLinkList");
+        if (nextHost) nextHost.scrollTop = prevTop;
+      };
       $("opAnnLinkList")?.addEventListener("change", (e) => {
         const target = e.target instanceof HTMLInputElement ? e.target : null;
         if (!target || target.type !== "checkbox" || !target.hasAttribute("data-op-ann-link")) return;
-        const selectedIds = [...$("opAnnLinkList").querySelectorAll('input[data-op-ann-link]:checked')]
-          .map((el) => strOrEmpty(el.getAttribute("data-op-ann-link")))
-          .filter(Boolean);
-        const doc = selectedProductDocumentForUi();
-        syncSelectedMasterAnnotationsToCurrentFile(selectedIds, { docId: doc?.id || "", ensureFile: true });
+        syncOperationAnnotationLinksFromUi();
+      });
+      $("opAnnLinkList")?.addEventListener("click", (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        if (!target) return;
+        const moveBtn = target.closest("[data-op-ann-move]");
+        if (moveBtn) {
+          const masterId = strOrEmpty(moveBtn.getAttribute("data-op-ann-move"));
+          const dir = Number(moveBtn.getAttribute("data-op-ann-dir") || "0");
+          if (!masterId || !Number.isFinite(dir) || !dir) return;
+          const changed = reorderSelectedMasterForCurrentFile(masterId, dir, { render: false });
+          if (changed) refreshAfterOperationAnnotationLinkSync();
+          return;
+        }
+        if (target instanceof HTMLInputElement && target.type === "checkbox" && target.hasAttribute("data-op-ann-link")) return;
+        const row = target.closest("[data-op-ann-row]");
+        if (!row) return;
+        const checkbox = row.querySelector('input[data-op-ann-link]');
+        if (!(checkbox instanceof HTMLInputElement) || checkbox.disabled) return;
+        checkbox.checked = !checkbox.checked;
+        syncOperationAnnotationLinksFromUi();
+      });
+      $("opCharList")?.addEventListener("click", (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        const removeBtn = target?.closest?.("[data-op-char-remove]");
+        if (!removeBtn) return;
+        const charId = strOrEmpty(removeBtn.getAttribute("data-op-char-remove"));
+        if (!charId) return;
+        removeManualCharacteristicFromSelectedOperation(charId);
+      });
+      $("opCharMatrix")?.addEventListener("change", (e) => {
+        const target = e.target instanceof HTMLInputElement ? e.target : null;
+        if (!target || target.type !== "checkbox") return;
+        const opId = strOrEmpty(target.getAttribute("data-op-char-matrix-op"));
+        const charId = strOrEmpty(target.getAttribute("data-op-char-matrix-char"));
+        if (!opId || !charId) return;
+        const changed = toggleManualCharacteristicForOperation(opId, charId, !!target.checked);
+        if (!changed) {
+          const op = operationById(opId);
+          const derivedSet = new Set(deriveOperationCharacteristicIdsFromBubbles(op).map((x) => String(x || "")));
+          if (derivedSet.has(charId)) target.checked = true;
+          return;
+        }
+        writeRoutePlan(routePlan);
+        renderRoutingPanel();
       });
       $("opFileRenameBtn")?.addEventListener("click", renameSelectedOperationFile);
       $("opFileDeleteBtn")?.addEventListener("click", deleteSelectedOperationFile);
@@ -5626,6 +6507,20 @@
       $("bubbleTableBody").addEventListener("click", (e) => {
         const target = e.target instanceof Element ? e.target : null;
         if (!target) return;
+        const upBtn = target.closest("[data-bubble-up]");
+        if (upBtn) {
+          const i = Number(upBtn.getAttribute("data-bubble-up"));
+          if (!Number.isFinite(i) || i < 0) return;
+          reorderBubbleInSelectedOperation(i, -1);
+          return;
+        }
+        const downBtn = target.closest("[data-bubble-down]");
+        if (downBtn) {
+          const i = Number(downBtn.getAttribute("data-bubble-down"));
+          if (!Number.isFinite(i) || i < 0) return;
+          reorderBubbleInSelectedOperation(i, 1);
+          return;
+        }
         const delBtn = target.closest("[data-bubble-del]");
         if (delBtn) {
           const op = operationById(selectedOpId);
@@ -5681,6 +6576,7 @@
         }
         const row = target.closest("[data-bubble-row-index]");
         if (!row) return;
+        if (target.closest("details,summary")) return;
         if (target.closest("button,input,select,textarea,label")) return;
         const op = operationById(selectedOpId);
         const bubbles = selectedFileBubbles(op);
@@ -5695,13 +6591,15 @@
         const row = target.closest("[data-bubble-row-index]");
         if (!row) return;
         applyBubbleRowTolerance(row);
-        scheduleBubbleGridRowSave(row);
+        const saved = saveBubbleFromGridRow(row, { silent: true });
+        if (!saved) scheduleBubbleGridRowSave(row);
       });
       $("bubbleTableBody").addEventListener("focusout", (e) => {
         const target = e.target instanceof Element ? e.target : null;
         if (!target || !target.closest("[data-bubble-grid-field]")) return;
         const row = target.closest("[data-bubble-row-index]");
-        if (!row) return;
+        if (!row || !document.body.contains(row)) return;
+        if (target.matches('select[data-bubble-grid-field="characteristicId"]')) return;
         applyBubbleRowTolerance(row);
         scheduleBubbleGridRowSave(row);
       });
@@ -5742,46 +6640,6 @@
         importProductDocumentIntoCurrentFile();
       });
       $("bubbleSyncProductAnnotationsBtn")?.addEventListener("click", pushSelectedFileAnnotationsToProduct);
-      $("bubbleShowBoxesChk").addEventListener("change", () => {
-        applyBubbleDisplaySettings({
-          ...(bubbleDisplaySettings || defaultBubbleDisplaySettings()),
-          boxVisible: !!$("bubbleShowBoxesChk")?.checked,
-        });
-      });
-      const saveBubbleDisplaySettingsFromUi = () => {
-        applyBubbleDisplaySettings({
-          boxColor: $("bubbleDisplayBoxColorIn")?.value,
-          bubbleColor: $("bubbleDisplayColorIn")?.value,
-          selectedColor: $("bubbleDisplaySelectedColorIn")?.value,
-          bubbleTextColor: $("bubbleDisplayTextColorIn")?.value,
-          bubbleSize: $("bubbleDisplaySizeIn")?.value,
-          bubbleFontSize: $("bubbleDisplayFontSizeIn")?.value,
-          boxVisible: !!$("bubbleDisplayShowBoxChk")?.checked,
-          bubbleVisible: !!$("bubbleDisplayShowBubbleChk")?.checked,
-          textVisible: !!$("bubbleDisplayShowTextChk")?.checked,
-          bubbleFill: !!$("bubbleDisplayBubbleFillChk")?.checked,
-          rainbowExport: !!$("bubbleDisplayRainbowExportChk")?.checked,
-          exportPreset: $("bubbleDisplayExportPresetSel")?.value,
-          exportTextColor: $("bubbleDisplayExportTextColorIn")?.value,
-          exportBubbleSize: $("bubbleDisplayExportSizeIn")?.value,
-          handleSize: $("bubbleDisplayHandleSizeIn")?.value,
-          handleMode: $("bubbleDisplayHandleModeSel")?.value,
-        });
-      };
-      ["bubbleDisplayBoxColorIn","bubbleDisplayColorIn","bubbleDisplaySelectedColorIn","bubbleDisplayTextColorIn","bubbleDisplaySizeIn","bubbleDisplayFontSizeIn","bubbleDisplayShowBoxChk","bubbleDisplayShowBubbleChk","bubbleDisplayShowTextChk","bubbleDisplayBubbleFillChk","bubbleDisplayRainbowExportChk","bubbleDisplayExportPresetSel","bubbleDisplayExportTextColorIn","bubbleDisplayExportSizeIn","bubbleDisplayHandleSizeIn","bubbleDisplayHandleModeSel"].forEach((id) => {
-        $(id)?.addEventListener("input", saveBubbleDisplaySettingsFromUi);
-        $(id)?.addEventListener("change", saveBubbleDisplaySettingsFromUi);
-      });
-      document.querySelectorAll("[data-bubble-display-preset]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const preset = btn.getAttribute("data-bubble-display-preset");
-          applyBubbleDisplaySettings(bubbleDisplayPresetValues(preset));
-        });
-      });
-      $("bubbleDisplayResetBtn")?.addEventListener("click", () => {
-        localStorage.removeItem(DISPLAY_SETTINGS_KEY);
-        applyBubbleDisplaySettings(defaultBubbleDisplaySettings());
-      });
       $("bubbleZoomOutBtn").addEventListener("click", () => setCanvasZoom(bubbleCanvasZoom - 0.1));
       $("bubbleZoomInBtn").addEventListener("click", () => setCanvasZoom(bubbleCanvasZoom + 0.1));
       $("bubbleZoomResetBtn").addEventListener("click", () => setCanvasZoom(1));
@@ -5806,6 +6664,7 @@
       window.CANBus?.onMessage((msg) => {
         if (!msg || !msg.type) return;
         if (msg.type === "data:sync:status") return;
+        if (msg.type === "data:module:updated" && Date.now() < Number(opAnnLocalWriteMuteUntil || 0)) return;
         if (msg.type.startsWith("data:") || msg.type === "vmill:hub-scope:changed") {
           requestRefresh();
         }
@@ -5822,31 +6681,39 @@
           return;
         }
       });
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && $("spcImportModal")?.classList.contains("show")) {
+          setImportModal(false);
+        }
+      });
       window.addEventListener("vmill:lang:changed", () => {
         applySpacialI18n();
         requestRefresh();
       });
       loadUiMode();
       loadBubbleDisplaySettings();
-      setInterval(() => {
-        const env = readStateEnvelope();
-        const moduleMetaUpdated = String(window.VMillData?.readModuleState?.()?.meta?.updatedAt || "");
-        const sig = JSON.stringify({
-          s: env.source,
-          c: env.state?.meta?.updatedAt || "",
-          a: env.state?.activeJobId || "",
-          j: (env.state?.jobs || []).length,
-          t: (env.state?.stations || []).length,
-          m: moduleMetaUpdated,
-        });
-        if (sig !== lastStateSig) {
-          lastStateSig = sig;
-          requestRefresh();
-        }
-      }, 5000);
+      const statePollMs = Math.max(0, Number(localStorage.getItem("vmill:router:poll-ms") || "0") || 0);
+      if (statePollMs > 0) {
+        setInterval(() => {
+          const env = readStateEnvelope();
+          const moduleMetaUpdated = String(window.VMillData?.readModuleState?.()?.meta?.updatedAt || "");
+          const sig = JSON.stringify({
+            s: env.source,
+            c: env.state?.meta?.updatedAt || "",
+            a: env.state?.activeJobId || "",
+            j: (env.state?.jobs || []).length,
+            t: (env.state?.stations || []).length,
+            m: moduleMetaUpdated,
+          });
+          if (sig !== lastStateSig) {
+            lastStateSig = sig;
+            requestRefresh();
+          }
+        }, statePollMs);
+      }
       applySpacialI18n();
-      setOcrStatus("muted", tt("spacial.drawings.ready", "Drawing links ready."));
-      window.CANBus?.emit("spacial:ready", { module: "SPaCial" }, "spacial");
+      setOcrStatus("muted", tt("spacial.drawings.ready", "Select a linked drawing to preview, mark, and export."));
+      window.CANBus?.emit("spacial:ready", { module: "Router" }, "spacial");
 
       requestRefresh();
     })();

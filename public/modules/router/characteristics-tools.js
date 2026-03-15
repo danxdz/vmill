@@ -246,6 +246,12 @@
             op.characteristicIds = nextIds;
             changed = true;
           }
+          const manualBefore = Array.isArray(op.manualCharacteristicIds) ? op.manualCharacteristicIds : [];
+          const manualNext = manualBefore.filter((x) => String(x || "") !== cid);
+          if (manualNext.length !== manualBefore.length) {
+            op.manualCharacteristicIds = manualNext;
+            changed = true;
+          }
           const files = ensureOperationFiles(op);
           for (const f of files) {
             for (const b of (f.bubbles || [])) {

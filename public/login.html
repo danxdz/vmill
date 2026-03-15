@@ -32,6 +32,12 @@
         radial-gradient(1200px 600px at 10% -20%, rgba(var(--accent-rgb),.18), transparent 60%),
         radial-gradient(900px 500px at 100% -10%, rgba(var(--ok-rgb),.14), transparent 60%),
         linear-gradient(180deg, var(--bg), var(--bg2));
+      transition: opacity .22s ease, transform .22s ease, filter .22s ease;
+    }
+    body.pageLeaving {
+      opacity: .92;
+      transform: scale(1.01);
+      filter: saturate(.9);
     }
     .card {
       width: min(460px, calc(100vw - 24px));
@@ -42,6 +48,87 @@
       padding: 18px;
       display: grid;
       gap: 12px;
+      transition: opacity .2s ease, transform .2s ease, filter .2s ease;
+    }
+    body.pageLeaving .card {
+      opacity: 0;
+      transform: translateY(10px) scale(.985);
+      filter: blur(2px);
+      pointer-events: none;
+    }
+    #loginHandoffOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      opacity: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(760px 380px at 0 -10%, rgba(var(--accent-rgb),.18), transparent 60%),
+        linear-gradient(180deg, color-mix(in srgb, var(--panel) 90%, transparent), color-mix(in srgb, var(--bg2) 96%, transparent));
+      transition: opacity .22s ease;
+    }
+    body.pageLeaving #loginHandoffOverlay {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .handoffCard {
+      display: grid;
+      place-items: center;
+      gap: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    .handoffScene {
+      width: 76px;
+      height: 76px;
+      display: grid;
+      place-items: center;
+    }
+    .handoffNeedleRig {
+      position: relative;
+      width: 64px;
+      height: 64px;
+      animation: loginHandoffNeedleSpin .96s linear infinite;
+      will-change: transform;
+    }
+    .handoffNeedle {
+      position: absolute;
+      left: 50%;
+      top: 3px;
+      bottom: 3px;
+      width: 3px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--accent) 94%, #ffffff 6%) 0%,
+        color-mix(in srgb, var(--accent) 84%, transparent) 46%,
+        color-mix(in srgb, var(--accent) 94%, #ffffff 6%) 100%
+      );
+      box-shadow:
+        0 0 12px color-mix(in srgb, var(--accent) 36%, transparent),
+        0 0 22px color-mix(in srgb, var(--accent) 16%, transparent);
+    }
+    .handoffNeedleTrail {
+      position: absolute;
+      inset: 0;
+    }
+    .handoffNeedleTrail {
+      transform: rotate(-14deg);
+      opacity: .24;
+    }
+    @keyframes loginHandoffNeedleSpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .handoffNeedleRig {
+        animation-duration: 1.9s;
+      }
     }
     h1 { margin: 0; font-size: 24px; }
     p { margin: 0; color: var(--muted); }
@@ -129,6 +216,16 @@
   </style>
 </head>
 <body>
+  <div id="loginHandoffOverlay" aria-hidden="true">
+    <div class="handoffCard">
+      <div class="handoffScene">
+        <div class="handoffNeedleRig" aria-hidden="true">
+          <span class="handoffNeedleTrail"><span class="handoffNeedle"></span></span>
+          <span class="handoffNeedle"></span>
+        </div>
+      </div>
+    </div>
+  </div>
   <section class="card">
     <h1 id="loginTitle">VMill Login</h1>
     <p id="loginSubtitle">Sign in to sync multiuser data. Offline mode keeps localStorage active.</p>
@@ -227,8 +324,9 @@
       const statusText = document.getElementById("serverStatusText");
       const msg = document.getElementById("msg");
 
-      let online = false;
-      let pingTimer = 0;
+	      let online = false;
+	      let pingTimer = 0;
+	      const NAV_HANDOFF_KEY = "vmill:navigate:handoff:v1";
 
       function tt(key, fallback = "", vars) {
         return window.VMillLang?.t ? window.VMillLang.t(key, fallback, vars) : fallback;
@@ -294,7 +392,7 @@
         }
       }
 
-      function continueOffline() {
+	      function continueOffline() {
         if (online) {
           const ok = confirm(tt("login.confirm.offlineWhileOnline", "You are online - offline changes won't sync until you log in."));
           if (!ok) return;
@@ -302,15 +400,31 @@
         try {
           localStorage.setItem("vmill:offline:mode", "1");
         } catch {}
-        if (!window.VMillAuth?.isLoggedIn?.()) {
-          setMsg(tt("login.msg.offlineGuest", "Continuing offline as guest. Sync disabled until login."), "ok");
-        } else {
-          setMsg(tt("login.msg.offlineStart", "Starting offline mode"), "ok");
-        }
-        setTimeout(() => {
-          location.href = "./vmill_hub.html";
-        }, 120);
-      }
+	        if (!window.VMillAuth?.isLoggedIn?.()) {
+	          setMsg(tt("login.msg.offlineGuest", "Continuing offline as guest. Sync disabled until login."), "ok");
+	        } else {
+	          setMsg(tt("login.msg.offlineStart", "Starting offline mode"), "ok");
+	        }
+	        beginHandoffNavigation("./vmill_hub.html");
+	      }
+
+	      function beginHandoffNavigation(targetHref = "./vmill_hub.html") {
+	        try {
+	          sessionStorage.setItem(NAV_HANDOFF_KEY, JSON.stringify({
+	            from: "login",
+	            to: String(targetHref || "./vmill_hub.html"),
+	            at: Date.now(),
+	          }));
+	        } catch {}
+	        document.body.classList.add("pageLeaving");
+	        if (pingTimer) {
+	          clearInterval(pingTimer);
+	          pingTimer = 0;
+	        }
+	        window.setTimeout(() => {
+	          location.replace(String(targetHref || "./vmill_hub.html"));
+	        }, 160);
+	      }
 
       function clearOfflineModeFlag() {
         try {
@@ -334,11 +448,11 @@
         }
         clearOfflineModeFlag();
         setMsg(tt("login.msg.connectedAs", "Connected as {user}", { user: out.user?.username || "user" }), "ok");
-        try {
-          await window.VMillData?.init?.(out.serverUrl);
-        } catch {}
-        location.href = "./vmill_hub.html";
-      }
+	        try {
+	          await window.VMillData?.init?.(out.serverUrl);
+	        } catch {}
+	        beginHandoffNavigation("./vmill_hub.html");
+	      }
 
       async function handleRegister() {
         setMsg("");
@@ -356,11 +470,11 @@
         }
         clearOfflineModeFlag();
         setMsg(tt("login.msg.registerOk", "Account created. Connected as {user}", { user: out.user?.username || "user" }), "ok");
-        try {
-          await window.VMillData?.init?.(out.serverUrl);
-        } catch {}
-        location.href = "./vmill_hub.html";
-      }
+	        try {
+	          await window.VMillData?.init?.(out.serverUrl);
+	        } catch {}
+	        beginHandoffNavigation("./vmill_hub.html");
+	      }
 
       async function handleRecover() {
         setMsg("");

@@ -17,7 +17,7 @@ window.VMillModules = [
   },
   {
     id: "spacial",
-    name: "SPaCial",
+    name: "Router",
     desc: "Dimensional routing and blueprint bubble planning.",
     href: "./SPaCial.html",
     status: "ready",

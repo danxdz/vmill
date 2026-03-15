@@ -30,6 +30,7 @@
       overflow-x: hidden;
       overflow-y: auto;
     }
+    body.modalOpen { overflow: hidden; }
     .wrap { padding: 14px; display:grid; gap:10px; align-content:start; }
     .card {
       border: 1px solid var(--border);
@@ -72,8 +73,8 @@
     .docCard.sel, .annCard.sel { border-color: rgba(var(--accent-rgb), .55); box-shadow: 0 0 0 1px rgba(var(--accent-rgb), .22) inset; }
     .docHead, .annHead { display:flex; justify-content:space-between; gap:8px; align-items:center; }
     .docMeta, .annMeta, .hint, .status { font-size:12px; color:var(--muted); }
-    .annGrid { display:grid; grid-template-columns: 92px minmax(0,1.2fr) 110px 110px 110px 84px auto; gap:8px; align-items:center; }
-    @media (max-width: 1400px) { .annGrid { grid-template-columns: 92px minmax(180px,1fr) 100px 100px 100px 84px auto; overflow:auto; } }
+    .annGrid { display:grid; grid-template-columns: 92px minmax(180px,1.2fr) 100px 100px 100px 100px 100px 110px 78px minmax(120px,1fr); gap:8px; align-items:center; }
+    @media (max-width: 1600px) { .annGrid { grid-template-columns: 92px minmax(180px,1fr) 96px 96px 96px 96px 96px 104px 72px minmax(120px,1fr); overflow:auto; } }
     .thumb { width:56px; height:56px; border-radius:10px; object-fit:cover; border:1px solid var(--border); background:#fff; }
     .thumbPlaceholder { width:56px; height:56px; border-radius:10px; border:1px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--muted); }
     .thumbLarge { width:160px; height:160px; border-radius:14px; object-fit:contain; border:1px solid var(--border); background:#fff; }
@@ -87,6 +88,59 @@
     .detailMeta .chip { width:max-content; }
     .detailList { display:grid; gap:6px; font-size:12px; color:var(--muted); }
     @media (max-width: 860px) { .detailGrid { grid-template-columns:1fr; } }
+    .modalOverlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(3, 8, 15, .66);
+      backdrop-filter: blur(4px);
+      z-index: 1200;
+    }
+    .modalOverlay.show { display: flex; }
+    .modalCard {
+      width: min(1120px, 100%);
+      max-height: min(90vh, 920px);
+      overflow: auto;
+    }
+    .modalHead {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .settingsGrid {
+      display: grid;
+      gap: 10px;
+    }
+    .settingsPreviewWrap {
+      position: relative;
+      min-height: 280px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(0,0,0,.22);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #drawingSettingsPreviewCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #fff;
+    }
+    #docOverlayCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+    }
   </style>
 </head>
 <body>
@@ -94,11 +148,12 @@
     <section class="card hero">
       <div>
         <h1 id="pageTitle">Drawing Manager</h1>
-        <div class="sub" id="pageSub">Product-level drawings, OCR sources, and master annotations. Upload and prepare documents here, then open SPaCial only when you need route-linked box authoring.</div>
+        <div class="sub" id="pageSub">Product-level drawings, OCR sources, style settings, and master annotations. Prepare everything here, then link the results into Router operations.</div>
       </div>
       <div class="row actions" style="margin:0;">
         <button class="btn" id="openHubBtn" type="button">Hub</button>
-        <button class="btn" id="openSpacialBtn" type="button">SPaCial</button>
+        <button class="btn" id="openSpacialBtn" type="button">Router</button>
+        <button class="btn" id="openDrawingSettingsBtn" type="button">Drawing Settings</button>
       </div>
     </section>
 
@@ -134,30 +189,146 @@
         <button class="btn ok" id="autoOcrDocBtn" type="button">Auto OCR This Drawing</button>
         <button class="btn" id="saveDocBtn" type="button">Save Doc</button>
         <button class="btn bad" id="deleteDocBtn" type="button">Delete Doc</button>
-        <button class="btn ok" id="openInSpacialBtn" type="button">Open In SPaCial</button>
+        <button class="btn ok" id="openInSpacialBtn" type="button">Open In Router</button>
         <input id="docInput" type="file" accept="image/*,.pdf,application/pdf" multiple hidden />
       </div>
-      <div class="hint" id="docHint">Use this module to own product documents and master annotations. Upload files here, build PDF previews here, then launch SPaCial only for box authoring.</div>
+      <div class="hint" id="docHint">Use this module to own product documents, master annotations, and drawing styles. Upload files here, build PDF previews here, then link the results into Router.</div>
     </section>
 
-    <section class="card">
-      <div class="title">OCR Workflow</div>
-      <div class="row">
-        <div>
-          <label for="bubbleOcrUrlIn">OCR Server URL</label>
-          <input id="bubbleOcrUrlIn" type="text" placeholder="http://localhost:8000" />
+    <div class="modalOverlay" id="drawingSettingsModal" hidden>
+      <section class="card modalCard">
+        <div class="modalHead">
+          <div>
+            <div class="title" style="margin:0;">Drawing Settings</div>
+            <div class="hint">OCR server, drawing display style, and export presets.</div>
+          </div>
+          <button class="btn" id="closeDrawingSettingsBtn" type="button">Close</button>
         </div>
-        <div>
-          <label for="bubbleOcrPortIn">Port</label>
-          <input id="bubbleOcrPortIn" type="number" min="1" max="65535" step="1" />
+        <div class="settingsGrid">
+          <section class="card">
+            <div class="title">Live Preview</div>
+            <div class="hint" id="drawingSettingsPreviewHint">Current drawing with bubble style updates in real time.</div>
+            <div class="settingsPreviewWrap" id="drawingSettingsPreviewWrap">
+              <canvas id="drawingSettingsPreviewCanvas" width="960" height="420"></canvas>
+              <div class="empty" id="drawingSettingsPreviewEmpty">Select a drawing to preview style changes here.</div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="title">OCR Workflow</div>
+            <div class="row">
+              <div>
+                <label for="bubbleOcrUrlIn">OCR Server URL</label>
+                <input id="bubbleOcrUrlIn" type="text" placeholder="http://localhost:8000" />
+              </div>
+              <div>
+                <label for="bubbleOcrPortIn">Port</label>
+                <input id="bubbleOcrPortIn" type="number" min="1" max="65535" step="1" />
+              </div>
+            </div>
+            <div class="row actions">
+              <button class="btn" id="bubbleOcrSaveBtn" type="button">Save OCR Settings</button>
+              <button class="btn" id="bubbleOcrTestBtn" type="button">Test OCR Server</button>
+            </div>
+            <div class="hint" id="ocrHint">PDF previews are generated through the OCR server. OCR prepares the selected drawing here so Router can reuse the linked master marks later.</div>
+          </section>
+
+          <section class="card">
+            <div class="title">Drawing Display And Export</div>
+            <div class="row">
+              <div>
+                <label for="bubbleDisplayBoxColorIn">Box Color</label>
+                <input id="bubbleDisplayBoxColorIn" type="color" value="#ff6b6b" />
+              </div>
+              <div>
+                <label for="bubbleDisplayColorIn">Bubble Color</label>
+                <input id="bubbleDisplayColorIn" type="color" value="#4dafff" />
+              </div>
+              <div>
+                <label for="bubbleDisplaySelectedColorIn">Selected Color</label>
+                <input id="bubbleDisplaySelectedColorIn" type="color" value="#00ff8f" />
+              </div>
+              <div>
+                <label for="bubbleDisplayTextColorIn">Text Color</label>
+                <input id="bubbleDisplayTextColorIn" type="color" value="#0f1724" />
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="bubbleDisplaySizeIn">Bubble Size</label>
+                <input id="bubbleDisplaySizeIn" type="range" min="6" max="44" step="1" value="14" />
+              </div>
+              <div>
+                <label for="bubbleDisplayFontSizeIn">Font Size</label>
+                <input id="bubbleDisplayFontSizeIn" type="range" min="6" max="36" step="1" value="12" />
+              </div>
+              <div>
+                <label for="bubbleDisplayHandleSizeIn">Resize Pin Size</label>
+                <input id="bubbleDisplayHandleSizeIn" type="range" min="2" max="8" step="1" value="4" />
+              </div>
+              <div>
+                <label for="bubbleDisplayHandleModeSel">Resize Pins</label>
+                <select id="bubbleDisplayHandleModeSel">
+                  <option value="hover">Show on hover</option>
+                  <option value="always">Always show</option>
+                  <option value="never">Hide pins</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="bubbleDisplayShowBoxChk">Show Box</label>
+                <input id="bubbleDisplayShowBoxChk" class="inlineCheck" type="checkbox" checked />
+              </div>
+              <div>
+                <label for="bubbleDisplayShowBubbleChk">Show Bubble</label>
+                <input id="bubbleDisplayShowBubbleChk" class="inlineCheck" type="checkbox" checked />
+              </div>
+              <div>
+                <label for="bubbleDisplayShowTextChk">Show Number</label>
+                <input id="bubbleDisplayShowTextChk" class="inlineCheck" type="checkbox" checked />
+              </div>
+              <div>
+                <label for="bubbleDisplayBubbleFillChk">Fill Bubble</label>
+                <input id="bubbleDisplayBubbleFillChk" class="inlineCheck" type="checkbox" checked />
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="bubbleDisplayRainbowExportChk">Rainbow Export</label>
+                <input id="bubbleDisplayRainbowExportChk" class="inlineCheck" type="checkbox" />
+              </div>
+              <div>
+                <label for="bubbleDisplayExportPresetSel">Export Preset</label>
+                <select id="bubbleDisplayExportPresetSel">
+                  <option value="match">Match viewer</option>
+                  <option value="print">Print clean</option>
+                  <option value="number">Number only</option>
+                  <option value="box-number">Box + number</option>
+                  <option value="rainbow">Rainbow bubbles</option>
+                </select>
+              </div>
+              <div>
+                <label for="bubbleDisplayExportTextColorIn">Export Text Color</label>
+                <input id="bubbleDisplayExportTextColorIn" type="color" value="#0f1724" />
+              </div>
+              <div>
+                <label for="bubbleDisplayExportSizeIn">Export Bubble Size</label>
+                <input id="bubbleDisplayExportSizeIn" type="range" min="6" max="44" step="1" value="14" />
+              </div>
+            </div>
+            <div class="row actions">
+              <button class="btn" data-bubble-display-preset="classic" type="button">Classic</button>
+              <button class="btn" data-bubble-display-preset="number-only" type="button">Number Only</button>
+              <button class="btn" data-bubble-display-preset="box-number" type="button">Box + Number</button>
+              <button class="btn" data-bubble-display-preset="rainbow-pdf" type="button">Rainbow PDF</button>
+              <button class="btn" id="bubbleDisplayResetBtn" type="button">Reset Display</button>
+            </div>
+            <div class="hint" id="bubbleDisplaySettingsInfo">Bubble 14px | Font 12px | box + bubble + number | Export match (14px) | Pins on hover</div>
+          </section>
         </div>
-      </div>
-      <div class="row actions">
-        <button class="btn" id="bubbleOcrSaveBtn" type="button">Save OCR Settings</button>
-        <button class="btn" id="bubbleOcrTestBtn" type="button">Test OCR Server</button>
-      </div>
-      <div class="hint" id="ocrHint">PDF previews are generated through the OCR server. Auto OCR and Click OCR both launch the selected drawing into SPaCial with the right mode armed.</div>
-    </section>
+      </section>
+    </div>
 
     <div class="grid2">
       <section class="card">
@@ -166,11 +337,17 @@
           <div class="empty" id="docPreviewEmpty">Pick a product document to preview it here.</div>
           <img id="docImagePreview" alt="Blueprint preview" hidden />
           <iframe id="docPdfPreview" title="Blueprint PDF preview" hidden></iframe>
+          <canvas id="docOverlayCanvas" hidden></canvas>
         </div>
         <div class="row actions" style="margin-top:10px;">
           <span class="chip" id="docTypeChip">No document</span>
           <span class="chip mono" id="docStatsChip">0 master annotations</span>
+          <button class="btn" id="docZoomOutBtn" type="button">-</button>
+          <button class="btn" id="docZoomResetBtn" type="button">100%</button>
+          <button class="btn" id="docZoomInBtn" type="button">+</button>
+          <button class="btn" id="docZoomFitBtn" type="button">Fit</button>
         </div>
+        <div class="hint" id="docCanvasInfo" style="margin-top:8px;">Drawings mode: drag a box to move, drag corner pins to resize, and use wheel to zoom.</div>
         <div class="list" id="docList" style="margin-top:10px;"></div>
       </section>
 
@@ -189,7 +366,7 @@
             </select>
           </div>
         </div>
-        <div class="hint" id="annHint">These are the product-level master annotations. SPaCial should link them into operations instead of recreating them each time.</div>
+        <div class="hint" id="annHint">These are the product-level master marks. Router should link them into operations instead of recreating them each time.</div>
         <div class="list" id="annList" style="margin-top:10px;"></div>
         <div class="card" style="margin-top:10px; padding:10px;">
           <div class="title" style="margin-bottom:6px;">Selected Annotation</div>
@@ -203,7 +380,7 @@
               </div>
               <div class="detailList" id="annDetailList"></div>
               <div class="row actions" style="margin-top:0;">
-                <button class="btn ok" id="annDetailOpenSpacialBtn" type="button">Open Doc In SPaCial OCR</button>
+                <button class="btn ok" id="annDetailOpenSpacialBtn" type="button">Open Doc In Router</button>
               </div>
             </div>
           </div>
@@ -214,12 +391,27 @@
     <div class="status" id="status">Ready.</div>
   </div>
 
+  <datalist id="tolSpecSuggestions">
+    <option value="H5"></option>
+    <option value="H6"></option>
+    <option value="H7"></option>
+    <option value="H8"></option>
+    <option value="h5"></option>
+    <option value="h6"></option>
+    <option value="h7"></option>
+    <option value="h8"></option>
+    <option value="js6"></option>
+    <option value="js7"></option>
+    <option value="±0.1"></option>
+    <option value="+0.1 -0.05"></option>
+  </datalist>
+
   <script src="./modules/module-shell.js"></script>
   <script src="./modules/module-data.js"></script>
   <script src="./modules/module-lang.js"></script>
   <script src="./modules/module-theme.js"></script>
-  <script src="./modules/spacial/ocr-tools.js"></script>
-  <script src="./modules/spacial/product-docs-tools.js"></script>
+  <script src="./modules/drawing-shared/ocr-tools.js"></script>
+  <script src="./modules/drawing-shared/product-docs-tools.js"></script>
   <script type="module" src="./modules/blueprint-manager/index.js"></script>
 </body>
 </html>

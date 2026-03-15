@@ -8,6 +8,7 @@ test("core modules render without auth redirects", async ({ page }) => {
   const checks: Array<{ path: string; selector: string }> = [
     { path: "/chrono/chrono.html", selector: "#elapsed" },
     { path: "/SPaCial.html", selector: "#routeSel" },
+    { path: "/blueprint_manager.html", selector: "#productSel" },
     { path: "/factory_manager.html", selector: "#rows" },
     { path: "/logger.html", selector: "#loggerDock" },
     { path: "/shop_tree.html", selector: "#addRootBtn" },

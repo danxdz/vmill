@@ -36,6 +36,56 @@
     const NS_PRODUCT_DOCS = 'spacial_product_documents';
     const NS_PRODUCT_ANNOT = 'spacial_product_annotations';
     const NS_OPERATION_ANNOT_LINKS = 'spacial_operation_annotation_links';
+    const SHARED_CACHE_KEY = '__VMILL_PRODUCT_DOCS_CACHE_STATE__';
+    const MODULE_DIRTY_TOPICS = new Set(['data:module:updated', 'data:snapshot:imported']);
+
+    function getSharedCacheState() {
+      const existing = window[SHARED_CACHE_KEY];
+      if (existing && typeof existing === 'object') return existing;
+      const created = { epoch: 1, listenerBound: false };
+      window[SHARED_CACHE_KEY] = created;
+      return created;
+    }
+
+    const sharedCache = getSharedCacheState();
+    if (!sharedCache.listenerBound && typeof window.CANBus?.onMessage === 'function') {
+      window.CANBus.onMessage((msg) => {
+        const type = str(msg?.type || '');
+        if (!MODULE_DIRTY_TOPICS.has(type)) return;
+        sharedCache.epoch += 1;
+      });
+      sharedCache.listenerBound = true;
+    }
+
+    const localCache = {
+      epoch: 0,
+      docsAll: null,
+      docsByProduct: new Map(),
+      annotationsAll: null,
+      annotationsByFilter: new Map(),
+      linksAll: null,
+      linksByFilter: new Map(),
+    };
+
+    function resetLocalCache() {
+      localCache.docsAll = null;
+      localCache.docsByProduct.clear();
+      localCache.annotationsAll = null;
+      localCache.annotationsByFilter.clear();
+      localCache.linksAll = null;
+      localCache.linksByFilter.clear();
+    }
+
+    function ensureCacheFresh() {
+      if (localCache.epoch === Number(sharedCache.epoch || 0)) return;
+      resetLocalCache();
+      localCache.epoch = Number(sharedCache.epoch || 0);
+    }
+
+    function invalidateCaches() {
+      sharedCache.epoch = Number(sharedCache.epoch || 0) + 1;
+      ensureCacheFresh();
+    }
 
     function normalizeProductDocument(raw, idx = 0, productIdHint = '') {
       const src = raw && typeof raw === 'object' ? raw : {};
@@ -51,6 +101,11 @@
         notes: str(src.notes),
         sourceName: str(src.sourceName),
         sourcePage: Number(src.sourcePage || 0) || 0,
+        imageWidth: Math.max(0, Number(src.imageWidth || src.width || 0) || 0),
+        imageHeight: Math.max(0, Number(src.imageHeight || src.height || 0) || 0),
+        sourceDpi: Math.max(0, Number(src.sourceDpi || src.dpi || 0) || 0),
+        sourcePageWidthPt: Math.max(0, Number(src.sourcePageWidthPt || src.pageWidthPt || 0) || 0),
+        sourcePageHeightPt: Math.max(0, Number(src.sourcePageHeightPt || src.pageHeightPt || 0) || 0),
         sourceOperationId: str(src.sourceOperationId),
         sourceOpFileId: str(src.sourceOpFileId),
         annotationIds: Array.isArray(src.annotationIds) ? src.annotationIds.map((x) => str(x)).filter(Boolean) : [],
@@ -81,6 +136,8 @@
         method: str(src.method),
         instrument: str(src.instrument || src.gauge || src.gage),
         reactionPlan: str(src.reactionPlan || src.reaction),
+        coordSpace: str(src.coordSpace || src.coordinateSpace),
+        bubbleOffsetSpace: str(src.bubbleOffsetSpace),
         bbox,
         bubbleOffset: Number.isFinite(offX) && Number.isFinite(offY) ? { x: offX, y: offY } : null,
         thumbnailDataUrl: str(src.thumbnailDataUrl || src.thumbnail?.data_url),
@@ -95,7 +152,7 @@
     function cleanOverrides(raw = {}) {
       const src = raw && typeof raw === 'object' ? raw : {};
       const out = {};
-      const textFields = ['name', 'characteristicId', 'toleranceSpec', 'unit', 'method', 'instrument', 'reactionPlan', 'thumbnailDataUrl'];
+      const textFields = ['name', 'characteristicId', 'toleranceSpec', 'unit', 'method', 'instrument', 'reactionPlan', 'thumbnailDataUrl', 'coordSpace', 'bubbleOffsetSpace'];
       const numFields = ['nominal', 'lsl', 'usl', 'lowerDeviation', 'upperDeviation', 'thumbnailRotation', 'ocrRotation'];
       for (const key of textFields) {
         if (Object.prototype.hasOwnProperty.call(src, key)) out[key] = str(src[key]);
@@ -138,12 +195,23 @@
       return VMillData?.listRecords ? (VMillData.listRecords(ns) || []) : [];
     }
 
+    function allProductDocuments() {
+      ensureCacheFresh();
+      if (localCache.docsAll) return localCache.docsAll;
+      localCache.docsAll = listRecords(NS_PRODUCT_DOCS)
+        .map((row, idx) => normalizeProductDocument(row, idx))
+        .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')) || String(a.name || '').localeCompare(String(b.name || '')));
+      return localCache.docsAll;
+    }
+
     function listProductDocuments(productId = '') {
       const pid = str(productId);
-      return listRecords(NS_PRODUCT_DOCS)
-        .map((row, idx) => normalizeProductDocument(row, idx, pid))
-        .filter((row) => !pid || String(row.productId || '') === pid)
-        .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')) || String(a.name || '').localeCompare(String(b.name || '')));
+      const all = allProductDocuments();
+      if (!pid) return all.slice();
+      if (localCache.docsByProduct.has(pid)) return (localCache.docsByProduct.get(pid) || []).slice();
+      const filtered = all.filter((row) => String(row.productId || '') === pid);
+      localCache.docsByProduct.set(pid, filtered);
+      return filtered.slice();
     }
 
     function productDocumentById(documentId, productId = '') {
@@ -155,10 +223,18 @@
     function listProductAnnotations(productId = '', documentId = '') {
       const pid = str(productId);
       const did = str(documentId);
-      return listRecords(NS_PRODUCT_ANNOT)
-        .map((row, idx) => normalizeProductAnnotation(row, idx, pid, did))
-        .filter((row) => (!pid || String(row.productId || '') === pid) && (!did || String(row.documentId || '') === did))
-        .sort((a, b) => String(a.documentId || '').localeCompare(String(b.documentId || '')) || String(a.sourceBubbleId || a.id || '').localeCompare(String(b.sourceBubbleId || b.id || '')));
+      ensureCacheFresh();
+      if (!localCache.annotationsAll) {
+        localCache.annotationsAll = listRecords(NS_PRODUCT_ANNOT)
+          .map((row, idx) => normalizeProductAnnotation(row, idx))
+          .sort((a, b) => String(a.documentId || '').localeCompare(String(b.documentId || '')) || String(a.sourceBubbleId || a.id || '').localeCompare(String(b.sourceBubbleId || b.id || '')));
+      }
+      const key = `${pid}::${did}`;
+      if (localCache.annotationsByFilter.has(key)) return (localCache.annotationsByFilter.get(key) || []).slice();
+      const filtered = localCache.annotationsAll
+        .filter((row) => (!pid || String(row.productId || '') === pid) && (!did || String(row.documentId || '') === did));
+      localCache.annotationsByFilter.set(key, filtered);
+      return filtered.slice();
     }
 
     function productAnnotationById(annotationId, productId = '') {
@@ -174,15 +250,24 @@
       const wantedOperationFileId = str(filters.operationFileId);
       const wantedDocumentId = str(filters.productDocumentId);
       const wantedIds = Array.isArray(filters.ids) ? new Set(filters.ids.map((x) => str(x)).filter(Boolean)) : null;
-      return listRecords(NS_OPERATION_ANNOT_LINKS)
-        .map((row, idx) => normalizeOperationAnnotationLink(row, idx, wantedProductId, wantedRouteId, wantedOperationId, wantedOperationFileId))
+      ensureCacheFresh();
+      if (!localCache.linksAll) {
+        localCache.linksAll = listRecords(NS_OPERATION_ANNOT_LINKS)
+          .map((row, idx) => normalizeOperationAnnotationLink(row, idx))
+          .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0) || String(a.bubbleId || '').localeCompare(String(b.bubbleId || '')));
+      }
+      const idsKey = wantedIds ? [...wantedIds].sort().join('|') : '';
+      const key = `${wantedProductId}::${wantedRouteId}::${wantedOperationId}::${wantedOperationFileId}::${wantedDocumentId}::${idsKey}`;
+      if (localCache.linksByFilter.has(key)) return (localCache.linksByFilter.get(key) || []).slice();
+      const filtered = localCache.linksAll
         .filter((row) => (!wantedIds || wantedIds.has(String(row.id || '')))
           && (!wantedProductId || String(row.productId || '') === wantedProductId)
           && (!wantedRouteId || String(row.routeId || '') === wantedRouteId)
           && (!wantedOperationId || String(row.operationId || '') === wantedOperationId)
           && (!wantedOperationFileId || String(row.operationFileId || '') === wantedOperationFileId)
-          && (!wantedDocumentId || String(row.productDocumentId || '') === wantedDocumentId))
-        .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0) || String(a.bubbleId || '').localeCompare(String(b.bubbleId || '')));
+          && (!wantedDocumentId || String(row.productDocumentId || '') === wantedDocumentId));
+      localCache.linksByFilter.set(key, filtered);
+      return filtered.slice();
     }
 
     function operationAnnotationLinkById(linkId, filters = {}) {
@@ -195,6 +280,7 @@
       if (!VMillData?.upsertRecord) return null;
       const normalized = normalizeProductDocument({ ...clone(doc, {}), updatedAt: new Date().toISOString() });
       VMillData.upsertRecord(NS_PRODUCT_DOCS, normalized);
+      invalidateCaches();
       return normalized;
     }
 
@@ -202,6 +288,7 @@
       if (!VMillData?.upsertRecord) return null;
       const normalized = normalizeProductAnnotation({ ...clone(annotation, {}), updatedAt: new Date().toISOString() });
       VMillData.upsertRecord(NS_PRODUCT_ANNOT, normalized);
+      invalidateCaches();
       return normalized;
     }
 
@@ -209,6 +296,7 @@
       if (!VMillData?.upsertRecord) return null;
       const normalized = normalizeOperationAnnotationLink({ ...clone(link, {}), updatedAt: new Date().toISOString() });
       VMillData.upsertRecord(NS_OPERATION_ANNOT_LINKS, normalized);
+      invalidateCaches();
       return normalized;
     }
 
@@ -217,6 +305,7 @@
       const id = str(annotationId);
       if (!id) return;
       VMillData.deleteRecord(NS_PRODUCT_ANNOT, id);
+      invalidateCaches();
     }
 
     function deleteProductDocument(documentId, options = {}) {
@@ -227,6 +316,7 @@
         listProductAnnotations('', id).forEach((annotation) => deleteProductAnnotation(annotation.id));
       }
       VMillData.deleteRecord(NS_PRODUCT_DOCS, id);
+      invalidateCaches();
     }
 
     function deleteOperationAnnotationLink(linkId) {
@@ -234,6 +324,7 @@
       const id = str(linkId);
       if (!id) return;
       VMillData.deleteRecord(NS_OPERATION_ANNOT_LINKS, id);
+      invalidateCaches();
     }
 
     function bubbleToProductAnnotation(bubble, meta = {}) {
@@ -256,6 +347,8 @@
         method: source.method,
         instrument: source.instrument,
         reactionPlan: source.reactionPlan,
+        coordSpace: source.coordSpace,
+        bubbleOffsetSpace: source.bubbleOffsetSpace,
         bbox,
         bubbleOffset: clone(source.bubbleOffset, null),
         thumbnailDataUrl: source.thumbnailDataUrl,
@@ -282,6 +375,8 @@
         method: src.method,
         instrument: src.instrument,
         reactionPlan: src.reactionPlan,
+        coordSpace: src.coordSpace,
+        bubbleOffsetSpace: src.bubbleOffsetSpace,
         bbox: clone(src.bbox, null),
         bubbleOffset: clone(src.bubbleOffset, null),
         thumbnailDataUrl: src.thumbnailDataUrl,
@@ -310,6 +405,8 @@
         method: str(source.method),
         instrument: str(source.instrument),
         reactionPlan: str(source.reactionPlan),
+        coordSpace: str(source.coordSpace || source.coordinateSpace),
+        bubbleOffsetSpace: str(source.bubbleOffsetSpace),
         bbox: normalizeBbox(source.bbox || null),
         bubbleOffset: clone(source.bubbleOffset, null),
         thumbnailDataUrl: str(source.thumbnailDataUrl),
@@ -318,16 +415,16 @@
         ocrRotation: numOrNull(source.ocrRotation),
       };
       const overrides = {};
-      const compareFields = ['name', 'characteristicId', 'nominal', 'lsl', 'usl', 'lowerDeviation', 'upperDeviation', 'toleranceSpec', 'unit', 'method', 'instrument', 'reactionPlan', 'thumbnailDataUrl', 'thumbnailRotation', 'ocrRotation'];
+      const compareFields = ['name', 'characteristicId', 'nominal', 'lsl', 'usl', 'lowerDeviation', 'upperDeviation', 'toleranceSpec', 'unit', 'method', 'instrument', 'reactionPlan', 'thumbnailDataUrl', 'thumbnailRotation', 'ocrRotation', 'coordSpace', 'bubbleOffsetSpace'];
       for (const key of compareFields) {
         const current = normalized[key];
         const baseValue = base ? (base[key] ?? '') : undefined;
         const same = JSON.stringify(current ?? null) === JSON.stringify(baseValue ?? null);
         if (!same && current !== '' && current != null) overrides[key] = current;
       }
-      if (JSON.stringify(normalized.bbox || null) !== JSON.stringify(base?.bbox || null) && normalized.bbox) overrides.bbox = normalized.bbox;
-      if (JSON.stringify(normalized.bubbleOffset || null) !== JSON.stringify(base?.bubbleOffset || null) && normalized.bubbleOffset) overrides.bubbleOffset = normalized.bubbleOffset;
-      if (JSON.stringify(normalized.thumbnailBBox || null) !== JSON.stringify(base?.thumbnailBBox || null) && normalized.thumbnailBBox) overrides.thumbnailBBox = normalized.thumbnailBBox;
+      if (normalized.bbox) overrides.bbox = normalized.bbox;
+      if (normalized.bubbleOffset) overrides.bubbleOffset = normalized.bubbleOffset;
+      if (normalized.thumbnailBBox) overrides.thumbnailBBox = normalized.thumbnailBBox;
       return normalizeOperationAnnotationLink({
         id: meta.id || source.linkId || '',
         productId: meta.productId,
@@ -344,7 +441,15 @@
 
     function operationAnnotationLinkToBubble(link, idx = 0) {
       const src = normalizeOperationAnnotationLink(link, idx);
-      const master = src.masterAnnotationId ? productAnnotationById(src.masterAnnotationId, src.productId) : null;
+      let master = src.masterAnnotationId ? productAnnotationById(src.masterAnnotationId, src.productId) : null;
+      if (!master && src.masterAnnotationId) {
+        master = productAnnotationById(src.masterAnnotationId, '') || null;
+      }
+      if (!master) {
+        const byBubble = listProductAnnotations(src.productId, src.productDocumentId)
+          .find((row) => String(row.sourceBubbleId || row.id || '') === String(src.bubbleId || '')) || null;
+        if (byBubble) master = byBubble;
+      }
       const base = master ? productAnnotationToBubble(master, idx) : { id: src.bubbleId || `B${String(idx + 1).padStart(3, '0')}`, masterAnnotationId: src.masterAnnotationId };
       const merged = {
         ...base,

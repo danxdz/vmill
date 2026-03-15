@@ -113,8 +113,17 @@ AUTH_RATE_LIMITS = {
     "forgot": (8, 300),
     "reset": (16, 300),
 }
+AUTH_DISABLE_RATE_LIMIT = str(os.environ.get("VMILL_AUTH_DISABLE_RATE_LIMIT", "0")).strip().lower() in {"1", "true", "yes", "on"}
+SYNC_PUSH_MAX_CONCURRENCY = max(1, int(os.environ.get("VMILL_SYNC_PUSH_MAX_CONCURRENCY", "6")))
+SYNC_PUSH_QUEUE_WAIT_MS = max(1, int(os.environ.get("VMILL_SYNC_PUSH_QUEUE_WAIT_MS", "250")))
 auth_rate_lock = threading.RLock()
 auth_rate_state: Dict[str, List[float]] = {}
+sync_push_lock = threading.RLock()
+sync_push_semaphore = threading.BoundedSemaphore(SYNC_PUSH_MAX_CONCURRENCY)
+sync_push_inflight = 0
+sync_push_total = 0
+sync_push_waited = 0
+sync_push_rejected = 0
 
 
 def parse_legacy_pbkdf2_iters(raw: str) -> Tuple[int, ...]:
@@ -223,6 +232,8 @@ def send_password_reset_email(username: str, email_to: str, token: str, expires_
 
 
 def auth_rate_limited(kind: str, client_ip: str) -> bool:
+    if AUTH_DISABLE_RATE_LIMIT:
+        return False
     limit, window_s = AUTH_RATE_LIMITS.get(kind, (10, 300))
     key = f"{kind}:{client_ip or 'unknown'}"
     now_ts = time.time()
@@ -235,6 +246,39 @@ def auth_rate_limited(kind: str, client_ip: str) -> bool:
             history.append(now_ts)
         auth_rate_state[key] = history
     return limited
+
+
+def sync_push_mark_start(waited: bool) -> None:
+    global sync_push_inflight, sync_push_total, sync_push_waited
+    with sync_push_lock:
+        sync_push_inflight += 1
+        sync_push_total += 1
+        if waited:
+            sync_push_waited += 1
+
+
+def sync_push_mark_end() -> None:
+    global sync_push_inflight
+    with sync_push_lock:
+        sync_push_inflight = max(0, int(sync_push_inflight) - 1)
+
+
+def sync_push_mark_rejected() -> None:
+    global sync_push_rejected
+    with sync_push_lock:
+        sync_push_rejected += 1
+
+
+def sync_push_stats() -> Dict[str, int]:
+    with sync_push_lock:
+        return {
+            "max_concurrency": int(SYNC_PUSH_MAX_CONCURRENCY),
+            "wait_ms": int(SYNC_PUSH_QUEUE_WAIT_MS),
+            "inflight": int(sync_push_inflight),
+            "total": int(sync_push_total),
+            "waited": int(sync_push_waited),
+            "rejected": int(sync_push_rejected),
+        }
 
 
 def hash_password(password: str, salt_hex: Optional[str] = None) -> Tuple[str, str]:
@@ -563,6 +607,10 @@ class DB:
     def __init__(self, path: Path):
         self.path = path
         self.conn = sqlite3.connect(str(path), check_same_thread=False)
+        self.conn.execute("PRAGMA journal_mode=WAL;")
+        self.conn.execute("PRAGMA synchronous=NORMAL;")
+        self.conn.execute("PRAGMA busy_timeout=5000;")
+        self.conn.execute("PRAGMA temp_store=MEMORY;")
         self.conn.row_factory = sqlite3.Row
         self.lock = threading.RLock()
 
@@ -1011,6 +1059,7 @@ class VMillHandler(BaseHTTPRequestHandler):
                     "time": now_iso(),
                     "db": str(DB_PATH.name),
                     "rev": db.last_sync_rev(),
+                    "sync_push": sync_push_stats(),
                 },
             )
             return
@@ -1552,66 +1601,87 @@ class VMillHandler(BaseHTTPRequestHandler):
             body = self.read_json_body()
         except ValueError:
             return
-
-        row = db.query_one("SELECT * FROM workspace WHERE id='default'")
-        if row is None:
-            db.ensure_default_workspace()
-            row = db.query_one("SELECT * FROM workspace WHERE id='default'")
-
-        payload = decode_json_field(row["settings_json"] if row else "{}", {})
-        if not isinstance(payload, dict):
-            payload = {}
-
-        current_rev = db.last_sync_rev()
-        base_rev = current_rev
-        try:
-            base_rev = int(body.get("base_rev", current_rev))
-        except Exception:
-            base_rev = current_rev
-        if base_rev < current_rev and ("app" in body or "modules" in body):
+        wait_start = time.perf_counter()
+        acquired = sync_push_semaphore.acquire(timeout=max(0.001, float(SYNC_PUSH_QUEUE_WAIT_MS) / 1000.0))
+        if not acquired:
+            sync_push_mark_rejected()
             self.send_json(
-                HTTPStatus.CONFLICT,
+                HTTPStatus.TOO_MANY_REQUESTS,
                 {
                     "ok": False,
-                    "error": "sync_conflict",
-                    "rev": current_rev,
-                    "workspace": {
-                        "id": "default",
-                        "updated_at": row["updated_at"] if row else now_iso(),
-                        "app": payload.get("app"),
-                        "modules": payload.get("modules"),
-                    },
+                    "error": "sync_push_busy",
+                    "message": "Sync queue busy, retry in a moment.",
+                    "queue": sync_push_stats(),
                 },
             )
             return
 
-        changed = {"app": False, "modules": False}
-        if "app" in body:
-            payload["app"] = body.get("app")
-            changed["app"] = True
-        if "modules" in body:
-            payload["modules"] = body.get("modules")
-            changed["modules"] = True
+        waited_ms = int(max(0.0, (time.perf_counter() - wait_start) * 1000.0))
+        sync_push_mark_start(waited=waited_ms > 2)
+        try:
+            row = db.query_one("SELECT * FROM workspace WHERE id='default'")
+            if row is None:
+                db.ensure_default_workspace()
+                row = db.query_one("SELECT * FROM workspace WHERE id='default'")
 
-        ts = now_iso()
-        db.execute(
-            "UPDATE workspace SET settings_json=?, updated_at=? WHERE id='default'",
-            (json.dumps(payload, ensure_ascii=False), ts),
-        )
-        if changed["app"]:
-            db.log_sync("workspace", "default:app", "update", user["id"])
-        if changed["modules"]:
-            db.log_sync("workspace", "default:modules", "update", user["id"])
+            payload = decode_json_field(row["settings_json"] if row else "{}", {})
+            if not isinstance(payload, dict):
+                payload = {}
 
-        self.send_json(
-            HTTPStatus.OK,
-            {
-                "ok": True,
-                "pushed": changed,
-                "rev": db.last_sync_rev(),
-                "workspace": {"id": "default", "updated_at": ts, "app": payload.get("app"), "modules": payload.get("modules")},
-            },
-        )
+            current_rev = db.last_sync_rev()
+            base_rev = current_rev
+            try:
+                base_rev = int(body.get("base_rev", current_rev))
+            except Exception:
+                base_rev = current_rev
+            if base_rev < current_rev and ("app" in body or "modules" in body):
+                self.send_json(
+                    HTTPStatus.CONFLICT,
+                    {
+                        "ok": False,
+                        "error": "sync_conflict",
+                        "rev": current_rev,
+                        "workspace": {
+                            "id": "default",
+                            "updated_at": row["updated_at"] if row else now_iso(),
+                            "app": payload.get("app"),
+                            "modules": payload.get("modules"),
+                        },
+                    },
+                )
+                return
+
+            changed = {"app": False, "modules": False}
+            if "app" in body:
+                payload["app"] = body.get("app")
+                changed["app"] = True
+            if "modules" in body:
+                payload["modules"] = body.get("modules")
+                changed["modules"] = True
+
+            ts = now_iso()
+            db.execute(
+                "UPDATE workspace SET settings_json=?, updated_at=? WHERE id='default'",
+                (json.dumps(payload, ensure_ascii=False), ts),
+            )
+            if changed["app"]:
+                db.log_sync("workspace", "default:app", "update", user["id"])
+            if changed["modules"]:
+                db.log_sync("workspace", "default:modules", "update", user["id"])
+
+            self.send_json(
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "pushed": changed,
+                    "rev": db.last_sync_rev(),
+                    "workspace": {"id": "default", "updated_at": ts, "app": payload.get("app"), "modules": payload.get("modules")},
+                    "queue_wait_ms": waited_ms,
+                },
+            )
+        finally:
+            sync_push_mark_end()
+            sync_push_semaphore.release()
 
     def api_chrono_template_xlsx(self) -> None:
         try:

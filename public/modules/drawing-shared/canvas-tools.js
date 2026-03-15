@@ -11,6 +11,7 @@
     const selectedOperationFile = typeof config.selectedOperationFile === 'function' ? config.selectedOperationFile : () => null;
     const renderBubbleTable = typeof config.renderBubbleTable === 'function' ? config.renderBubbleTable : () => {};
     const writeRoutePlan = typeof config.writeRoutePlan === 'function' ? config.writeRoutePlan : () => {};
+    const editingEnabled = config.editingEnabled !== false;
     const state = config.state && typeof config.state === 'object' ? config.state : {};
     const getDisplaySettings = typeof config.getDisplaySettings === 'function'
       ? config.getDisplaySettings
@@ -23,6 +24,58 @@
         handleSize: 4,
         handleMode: 'hover',
       });
+    const imageCache = new Map();
+    const MAX_IMAGE_CACHE = 6;
+
+    function sourceImageSizeForCurrentFile() {
+      const op = getSelectedOperation();
+      const opFile = selectedOperationFile(op);
+      let width = Math.max(0, Number(opFile?.imageWidth || 0) || 0);
+      let height = Math.max(0, Number(opFile?.imageHeight || 0) || 0);
+      if (width > 0 && height > 0) return { width, height };
+      const bounds = canvasImageBounds();
+      const bubbles = selectedFileBubbles(op);
+      let maxX = 0;
+      let maxY = 0;
+      for (const bubble of (Array.isArray(bubbles) ? bubbles : [])) {
+        const raw = bubble?.bbox;
+        const x1 = Number(raw?.x1);
+        const x2 = Number(raw?.x2);
+        const y1 = Number(raw?.y1);
+        const y2 = Number(raw?.y2);
+        if (![x1, x2, y1, y2].every(Number.isFinite)) continue;
+        const looksNormalized = [x1, x2, y1, y2].every((v) => v >= -0.02 && v <= 1.02);
+        if (looksNormalized) continue;
+        maxX = Math.max(maxX, x1, x2);
+        maxY = Math.max(maxY, y1, y2);
+      }
+      if ((maxX > bounds.width * 1.02 || maxY > bounds.height * 1.02) && maxX > 0 && maxY > 0) {
+        width = Math.max(width, maxX);
+        height = Math.max(height, maxY);
+      }
+      return { width, height };
+    }
+
+    function cacheRemember(src, img) {
+      const key = String(src || '');
+      if (!key || !img) return;
+      if (imageCache.has(key)) imageCache.delete(key);
+      imageCache.set(key, img);
+      while (imageCache.size > MAX_IMAGE_CACHE) {
+        const oldest = imageCache.keys().next();
+        if (!oldest?.done) imageCache.delete(oldest.value);
+        else break;
+      }
+    }
+
+    function cacheGet(src) {
+      const key = String(src || '');
+      if (!key || !imageCache.has(key)) return null;
+      const img = imageCache.get(key);
+      imageCache.delete(key);
+      imageCache.set(key, img);
+      return img || null;
+    }
 
     function ensureCanvasReady() {
       const cv = $('bubbleCanvas');
@@ -38,8 +91,46 @@
       return { width: Math.max(0, Number(cv.width || 0)), height: Math.max(0, Number(cv.height || 0)) };
     }
 
-    function clampBboxToCanvas(bbox) {
+    function normalizeCanvasBbox(bbox, bubble = null) {
       const r = normalizeBbox(bbox);
+      if (!r) return null;
+      const bounds = canvasImageBounds();
+      if (!bounds.width || !bounds.height) return r;
+      const looksNormalized = [r.x1, r.y1, r.x2, r.y2].every((v) => Number.isFinite(v) && v >= -0.02 && v <= 1.02);
+      if (looksNormalized) {
+        return normalizeBbox({
+          x1: r.x1 * bounds.width,
+          y1: r.y1 * bounds.height,
+          x2: r.x2 * bounds.width,
+          y2: r.y2 * bounds.height,
+        });
+      }
+      const src = sourceImageSizeForCurrentFile();
+      if (String(bubble?.coordSpace || '') === 'source' && src.width > 0 && src.height > 0) {
+        return normalizeBbox({
+          x1: r.x1 * (bounds.width / src.width),
+          y1: r.y1 * (bounds.height / src.height),
+          x2: r.x2 * (bounds.width / src.width),
+          y2: r.y2 * (bounds.height / src.height),
+        });
+      }
+      const maxX = Math.max(r.x1, r.x2);
+      const maxY = Math.max(r.y1, r.y2);
+      const likelySourceSpace = src.width > 0 && src.height > 0
+        && (maxX > bounds.width * 1.02 || maxY > bounds.height * 1.02)
+        && maxX <= src.width * 1.02
+        && maxY <= src.height * 1.02;
+      if (!likelySourceSpace) return r;
+      return normalizeBbox({
+        x1: r.x1 * (bounds.width / src.width),
+        y1: r.y1 * (bounds.height / src.height),
+        x2: r.x2 * (bounds.width / src.width),
+        y2: r.y2 * (bounds.height / src.height),
+      });
+    }
+
+    function clampBboxToCanvas(bbox, bubble = null) {
+      const r = normalizeCanvasBbox(bbox, bubble);
       if (!r) return null;
       const bounds = canvasImageBounds();
       if (!bounds.width || !bounds.height) return r;
@@ -64,12 +155,13 @@
       const bubbles = selectedFileBubbles(target);
       let changed = false;
       for (const b of bubbles) {
-        const prev = normalizeBbox(b?.bbox);
+        const prev = normalizeCanvasBbox(b?.bbox, b);
         if (!prev) continue;
         const next = clampBboxToCanvas(prev);
         if (!next) continue;
         if (next.x1 !== prev.x1 || next.y1 !== prev.y1 || next.x2 !== prev.x2 || next.y2 !== prev.y2) {
           b.bbox = next;
+          b.coordSpace = 'canvas';
           changed = true;
         }
       }
@@ -77,7 +169,7 @@
     }
 
     function bubbleDeleteControlRect(boxB) {
-      const box = normalizeBbox(boxB);
+      const box = normalizeCanvasBbox(boxB);
       if (!box) return null;
       const size = 18;
       const pad = 6;
@@ -188,7 +280,7 @@
     }
 
     function bubbleResizeHandles(boxB) {
-      const box = normalizeBbox(boxB);
+      const box = normalizeCanvasBbox(boxB);
       if (!box) return [];
       const cx = (box.x1 + box.x2) / 2;
       const cy = (box.y1 + box.y2) / 2;
@@ -213,7 +305,7 @@
     }
 
     function resizeBubbleRectFromHandle(startBoxB, handleName, point) {
-      const startBox = normalizeBbox(startBoxB);
+      const startBox = normalizeCanvasBbox(startBoxB);
       if (!startBox) return null;
       const p = point || { x: startBox.x2, y: startBox.y2 };
       const next = { x1: startBox.x1, y1: startBox.y1, x2: startBox.x2, y2: startBox.y2 };
@@ -233,6 +325,10 @@
     }
 
     function bubbleCanvasCursorForHit(hit, altKey = false) {
+      if (!editingEnabled) {
+        if (hit?.bubble) return 'pointer';
+        return 'grab';
+      }
       if (hit?.onDelete) return 'pointer';
       if (hit?.onResize?.cursor) return hit.onResize.cursor;
       if (hit?.onLabel || hit?.bubble) return 'move';
@@ -248,15 +344,17 @@
       const op = getSelectedOperation();
       const bubbles = selectedFileBubbles(op);
       if (!op) return { bubble: null, onLabel: false, onDelete: false, onResize: null };
-      const selected = bubbles.find((b) => String(b?.id || '') === String(state.selectedCanvasBubbleId || ''));
-      if (selected) {
-        const sbox = normalizeBbox(selected?.bbox);
-        const delRect = bubbleDeleteControlRect(sbox);
-        if (delRect && x >= delRect.x1 && x <= delRect.x2 && y >= delRect.y1 && y <= delRect.y2) {
-          return { bubble: selected, onLabel: false, onDelete: true, onResize: null };
+      if (editingEnabled) {
+        const selected = bubbles.find((b) => String(b?.id || '') === String(state.selectedCanvasBubbleId || ''));
+        if (selected) {
+          const sbox = normalizeCanvasBbox(selected?.bbox, selected);
+          const delRect = bubbleDeleteControlRect(sbox);
+          if (delRect && x >= delRect.x1 && x <= delRect.x2 && y >= delRect.y1 && y <= delRect.y2) {
+            return { bubble: selected, onLabel: false, onDelete: true, onResize: null };
+          }
+          const handle = bubbleResizeHandleAtPoint(sbox, x, y);
+          if (handle) return { bubble: selected, onLabel: false, onDelete: false, onResize: handle };
         }
-        const handle = bubbleResizeHandleAtPoint(sbox, x, y);
-        if (handle) return { bubble: selected, onLabel: false, onDelete: false, onResize: handle };
       }
       for (let i = bubbles.length - 1; i >= 0; i -= 1) {
         const b = bubbles[i];
@@ -268,7 +366,7 @@
       }
       for (let i = bubbles.length - 1; i >= 0; i -= 1) {
         const b = bubbles[i];
-        const box = normalizeBbox(b?.bbox);
+        const box = normalizeCanvasBbox(b?.bbox, b);
         if (!box) continue;
         if (x >= box.x1 && x <= box.x2 && y >= box.y1 && y <= box.y2) {
           return { bubble: b, onLabel: false, onDelete: false, onResize: null };
@@ -305,7 +403,7 @@
         ctx.fillRect(0, 0, cv.width, cv.height);
         ctx.fillStyle = hexToRgba(textHex, 0.8);
         ctx.font = '14px sans-serif';
-        ctx.fillText(tt('spacial.canvas.uploadHint.annotations', 'Upload drawing image to place annotations'), 14, 26);
+        ctx.fillText(tt('spacial.canvas.uploadHint.annotations', 'Link a drawing from Drawings or the current operation to preview it here'), 14, 26);
       }
       const op = getSelectedOperation();
       const opFile = selectedOperationFile(op);
@@ -313,13 +411,17 @@
       const showBoxes = boxVisible;
       if (info) {
         const opName = op?.name || tt('spacial.canvas.noOp', 'No operation');
-        const fileName = opFile?.name ? ` | ${tt('spacial.file.label', 'File')}: ${opFile.name}` : '';
+        const fileName = opFile?.name ? ` | ${tt('spacial.file.label', 'Drawing')}: ${opFile.name}` : '';
         const sel = state.selectedCanvasBubbleId ? ` | ${tt('spacial.canvas.selected', 'Selected: {id}', { id: state.selectedCanvasBubbleId })}` : '';
-        info.textContent = `${tt('spacial.canvas.instructions.annotations', 'Operation: {op}{selected}. Left-drag to pan, drag box or dots to resize, Alt+drag to draw, and wheel to zoom.', { op: opName, selected: sel })}${fileName}`;
+        const key = editingEnabled ? 'spacial.canvas.instructions.annotations' : 'spacial.canvas.instructions.previewOnly';
+        const fallback = editingEnabled
+          ? 'Operation: {op}{selected}. Left-drag to pan, drag box or handles to resize, Alt+drag to add a mark, and wheel to zoom.'
+          : 'Operation: {op}{selected}. Viewer mode: pan and zoom only. Edit marks in Drawings.';
+        info.textContent = `${tt(key, fallback, { op: opName, selected: sel })}${fileName}`;
       }
       if (op && Array.isArray(bubbles)) {
         bubbles.forEach((b, idx) => {
-          const boxB = normalizeBbox(b?.bbox);
+          const boxB = normalizeCanvasBbox(b?.bbox, b);
           if (!boxB) return;
           const isSel = String(b.id || '') === String(state.selectedCanvasBubbleId || '');
           if (showBoxes || isSel) {
@@ -336,7 +438,7 @@
               || state.hoverOnResize
               || state.mode === 'resizeBox'
             );
-            if (showHandles) {
+            if (editingEnabled && showHandles) {
               const delRect = bubbleDeleteControlRect(boxB);
               if (delRect) {
                 ctx.fillStyle = hexToRgba(cssThemeHex('--danger', '#ff6a7f'), 0.92);
@@ -394,7 +496,7 @@
           }
         });
       }
-      if (state.mode === 'draw' && state.rect) {
+      if (editingEnabled && state.mode === 'draw' && state.rect) {
         const r = normalizeBbox(state.rect);
         if (r) {
           ctx.strokeStyle = warnHex;
@@ -406,33 +508,45 @@
       }
     }
 
-    function setCanvasImageFromDataUrl(src) {
+    function applyCanvasImageMetrics(img) {
+      const cv = $('bubbleCanvas');
+      if (!cv || !img) return;
+      cv.width = Math.max(1, Number(img.width || 1));
+      cv.height = Math.max(1, Number(img.height || 1));
+      state.zoom = 1;
+      updateCanvasViewport();
+      setTimeout(() => fitCanvasInView(), 0);
+      const op = getSelectedOperation();
+      if (op && clampBubblesToCanvas(op)) {
+        writeRoutePlan(state.routePlan);
+        renderBubbleTable();
+      }
+      drawBubbleCanvas();
+    }
+
+    function setCanvasImageFromDataUrl(src, options = {}) {
       state.imageSrc = String(src || '');
+      state.imageSyncKey = String(options?.syncKey || `${state.imageSrc}`);
       state.image = null;
       if (!state.imageSrc) {
         drawBubbleCanvas();
         return;
       }
+      const cached = cacheGet(state.imageSrc);
+      if (cached && cached.complete) {
+        state.image = cached;
+        applyCanvasImageMetrics(cached);
+        return;
+      }
       const img = new Image();
       img.onload = () => {
         state.image = img;
-        const cv = $('bubbleCanvas');
-        if (cv) {
-          cv.width = img.width;
-          cv.height = img.height;
-        }
-        state.zoom = 1;
-        updateCanvasViewport();
-        setTimeout(() => fitCanvasInView(), 0);
-        const op = getSelectedOperation();
-        if (op && clampBubblesToCanvas(op)) {
-          writeRoutePlan(state.routePlan);
-          renderBubbleTable();
-        }
-        drawBubbleCanvas();
+        cacheRemember(state.imageSrc, img);
+        applyCanvasImageMetrics(img);
       };
       img.onerror = () => {
         state.image = null;
+        state.imageSyncKey = '';
         state.zoom = 1;
         updateCanvasViewport();
         drawBubbleCanvas();
@@ -442,8 +556,9 @@
 
     function syncCanvasFromRoute() {
       const opFile = selectedOperationFile();
-      const src = String(opFile?.dataUrl || '');
-      if (src !== state.imageSrc) setCanvasImageFromDataUrl(src);
+      const src = String(opFile?.dataUrl || opFile?.sourceDataUrl || '');
+      const syncKey = `${String(opFile?.id || '')}|${src}|${Math.max(0, Number(opFile?.imageWidth || 0) || 0)}x${Math.max(0, Number(opFile?.imageHeight || 0) || 0)}`;
+      if (syncKey !== String(state.imageSyncKey || '')) setCanvasImageFromDataUrl(src, { syncKey });
       else drawBubbleCanvas();
     }
 

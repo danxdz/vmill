@@ -26,7 +26,7 @@ export default defineConfig({
   },
   globalSetup: "./tests/e2e/global-setup.ts",
   webServer: {
-    command: "python vmill_server.py",
+    command: "python3 vmill_server.py",
     url: `${BASE_URL}/api/status`,
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,

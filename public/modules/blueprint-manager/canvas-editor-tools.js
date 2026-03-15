@@ -35,6 +35,7 @@
     const setSelectedCanvasBubbleId = deps.setSelectedCanvasBubbleId || (() => {});
     const getEditingBubbleId = deps.getEditingBubbleId || (() => "");
     const setEditingBubbleId = deps.setEditingBubbleId || (() => {});
+    const editingEnabled = deps.editingEnabled !== false;
 
     function startDrawAt(x, y) {
       state.mode = "draw";
@@ -106,11 +107,13 @@
       bubble.instrument = strOrEmpty($("bubbleInstrumentIn").value);
       bubble.reactionPlan = strOrEmpty($("bubbleReactionIn").value);
       bubble.bbox = r;
+      bubble.coordSpace = "canvas";
       bubble.thumbnailDataUrl = "";
       bubble.thumbnailBBox = null;
       if (bubble.thumbnailRotation == null) bubble.thumbnailRotation = 0;
       if (bubble.ocrRotation == null) bubble.ocrRotation = 0;
       if (!bubble.bubbleOffset) bubble.bubbleOffset = defaultBubbleOffset();
+      bubble.bubbleOffsetSpace = "canvas";
       setSelectedCanvasBubbleId(bubble.id);
       setEditingBubbleId("");
       writeRoutePlan(routePlan);
@@ -152,6 +155,18 @@
           return;
         }
         const hit = findBubbleAtPoint(p.x, p.y);
+        if (!editingEnabled) {
+          if (hit.bubble) {
+            canvasPickBubble(hit.bubble);
+            setBubbleCanvasCursor("grab");
+            e.preventDefault();
+            return;
+          }
+          if (wrap) {
+            beginPan(e);
+            return;
+          }
+        }
         if (hit.onDelete && hit.bubble) {
           const opFile = selectedOperationFile(op);
           if (opFile) {
@@ -169,7 +184,7 @@
           state.mode = hit.onResize ? "resizeBox" : (hit.onLabel ? "dragLabel" : "dragBox");
           state.last = p;
           state.resize = hit.onResize
-            ? { handle: hit.onResize.name, startBox: normalizeBbox(hit.bubble?.bbox) }
+            ? { handle: hit.onResize.name, startBox: clampBboxToCanvas(hit.bubble?.bbox) }
             : null;
           setBubbleCanvasCursor(hit.onResize ? hit.onResize.cursor : "move");
           e.preventDefault();
@@ -194,11 +209,12 @@
         if (!state.mode || state.mode === "idle") {
           const hit = findBubbleAtPoint(p.x, p.y);
           const nextHoverId = String(hit?.bubble?.id || "");
-          const nextHoverResize = !!hit?.onResize;
+          const nextHoverResize = editingEnabled ? !!hit?.onResize : false;
           const hoverChanged = nextHoverId !== String(state.hoverBubbleId || "") || nextHoverResize !== !!state.hoverOnResize;
           state.hoverBubbleId = nextHoverId;
           state.hoverOnResize = nextHoverResize;
-          setBubbleCanvasCursor(bubbleCanvasCursorForHit(hit, e.altKey));
+          if (editingEnabled) setBubbleCanvasCursor(bubbleCanvasCursorForHit(hit, e.altKey));
+          else setBubbleCanvasCursor(hit?.bubble ? "pointer" : "grab");
           if (hoverChanged) drawBubbleCanvas();
           return;
         }
@@ -210,6 +226,7 @@
           e.preventDefault();
           return;
         }
+        if (!editingEnabled) return;
         const bubbles = selectedFileBubbles(op);
         if (state.mode === "draw" && state.start) {
           state.rect = clampBboxToCanvas({ x1: state.start.x, y1: state.start.y, x2: p.x, y2: p.y });
@@ -222,13 +239,30 @@
         const dx = p.x - prev.x;
         const dy = p.y - prev.y;
         if (state.mode === "dragLabel") {
-          const cur = sel.bubbleOffset || defaultBubbleOffset();
+          let cur = sel.bubbleOffset || defaultBubbleOffset();
+          if (String(sel.bubbleOffsetSpace || "") === "source") {
+            const cv = $("bubbleCanvas");
+            const opFile = selectedOperationFile(op);
+            const srcW = Math.max(0, Number(opFile?.imageWidth || 0) || 0);
+            const srcH = Math.max(0, Number(opFile?.imageHeight || 0) || 0);
+            const dstW = Math.max(1, Number(cv?.width || 1));
+            const dstH = Math.max(1, Number(cv?.height || 1));
+            if (srcW > 0 && srcH > 0) {
+              cur = {
+                x: Number(cur.x || 0) * (dstW / srcW),
+                y: Number(cur.y || 0) * (dstH / srcH),
+              };
+            }
+          }
           sel.bubbleOffset = { x: Number(cur.x || 0) + dx, y: Number(cur.y || 0) + dy };
+          sel.bubbleOffsetSpace = "canvas";
         } else if (state.mode === "resizeBox" && state.resize?.handle && state.resize?.startBox) {
           sel.bbox = resizeBubbleRectFromHandle(state.resize.startBox, state.resize.handle, p);
+          sel.coordSpace = "canvas";
         } else if (state.mode === "dragBox") {
-          const b = normalizeBbox(sel.bbox);
-          if (b) sel.bbox = clampBboxToCanvas({ x1: b.x1 + dx, y1: b.y1 + dy, x2: b.x2 + dx, y2: b.y2 + dy }) || b;
+          const b = clampBboxToCanvas(sel.bbox, sel);
+          if (b) sel.bbox = clampBboxToCanvas({ x1: b.x1 + dx, y1: b.y1 + dy, x2: b.x2 + dx, y2: b.y2 + dy }, sel) || b;
+          sel.coordSpace = "canvas";
         }
         state.last = p;
         drawBubbleCanvas();
@@ -245,6 +279,10 @@
         state.hoverBubbleId = "";
         state.hoverOnResize = false;
         setBubbleCanvasCursor("grab");
+        if (!editingEnabled) {
+          drawBubbleCanvas();
+          return;
+        }
         if (mode === "draw" && rect) {
           upsertCanvasBubbleWithRect(rect);
           return;

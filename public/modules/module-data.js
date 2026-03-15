@@ -15,9 +15,14 @@
   const SYNC_WRITE_DEBOUNCE_MS = 700;
   const SYNC_WRITE_MAX_WAIT_MS = 2600;
   const SYNC_PUSH_RETRY_MS = 2200;
+  const SYNC_CONFLICT_BACKOFF_BASE_MS = 2500;
+  const SYNC_CONFLICT_BACKOFF_MAX_MS = 45000;
+  const SYNC_CONFLICT_ALERT_MS = 7000;
   const HTTP_TIMEOUT_MS = 8000;
   const TABLE_REMOTE_REFRESH_MS = 15000;
   const WINDOW_STORE_PREFIX = "__VMILL_STORE__:";
+  const SYNC_ALERT_STYLE_ID = "vmillSyncAlertStyle";
+  const SYNC_ALERT_ID = "vmillSyncAlert";
   const NS_ROUTE = "spacial_routes";
   const NS_ENTITY_TYPES = "global_entity_types";
   const NS_ENTITY_ITEMS = "global_entity_items";
@@ -58,6 +63,10 @@
     lastPollAt: 0,
     lastError: "",
     authError: false,
+    conflictCount: 0,
+    conflictBackoffUntil: 0,
+    saveIssueActive: false,
+    saveIssueSignature: "",
     tableCache: Object.create(null),
     tableInFlight: Object.create(null),
   };
@@ -144,12 +153,172 @@
       revision: Number(syncState.revision || 0),
       authError: !!syncState.authError,
       lastError: String(syncState.lastError || ""),
+      dirtyApp: !!syncState.dirtyApp,
+      dirtyModules: !!syncState.dirtyModules,
+      dirtySince: Number(syncState.dirtySince || 0),
+      pushing: !!syncState.pushing,
+      pulling: !!syncState.pulling,
+      conflictCount: Number(syncState.conflictCount || 0),
+      conflictBackoffMs: Math.max(0, Number(syncState.conflictBackoffUntil || 0) - Date.now()),
       ...extra,
     };
+    if (payload.lastError && !payload.error) payload.error = payload.lastError;
     for (const fn of syncSubscribers) {
       try { fn(payload); } catch {}
     }
     window.CANBus?.emit("data:sync:status", payload, "module-data");
+    refreshSyncSaveAlert();
+  }
+
+  function ensureSyncAlertDom() {
+    if (typeof document === "undefined") return null;
+    if (!document.getElementById(SYNC_ALERT_STYLE_ID)) {
+      const style = document.createElement("style");
+      style.id = SYNC_ALERT_STYLE_ID;
+      style.textContent = `
+        #${SYNC_ALERT_ID}{
+          position:fixed;
+          right:10px;
+          bottom:10px;
+          z-index:2147483645;
+          display:none;
+          align-items:center;
+          gap:8px;
+          max-width:min(560px, calc(100vw - 20px));
+          border:1px solid rgba(255,255,255,.24);
+          border-radius:10px;
+          padding:8px 10px;
+          background:rgba(15,22,34,.95);
+          color:#e6edf8;
+          box-shadow:0 10px 24px rgba(0,0,0,.35);
+          font:600 12px/1.3 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        }
+        #${SYNC_ALERT_ID}.show{ display:flex; }
+        #${SYNC_ALERT_ID}[data-level="error"]{
+          border-color:rgba(255,125,147,.62);
+          background:rgba(48,20,30,.94);
+        }
+        #${SYNC_ALERT_ID}[data-level="warn"]{
+          border-color:rgba(255,211,122,.58);
+          background:rgba(44,34,18,.94);
+        }
+        #${SYNC_ALERT_ID}[data-level="ok"]{
+          border-color:rgba(126,231,162,.56);
+          background:rgba(16,44,30,.92);
+        }
+        #${SYNC_ALERT_ID} .msg{
+          min-width:0;
+          flex:1 1 auto;
+          overflow:hidden;
+          text-overflow:ellipsis;
+          white-space:nowrap;
+        }
+        #${SYNC_ALERT_ID} .act{
+          border:1px solid rgba(255,255,255,.25);
+          background:rgba(255,255,255,.05);
+          color:inherit;
+          border-radius:999px;
+          padding:4px 9px;
+          font:700 11px/1 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+          cursor:pointer;
+          flex:0 0 auto;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    let el = document.getElementById(SYNC_ALERT_ID);
+    if (!el) {
+      el = document.createElement("div");
+      el.id = SYNC_ALERT_ID;
+      el.setAttribute("role", "status");
+      el.setAttribute("aria-live", "polite");
+      el.innerHTML = `
+        <div class="msg"></div>
+        <button type="button" class="act" data-sync-alert-action="retry">Retry</button>
+      `;
+      const btn = el.querySelector('[data-sync-alert-action="retry"]');
+      btn?.addEventListener("click", () => {
+        void pushToServer(true);
+      });
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+
+  function showSyncAlert(message, level = "warn") {
+    if (!message) return;
+    const el = ensureSyncAlertDom();
+    if (!el) return;
+    const msgEl = el.querySelector(".msg");
+    if (msgEl) msgEl.textContent = String(message);
+    el.setAttribute("data-level", String(level || "warn"));
+    el.classList.add("show");
+  }
+
+  function hideSyncAlert() {
+    if (typeof document === "undefined") return;
+    const el = document.getElementById(SYNC_ALERT_ID);
+    if (!el) return;
+    el.classList.remove("show");
+  }
+
+  function currentSyncSaveIssue() {
+    const dirty = !!(syncState.dirtyApp || syncState.dirtyModules);
+    if (!dirty) return null;
+    if (!syncState.online) {
+      return { code: "offline", level: "error", message: "Changes are not saved. Server offline." };
+    }
+    if (syncState.authError) {
+      return { code: "auth", level: "error", message: "Changes are not saved. Login expired." };
+    }
+    if (String(syncState.lastError || "").startsWith("push_failed")) {
+      return { code: "push-failed", level: "error", message: "Save failed. Changes are still local only." };
+    }
+    const conflictWait = conflictBackoffRemainingMs();
+    if (conflictWait >= SYNC_CONFLICT_ALERT_MS) {
+      return { code: "conflict-backoff", level: "warn", message: "Save delayed by concurrent edits. Retrying automatically." };
+    }
+    return null;
+  }
+
+  function refreshSyncSaveAlert() {
+    if (IS_EMBEDDED_FRAME) return;
+    const issue = currentSyncSaveIssue();
+    const nextSig = issue ? `${issue.code}|${issue.message}` : "";
+    const prevSig = String(syncState.saveIssueSignature || "");
+    const wasActive = !!syncState.saveIssueActive;
+    const active = !!issue;
+    syncState.saveIssueActive = active;
+    syncState.saveIssueSignature = nextSig;
+
+    if (active && issue) {
+      showSyncAlert(issue.message, issue.level);
+      if (nextSig !== prevSig) {
+        window.CANBus?.emit("data:sync:save-failed", {
+          code: issue.code,
+          message: issue.message,
+          dirtyApp: !!syncState.dirtyApp,
+          dirtyModules: !!syncState.dirtyModules,
+          serverUrl: String(syncState.serverUrl || ""),
+          lastError: String(syncState.lastError || ""),
+        }, "module-data");
+      }
+      return;
+    }
+
+    if (wasActive && !active) {
+      showSyncAlert("Save recovered. All changes are syncing again.", "ok");
+      window.CANBus?.emit("data:sync:save-recovered", {
+        serverUrl: String(syncState.serverUrl || ""),
+        revision: Number(syncState.revision || 0),
+      }, "module-data");
+      window.setTimeout(() => {
+        if (!syncState.saveIssueActive) hideSyncAlert();
+      }, 2800);
+      return;
+    }
+
+    hideSyncAlert();
   }
 
   function getOperationRows(src) {
@@ -2697,10 +2866,26 @@
     if (typeof document !== "undefined" && document.hidden && !syncState.dirtyApp && !syncState.dirtyModules) {
       return SYNC_POLL_HIDDEN_MS;
     }
+    if (syncState.conflictBackoffUntil > Date.now() && (syncState.dirtyApp || syncState.dirtyModules)) {
+      const remain = Math.max(0, Number(syncState.conflictBackoffUntil || 0) - Date.now());
+      return Math.min(Math.max(1200, remain), 8000);
+    }
     if (syncState.dirtyApp || syncState.dirtyModules || syncState.pushing || syncState.pulling) {
       return 1400;
     }
     return SYNC_POLL_MS;
+  }
+
+  function conflictBackoffRemainingMs() {
+    return Math.max(0, Number(syncState.conflictBackoffUntil || 0) - Date.now());
+  }
+
+  function computeConflictBackoffDelayMs() {
+    const attempt = Math.max(1, Number(syncState.conflictCount || 1));
+    const base = SYNC_CONFLICT_BACKOFF_BASE_MS * (2 ** Math.max(0, attempt - 1));
+    const bounded = Math.min(SYNC_CONFLICT_BACKOFF_MAX_MS, base);
+    const jitter = 0.85 + (Math.random() * 0.3);
+    return Math.max(SYNC_CONFLICT_BACKOFF_BASE_MS, Math.round(bounded * jitter));
   }
 
   function schedulePoll(delayMs = SYNC_POLL_MS) {
@@ -2794,6 +2979,7 @@
     if (syncState.pulling || !syncState.online || !syncState.serverUrl) return false;
     const token = readAuthToken();
     if (!token) {
+      syncState.lastError = "auth_missing";
       syncState.authError = true;
       emitSyncStatus({ reason: "pull-no-auth" });
       return false;
@@ -2806,12 +2992,14 @@
         headers: { ...authHeaders() },
       });
       if (out.status === 401 || out.status === 403) {
+        syncState.lastError = "auth_failed";
         syncState.authError = true;
         emitSyncStatus({ reason: "pull-auth-failed" });
         return false;
       }
       if (!out.ok) return false;
       syncState.authError = false;
+      syncState.lastError = "";
       writeSyncRevision(out.data?.rev || syncState.revision || 0);
       mergeRemoteSnapshot(out.data?.workspace || {});
       clearTableFetchCache();
@@ -2834,7 +3022,12 @@
     }
     if (!syncState.online || !syncState.serverUrl) return false;
     const token = readAuthToken();
-    if (!token) return false;
+    if (!token) {
+      syncState.lastError = "auth_missing";
+      syncState.authError = true;
+      emitSyncStatus({ reason: "push-no-auth" });
+      return false;
+    }
     if (!force && !syncState.dirtyApp && !syncState.dirtyModules) return true;
 
     const payload = {
@@ -2854,6 +3047,7 @@
         body: JSON.stringify(payload),
       });
       if (out.status === 401 || out.status === 403) {
+        syncState.lastError = "auth_failed";
         syncState.authError = true;
         emitSyncStatus({ reason: "push-auth-failed" });
         return false;
@@ -2861,14 +3055,35 @@
       if (out.status === 409) {
         // Another client wrote newer state first. Pull latest snapshot, merge, and retry queued local deltas.
         syncState.authError = false;
+        syncState.conflictCount = Math.min(8, Number(syncState.conflictCount || 0) + 1);
+        const backoffMs = computeConflictBackoffDelayMs();
+        syncState.conflictBackoffUntil = Date.now() + backoffMs;
         writeSyncRevision(out.data?.rev || syncState.revision || 0);
         await pullFromServer();
-        syncState.pushQueued = true;
-        emitSyncStatus({ reason: "push-conflict", dirtyApp: syncState.dirtyApp, dirtyModules: syncState.dirtyModules });
+        if (syncState.dirtyApp || syncState.dirtyModules) scheduleSyncPush(backoffMs);
+        emitSyncStatus({
+          reason: "push-conflict",
+          dirtyApp: syncState.dirtyApp,
+          dirtyModules: syncState.dirtyModules,
+          conflictBackoffMs: backoffMs,
+        });
         return false;
       }
-      if (!out.ok) return false;
+      if (!out.ok) {
+        syncState.lastError = `push_failed_status_${Number(out.status || 0)}`;
+        emitSyncStatus({
+          reason: "push-failed-status",
+          status: Number(out.status || 0),
+          error: String(out?.data?.error || ""),
+          dirtyApp: syncState.dirtyApp,
+          dirtyModules: syncState.dirtyModules,
+        });
+        return false;
+      }
       syncState.authError = false;
+      syncState.lastError = "";
+      syncState.conflictCount = 0;
+      syncState.conflictBackoffUntil = 0;
       if (payload.app) syncState.dirtyApp = false;
       if (payload.modules) syncState.dirtyModules = false;
       if (!syncState.dirtyApp && !syncState.dirtyModules) syncState.dirtySince = 0;
@@ -2877,7 +3092,7 @@
       emitSyncStatus({ reason: "push-ok", dirtyApp: syncState.dirtyApp, dirtyModules: syncState.dirtyModules });
       return true;
     } catch {
-      syncState.lastError = "push_failed";
+      syncState.lastError = "push_failed_network";
       setOnlineState(false, "push-failed");
       return false;
     } finally {
@@ -2900,6 +3115,8 @@
     const elapsed = Math.max(0, now - dirtySince);
     let wait = Math.max(0, Number(delayMs || 0));
     if (elapsed >= SYNC_WRITE_MAX_WAIT_MS) wait = 0;
+    const conflictRemain = conflictBackoffRemainingMs();
+    if (conflictRemain > wait) wait = conflictRemain;
     if (syncState.pushTimer) clearTimeout(syncState.pushTimer);
     syncState.pushTimer = window.setTimeout(() => {
       syncState.pushTimer = 0;
@@ -2932,7 +3149,7 @@
         emitSyncStatus({ reason: "poll-no-auth" });
         return;
       }
-      if (syncState.dirtyApp || syncState.dirtyModules) {
+      if ((syncState.dirtyApp || syncState.dirtyModules) && conflictBackoffRemainingMs() <= 0) {
         await pushToServer(false);
       }
       const out = await fetchJson(
@@ -2952,7 +3169,7 @@
       syncState.lastPollAt = Date.now();
       writeSyncRevision(out.data?.rev || syncState.revision || 0);
       if (out.data?.changed) await pullFromServer();
-      if (syncState.dirtyApp || syncState.dirtyModules) await pushToServer(false);
+      if ((syncState.dirtyApp || syncState.dirtyModules) && conflictBackoffRemainingMs() <= 0) await pushToServer(false);
     } catch {
       syncState.lastError = "poll_failed";
       setOnlineState(false, "poll-failed");
@@ -2992,9 +3209,41 @@
         revision: Number(syncState.revision || 0),
         authError: !!syncState.authError,
         lastError: String(syncState.lastError || ""),
+        dirtyApp: !!syncState.dirtyApp,
+        dirtyModules: !!syncState.dirtyModules,
+        dirtySince: Number(syncState.dirtySince || 0),
+        pushing: !!syncState.pushing,
+        pulling: !!syncState.pulling,
+        conflictCount: Number(syncState.conflictCount || 0),
+        conflictBackoffMs: Math.max(0, Number(syncState.conflictBackoffUntil || 0) - Date.now()),
       });
     } catch {}
     return () => syncSubscribers.delete(fn);
+  }
+
+  function getSyncStatus() {
+    return {
+      online: !!syncState.online,
+      serverUrl: String(syncState.serverUrl || ""),
+      revision: Number(syncState.revision || 0),
+      authError: !!syncState.authError,
+      lastError: String(syncState.lastError || ""),
+      dirtyApp: !!syncState.dirtyApp,
+      dirtyModules: !!syncState.dirtyModules,
+      dirtySince: Number(syncState.dirtySince || 0),
+      pushing: !!syncState.pushing,
+      pulling: !!syncState.pulling,
+      conflictCount: Number(syncState.conflictCount || 0),
+      conflictBackoffMs: Math.max(0, Number(syncState.conflictBackoffUntil || 0) - Date.now()),
+      saveIssueActive: !!syncState.saveIssueActive,
+      saveIssueCode: currentSyncSaveIssue()?.code || "",
+      saveIssueMessage: currentSyncSaveIssue()?.message || "",
+    };
+  }
+
+  async function syncNow(force = true) {
+    if (!syncState.online || !syncState.serverUrl) return false;
+    return pushToServer(!!force);
   }
 
   function isOnline() {
@@ -3025,6 +3274,8 @@
     },
     init,
     subscribe,
+    getSyncStatus,
+    syncNow,
     isOnline,
     getServerUrl,
     readAppState,
