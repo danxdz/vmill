@@ -1525,15 +1525,9 @@
         if ([x1, y1, x2, y2].every(Number.isFinite)) {
           const width = Math.max(1, Math.abs(x2 - x1));
           const height = Math.max(1, Math.abs(y2 - y1));
-          if (height > width * 1.15) {
-            return {
-              x: -Math.round(radius * 1.15),
-              y: Math.round(height / 2),
-            };
-          }
           return {
-            x: Math.round(Math.min(width * 0.2, radius * 1.1)),
-            y: -Math.round(radius * 0.45),
+            x: -Math.round((width / 2) + (radius * 1.2)),
+            y: Math.round(height / 2),
           };
         }
         return { x: -radius, y: -radius };

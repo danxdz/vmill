@@ -89,14 +89,19 @@
 
     function normalizeProductDocument(raw, idx = 0, productIdHint = '') {
       const src = raw && typeof raw === 'object' ? raw : {};
+      const mime = str(src.mime || src.type || '');
+      const dataUrl = str(src.dataUrl || src.imageUrl || src.src || '');
+      const explicitPreviewDataUrl = str(src.previewDataUrl || src.renderDataUrl || src.previewSrc || '');
+      const explicitPreviewMime = str(src.previewMime || src.previewType || src.renderMime || '');
+      const isImageSource = /^data:image\//i.test(dataUrl) || /^image\//i.test(mime);
       return {
         id: str(src.id) || uid('pdoc'),
         productId: str(src.productId || productIdHint),
         name: str(src.name) || `Blueprint ${idx + 1}`,
-        mime: str(src.mime || src.type || ''),
-        dataUrl: str(src.dataUrl || src.imageUrl || src.src || ''),
-        previewMime: str(src.previewMime || src.previewType || src.renderMime || src.mime || src.type || ''),
-        previewDataUrl: str(src.previewDataUrl || src.renderDataUrl || src.previewSrc || src.dataUrl || src.imageUrl || src.src || ''),
+        mime,
+        dataUrl,
+        previewMime: explicitPreviewMime || (isImageSource ? mime : ''),
+        previewDataUrl: explicitPreviewDataUrl || (isImageSource ? dataUrl : ''),
         revision: str(src.revision),
         notes: str(src.notes),
         sourceName: str(src.sourceName),

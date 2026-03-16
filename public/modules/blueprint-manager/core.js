@@ -5,6 +5,8 @@ export const state = {
   selectedAnnId: '',
   annScope: 'document',
   annSearch: '',
+  pendingDeleteAnnId: '',
+  previewPickerMode: 'point',
 };
 
 export const $ = (id) => document.getElementById(id);

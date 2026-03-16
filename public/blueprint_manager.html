@@ -107,16 +107,21 @@
     .thumbPlaceholder { width:56px; height:56px; border-radius:10px; border:1px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--muted); }
     .annCardCompact { padding:6px 8px; gap:0; transition:background .12s ease, border-color .12s ease, transform .08s ease; }
     .annCardCompact:hover { border-color: rgba(var(--accent-rgb), .55); background: rgba(255,255,255,.035); transform: translateY(-1px); }
-    .annCardRow { display:flex; align-items:center; gap:8px; min-height:44px; }
+    .annCardRow { display:flex; align-items:flex-start; gap:10px; min-height:52px; }
     .annThumbWrap { flex-shrink:0; width:var(--ann-thumb-w, 50px); height:var(--ann-thumb-h, 50px); border-radius:10px; border:1px solid var(--border); background:var(--panel2); display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; cursor:pointer; }
     .annThumbWrap:hover { border-color: var(--accent); }
-    .annThumbWrap .thumb { display:block; width:auto; height:auto; max-width:calc(100% - 10px); max-height:calc(100% - 10px); object-fit:contain; transform-origin:center center; }
+    .annThumbWrap .thumb { display:block; width:auto; height:auto; max-width:100%; max-height:100%; object-fit:contain; transform-origin:center center; }
     .annThumbWrap .thumbPlaceholder { width:100%; height:100%; font-size:11px; color:var(--muted); display:flex; align-items:center; justify-content:center; }
     .annThumbHint { position:absolute; bottom:0; left:0; right:0; font-size:8px; background:rgba(0,0,0,.68); color:var(--muted); text-align:center; padding:1px 2px; opacity:0; transition:opacity .15s; }
     .annThumbWrap:hover .annThumbHint { opacity:1; }
-    .annMain { flex:1; min-width:0; display:grid; grid-template-columns:auto minmax(120px,1.4fr) 72px 72px 72px 58px auto auto; align-items:center; gap:8px; }
+    .annMain { flex:1; min-width:0; display:grid; gap:6px; align-content:center; padding-top:1px; }
+    .annTopRow { display:flex; align-items:center; gap:8px; min-width:0; }
     .annBadge { font-weight:700; font-size:11px; color:var(--accent); min-width:32px; padding:2px 6px; border-radius:999px; border:1px solid rgba(var(--accent-rgb), .24); background:rgba(var(--accent-rgb), .08); text-align:center; }
-    .annNameText { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; font-weight:600; color:var(--text); }
+    .annPrimaryValue { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:700; color:var(--text); }
+    .annPrimaryInput { flex:1; min-width:0; height:30px; font-size:13px; font-weight:700; }
+    .annSummaryRow { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:var(--muted); }
+    .annEditorRow { display:grid; grid-template-columns: 74px 74px 74px 58px; gap:6px; }
+    .annMetaRow { display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-height:18px; }
     .annInlineInput { width:100%; min-width:0; height:28px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font-size:11px; box-sizing:border-box; }
     .annInlineInput.annNameInline { font-weight:600; }
     .annInlineInput.annNumInline { font-family:ui-monospace, monospace; }
@@ -134,10 +139,10 @@
     .annConfirmBtn.bad { color:#fca5a5; }
     .annInlineInput:disabled, .annQuickBtn:disabled, .annRotateSel:disabled { opacity:.58; cursor:not-allowed; }
     @media (max-width: 900px) {
-      .annMain { grid-template-columns:auto minmax(0,1fr) 64px 64px 64px 52px; }
-      .annMetaChip, .annLinksChip, .annQuickBtn { display:none; }
+      .annEditorRow { grid-template-columns: 1fr 1fr; }
+      .annMetaChip, .annLinksChip { display:none; }
     }
-    .thumbLarge { width:var(--detail-thumb-w, 176px); height:var(--detail-thumb-h, 176px); border-radius:14px; object-fit:contain; border:1px solid var(--border); background:#fff; padding:10px; box-sizing:border-box; }
+    .thumbLarge { width:var(--detail-thumb-w, 176px); height:var(--detail-thumb-h, 176px); border-radius:14px; object-fit:contain; border:1px solid var(--border); background:#fff; padding:0; box-sizing:border-box; display:block; }
     .thumbLargePlaceholder { width:var(--detail-thumb-w, 176px); height:var(--detail-thumb-h, 176px); border-radius:14px; border:1px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--muted); background:rgba(255,255,255,.02); }
     .chip { display:inline-flex; align-items:center; gap:6px; padding:4px 9px; border-radius:999px; border:1px solid var(--border); font-size:11px; }
     .status { border:1px dashed var(--border); border-radius:10px; padding:9px 10px; }
@@ -161,6 +166,29 @@
       z-index: 1200;
     }
     .modalOverlay.show { display: flex; }
+    .previewPickerMenu {
+      position:absolute;
+      min-width:148px;
+      padding:6px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:rgba(15, 23, 36, .96);
+      box-shadow:0 14px 30px rgba(0,0,0,.28);
+      z-index:10;
+    }
+    .previewPickerMenu[hidden] { display:none !important; }
+    .previewPickerMenuBtn {
+      width:100%;
+      text-align:left;
+      justify-content:flex-start;
+      border-radius:8px;
+    }
+    .previewPickerMenuBtn + .previewPickerMenuBtn { margin-top:4px; }
+    .previewPickerMenuBtn.active {
+      border-color: rgba(var(--accent-rgb), .45);
+      background: rgba(var(--accent-rgb), .14);
+      color: var(--text);
+    }
     .modalCard {
       width: min(1120px, 100%);
       max-height: min(90vh, 920px);
@@ -419,6 +447,10 @@
           <img id="docImagePreview" alt="Blueprint preview" hidden />
           <iframe id="docPdfPreview" title="Blueprint PDF preview" hidden></iframe>
           <canvas id="docOverlayCanvas" hidden></canvas>
+          <div id="previewPickerMenu" class="previewPickerMenu" hidden>
+            <button class="btn previewPickerMenuBtn" id="previewPickerPointBtn" type="button">Point Pick</button>
+            <button class="btn previewPickerMenuBtn" id="previewPickerBoxBtn" type="button">Box Pick</button>
+          </div>
           <div id="annOverlayPopover" class="annOverlayPopover" hidden>
             <div class="annOverlayPopoverHead">
               <span class="annOverlayPopoverTitle"></span>

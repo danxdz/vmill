@@ -873,6 +873,37 @@ def validate_image_dimensions(image_path: str) -> bool:
         logger.error(f"Error validating image dimensions: {e}")
         return False
 
+
+def normalize_image_dimensions_for_ocr(image_path: str, max_dimension: int = MAX_IMAGE_DIMENSIONS) -> str:
+    """Downscale oversized images for OCR instead of rejecting them outright."""
+    try:
+        img = cv2.imread(str(image_path))
+        if img is None:
+            raise HTTPException(status_code=400, detail="Failed to read uploaded image")
+
+        height, width = img.shape[:2]
+        logger.info(f"📐 OCR input dimensions: {width}x{height}")
+        max_size = max(height, width)
+        if max_size <= max_dimension:
+            return image_path
+
+        scale = max_dimension / float(max_size)
+        new_width = max(1, int(round(width * scale)))
+        new_height = max(1, int(round(height * scale)))
+        logger.warning(
+            f"📉 Downscaling oversized OCR image from {width}x{height} "
+            f"to {new_width}x{new_height} (limit {max_dimension}px)"
+        )
+        resized_img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
+        resized_path = create_secure_temp_file('.jpg')
+        cv2.imwrite(resized_path, resized_img)
+        return resized_path
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error normalizing image dimensions: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to prepare image for OCR: {str(e)}")
+
 # Rate limiting
 RATE_LIMIT_REQUESTS = 1000  # requests per minute (increased for training data manager)
 RATE_LIMIT_WINDOW = 60  # seconds
@@ -915,12 +946,25 @@ def is_dimension_text(text):
 
 def parse_tolerance(text):
     """Parse tolerance information from text with improved patterns including thread tolerances"""
-    
+
+    def to_float(raw):
+        return float(str(raw).replace(',', '.'))
+
+    def has_diameter_marker(raw_text):
+        return bool(re.search(r'(?:[ØøΦ])|(?:\bdiameter\b)|(?:\bdiametre\b)|(?:\bdia\b)', str(raw_text), re.IGNORECASE))
+
     if not text:
         return None
     
     # Keep original text - DON'T do aggressive replacements!
     clean_text = text.strip()
+    if not is_dimension_text_advanced(clean_text):
+        return None
+    clean_text = clean_ocr_text_advanced(clean_text)
+    clean_text = clean_text.replace(',', '.')
+    compact_text = re.sub(r'\s+', '', clean_text)
+    if re.fullmatch(r'\d{6,}', compact_text):
+        return None
     
     # Pattern 0: ISO 2768 General Tolerances (check FIRST!)
     iso_2768_patterns = [
@@ -975,7 +1019,7 @@ def parse_tolerance(text):
     for i, pattern in enumerate(thread_patterns):
         thread_tolerance_match = re.search(pattern, clean_text, re.IGNORECASE)
         if thread_tolerance_match:
-            size = float(thread_tolerance_match.group(1))
+            size = to_float(thread_tolerance_match.group(1))
             pitch = thread_tolerance_match.group(2)
             tolerance_class_raw = thread_tolerance_match.group(3)
             
@@ -992,11 +1036,9 @@ def parse_tolerance(text):
                 elif tolerance_class.startswith('8'):
                     tolerance_class = '8H'
             
-            print(f"✓ Thread tolerance: {text} -> M{size}X{pitch}-{tolerance_class}")
-            
             return {
                 "value": size,
-                "thread_pitch": float(pitch) if pitch else None,
+                "thread_pitch": to_float(pitch) if pitch else None,
                 "tolerance_class": tolerance_class,
                 "tolerance_type": "thread",
                 "is_diameter": False,
@@ -1015,10 +1057,9 @@ def parse_tolerance(text):
     for pattern in plus_minus_patterns:
         plus_minus_match = re.search(pattern, clean_text, re.IGNORECASE)
         if plus_minus_match:
-            value = float(plus_minus_match.group(1))
-            tolerance = float(plus_minus_match.group(2))
-            is_diameter = bool(re.search(r'[ØDIA]', clean_text, re.IGNORECASE))
-            print(f"✓ ± Tolerance: {text} -> {value}±{tolerance}")
+            value = to_float(plus_minus_match.group(1))
+            tolerance = to_float(plus_minus_match.group(2))
+            is_diameter = has_diameter_marker(clean_text)
             return {
                 "value": value,
                 "tolerance_plus": tolerance,
@@ -1038,10 +1079,10 @@ def parse_tolerance(text):
     for pattern in asymmetric_patterns:
         asymmetric_match = re.search(pattern, clean_text, re.IGNORECASE)
         if asymmetric_match:
-            value = float(asymmetric_match.group(1))
-            plus_tolerance = float(asymmetric_match.group(2))
-            minus_tolerance = float(asymmetric_match.group(3))
-            is_diameter = bool(re.search(r'[ØDIA]', clean_text, re.IGNORECASE))
+            value = to_float(asymmetric_match.group(1))
+            plus_tolerance = to_float(asymmetric_match.group(2))
+            minus_tolerance = to_float(asymmetric_match.group(3))
+            is_diameter = has_diameter_marker(clean_text)
             return {
                 "value": value,
                 "tolerance_plus": plus_tolerance,
@@ -1067,7 +1108,7 @@ def parse_tolerance(text):
     for pattern in zero_upper_patterns:
         zero_upper_match = re.search(pattern, clean_text, re.IGNORECASE)
         if zero_upper_match:
-            value = float(zero_upper_match.group(1))
+            value = to_float(zero_upper_match.group(1))
             
             try:
                 # Handle superscript format
@@ -1081,7 +1122,7 @@ def parse_tolerance(text):
                 
                 lower_tol = parse_number(zero_upper_match.group(2))
                 
-                is_diameter = bool(re.search(r'[ØDIA]', clean_text, re.IGNORECASE))
+                is_diameter = has_diameter_marker(clean_text)
                 print(f"✓ Zero upper tolerance: {text} -> {value} (upper: 0, lower: -{lower_tol})")
                 
                 return {
@@ -1098,7 +1139,7 @@ def parse_tolerance(text):
     for pattern in dual_negative_patterns:
         dual_negative_match = re.search(pattern, clean_text, re.IGNORECASE)
         if dual_negative_match:
-            value = float(dual_negative_match.group(1))
+            value = to_float(dual_negative_match.group(1))
             
             try:
                 # Handle both superscript and standard formats
@@ -1114,7 +1155,7 @@ def parse_tolerance(text):
                 upper_tol = parse_number(dual_negative_match.group(2))
                 lower_tol = parse_number(dual_negative_match.group(3))
                 
-                is_diameter = bool(re.search(r'[ØDIA]', clean_text, re.IGNORECASE))
+                is_diameter = has_diameter_marker(clean_text)
                 print(f"✓ Dual negative tolerance: {text} -> {value} (upper: {upper_tol}, lower: {lower_tol})")
                 
                 return {
@@ -1138,9 +1179,9 @@ def parse_tolerance(text):
     for pattern in negative_patterns:
         negative_only_match = re.search(pattern, clean_text, re.IGNORECASE)
         if negative_only_match:
-            value = float(negative_only_match.group(1))
-            minus_tolerance = float(negative_only_match.group(2))
-            is_diameter = bool(re.search(r'[ØDIA]', clean_text, re.IGNORECASE))
+            value = to_float(negative_only_match.group(1))
+            minus_tolerance = to_float(negative_only_match.group(2))
+            is_diameter = has_diameter_marker(clean_text)
             return {
                 "value": value,
                 "tolerance_plus": 0.0,
@@ -1153,9 +1194,9 @@ def parse_tolerance(text):
     # Pattern 4: Value with positive tolerance only (e.g., "Ø48+0.03", "48 +0.03")
     positive_only_match = re.search(r'(?:Ø|DIA|DIAMETER)?\s*(\d+\.?\d*)\s*\+\s*(\d+\.?\d*)', clean_text, re.IGNORECASE)
     if positive_only_match:
-        value = float(positive_only_match.group(1))
-        plus_tolerance = float(positive_only_match.group(2))
-        is_diameter = bool(re.search(r'[ØDIA]', clean_text, re.IGNORECASE))
+        value = to_float(positive_only_match.group(1))
+        plus_tolerance = to_float(positive_only_match.group(2))
+        is_diameter = has_diameter_marker(clean_text)
         return {
             "value": value,
             "tolerance_plus": plus_tolerance,
@@ -1168,9 +1209,9 @@ def parse_tolerance(text):
     # Pattern 5: ISO tolerance classes (e.g., "48H7", "25.5f6", "Ø48H7")
     iso_tolerance_match = re.search(r'(?:Ø|DIA|DIAMETER)?\s*(\d+\.?\d*)\s*([A-Za-z]\d+)', clean_text, re.IGNORECASE)
     if iso_tolerance_match:
-        value = float(iso_tolerance_match.group(1))
+        value = to_float(iso_tolerance_match.group(1))
         tolerance_class = iso_tolerance_match.group(2).upper()
-        is_diameter = bool(re.search(r'[ØDIA]', clean_text, re.IGNORECASE))
+        is_diameter = has_diameter_marker(clean_text)
         
         # Comprehensive ISO tolerance lookup (simplified but more complete)
         iso_tolerances = {
@@ -1216,8 +1257,8 @@ def parse_tolerance(text):
     # Handle cases like "Ø48⁰-0.03" (with superscript 0)
     diameter_superscript_match = re.search(r'(?:Ø|DIA|DIAMETER)?\s*(\d+\.?\d*)\s*⁰\s*[-]\s*(\d+\.?\d*)', clean_text, re.IGNORECASE)
     if diameter_superscript_match:
-        value = float(diameter_superscript_match.group(1))
-        minus_tolerance = float(diameter_superscript_match.group(2))
+        value = to_float(diameter_superscript_match.group(1))
+        minus_tolerance = to_float(diameter_superscript_match.group(2))
         is_diameter = True  # Always diameter when Ø is present
         return {
             "value": value,
@@ -1231,8 +1272,10 @@ def parse_tolerance(text):
     # Pattern 7: Single value with no tolerance (e.g., "48", "Ø48", "DIA 48")
     single_value_match = re.search(r'(?:Ø|DIA|DIAMETER)?\s*(\d+\.?\d*)', clean_text, re.IGNORECASE)
     if single_value_match:
-        value = float(single_value_match.group(1))
-        is_diameter = bool(re.search(r'[ØDIA]', clean_text, re.IGNORECASE))
+        value = to_float(single_value_match.group(1))
+        is_diameter = has_diameter_marker(clean_text)
+        if not is_diameter and value > 5000:
+            return None
         return {
             "value": value,
             "tolerance_plus": 0.0,
@@ -1241,10 +1284,7 @@ def parse_tolerance(text):
             "is_diameter": is_diameter,
             "original_text": text
         }
-    
-    # No pattern matched - only log for complex text to avoid spam
-    if len(clean_text) > 3 or re.search(r'[A-Za-z±\+\-]', clean_text):
-        print(f"✗ No tolerance pattern: '{text}'")
+
     return None
 
 def preprocess_image_for_ocr(image_path):
@@ -1352,23 +1392,43 @@ def is_dimension_text_advanced(text):
     """Advanced dimension text detection"""
     if not text:
         return False
-    
+
+    clean = str(text).strip().replace(',', '.')
+    compact = re.sub(r'\s+', '', clean)
+
+    if not re.search(r'\d', clean):
+        return False
+
+    # Reject obvious OCR garbage blobs before matching broad patterns.
+    if re.fullmatch(r'\d{6,}', compact):
+        return False
+
+    has_letters = bool(re.search(r'[A-Za-z]', clean))
+    allowed_alpha_patterns = [
+        r'^(?:[Rr]|[ØøΦ])?\d+(?:\.\d+)?$',  # Radius / diameter prefix
+        r'^M\d+(?:\.\d+)?(?:[Xx×]\d+(?:\.\d+)?)?(?:-[0-9A-Za-z]{1,4})?$',  # Threads
+        r'^(?:[ØøΦ])?\d+(?:\.\d+)?\s*[A-Ha-hCcDdEeFfGgHh]\d{1,2}$',  # ISO fits
+        r'^(?:[ØøΦRr])?\d+(?:\.\d+)?\s*(?:mm|cm|m|in|inch|inches|deg|°)$',  # Units
+    ]
+    if has_letters and not any(re.search(pattern, compact, re.IGNORECASE) for pattern in allowed_alpha_patterns):
+        return False
+
     # Enhanced patterns for dimension detection
     patterns = [
-        r'\d+\.?\d*\s*±\s*\d+\.?\d*',  # ± tolerance
-        r'\d+\.?\d*\s*\+\s*\d+\.?\d*\s*/\s*-\s*\d+\.?\d*',  # +/- tolerance
-        r'\d+\.?\d*\s*-\s*\d+\.?\d*',  # negative tolerance
-        r'\d+\.?\d*\s*\+\s*\d+\.?\d*',  # positive tolerance
-        r'\d+\.?\d*\s*[A-Za-z]\d+',  # ISO tolerance
-        r'M?\d+\.?\d*[Xx×]?\d+\.?\d*?[-]?[A-HG]+\d*',  # Thread tolerances
-        r'\d+\.?\d*\s*(mm|cm|m|in|inch)',  # With units
-        r'^\d+\.?\d*$'  # Pure numbers
+        r'(?:[Rr]|[ØøΦ])?\d+(?:\.\d+)?\s*±\s*\d+(?:\.\d+)?',  # ± tolerance
+        r'(?:[Rr]|[ØøΦ])?\d+(?:\.\d+)?\s*\+\s*\d+(?:\.\d+)?\s*/\s*-\s*\d+(?:\.\d+)?',  # +/- tolerance
+        r'(?:[Rr]|[ØøΦ])?\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?',  # negative tolerance
+        r'(?:[Rr]|[ØøΦ])?\d+(?:\.\d+)?\s*\+\s*\d+(?:\.\d+)?',  # positive tolerance
+        r'(?:[Rr]|[ØøΦ])?\d+(?:\.\d+)?\s*[A-Ha-hCcDdEeFfGgHh]\d{1,2}',  # ISO tolerance
+        r'^M\d+(?:\.\d+)?(?:[Xx×]\d+(?:\.\d+)?)?(?:-[0-9A-Za-z]{1,4})?$',  # Thread tolerances
+        r'(?:[Rr]|[ØøΦ])?\d+(?:\.\d+)?\s*(mm|cm|m|in|inch)',  # With units
+        r'^(?:[Rr]|[ØøΦ])?\d+(?:\.\d+)?$'  # Pure numbers / radius / diameter
     ]
-    
+
     for pattern in patterns:
-        if re.search(pattern, text.strip(), re.IGNORECASE):
+        if re.search(pattern, clean, re.IGNORECASE):
             return True
-    
+
     return False
 
 def detect_zone_category(text):
@@ -1395,7 +1455,7 @@ def detect_zone_category(text):
     radius_keywords = ['r', 'radius', 'rayon']
     
     # Diameter keywords
-    diameter_keywords = ['ø', 'diameter', 'diametre', 'dia', 'd']
+    diameter_keywords = ['ø', 'diameter', 'diametre', 'dia']
     
     # Thread keywords
     thread_keywords = ['m', 'thread', 'filetage', 'pas']
@@ -1416,7 +1476,7 @@ def detect_zone_category(text):
         return 'radius'
     
     # Check for diameter (Ø followed by number or diameter keywords, or numbers that should be diameter)
-    if (re.search(r'[øØ]\d+', text) or any(keyword in text_lower for keyword in diameter_keywords) or
+    if (re.search(r'[øØΦ]\s*\d+', text) or re.search(r'\b(?:diameter|diametre|dia)\b', text_lower) or
         re.search(r'^\d+\.\d{3}$', text) or re.search(r'^\d{2,3}$', text) or  # Common diameter patterns
         re.search(r'^\d+[,.]\d+$', text)):  # Decimal numbers like 0,8 or 0.8 (likely diameters)
         return 'diameter'
@@ -1505,6 +1565,27 @@ def clean_ocr_text_advanced(text):
         if re.match(pattern, cleaned):
             cleaned = re.sub(pattern, replacement, cleaned)
             logger.info(f"🧹 Applied tolerance fix: '{text}' -> '{cleaned}'")
+
+    compact = re.sub(r'\s+', '', cleaned).replace(',', '.')
+
+    # OCR often collapses "28±0.03" into "280.03" and similar.
+    compact_tol_match = re.match(r'^([ØøΦ]?)(\d{1,3})0\.(\d{2,3})$', compact)
+    if compact_tol_match:
+        prefix = '\u03a6' if compact_tol_match.group(1) in ('Ø', 'ø', 'Φ') else ''
+        cleaned = f"{prefix}{compact_tol_match.group(2)}±0.{compact_tol_match.group(3)}"
+        logger.info(f"🧹 Applied compact tolerance fix: '{text}' -> '{cleaned}'")
+
+    # Common diameter+tolerance collapse: "6440.02" -> "Φ44±0.02"
+    compact_diameter_tol_match = re.match(r'^6(\d{2})0\.(\d{2,3})$', compact)
+    if compact_diameter_tol_match:
+        cleaned = f"\u03a6{compact_diameter_tol_match.group(1)}±0.{compact_diameter_tol_match.group(2)}"
+        logger.info(f"🧹 Applied compact diameter tolerance fix: '{text}' -> '{cleaned}'")
+
+    # Another frequent vertical OCR collapse: "Φ348nn3" -> "Φ48-0.03"
+    phi_negative_tol_match = re.match(r'^[ØΦ]3(\d{2})nn(\d)$', compact, re.IGNORECASE)
+    if phi_negative_tol_match:
+        cleaned = f"\u03a6{phi_negative_tol_match.group(1)}-0.0{phi_negative_tol_match.group(2)}"
+        logger.info(f"🧹 Applied diameter negative tolerance fix: '{text}' -> '{cleaned}'")
     
     # Remove extra spaces and normalize
     cleaned = re.sub(r'\s+', ' ', cleaned).strip()
@@ -1629,8 +1710,8 @@ def remove_duplicate_zones(zones, overlap_threshold=0.8):
                 overlap_ratio = overlap_area / area1
                 
                 if overlap_ratio > overlap_threshold:
-                    # Keep the zone with higher confidence
-                    if zone1.get('confidence', 0) > zone2.get('confidence', 0):
+                    # Keep the zone with better dimension usefulness, not only raw confidence.
+                    if zone_quality_score(zone1) > zone_quality_score(zone2):
                         filtered_zones[j] = zone1
                     is_duplicate = True
                     break
@@ -2346,10 +2427,6 @@ def create_zone_from_predict(text, score, dt_polys, index):
     }
     
     # Log tolerance parsing results
-    tolerance_info = zone.get("tolerance_info")
-    if tolerance_info:
-        print(f"🔍 ZONE TOLERANCE: '{clean_text}' -> {tolerance_info}")
-    
     logger.info(f"✅ Zone {index} CREATED: text='{clean_text}', orient={text_orientation}°, conf={adjusted_score:.3f}, bbox=({x1},{y1},{x2},{y2})")
     return zone
 
@@ -2399,10 +2476,6 @@ def create_zone_from_ocr(text, confidence, bbox, index):
     }
     
     # Log tolerance parsing results
-    tolerance_info = zone.get("tolerance_info")
-    if tolerance_info:
-        print(f"🔍 ZONE TOLERANCE: '{text}' -> {tolerance_info}")
-    
     return zone
 
 def resize_image_for_speed(image_path, max_dimension=1024):
@@ -2517,15 +2590,42 @@ def bbox_iou(box_a, box_b):
     return (inter / denom) if denom > 0 else 0.0
 
 
+def zone_quality_score(zone):
+    """Prefer useful dimension-like zones over raw confidence alone."""
+    if not isinstance(zone, dict):
+        return -9999.0
+    text = str(zone.get("text", "") or "").strip()
+    compact = re.sub(r"\s+", "", text)
+    conf = float(zone.get("confidence", 0) or 0)
+    score = conf
+    tolerance_info = zone.get("tolerance_info", {})
+    if zone.get("is_dimension") is True:
+        score += 2.5
+    if isinstance(tolerance_info, dict) and tolerance_info:
+        score += 1.0
+    if re.search(r"\d", compact):
+        score += 1.5
+    if re.search(r"(?:[ØøΦRr]\s*)?\d{2,}(?:[.,]\d+)?", compact):
+        score += 1.0
+    if re.search(r"^M\d", compact, re.IGNORECASE):
+        score += 1.0
+    if compact in {"V", "v", "X", "x", "Y", "y", "!", "=", "-", "—", ":"}:
+        score -= 4.0
+    if len(compact) <= 1:
+        score -= 2.5
+    if not re.search(r"\d", compact) and len(compact) <= 2:
+        score -= 2.0
+    return score
+
+
 def merge_zone_lists(base_zones, extra_zones):
-    """Merge additional OCR zones, preferring higher-confidence detections and avoiding duplicates."""
+    """Merge additional OCR zones, preferring better dimension-like detections."""
     merged = list(base_zones or [])
     for extra in extra_zones or []:
         extra_box = extra.get("bbox") if isinstance(extra, dict) else None
         if not extra_box:
             continue
         extra_text = str(extra.get("text", "") or "").strip()
-        extra_conf = float(extra.get("confidence", 0) or 0)
         replaced = False
         for idx, current in enumerate(merged):
             cur_box = current.get("bbox") if isinstance(current, dict) else None
@@ -2533,10 +2633,9 @@ def merge_zone_lists(base_zones, extra_zones):
                 continue
             overlap = bbox_iou(cur_box, extra_box)
             cur_text = str(current.get("text", "") or "").strip()
-            cur_conf = float(current.get("confidence", 0) or 0)
             same_text = extra_text and cur_text and extra_text == cur_text
             if overlap >= 0.55 or (overlap >= 0.30 and same_text):
-                if extra_conf > cur_conf or (not cur_text and extra_text):
+                if zone_quality_score(extra) > zone_quality_score(current) or (not cur_text and extra_text):
                     merged[idx] = extra
                 replaced = True
                 break
@@ -2719,9 +2818,13 @@ def process_image(image_path, mode="fast", rotation=0):
             for zone in zones
             if isinstance(zone, dict)
         )
-        if rotation == 0 and not has_vertical_zone:
+        if rotation == 0 and mode in ["accurate", "hardcore"]:
             try:
-                logger.info("🔄 No vertical zones found on base pass; running 90°/270° full-image OCR assist...")
+                logger.info(
+                    "🔄 Running 90°/270° full-image OCR assist..."
+                    if not has_vertical_zone
+                    else "🔄 Running extra 90°/270° full-image OCR assist for more vertical coverage..."
+                )
                 rotated_90 = run_rotated_full_image_pass(img, mode, 90)
                 rotated_270 = run_rotated_full_image_pass(img, mode, 270)
                 zones = merge_zone_lists(zones, rotated_90)
@@ -2806,11 +2909,36 @@ def process_image(image_path, mode="fast", rotation=0):
                 crop = img[y1:y2, x1:x2]
                 text, conf, angle = ocr_zone_thumbnail(crop, good_confidence_threshold=0.6)
                 if text or conf > 0:
-                    raw = text or zone.get('text', '')
-                    zone['text'] = clean_ocr_text_advanced(raw) or raw
-                    zone['confidence'] = conf if conf > 0 else zone.get('confidence', 0)
-                    zone['text_orientation'] = angle
-                    zone['rotation'] = angle
+                    original_text = str(zone.get('text', '') or '')
+                    original_clean = clean_ocr_text_advanced(original_text) or original_text
+                    refined_raw = text or original_text
+                    refined_clean = clean_ocr_text_advanced(refined_raw) or refined_raw
+                    original_conf = float(zone.get('confidence', 0) or 0)
+
+                    original_has_digits = bool(re.search(r'\d', original_clean))
+                    refined_has_digits = bool(re.search(r'\d', refined_clean))
+                    original_is_dim = is_dimension_text_advanced(original_clean)
+                    refined_is_dim = is_dimension_text_advanced(refined_clean)
+
+                    should_replace = True
+                    if original_has_digits and not refined_has_digits:
+                        should_replace = False
+                    elif original_is_dim and not refined_is_dim:
+                        should_replace = False
+                    elif conf > 0 and original_conf > 0 and conf + 0.08 < original_conf:
+                        should_replace = False
+                    elif len(refined_clean.strip()) <= 1 and len(original_clean.strip()) > 1:
+                        should_replace = False
+
+                    if should_replace:
+                        zone['text'] = refined_clean
+                        zone['confidence'] = conf if conf > 0 else zone.get('confidence', 0)
+                        zone['text_orientation'] = angle
+                        zone['rotation'] = angle
+                    else:
+                        zone['text'] = original_clean
+                        zone['confidence'] = max(original_conf, conf if conf > 0 else 0)
+
                     zone['is_dimension'] = is_dimension_text_advanced(zone['text'])
                     zone['tolerance_info'] = parse_tolerance(zone['text'])
             except Exception as e:
@@ -3008,10 +3136,12 @@ async def process_ocr(
     
     # Save uploaded file to secure temporary location
     temp_path = create_secure_temp_file('.pdf' if is_pdf else '.jpg')
+    cleanup_paths = set()
     try:
         content = await file.read()
         with open(temp_path, 'wb') as temp_file:
             temp_file.write(content)
+        cleanup_paths.add(temp_path)
     except Exception as e:
         logger.error(f"Failed to save uploaded file: {e}")
         raise HTTPException(status_code=500, detail="Failed to process uploaded file")
@@ -3027,6 +3157,7 @@ async def process_ocr(
             except:
                 pass
             temp_path = image_path
+            cleanup_paths.add(temp_path)
             logger.info(f"✅ PDF converted to image: {temp_path}")
         except Exception as e:
             logger.error(f"Failed to convert PDF: {e}")
@@ -3036,9 +3167,11 @@ async def process_ocr(
         logger.info(f"🚀 API CALL: Processing {'PDF' if is_pdf else 'image'}: {file.filename}, mode: {mode}, rotation: {rotation}")
         logger.info(f"📁 Temp file saved: {temp_path}")
         
-        # Validate image dimensions
-        if not validate_image_dimensions(temp_path):
-            raise HTTPException(status_code=400, detail="Image dimensions too large. Maximum allowed: 4096x4096 pixels")
+        # Downscale oversized images for OCR instead of rejecting them.
+        normalized_path = normalize_image_dimensions_for_ocr(temp_path, MAX_IMAGE_DIMENSIONS)
+        if normalized_path != temp_path:
+            cleanup_paths.add(normalized_path)
+            temp_path = normalized_path
         
         # Process image with specified mode and rotation
         result = await process_image_async(temp_path, mode, rotation)
@@ -3056,6 +3189,8 @@ async def process_ocr(
         
         return JSONResponse(content=result)
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error processing uploaded file: {e}")
         import traceback
@@ -3072,12 +3207,13 @@ async def process_ocr(
         )
     finally:
         # Always clean up temporary file
-        if 'temp_path' in locals() and os.path.exists(temp_path):
-            try:
-                os.unlink(temp_path)
-                logger.info(f"Cleaned up temp file: {temp_path}")
-            except OSError as cleanup_error:
-                logger.warning(f"Failed to clean up temp file {temp_path}: {cleanup_error}")
+        for path_to_cleanup in list(cleanup_paths):
+            if path_to_cleanup and os.path.exists(path_to_cleanup):
+                try:
+                    os.unlink(path_to_cleanup)
+                    logger.info(f"Cleaned up temp file: {path_to_cleanup}")
+                except OSError as cleanup_error:
+                    logger.warning(f"Failed to clean up temp file {path_to_cleanup}: {cleanup_error}")
 
 @app.post("/ocr/process-path")
 async def process_ocr_path(image_path: str = Query(...), mode: str = Query("fast", description="OCR mode: 'fast' for position detection, 'accurate' for hard text search")):
@@ -3239,10 +3375,67 @@ def best_zone_for_point(zones, center_x: float, center_y: float):
         conf = float(zone.get("confidence", 0) or 0)
         distance = math.hypot(center_x - zx, center_y - zy)
         score = conf / (1.0 + (distance / 100.0))
+        text_value = str(zone.get("text", "") or "").strip()
+        compact_text = re.sub(r"\s+", "", text_value)
+        if zone.get("is_dimension") is True:
+            score += 0.25
+        if isinstance(zone.get("tolerance_info"), dict) and zone.get("tolerance_info"):
+            score += 0.15
+        if not re.search(r"\d", compact_text):
+            score -= 0.45
+        if len(compact_text) <= 1:
+            score -= 0.45
+        zone_area_ratio = (bbox["width"] * bbox["height"]) / max(1.0, 100.0 * 100.0)
+        if zone_area_ratio < 0.04:
+            score -= 0.2
         if score > best_score:
             best = zone
             best_score = score
     return best, best_score
+
+
+def normalize_rotation_360(angle, default=0.0):
+    """Normalize any angle to [0, 360)."""
+    try:
+        value = float(angle)
+    except (TypeError, ValueError):
+        return float(default)
+    if math.isnan(value) or math.isinf(value):
+        return float(default)
+    return value % 360.0
+
+
+def rotate_image_with_bounds_clockwise(img, rotation):
+    """Rotate an image clockwise while expanding the canvas to avoid clipping."""
+    if img is None or getattr(img, "size", 0) == 0:
+        return img
+    rot = normalize_rotation_360(rotation, 0.0)
+    if abs(rot) < 1e-3:
+        return img
+    if abs(rot - 90.0) < 1e-3:
+        return cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+    if abs(rot - 180.0) < 1e-3:
+        return cv2.rotate(img, cv2.ROTATE_180)
+    if abs(rot - 270.0) < 1e-3:
+        return cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+    h, w = img.shape[:2]
+    center = (w / 2.0, h / 2.0)
+    matrix = cv2.getRotationMatrix2D(center, -rot, 1.0)
+    cos_v = abs(matrix[0, 0])
+    sin_v = abs(matrix[0, 1])
+    bound_w = int((h * sin_v) + (w * cos_v))
+    bound_h = int((h * cos_v) + (w * sin_v))
+    matrix[0, 2] += (bound_w / 2.0) - center[0]
+    matrix[1, 2] += (bound_h / 2.0) - center[1]
+    return cv2.warpAffine(
+        img,
+        matrix,
+        (max(1, bound_w), max(1, bound_h)),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=(255, 255, 255),
+    )
 
 
 def make_annotation_thumbnail(
@@ -3273,32 +3466,7 @@ def make_annotation_thumbnail(
     crop = img[y1:y2, x1:x2]
     if crop is None or crop.size == 0:
         return None
-    rotation = float(rotation or 0)
-    normalized_rotation = rotation % 360
-    if normalized_rotation == 90:
-        crop = cv2.rotate(crop, cv2.ROTATE_90_CLOCKWISE)
-    elif normalized_rotation == 180:
-        crop = cv2.rotate(crop, cv2.ROTATE_180)
-    elif normalized_rotation == 270:
-        crop = cv2.rotate(crop, cv2.ROTATE_90_COUNTERCLOCKWISE)
-    elif abs(normalized_rotation) > 1e-3:
-        ch, cw = crop.shape[:2]
-        center = (cw / 2.0, ch / 2.0)
-        matrix = cv2.getRotationMatrix2D(center, normalized_rotation, 1.0)
-        cos_v = abs(matrix[0, 0])
-        sin_v = abs(matrix[0, 1])
-        bound_w = int((ch * sin_v) + (cw * cos_v))
-        bound_h = int((ch * cos_v) + (cw * sin_v))
-        matrix[0, 2] += (bound_w / 2.0) - center[0]
-        matrix[1, 2] += (bound_h / 2.0) - center[1]
-        crop = cv2.warpAffine(
-            crop,
-            matrix,
-            (max(1, bound_w), max(1, bound_h)),
-            flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_CONSTANT,
-            borderValue=(255, 255, 255),
-        )
+    crop = rotate_image_with_bounds_clockwise(crop, float(rotation or 0))
     ch, cw = crop.shape[:2]
     wanted = max(24, int(max_size or 160))
     scale = min(1.0, wanted / max(cw, ch))
@@ -3323,7 +3491,7 @@ def make_annotation_thumbnail(
             "width": int(x2 - x1),
             "height": int(y2 - y1),
         },
-        "rotation": int(round(normalized_rotation)),
+        "rotation": int(round(normalize_rotation_360(rotation, 0.0))),
     }
 
 
@@ -3500,60 +3668,144 @@ async def process_center_point(request: dict = Body(...)):
                 
                 # Crop image to rectangle
                 cropped_img = img[rect_y1:rect_y2, rect_x1:rect_x2]
-                
-                # Apply rotation if specified
-                if rotation != 0:
-                    logger.info(f"Rotating cropped image by {rotation}°")
-                    height, width = cropped_img.shape[:2]
-                    center = (width // 2, height // 2)
-                    rotation_matrix = cv2.getRotationMatrix2D(center, rotation, 1.0)
-                    cropped_img = cv2.warpAffine(cropped_img, rotation_matrix, (width, height))
-                
-                # Save cropped image temporarily
-                cropped_path = tmp_path.replace('.jpg', '_cropped.jpg')
-                cv2.imwrite(cropped_path, cropped_img)
-                
-                # Run OCR on cropped image
-                logger.info(f"Running OCR on cropped image with rotation: {rotation}°")
-                result = await process_image_async(cropped_path, mode="hardcore", rotation=0)  # No additional rotation
-                
-                # Clean up cropped image
-                if os.path.exists(cropped_path):
-                    os.unlink(cropped_path)
-                
-                if result and result.get('zones'):
-                    # Use the first (and likely only) zone from cropped image
-                    zone = result['zones'][0]
-                    
-                    # Adjust coordinates back to original image
-                    zone_bbox = zone.get('bbox', {})
-                    adjusted_bbox = {
-                        'x1': rect_x1 + zone_bbox.get('x1', 0),
-                        'y1': rect_y1 + zone_bbox.get('y1', 0),
-                        'x2': rect_x1 + zone_bbox.get('x2', 0),
-                        'y2': rect_y1 + zone_bbox.get('y2', 0),
-                        'width': zone_bbox.get('width', 0),
-                        'height': zone_bbox.get('height', 0)
-                    }
-                    
-                    logger.info(f"RECTANGLE RESULT: '{zone.get('text', '')}' at adjusted bbox: {adjusted_bbox}")
-                    
+
+                def rectangle_candidate_rotations(base_rotation):
+                    base = normalize_rotation_360(base_rotation, 0.0)
+                    raw = [
+                        base,
+                        base + 45,
+                        base - 45,
+                        base + 90,
+                        base - 90,
+                        base + 135,
+                        base - 135,
+                        base + 180,
+                    ]
+                    unique = []
+                    seen = set()
+                    for angle in raw:
+                        normalized = round(normalize_rotation_360(angle, 0.0), 3)
+                        if normalized in seen:
+                            continue
+                        seen.add(normalized)
+                        unique.append(normalized)
+                    return unique
+
+                def rectangle_zone_score(zone, crop_width, crop_height):
+                    if not isinstance(zone, dict):
+                        return -1.0
+                    text_value = str(zone.get('text', '') or '').strip()
+                    confidence_value = float(zone.get('confidence', 0) or 0)
+                    score_value = confidence_value
+                    if zone.get('is_dimension') is True:
+                        score_value += 0.25
+                    tolerance_info = zone.get('tolerance_info', {})
+                    if isinstance(tolerance_info, dict) and tolerance_info:
+                        score_value += 0.18
+                    if re.search(r'\d', text_value):
+                        score_value += 0.08
+                    if len(text_value) >= 2:
+                        score_value += 0.04
+                    compact_text = re.sub(r'\s+', '', text_value)
+                    if len(compact_text) <= 1:
+                        score_value -= 0.55
+                    if not re.search(r'\d', compact_text):
+                        score_value -= 0.45
+                    if re.fullmatch(r'[A-Za-z]+', compact_text or ''):
+                        score_value -= 0.4
+                    zone_box = zone_bbox(zone)
+                    if zone_box:
+                        zone_w = max(1.0, float(zone_box.get("width", 0) or (zone_box.get("x2", 0) - zone_box.get("x1", 0))))
+                        zone_h = max(1.0, float(zone_box.get("height", 0) or (zone_box.get("y2", 0) - zone_box.get("y1", 0))))
+                        zone_area_ratio = (zone_w * zone_h) / max(1.0, float(crop_width) * float(crop_height))
+                        if zone_area_ratio < 0.02:
+                            score_value -= 0.5
+                        elif zone_area_ratio < 0.05:
+                            score_value -= 0.18
+                        elif zone_area_ratio <= 0.85:
+                            score_value += 0.08
+
+                        zone_center_x = (float(zone_box.get("x1", 0)) + float(zone_box.get("x2", 0))) / 2.0
+                        zone_center_y = (float(zone_box.get("y1", 0)) + float(zone_box.get("y2", 0))) / 2.0
+                        crop_center_x = float(crop_width) / 2.0
+                        crop_center_y = float(crop_height) / 2.0
+                        center_distance = math.hypot(zone_center_x - crop_center_x, zone_center_y - crop_center_y)
+                        normalized_distance = center_distance / max(1.0, math.hypot(crop_width, crop_height))
+                        score_value += max(0.0, 0.2 - (normalized_distance * 0.4))
+                    if len(text_value) > 24:
+                        score_value -= 0.05
+                    if text_value in ('', '[No Text]'):
+                        score_value -= 1.0
+                    return score_value
+
+                fixed_bbox = {
+                    'x1': rect_x1,
+                    'y1': rect_y1,
+                    'x2': rect_x2,
+                    'y2': rect_y2,
+                    'width': rect_x2 - rect_x1,
+                    'height': rect_y2 - rect_y1
+                }
+
+                best_zone = None
+                best_rotation = 0.0
+                best_score = -1.0
+
+                for candidate_rotation in rectangle_candidate_rotations(rotation):
+                    rotated_crop = rotate_image_with_bounds_clockwise(cropped_img, candidate_rotation)
+                    candidate_crop_h, candidate_crop_w = rotated_crop.shape[:2]
+                    cropped_path = tmp_path.replace('.jpg', f'_cropped_{str(candidate_rotation).replace(".", "_")}.jpg')
+                    cv2.imwrite(cropped_path, rotated_crop)
+                    try:
+                        logger.info(f"Running OCR on cropped image with candidate rotation: {candidate_rotation}°")
+                        result = await process_image_async(cropped_path, mode="hardcore", rotation=0)
+                    finally:
+                        if os.path.exists(cropped_path):
+                            os.unlink(cropped_path)
+
+                    candidate_zones = result.get('zones', []) if isinstance(result, dict) else []
+                    if not candidate_zones:
+                        continue
+
+                    candidate_best = max(candidate_zones, key=lambda z: rectangle_zone_score(z, candidate_crop_w, candidate_crop_h))
+                    candidate_score = rectangle_zone_score(candidate_best, candidate_crop_w, candidate_crop_h)
+                    logger.info(
+                        f"RECTANGLE CANDIDATE: rot={candidate_rotation}°, "
+                        f"text='{candidate_best.get('text', '')}', score={candidate_score:.3f}"
+                    )
+                    if candidate_score > best_score:
+                        best_zone = candidate_best
+                        best_rotation = candidate_rotation
+                        best_score = candidate_score
+
+                if best_zone:
+                    detected_rotation = normalize_rotation_360(
+                        best_zone.get('rotation', best_zone.get('text_orientation', 0)),
+                        0.0
+                    )
+                    original_rotation = normalize_rotation_360(detected_rotation - best_rotation, 0.0)
+                    logger.info(
+                        f"RECTANGLE RESULT: '{best_zone.get('text', '')}' "
+                        f"(candidate={best_rotation}°, detected={detected_rotation}°, original={original_rotation}°)"
+                    )
+
                     return {
                         "zone": {
-                            "text": zone.get('text', ''),
-                            "confidence": zone.get('confidence', 0),
-                            "bbox": adjusted_bbox,
-                            "x": adjusted_bbox.get('x1', 0),
-                            "y": adjusted_bbox.get('y1', 0),
-                            "width": adjusted_bbox.get('width', 0),
-                            "height": adjusted_bbox.get('height', 0),
-                            "tolerance_info": zone.get('tolerance_info', {}),
-                            "text_orientation": zone.get('text_orientation', rotation),
-                            "rotation": zone.get('rotation', rotation)
+                            "text": best_zone.get('text', ''),
+                            "confidence": best_zone.get('confidence', 0),
+                            "bbox": fixed_bbox,
+                            "x": fixed_bbox.get('x1', 0),
+                            "y": fixed_bbox.get('y1', 0),
+                            "width": fixed_bbox.get('width', 0),
+                            "height": fixed_bbox.get('height', 0),
+                            "tolerance_info": best_zone.get('tolerance_info', {}),
+                            "text_orientation": original_rotation,
+                            "rotation": original_rotation,
+                            "candidate_rotation": best_rotation
                         },
-                        "message": f"Found dimension: '{zone.get('text', '')}' in user's rectangle",
+                        "message": f"Found dimension: '{best_zone.get('text', '')}' in user's rectangle",
                         "center_point": {"x": center_x, "y": center_y},
-                        "found_zone": zone.get('text', ''),
+                        "found_zone": best_zone.get('text', ''),
                         "fitted": True
                     }
                 else:
@@ -3626,16 +3878,16 @@ async def process_center_point(request: dict = Body(...)):
                 logger.info(f"BEST ZONE: {best_zone.get('text', 'None') if best_zone else 'None'}, score={best_score:.3f}, threshold={min_score}")
                 
                 if best_zone and best_score >= min_score:
-                    zone_bbox = best_zone.get('bbox', {})
+                    best_zone_bbox = best_zone.get('bbox', {})
                     return {
                         "zone": {
                             "text": best_zone.get('text', ''),
                             "confidence": best_zone.get('confidence', 0),
-                            "bbox": zone_bbox,
-                            "x": zone_bbox.get('x1', 0),
-                            "y": zone_bbox.get('y1', 0),
-                            "width": zone_bbox.get('width', 0),
-                            "height": zone_bbox.get('height', 0),
+                            "bbox": best_zone_bbox,
+                            "x": best_zone_bbox.get('x1', 0),
+                            "y": best_zone_bbox.get('y1', 0),
+                            "width": best_zone_bbox.get('width', 0),
+                            "height": best_zone_bbox.get('height', 0),
                             "tolerance_info": best_zone.get('tolerance_info', {})
                         },
                         "message": f"Found dimension: '{best_zone.get('text', '')}' (score: {best_score:.3f})",
@@ -3754,10 +4006,10 @@ async def get_text_properties(request: dict = Body(...)):
             # Find the zone that matches the bbox
             target_zone = None
             for zone in result['zones']:
-                zone_bbox = zone.get('bbox', {})
-                if (isinstance(zone_bbox, dict) and 
-                    abs(zone_bbox.get('x1', 0) - bbox.get('x1', 0)) < 10 and
-                    abs(zone_bbox.get('y1', 0) - bbox.get('y1', 0)) < 10):
+                candidate_bbox = zone.get('bbox', {})
+                if (isinstance(candidate_bbox, dict) and 
+                    abs(candidate_bbox.get('x1', 0) - bbox.get('x1', 0)) < 10 and
+                    abs(candidate_bbox.get('y1', 0) - bbox.get('y1', 0)) < 10):
                     target_zone = zone
                     break
             
@@ -3848,19 +4100,19 @@ async def process_baseline(request: dict = Body(...)):
                 # Return the closest zone
                 closest = intersecting_zones[0]
                 zone = closest['zone']
-                zone_bbox = zone.get('bbox', {})
+                candidate_bbox = zone.get('bbox', {})
                 
                 # Ensure we return the zone with proper bbox coordinates
-                if isinstance(zone_bbox, dict):
+                if isinstance(candidate_bbox, dict):
                     return {
                         "zone": {
                             "text": zone.get('text', ''),
                             "confidence": zone.get('confidence', 0),
-                            "bbox": zone_bbox,
-                            "x": zone_bbox.get('x1', 0),
-                            "y": zone_bbox.get('y1', 0),
-                            "width": zone_bbox.get('width', 0),
-                            "height": zone_bbox.get('height', 0),
+                            "bbox": candidate_bbox,
+                            "x": candidate_bbox.get('x1', 0),
+                            "y": candidate_bbox.get('y1', 0),
+                            "width": candidate_bbox.get('width', 0),
+                            "height": candidate_bbox.get('height', 0),
                             "tolerance_info": zone.get('tolerance_info', {})
                         },
                         "message": f"Found text along baseline (distance: {closest['distance']:.1f}px)",

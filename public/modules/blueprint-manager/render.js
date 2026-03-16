@@ -1,35 +1,7 @@
 import { $, state, tt, str, getProductById, docsApi, setStatus } from './core.js';
 
 function sendAgentDebugLog(payload) {
-  const body = JSON.stringify(payload);
-  fetch('http://127.0.0.1:7913/ingest/4e6d356f-c211-42df-bc7c-3351fc1a28b2', {
-    method: 'POST',
-    mode: 'no-cors',
-    keepalive: true,
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6d6734' },
-    body,
-  }).catch(() => {});
-  try {
-    const fallbackBase = String(localStorage.getItem('vmill:ocr:url') || '').replace(/\/+$/, '');
-    if (fallbackBase) {
-      fetch(`${fallbackBase}/debug-log`, {
-        method: 'POST',
-        keepalive: true,
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      }).catch(() => {});
-    }
-  } catch {}
-  try {
-    if (window.location?.origin && window.location.origin !== 'null') {
-      fetch(`${window.location.origin}/debug-log`, {
-        method: 'POST',
-        keepalive: true,
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      }).catch(() => {});
-    }
-  } catch {}
+  void payload;
 }
 
 function esc(value) {
@@ -65,17 +37,22 @@ function wrapDisplayRotation(angle) {
 function autoThumbCorrection(row) {
   const ocrRotation = Number(row?.ocrRotation ?? 0);
   if (!Number.isFinite(ocrRotation)) return 0;
-  const snapped = Math.round(ocrRotation / 90) * 90;
-  return wrapDisplayRotation((360 - snapped) % 360);
+  return wrapDisplayRotation((360 - ocrRotation) % 360);
 }
 
 function rotationOptionsHtml(selectedValue) {
-  const selected = String(selectedValue ?? '0');
+  const selectedNum = wrapDisplayRotation(Number(selectedValue ?? 0) || 0);
+  const selected = String(selectedNum);
   const options = [-180, -135, -90, -45, 0, 45, 90, 135, 180];
-  return options.map((angle) => {
+  const rows = options.map((angle) => {
     const label = angle > 0 ? `+${angle}°` : `${angle}°`;
     return `<option value="${angle}"${selected === String(angle) ? ' selected' : ''}>${label}</option>`;
-  }).join('');
+  });
+  if (!options.includes(selectedNum)) {
+    const label = selectedNum > 0 ? `+${selectedNum}°` : `${selectedNum}°`;
+    rows.unshift(`<option value="${selected}" selected>${label}</option>`);
+  }
+  return rows.join('');
 }
 
 function readThumbDisplaySettings() {
@@ -107,16 +84,23 @@ function thumbFrameSize(row, maxSize, minSize, angle = 0) {
   const sinV = Math.abs(Math.sin(radians));
   const rotatedWidth = (width * cosV) + (height * sinV);
   const rotatedHeight = (width * sinV) + (height * cosV);
-  const ratio = rotatedWidth / Math.max(1e-6, rotatedHeight);
-  if (ratio >= 1) {
-    return {
-      width: maxSize,
-      height: Math.max(minSize, Math.round(maxSize / Math.max(1e-6, ratio))),
-    };
+  const longestSide = Math.max(rotatedWidth, rotatedHeight, 1);
+  const fitScale = maxSize / longestSide;
+  let frameWidth = Math.max(1, Math.round(rotatedWidth * fitScale));
+  let frameHeight = Math.max(1, Math.round(rotatedHeight * fitScale));
+
+  // Keep the exact bbox aspect ratio while allowing tiny thumbs
+  // to scale up uniformly instead of fattening one side only.
+  const shortestSide = Math.min(frameWidth, frameHeight);
+  if (shortestSide < minSize && shortestSide > 0) {
+    const uniformScale = minSize / shortestSide;
+    frameWidth = Math.max(1, Math.round(frameWidth * uniformScale));
+    frameHeight = Math.max(1, Math.round(frameHeight * uniformScale));
   }
+
   return {
-    width: Math.max(minSize, Math.round(maxSize * ratio)),
-    height: maxSize,
+    width: frameWidth,
+    height: frameHeight,
   };
 }
 
@@ -168,6 +152,7 @@ const previewRuntime = {
   lastDocKey: '',
   hoveredAnnId: '',
   popoverHideTimeout: null,
+  createBoxStart: null,
 };
 
 function clamp(value, min, max) {
@@ -328,9 +313,7 @@ function bubbleCenterAndRadius(row, box, metrics) {
   const h = Math.abs(p2.y - p1.y);
   const cfg = readDisplaySettingsFromUi();
   const radius = Number(cfg?.bubbleSize ?? 14);
-  const defaultOff = h > w * 1.15
-    ? { x: -((w / 2) + (radius * 1.15)), y: 0 }
-    : { x: (Math.min(w * 0.2, radius * 1.1)) - (w / 2), y: -((h / 2) + (radius * 0.45)) };
+  const defaultOff = { x: -((w / 2) + (radius * 1.2)), y: 0 };
   const rawOff = row?.bubbleOffset && typeof row.bubbleOffset === 'object'
     ? { x: Number(row.bubbleOffset.x || 0), y: Number(row.bubbleOffset.y || 0) }
     : defaultOff;
@@ -504,7 +487,7 @@ export function renderPreviewOverlay() {
   if (info) {
     info.textContent = tt(
       'blueprint.preview.controls',
-      'Drawings mode: drag the number circle (bubble) to move it; drag the red box to move the zone; drag corner pins to resize; wheel to zoom.',
+      `Drawings mode (${state.previewPickerMode === 'box' ? 'box pick' : 'point pick'}): drag the number circle (bubble) to move it; drag the red box to move the zone; drag corner pins to resize; wheel to zoom; right-click to switch picker.`,
     );
   }
   const hoveredId = String(previewRuntime.hoveredAnnId || '');
@@ -545,9 +528,7 @@ export function renderPreviewOverlay() {
 
     const label = String(row?.sourceBubbleId || row?.id || idx + 1);
     const radius = cfg.bubbleSize;
-    const defaultOff = h > w * 1.15
-      ? { x: -((w / 2) + (radius * 1.15)), y: 0 }
-      : { x: (Math.min(w * 0.2, radius * 1.1)) - (w / 2), y: -((h / 2) + (radius * 0.45)) };
+    const defaultOff = { x: -((w / 2) + (radius * 1.2)), y: 0 };
     const isActiveBubbleDrag = String(row?.id || '') === String(previewRuntime.activeAnnId || '') && previewRuntime.draftBubbleOffset;
     const rawOff = isActiveBubbleDrag
       ? { x: Number(previewRuntime.draftBubbleOffset.x || 0), y: Number(previewRuntime.draftBubbleOffset.y || 0) }
@@ -587,6 +568,22 @@ export function renderPreviewOverlay() {
       ctx.textBaseline = 'alphabetic';
     }
   });
+  if (previewRuntime.mode === 'createBox' && previewRuntime.draftBox) {
+    const box = normalizeEditableBbox(previewRuntime.draftBox);
+    if (box) {
+      const x = offsetX + (box.x1 / srcW) * drawW;
+      const y = offsetY + (box.y1 / srcH) * drawH;
+      const w = ((box.x2 - box.x1) / srcW) * drawW;
+      const h = ((box.y2 - box.y1) / srcH) * drawH;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = cfg.selectedColor || '#00ff8f';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+      ctx.setLineDash([]);
+      ctx.fillStyle = `${cfg.selectedColor || '#00ff8f'}22`;
+      ctx.fillRect(x, y, w, h);
+    }
+  }
   renderSettingsLivePreview();
 }
 
@@ -958,8 +955,7 @@ export function updateAnnPopover(row, metrics) {
   `;
   const rotateSel = bodyEl.querySelector('.annPopoverRotateSel');
   if (rotateSel) {
-    const manualRotation = wrapDisplayRotation(Number(row?.thumbnailRotation ?? 0) || 0);
-    rotateSel.value = String(wrapDisplayRotation(autoThumbCorrection(row) + manualRotation));
+    rotateSel.value = String(wrapDisplayRotation(autoThumbCorrection(row) + (Number(row?.thumbnailRotation ?? 0) || 0)));
   }
   // #region agent log
   sendAgentDebugLog({sessionId:'6d6734',runId:'initial',hypothesisId:'H2',location:'render.js:updateAnnPopover:824',message:'popover content rendered',data:{annId:String(row?.id || ''),nameLength:String(row?.name || '').length,nominalLength:String(row?.nominal ?? '').length,unitLength:String(row?.unit ?? '').length,toleranceLength:String(row?.toleranceSpec ?? '').length,box:{x1:box.x1,y1:box.y1,x2:box.x2,y2:box.y2}},timestamp:Date.now()});
@@ -1032,6 +1028,31 @@ function cancelPopoverHide() {
   }
 }
 
+function hidePreviewPickerMenu() {
+  const menu = $('previewPickerMenu');
+  if (menu) menu.hidden = true;
+}
+
+function updatePreviewPickerMenuButtons() {
+  $('previewPickerPointBtn')?.classList.toggle('active', state.previewPickerMode !== 'box');
+  $('previewPickerBoxBtn')?.classList.toggle('active', state.previewPickerMode === 'box');
+}
+
+function showPreviewPickerMenu(clientX, clientY) {
+  const menu = $('previewPickerMenu');
+  const wrap = $('docPreviewWrap');
+  if (!menu || !wrap) return;
+  updatePreviewPickerMenuButtons();
+  const rect = wrap.getBoundingClientRect();
+  menu.hidden = false;
+  const menuW = Math.max(148, menu.offsetWidth || 148);
+  const menuH = Math.max(76, menu.offsetHeight || 76);
+  const left = clamp(clientX - rect.left, 6, Math.max(6, rect.width - menuW - 6));
+  const top = clamp(clientY - rect.top, 6, Math.max(6, rect.height - menuH - 6));
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
 export function bindPreviewInteractions() {
   const canvas = $('docOverlayCanvas');
   const wrap = $('docPreviewWrap');
@@ -1047,6 +1068,19 @@ export function bindPreviewInteractions() {
     if (previewRuntime.pointerId == null || previewRuntime.pointerId !== event.pointerId) return;
     const m = previewMetrics();
     if (!m) return;
+    if (previewRuntime.mode === 'createBox' && previewRuntime.createBoxStart) {
+      const p = canvasEventPoint(event, m.canvas);
+      const currentPoint = canvasToSourcePoint(p.x, p.y, m);
+      if (!currentPoint) return;
+      previewRuntime.draftBox = clampEditableBboxToSource({
+        x1: previewRuntime.createBoxStart.x,
+        y1: previewRuntime.createBoxStart.y,
+        x2: currentPoint.x,
+        y2: currentPoint.y,
+      }, m.srcW, m.srcH);
+      renderPreviewOverlay();
+      return;
+    }
     if (previewRuntime.mode === 'pan') {
       const dx = event.clientX - previewRuntime.startClientX;
       const dy = event.clientY - previewRuntime.startClientY;
@@ -1100,6 +1134,7 @@ export function bindPreviewInteractions() {
     if (previewRuntime.pointerId == null || previewRuntime.pointerId !== event.pointerId) return;
     const boxChanged = (previewRuntime.mode === 'move' || previewRuntime.mode === 'resize') && !!previewRuntime.draftBox;
     const bubbleChanged = previewRuntime.mode === 'dragBubble' && !!previewRuntime.draftBubbleOffset;
+    const createBoxChanged = previewRuntime.mode === 'createBox' && !!previewRuntime.draftBox;
     if (canvas.hasPointerCapture(event.pointerId)) {
       try { canvas.releasePointerCapture(event.pointerId); } catch {}
     }
@@ -1109,9 +1144,19 @@ export function bindPreviewInteractions() {
     previewRuntime.startBox = null;
     previewRuntime.activeHandle = '';
     previewRuntime.startBubbleOffset = null;
+    previewRuntime.createBoxStart = null;
     if (boxChanged && saveOverlayDraft()) {
       previewRuntime.draftBox = null;
       renderAnnotations();
+    } else if (createBoxChanged) {
+      const createdBox = normalizeEditableBbox(previewRuntime.draftBox);
+      previewRuntime.draftBox = null;
+      renderPreviewOverlay();
+      if (createdBox && (createdBox.x2 - createdBox.x1) >= 4 && (createdBox.y2 - createdBox.y1) >= 4) {
+        try {
+          window.dispatchEvent(new CustomEvent('vmill:create-annotation-box', { detail: { sourceBox: createdBox } }));
+        } catch {}
+      }
     } else if (bubbleChanged && saveOverlayBubbleOffset()) {
       previewRuntime.draftBubbleOffset = null;
       renderAnnotations();
@@ -1122,8 +1167,33 @@ export function bindPreviewInteractions() {
     }
   };
 
+  document.addEventListener('pointerdown', (event) => {
+    const menu = $('previewPickerMenu');
+    if (!menu || menu.hidden) return;
+    if (menu.contains(event.target)) return;
+    hidePreviewPickerMenu();
+  });
+  $('previewPickerPointBtn')?.addEventListener('click', () => {
+    state.previewPickerMode = 'point';
+    updatePreviewPickerMenuButtons();
+    hidePreviewPickerMenu();
+    setStatus(tt('blueprint.pointPickMode', 'Picker tool: point pick.'));
+    renderPreviewOverlay();
+  });
+  $('previewPickerBoxBtn')?.addEventListener('click', () => {
+    state.previewPickerMode = 'box';
+    updatePreviewPickerMenuButtons();
+    hidePreviewPickerMenu();
+    setStatus(tt('blueprint.boxPickMode', 'Picker tool: box pick.'));
+    renderPreviewOverlay();
+  });
+  canvas.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+    showPreviewPickerMenu(event.clientX, event.clientY);
+  });
   canvas.addEventListener('pointerdown', (event) => {
     if (event.button !== 0 && event.button !== 1) return;
+    hidePreviewPickerMenu();
     const m = previewMetrics();
     if (!m) return;
     const point = canvasEventPoint(event, m.canvas);
@@ -1146,7 +1216,19 @@ export function bindPreviewInteractions() {
     previewRuntime.draftBox = null;
     previewRuntime.draftBubbleOffset = null;
     previewRuntime.startBubbleOffset = null;
-    if (event.button === 1 || event.shiftKey || !hit.row) {
+    previewRuntime.createBoxStart = null;
+    if (event.button === 0 && !hit.row && state.previewPickerMode === 'box') {
+      const sourcePoint = canvasToSourcePoint(point.x, point.y, m);
+      if (!sourcePoint) return;
+      previewRuntime.mode = 'createBox';
+      previewRuntime.createBoxStart = sourcePoint;
+      previewRuntime.draftBox = clampEditableBboxToSource({
+        x1: sourcePoint.x,
+        y1: sourcePoint.y,
+        x2: sourcePoint.x + 1,
+        y2: sourcePoint.y + 1,
+      }, m.srcW, m.srcH);
+    } else if (event.button === 1 || event.shiftKey || !hit.row) {
       previewRuntime.mode = 'pan';
     } else if (hit.onBubble) {
       const raw = hit.row?.bubbleOffset && typeof hit.row.bubbleOffset === 'object'
@@ -1179,7 +1261,7 @@ export function bindPreviewInteractions() {
     if (hit?.handle) canvas.style.cursor = 'nwse-resize';
     else if (hit?.onBubble) canvas.style.cursor = 'move';
     else if (hit?.row) canvas.style.cursor = 'move';
-    else canvas.style.cursor = 'grab';
+    else canvas.style.cursor = state.previewPickerMode === 'box' ? 'crosshair' : 'grab';
   });
 
   canvas.addEventListener('pointerleave', (event) => {
@@ -1195,6 +1277,7 @@ export function bindPreviewInteractions() {
   });
 
   canvas.addEventListener('dblclick', (event) => {
+    if (state.previewPickerMode === 'box') return;
     const m = previewMetrics();
     if (!m) return;
     const point = canvasEventPoint(event, m.canvas);
@@ -1253,6 +1336,7 @@ export function renderAnnotations() {
     annLinkCounts.set(key, Number(annLinkCounts.get(key) || 0) + 1);
   }
   host.innerHTML = rows.length ? rows.map((row) => {
+    const isSelected = String(row.id) === String(state.selectedAnnId);
     const primaryLabel = String(row.sourceBubbleId || '').trim() || String(row.id || '--');
     const rotation = wrapDisplayRotation(autoThumbCorrection(row) + (Number(row?.thumbnailRotation ?? 0) || 0));
     const thumbStyle = `transform: rotate(${rotation}deg);`;
@@ -1272,25 +1356,44 @@ export function renderAnnotations() {
     const isLocked = row.validated === true;
     const pendingDelete = String(state.pendingDeleteAnnId || '') === String(row.id || '');
     const disabledAttr = isLocked ? ' disabled' : '';
+    const summaryParts = [];
+    if (nominalStr) summaryParts.push(`${tt('blueprint.nomShort', 'Nom')} ${nominalStr}`);
+    if (lowerDevStr || upperDevStr) summaryParts.push(`${lowerDevStr || '0'} / ${upperDevStr || '0'}`);
+    if (row.unit) summaryParts.push(String(row.unit));
+    const summaryText = summaryParts.join(' | ') || tt('blueprint.noParsedValues', 'No parsed values');
+    const metaChips = [
+      confPct != null ? `<span class="annMetaChip warn" title="${esc(tt('blueprint.ocrConfidence', 'OCR confidence'))}">${esc(`${confPct}% sure`)}</span>` : '',
+      isLocked ? `<span class="annMetaChip ok" title="${esc(tt('blueprint.validatedLocked', 'Validated and locked'))}">${esc(tt('blueprint.locked', 'Locked'))}</span>` : '',
+      toleranceLabel ? `<span class="annMetaChip" title="${esc(toleranceLabel)}">${esc(toleranceLabel)}</span>` : '',
+      instrumentLabel ? `<span class="annMetaChip" title="${esc(instrumentLabel)}">${esc(instrumentLabel)}</span>` : '',
+      linkCount > 0 ? `<span class="annLinksChip">${linkCount === 1 ? '1 link' : `${linkCount} links`}</span>` : '',
+    ].filter(Boolean).join('');
+    const primaryContent = isSelected
+      ? `<input class="annInlineInput annPrimaryInput" type="text" data-ann-id="${esc(row.id)}" data-ann-field="name" value="${esc(nameLabel)}" title="${esc(tt('common.name', 'Name'))}" placeholder="${esc(tt('common.name', 'Name'))}"${disabledAttr} />`
+      : `<div class="annPrimaryValue" title="${esc(nameLabel)}">${esc(nameLabel)}</div>`;
+    const editorRow = isSelected
+      ? `<div class="annEditorRow">
+          <input class="annInlineInput annNumInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="nominal" value="${esc(nominalStr)}" title="${esc(tt('blueprint.nominal', 'Nom'))}" placeholder="${esc(tt('blueprint.nominal', 'Nom'))}"${disabledAttr} />
+          <input class="annInlineInput annNumInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="lowerDeviation" value="${esc(lowerDevStr)}" title="${esc(tt('blueprint.tolMinus', 'Tol -'))}" placeholder="${esc(tt('blueprint.tolMinus', 'Tol -'))}"${disabledAttr} />
+          <input class="annInlineInput annNumInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="upperDeviation" value="${esc(upperDevStr)}" title="${esc(tt('blueprint.tolPlus', 'Tol +'))}" placeholder="${esc(tt('blueprint.tolPlus', 'Tol +'))}"${disabledAttr} />
+          <input class="annInlineInput annUnitInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="unit" value="${esc(row.unit || '')}" title="${esc(tt('common.unit', 'Unit'))}" placeholder="mm" list="annUnitDatalist"${disabledAttr} />
+        </div>`
+      : '';
     return `
-    <article class="annCard annCardCompact ${String(row.id) === String(state.selectedAnnId) ? 'sel' : ''}" data-ann-card="${esc(row.id)}">
+    <article class="annCard annCardCompact ${isSelected ? 'sel' : ''}" data-ann-card="${esc(row.id)}">
       <div class="annCardRow">
         <div class="annThumbWrap" data-ann-reocr="${esc(row.id)}" title="Double-click to re-OCR" style="${thumbWrapStyle}">
           ${row.thumbnailDataUrl ? `<img class="thumb" src="${esc(row.thumbnailDataUrl)}" alt="" style="${thumbStyle}" />` : `<div class="thumbPlaceholder">—</div>`}
           <span class="annThumbHint">2× re-OCR</span>
         </div>
         <div class="annMain">
-          <span class="annBadge">#${esc(primaryLabel)}</span>
-          <input class="annInlineInput annNameInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="name" value="${esc(nameLabel)}" title="${esc(tt('common.name', 'Name'))}" placeholder="${esc(tt('common.name', 'Name'))}"${disabledAttr} />
-          <input class="annInlineInput annNumInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="nominal" value="${esc(nominalStr)}" title="${esc(tt('blueprint.nominal', 'Nom'))}" placeholder="${esc(tt('blueprint.nominal', 'Nom'))}"${disabledAttr} />
-          <input class="annInlineInput annNumInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="lowerDeviation" value="${esc(lowerDevStr)}" title="${esc(tt('blueprint.tolMinus', 'Tol -'))}" placeholder="${esc(tt('blueprint.tolMinus', 'Tol -'))}"${disabledAttr} />
-          <input class="annInlineInput annNumInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="upperDeviation" value="${esc(upperDevStr)}" title="${esc(tt('blueprint.tolPlus', 'Tol +'))}" placeholder="${esc(tt('blueprint.tolPlus', 'Tol +'))}"${disabledAttr} />
-          <input class="annInlineInput annUnitInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="unit" value="${esc(row.unit || 'mm')}" title="${esc(tt('common.unit', 'Unit'))}" placeholder="mm" list="annUnitDatalist"${disabledAttr} />
-          ${confPct != null ? `<span class="annMetaChip warn" title="${esc(tt('blueprint.ocrConfidence', 'OCR confidence'))}">${esc(`${confPct}% sure`)}</span>` : ''}
-          ${isLocked ? `<span class="annMetaChip ok" title="${esc(tt('blueprint.validatedLocked', 'Validated and locked'))}">${esc(tt('blueprint.locked', 'Locked'))}</span>` : ''}
-          ${toleranceLabel ? `<span class="annMetaChip" title="${esc(toleranceLabel)}">${esc(toleranceLabel)}</span>` : ''}
-          ${instrumentLabel ? `<span class="annMetaChip" title="${esc(instrumentLabel)}">${esc(instrumentLabel)}</span>` : ''}
-          ${linkCount > 0 ? `<span class="annLinksChip">${linkCount === 1 ? '1 link' : `${linkCount} links`}</span>` : ''}
+          <div class="annTopRow">
+            <span class="annBadge">#${esc(primaryLabel)}</span>
+            ${primaryContent}
+          </div>
+          <div class="annSummaryRow">${esc(summaryText)}</div>
+          ${editorRow}
+          <div class="annMetaRow">${metaChips}</div>
         </div>
         <div class="annQuickActions">
           <button class="btn annQuickBtn" type="button" data-ann-lock="${esc(row.id)}" data-ann-lock-next="${isLocked ? '0' : '1'}">${isLocked ? tt('common.unlock', 'Unlock') : tt('blueprint.validate', 'Validate')}</button>

@@ -217,7 +217,7 @@
       return callOcrJsonWithRetry('/ocr/annotation-thumbnail', {
         image: imageDataUrl,
         bbox,
-        rotation: normalizeCardinalRotation(rotation, 0),
+        rotation: Number(rotation || 0) || 0,
         max_size: 160,
         padding: 8,
         quality: 85,

@@ -289,6 +289,8 @@ function applyStaticUiText() {
   if ($('docImagePreview')) $('docImagePreview').alt = tt('blueprint.previewAlt', 'Blueprint preview');
   if ($('docPdfPreview')) $('docPdfPreview').title = tt('blueprint.pdfPreviewTitle', 'Blueprint PDF preview');
   if ($('docZoomFitBtn')) $('docZoomFitBtn').textContent = tt('common.fit', 'Fit');
+  if ($('previewPickerPointBtn')) $('previewPickerPointBtn').textContent = tt('blueprint.pointPick', 'Point Pick');
+  if ($('previewPickerBoxBtn')) $('previewPickerBoxBtn').textContent = tt('blueprint.boxPick', 'Box Pick');
   if ($('docFullscreenBtn')) {
     $('docFullscreenBtn').textContent = tt('common.fullscreen', 'Fullscreen');
     $('docFullscreenBtn').title = tt('blueprint.expandFullscreen', 'Expand to fullscreen');
@@ -349,8 +351,16 @@ function normalizeCardinalRotation(angle, defaultAngle = 0) {
 }
 
 function zoneRotationToCorrection(textRotation) {
-  const r = normalizeCardinalRotation(textRotation, 0);
-  return normalizeCardinalRotation((360 - r) % 360, 0);
+  const r = Number(textRotation);
+  if (!Number.isFinite(r)) return 0;
+  return wrapDisplayRotation((360 - r) % 360);
+}
+
+function effectiveThumbnailRotation(annotation) {
+  return wrapDisplayRotation(
+    zoneRotationToCorrection(Number(annotation?.ocrRotation ?? 0))
+    + (Number(annotation?.thumbnailRotation ?? 0) || 0)
+  );
 }
 
 function wrapDisplayRotation(angle) {
@@ -508,7 +518,7 @@ function updateAnnotationField(annotationId, field, value) {
   const next = { ...current };
   if (field === 'thumbnailRotation') {
     const desired = wrapDisplayRotation(value);
-    const autoCorrection = wrapDisplayRotation(zoneRotationToCorrection(Number(current.ocrRotation ?? 0)));
+    const autoCorrection = zoneRotationToCorrection(Number(current.ocrRotation ?? 0));
     next.thumbnailRotation = wrapDisplayRotation(desired - autoCorrection);
     docsApi.upsertProductAnnotation(next);
     refresh();
@@ -676,7 +686,7 @@ async function rebuildAnnotationThumbnail(annotationId) {
     : selectedDocument();
   const imageDataUrl = str(doc?.previewDataUrl || doc?.dataUrl || '');
   if (!imageDataUrl) return false;
-  const ocrRotation = normalizeCardinalRotation(Number(current.ocrRotation ?? 0), 0);
+  const ocrRotation = Number(current.ocrRotation ?? 0);
   const serverRotation = zoneRotationToCorrection(ocrRotation);
   const thumb = await buildThumbForZone(imageDataUrl, current.bbox, serverRotation);
   if (!thumb) return false;
@@ -756,6 +766,57 @@ function scaleNormalizedBboxToImage(bbox, imageSize) {
   });
 }
 
+function expandedRefinementBbox(bbox, imageSize, zone) {
+  const box = normalizeBbox(bbox);
+  if (!box) return null;
+  const imgWidth = Math.max(0, Number(imageSize?.width || 0));
+  const imgHeight = Math.max(0, Number(imageSize?.height || 0));
+  const width = Math.max(1, box.x2 - box.x1);
+  const height = Math.max(1, box.y2 - box.y1);
+  const text = str(zone?.text || zone?.value || zone?.label || '').replace(/\s+/g, '');
+  const arrowLike = /^[VvXxYy!:=\-—]+$/.test(text);
+  const weakText = arrowLike || text.length <= 2 || !/\d/.test(text);
+  const verticalish = height > width * 1.25;
+  let padX = Math.max(8, width * 0.18);
+  let padY = Math.max(8, height * 0.18);
+  if (verticalish) {
+    padX = Math.max(padX, width * 0.9, 24);
+  }
+  if (weakText) {
+    padX = Math.max(padX, width * 1.9, verticalish ? 52 : 30);
+    padY = Math.max(padY, height * 0.55, 18);
+  }
+  if (arrowLike) {
+    padX = Math.max(padX, width * 2.8, verticalish ? 72 : 42);
+    padY = Math.max(padY, height * 0.8, 22);
+  }
+  const expanded = {
+    x1: box.x1 - padX,
+    y1: box.y1 - padY,
+    x2: box.x2 + padX,
+    y2: box.y2 + padY,
+  };
+  if (!imgWidth || !imgHeight) return normalizeBbox(expanded);
+  return normalizeBbox({
+    x1: Math.max(0, Math.min(imgWidth, expanded.x1)),
+    y1: Math.max(0, Math.min(imgHeight, expanded.y1)),
+    x2: Math.max(0, Math.min(imgWidth, expanded.x2)),
+    y2: Math.max(0, Math.min(imgHeight, expanded.y2)),
+  });
+}
+
+function autoOcrAnnotationId(documentId, zone, bbox, idx = 0) {
+  const docKey = str(documentId || 'doc').replace(/[^\w.-]+/g, '_');
+  const zoneKey = str(zone?.id || `ocr_zone_${idx}`).replace(/[^\w.-]+/g, '_');
+  const box = normalizeBbox(bbox);
+  if (!box) return `${docKey}__${zoneKey}__${idx}`;
+  const x1 = Math.round(Number(box.x1 || 0));
+  const y1 = Math.round(Number(box.y1 || 0));
+  const x2 = Math.round(Number(box.x2 || 0));
+  const y2 = Math.round(Number(box.y2 || 0));
+  return `${docKey}__${zoneKey}__${x1}_${y1}_${x2}_${y2}`;
+}
+
 function bboxFromOcrZone(zone) {
   const z = zone && typeof zone === 'object' ? zone : {};
   if (z?.bbox && typeof z.bbox === 'object' && !Array.isArray(z.bbox)) return normalizeBbox(z.bbox);
@@ -791,6 +852,24 @@ function normalizeOcrUnit(raw) {
   if (txt === 'inch' || txt === 'inches') return 'in';
   if (txt === '°' || txt === 'deg' || txt === 'degree') return 'deg';
   return txt;
+}
+
+function formatCompactNumber(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '';
+  if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n));
+  return String(Number(n.toFixed(6)));
+}
+
+function buildThreadLabel(size, pitch, toleranceClass, fallbackText = '') {
+  const sizeTxt = formatCompactNumber(size);
+  const pitchTxt = formatCompactNumber(pitch);
+  const tolTxt = str(toleranceClass || '').toUpperCase();
+  if (!sizeTxt) return str(fallbackText || '');
+  let out = `M${sizeTxt}`;
+  if (pitchTxt) out += `x${pitchTxt}`;
+  if (tolTxt) out += `-${tolTxt}`;
+  return out;
 }
 
 function chooseInstrumentForTolerance(parsed) {
@@ -960,15 +1039,24 @@ function parseOcrSpecFromZone(zone, idx = 0) {
   let toleranceSpec = plainNumericText && parsedLooksPrecise
     ? ''
     : str(z?.toleranceSpec || z?.tolerance_spec || parsedText.toleranceSpec || '');
-  if (!toleranceSpec && tol?.tolerance_class) toleranceSpec = str(tol.tolerance_class);
+  const tolType = str(tol?.tolerance_type || tol?.toleranceType || '').toLowerCase();
+  const threadPitch = numberOrNull(tol?.thread_pitch ?? tol?.threadPitch ?? z?.thread_pitch ?? z?.threadPitch);
+  const threadToleranceClass = str(tol?.tolerance_class || tol?.toleranceClass || '');
+  const isThread = tolType === 'thread' || /^m\s*\d/i.test(text);
+  if (!toleranceSpec && threadToleranceClass) toleranceSpec = threadToleranceClass;
   if (!toleranceSpec && upperDeviation != null && lowerDeviation != null) {
     const up = Math.abs(upperDeviation);
     const down = Math.abs(lowerDeviation);
     toleranceSpec = up === down ? `±${up}` : `+${up} -${down}`;
   }
-  const unit = normalizeOcrUnit(z?.unit || tol?.unit || parsedText.unit || 'mm') || 'mm';
+  const unit = isThread
+    ? ''
+    : (normalizeOcrUnit(z?.unit || tol?.unit || parsedText.unit || 'mm') || 'mm');
+  const name = isThread
+    ? (buildThreadLabel(nominal, threadPitch, threadToleranceClass, text) || fallbackName)
+    : str(z?.name || parsedText.name || fallbackName);
   return {
-    name: str(z?.name || parsedText.name || fallbackName),
+    name,
     nominal,
     lsl,
     usl,
@@ -985,16 +1073,70 @@ function shouldImportOcrZone(zone, parsed) {
   const category = str(z?.category || '').toLowerCase();
   const isDimensionCategory = category === 'dimension' || category === 'tolerance' || category === 'thread';
   const text = str(z?.text || z?.value || z?.label || '');
+  const compactText = text.replace(/\s+/g, '');
+  const tol = z?.tolerance_info && typeof z.tolerance_info === 'object'
+    ? z.tolerance_info
+    : (z?.toleranceInfo && typeof z.toleranceInfo === 'object' ? z.toleranceInfo : {});
+  const tolType = str(tol?.tolerance_type || tol?.toleranceType || '').toLowerCase();
   const hasNumericSpec = [parsed?.nominal, parsed?.lsl, parsed?.usl, parsed?.lowerDeviation, parsed?.upperDeviation]
     .some((v) => Number.isFinite(Number(v)));
   const hasToleranceTag = !!str(parsed?.toleranceSpec || '').trim();
   const pureValueLike = /^[\sØ∅-]*\d+(?:[\.,]\d+)?(?:\s*(?:mm|cm|m|in|deg|°))?$/i.test(text);
   const symbolLike = /[±+\-]|(?:\b[HhGgFfEeDd][0-9]{1,2}\b)|(?:\bM\d)/.test(text);
+  const threadLike = /^M\s*\d+(?:[.,]\d+)?(?:\s*[Xx×]\s*\d+(?:[.,]\d+)?)?(?:\s*-\s*[0-9A-Za-z]+)?$/i.test(text);
+  const isoFitLike = /^(?:[Ø∅ΦR]\s*)?\d+(?:[.,]\d+)?\s*[A-Za-z]{1,2}\d{1,2}$/i.test(text);
+  const unitLike = /\b(?:mm|cm|m|in|inch|deg|°)\b/i.test(text);
+  const hasLetters = /[A-Za-z]/.test(text);
+  const hasStrongNumericToken = /(?:[Ø∅ΦR]\s*)?\d{3,}(?:[.,]\d+)?/.test(text) || /(?:[Ø∅ΦR]\s*)?\d{2,}(?:[.,]\d+)?/.test(text);
   const looksLikeDimensionText = /\d/.test(text) && (pureValueLike || symbolLike);
+  const looksLikeKnownAlphaDimension = threadLike || isoFitLike || unitLike || tolType === 'thread';
+  const bbox = z?.bbox && typeof z.bbox === 'object' ? z.bbox : {};
+  const bboxWidth = Math.max(0, Number(bbox?.width || (Number(bbox?.x2) - Number(bbox?.x1)) || 0));
+  const bboxHeight = Math.max(0, Number(bbox?.height || (Number(bbox?.y2) - Number(bbox?.y1)) || 0));
+  const bboxArea = bboxWidth * bboxHeight;
+  if (compactText.length <= 1 && !/\d/.test(compactText)) return false;
+  if (/^[VvYyXx]+$/.test(compactText)) return false;
+  if (!/\d/.test(compactText) && !hasToleranceTag && bboxArea > 0 && bboxArea < 1200) return false;
+  if (hasStrongNumericToken && compactText.length >= 2) return true;
+  if (hasLetters && !looksLikeKnownAlphaDimension && !/[±+\-]/.test(text)) return false;
   if (hasDimFlag || isDimensionCategory) return true;
   if (hasNumericSpec && looksLikeDimensionText) return true;
-  if (hasToleranceTag && looksLikeDimensionText) return true;
+  if (hasToleranceTag && (looksLikeDimensionText || looksLikeKnownAlphaDimension)) return true;
   return false;
+}
+
+function ocrZoneQualityScore(zone, parsed) {
+  const z = zone && typeof zone === 'object' ? zone : {};
+  const text = str(z?.text || z?.value || z?.label || '');
+  const compactText = text.replace(/\s+/g, '');
+  const confidence = Number(z?.confidence);
+  const hasNumericSpec = [parsed?.nominal, parsed?.lsl, parsed?.usl, parsed?.lowerDeviation, parsed?.upperDeviation]
+    .some((v) => Number.isFinite(Number(v)));
+  const hasToleranceTag = !!str(parsed?.toleranceSpec || '').trim();
+  let score = Number.isFinite(confidence) ? confidence : 0;
+  if (shouldImportOcrZone(z, parsed)) score += 4;
+  if (z?.is_dimension === true || z?.isDimension === true) score += 1.5;
+  if (/\d/.test(compactText)) score += 1.5;
+  if (hasNumericSpec) score += 1.25;
+  if (hasToleranceTag) score += 1.0;
+  if (compactText.length >= 4) score += 0.25;
+  if (!/\d/.test(compactText)) score -= 3;
+  if (compactText.length <= 1) score -= 3;
+  return score;
+}
+
+function choosePreferredOcrZone(originalZone, refinedZone, idx = 0) {
+  const originalParsed = parseOcrSpecFromZone(originalZone, idx);
+  if (!refinedZone || refinedZone?.is_empty) {
+    return { zone: originalZone, parsed: originalParsed };
+  }
+  const refinedParsed = parseOcrSpecFromZone(refinedZone, idx);
+  const originalScore = ocrZoneQualityScore(originalZone, originalParsed);
+  const refinedScore = ocrZoneQualityScore(refinedZone, refinedParsed);
+  if (refinedScore >= originalScore + 0.35) {
+    return { zone: refinedZone, parsed: refinedParsed };
+  }
+  return { zone: originalZone, parsed: originalParsed };
 }
 
 function numericMarkerOrNull(value) {
@@ -1050,24 +1192,16 @@ async function reocrAnnotation(annId) {
   const y2 = Number(bbox.y2 ?? 0);
   const centerX = (x1 + x2) / 2;
   const centerY = (y1 + y2) / 2;
-  const effectiveRotation = wrapDisplayRotation(zoneRotationToCorrection(Number(current.ocrRotation ?? 0)) + (Number(current.thumbnailRotation ?? 0) || 0));
+  const effectiveRotation = effectiveThumbnailRotation(current);
   setBusyStatus(true, `Re-OCR zone ${current.sourceBubbleId || annId}...`);
   try {
-    const out = Math.abs(effectiveRotation % 90) > 0.001
-      ? await ocrApi.callOcrProcessCenterWithRetry(
-          imageDataUrl,
-          { x: centerX, y: centerY },
-          { x1, y1, x2, y2 },
-          ocrApi.ensureOcrUrlInput(),
-          effectiveRotation
-        )
-      : await ocrApi.callOcrAnnotationClickWithRetry(
-          imageDataUrl,
-          { x: centerX, y: centerY },
-          'hardcore',
-          ocrApi.ensureOcrUrlInput(),
-          effectiveRotation
-        );
+    const out = await ocrApi.callOcrProcessCenterWithRetry(
+      imageDataUrl,
+      { x: centerX, y: centerY },
+      { x1, y1, x2, y2 },
+      ocrApi.ensureOcrUrlInput(),
+      effectiveRotation
+    );
     const zone = out?.zone;
     if (!zone) {
       setStatus('No text detected at this zone.');
@@ -1085,10 +1219,10 @@ async function reocrAnnotation(annId) {
         }
       : current.bbox;
     const rawRotation = Number(zone.rotation ?? zone.text_orientation ?? 0);
-    const detectedOcrRotation = normalizeCardinalRotation(rawRotation, 0);
+    const detectedOcrRotation = Number.isFinite(rawRotation) ? wrapDisplayRotation(rawRotation) : 0;
     const ocrRotation = current.ocrRotation == null
       ? detectedOcrRotation
-      : normalizeCardinalRotation(Number(current.ocrRotation ?? 0), 0);
+      : (Number.isFinite(Number(current.ocrRotation)) ? wrapDisplayRotation(Number(current.ocrRotation)) : 0);
     const thumbRotation = zoneRotationToCorrection(ocrRotation);
     const thumbDataUrl = await buildThumbForZone(imageDataUrl, newBbox, thumbRotation) || (current.thumbnailDataUrl || '');
     const conf = Number(zone.confidence);
@@ -1166,7 +1300,7 @@ async function createAnnotationFromPreviewPoint(sourcePoint) {
     const parsedName = str(parsed?.name || '');
     const normalizedName = /^ocr[_\s-]*zone[_\s-]*\d+$/i.test(parsedName) ? sourceBubbleId : parsedName;
     const rawRotation = Number(zone?.rotation ?? zone?.text_orientation ?? zone?.textOrientation ?? 0);
-    const ocrRotation = normalizeCardinalRotation(rawRotation, 0);
+    const ocrRotation = Number.isFinite(rawRotation) ? wrapDisplayRotation(rawRotation) : 0;
     const thumbRotation = zoneRotationToCorrection(ocrRotation);
     const thumbDataUrl = out?.thumbnail?.data_url
       ? str(out.thumbnail.data_url)
@@ -1202,6 +1336,97 @@ async function createAnnotationFromPreviewPoint(sourcePoint) {
     setStatus(confPct != null ? `Created OCR annotation "${normalizedName || zone.text || sourceBubbleId}" (${confPct}% confidence)` : `Created OCR annotation "${normalizedName || zone.text || sourceBubbleId}"`);
   } catch (err) {
     setStatus(`Create OCR annotation failed: ${err?.message || err}`);
+  } finally {
+    setBusyStatus(false);
+  }
+}
+
+async function createAnnotationFromPreviewBox(sourceBox) {
+  const doc = selectedDocument();
+  const productId = str(state.selectedProductId);
+  if (!doc || !productId || !ocrApi) {
+    setStatus('Select a document and ensure OCR server is configured.');
+    return;
+  }
+  const x1 = Number(sourceBox?.x1);
+  const y1 = Number(sourceBox?.y1);
+  const x2 = Number(sourceBox?.x2);
+  const y2 = Number(sourceBox?.y2);
+  if (![x1, y1, x2, y2].every(Number.isFinite)) return;
+  const bbox = {
+    x1: Math.min(x1, x2),
+    y1: Math.min(y1, y2),
+    x2: Math.max(x1, x2),
+    y2: Math.max(y1, y2),
+  };
+  bbox.width = bbox.x2 - bbox.x1;
+  bbox.height = bbox.y2 - bbox.y1;
+  if (bbox.width < 2 || bbox.height < 2) return;
+  const imageDataUrl = str(doc.previewDataUrl || doc.dataUrl || '');
+  if (!/^data:image\//i.test(imageDataUrl)) {
+    setStatus('Document needs an image preview before OCR can run.');
+    return;
+  }
+  const center = { x: (bbox.x1 + bbox.x2) / 2, y: (bbox.y1 + bbox.y2) / 2 };
+  setBusyStatus(true, 'Creating OCR annotation from box...');
+  try {
+    const out = await ocrApi.callOcrProcessCenterWithRetry(
+      imageDataUrl,
+      center,
+      bbox,
+      ocrApi.ensureOcrUrlInput(),
+      0
+    );
+    const zone = out?.zone;
+    if (!zone || zone?.is_empty) {
+      setStatus('No text detected inside this box.');
+      return;
+    }
+    const existingDocAnnotations = docsApi.listProductAnnotations(productId, doc.id) || [];
+    const usedMarkers = new Set(
+      existingDocAnnotations
+        .map((row) => numericMarkerOrNull(row?.sourceBubbleId))
+        .filter((n) => n != null),
+    );
+    const sourceBubbleId = allocateNumericMarker(usedMarkers, existingDocAnnotations.length + 1);
+    const parsed = parseOcrSpecFromZone(zone, existingDocAnnotations.length);
+    const parsedName = str(parsed?.name || '');
+    const normalizedName = /^ocr[_\s-]*zone[_\s-]*\d+$/i.test(parsedName) ? sourceBubbleId : parsedName;
+    const rawRotation = Number(zone?.rotation ?? zone?.text_orientation ?? 0);
+    const ocrRotation = Number.isFinite(rawRotation) ? wrapDisplayRotation(rawRotation) : 0;
+    const thumbRotation = zoneRotationToCorrection(ocrRotation);
+    const thumbDataUrl = await buildThumbForZone(imageDataUrl, bbox, thumbRotation);
+    const zoneConf = Number(zone?.confidence);
+    const ocrConfidence = Number.isFinite(zoneConf) ? zoneConf : null;
+    const annId = str(zone?.id) || docsApi.normalizeProductAnnotation({}).id;
+    docsApi.upsertProductAnnotation({
+      id: annId,
+      productId,
+      documentId: doc.id,
+      sourceBubbleId,
+      name: normalizedName || sourceBubbleId,
+      nominal: parsed.nominal,
+      lsl: parsed.lsl,
+      usl: parsed.usl,
+      lowerDeviation: parsed.lowerDeviation,
+      upperDeviation: parsed.upperDeviation,
+      toleranceSpec: parsed.toleranceSpec,
+      method: 'OCR',
+      unit: parsed.unit || 'mm',
+      instrument: chooseInstrumentForTolerance(parsed),
+      ocrConfidence,
+      bbox,
+      thumbnailDataUrl: thumbDataUrl,
+      thumbnailBBox: bbox,
+      thumbnailRotation: 0,
+      ocrRotation,
+    });
+    state.selectedAnnId = annId;
+    refresh();
+    const confPct = Number.isFinite(zoneConf) ? Math.round(zoneConf * 100) : null;
+    setStatus(confPct != null ? `Created boxed OCR annotation "${normalizedName || zone.text || sourceBubbleId}" (${confPct}% confidence)` : `Created boxed OCR annotation "${normalizedName || zone.text || sourceBubbleId}"`);
+  } catch (err) {
+    setStatus(`Create boxed OCR annotation failed: ${err?.message || err}`);
   } finally {
     setBusyStatus(false);
   }
@@ -1246,27 +1471,39 @@ async function autoOcrCurrentDocument() {
       const zone = zones[idx];
       const bbox = scaleNormalizedBboxToImage(bboxFromOcrZone(zone), imageSize);
       if (!bbox) continue;
-      const parsed = parseOcrSpecFromZone(zone, idx);
-      if (!shouldImportOcrZone(zone, parsed)) continue;
-      const annId = str(zone?.id) || docsApi.normalizeProductAnnotation({}).id;
+      const refinementBbox = expandedRefinementBbox(bbox, imageSize, zone) || bbox;
+      const center = { x: (refinementBbox.x1 + refinementBbox.x2) / 2, y: (refinementBbox.y1 + refinementBbox.y2) / 2 };
+      const refinedOut = await ocrApi.callOcrProcessCenterWithRetry(
+        imageDataUrl,
+        center,
+        refinementBbox,
+        ocrApi.ensureOcrUrlInput(),
+        0
+      ).catch(() => null);
+      const preferred = choosePreferredOcrZone(zone, refinedOut?.zone, idx);
+      const refinedZone = preferred.zone;
+      const parsed = preferred.parsed;
+      if (!shouldImportOcrZone(refinedZone, parsed)) continue;
+      const finalBbox = scaleNormalizedBboxToImage(bboxFromOcrZone(refinedZone), imageSize) || bbox;
+      const annId = autoOcrAnnotationId(doc.id, refinedZone, finalBbox, idx);
       const existing = existingById.get(annId) || null;
       const existingMarker = numericMarkerOrNull(existing?.sourceBubbleId);
       const sourceBubbleId = existingMarker != null
         ? String(existingMarker)
-        : allocateNumericMarker(usedMarkers, idx + 1);
+        : allocateNumericMarker(usedMarkers, 1);
       const parsedName = str(parsed?.name || '');
       const normalizedName = /^ocr[_\s-]*zone[_\s-]*\d+$/i.test(parsedName) ? sourceBubbleId : parsedName;
-      const rawRotation = Number(zone?.rotation ?? zone?.text_orientation ?? zone?.textOrientation ?? 0);
-      const detectedOcrRotation = normalizeCardinalRotation(rawRotation, 0);
+      const rawRotation = Number(refinedZone?.rotation ?? refinedZone?.text_orientation ?? refinedZone?.textOrientation ?? 0);
+      const detectedOcrRotation = Number.isFinite(rawRotation) ? wrapDisplayRotation(rawRotation) : 0;
       const ocrRotation = existing?.ocrRotation == null
         ? detectedOcrRotation
-        : normalizeCardinalRotation(Number(existing.ocrRotation ?? 0), 0);
+        : (Number.isFinite(Number(existing.ocrRotation)) ? wrapDisplayRotation(Number(existing.ocrRotation)) : 0);
       const thumbRotation = zoneRotationToCorrection(ocrRotation);
-      const thumb = await buildThumbForZone(imageDataUrl, bbox, thumbRotation);
+      const thumb = await buildThumbForZone(imageDataUrl, finalBbox, thumbRotation);
       const instrument = chooseInstrumentForTolerance(parsed);
-      const zoneConf = Number(zone?.confidence);
+      const zoneConf = Number(refinedZone?.confidence);
       const ocrConfidence = Number.isFinite(zoneConf) ? zoneConf : null;
-      docsApi.upsertProductAnnotation({
+      const saved = docsApi.upsertProductAnnotation({
         id: annId,
         productId,
         documentId: doc.id,
@@ -1282,12 +1519,13 @@ async function autoOcrCurrentDocument() {
         unit: parsed.unit,
         instrument,
         ocrConfidence,
-        bbox,
+        bbox: finalBbox,
         thumbnailDataUrl: thumb,
-        thumbnailBBox: bbox,
+        thumbnailBBox: finalBbox,
         thumbnailRotation: existing ? (Number(existing.thumbnailRotation ?? 0) || 0) : 0,
         ocrRotation,
       });
+      existingById.set(annId, saved || { id: annId, sourceBubbleId, thumbnailRotation: existing ? (Number(existing.thumbnailRotation ?? 0) || 0) : 0, ocrRotation });
       imported += 1;
     }
     refresh();
@@ -1553,7 +1791,17 @@ function bindEvents() {
       }
       if (raw?.sourcePoint) {
         await createAnnotationFromPreviewPoint(raw.sourcePoint);
+        return;
       }
+      if (raw?.sourceBox) {
+        await createAnnotationFromPreviewBox(raw.sourceBox);
+      }
+    } catch {}
+  });
+  window.addEventListener('vmill:create-annotation-box', async (event) => {
+    try {
+      const raw = event && typeof event === 'object' && 'detail' in event ? event.detail : null;
+      if (raw?.sourceBox) await createAnnotationFromPreviewBox(raw.sourceBox);
     } catch {}
   });
   window.addEventListener('vmill:data:changed', refresh);
