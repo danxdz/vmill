@@ -203,13 +203,15 @@
       }, preferredBaseUrl);
     }
 
-    async function callOcrProcessCenterWithRetry(imageDataUrl, point, rectangleBounds, preferredBaseUrl, rotation = 0) {
+    async function callOcrProcessCenterWithRetry(imageDataUrl, point, rectangleBounds, preferredBaseUrl, rotation = 0, options = {}) {
       return callOcrJsonWithRetry('/ocr/process-center', {
         image: imageDataUrl,
         center_point: { x: Number(point?.x || 0), y: Number(point?.y || 0) },
         rectangle_bounds: rectangleBounds || {},
         use_rectangle: true,
         rotation: Number(rotation || 0) || 0,
+        quick: options?.quick === true,
+        mode: strOrEmpty(options?.mode || ''),
       }, preferredBaseUrl);
     }
 

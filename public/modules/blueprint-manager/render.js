@@ -17,6 +17,36 @@ function numText(value) {
   return value == null || value === '' || !Number.isFinite(Number(value)) ? '' : String(value);
 }
 
+function numValue(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function numView(value) {
+  const n = numValue(value);
+  if (n == null) return '';
+  if (Math.abs(n) < 1e-12) return '0';
+  return String(Number(n.toFixed(6)));
+}
+
+function calcDerivedLimits(row) {
+  const nominal = numValue(row?.nominal);
+  const lowerDev = numValue(row?.lowerDeviation);
+  const upperDev = numValue(row?.upperDeviation);
+  const lsl = numValue(row?.lsl);
+  const usl = numValue(row?.usl);
+  const min = nominal != null && lowerDev != null
+    ? nominal + lowerDev
+    : lsl;
+  const max = nominal != null && upperDev != null
+    ? nominal + upperDev
+    : usl;
+  const median = min != null && max != null
+    ? (min + max) / 2
+    : nominal;
+  return { min, median, max };
+}
+
 function themeVar(name, fallback) {
   try {
     const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -38,6 +68,10 @@ function autoThumbCorrection(row) {
   const ocrRotation = Number(row?.ocrRotation ?? 0);
   if (!Number.isFinite(ocrRotation)) return 0;
   return wrapDisplayRotation((360 - ocrRotation) % 360);
+}
+
+function manualThumbRotation(row) {
+  return wrapDisplayRotation(Number(row?.thumbnailRotation ?? 0) || 0);
 }
 
 function rotationOptionsHtml(selectedValue) {
@@ -152,6 +186,8 @@ const previewRuntime = {
   lastDocKey: '',
   hoveredAnnId: '',
   popoverHideTimeout: null,
+  popoverPointerInside: false,
+  popoverFocusInside: false,
   createBoxStart: null,
 };
 
@@ -916,7 +952,12 @@ export function updateAnnPopover(row, metrics) {
   const lsl = esc(String(row?.lsl ?? ''));
   const usl = esc(String(row?.usl ?? ''));
   const unit = esc(String(row?.unit ?? ''));
+  const instrument = esc(String(row?.instrument ?? ''));
   const tol = esc(String(row?.toleranceSpec ?? ''));
+  const derived = calcDerivedLimits(row);
+  const minVal = esc(numView(derived.min) || '-');
+  const medianVal = esc(numView(derived.median) || '-');
+  const maxVal = esc(numView(derived.max) || '-');
   const conf = row?.ocrConfidence != null ? Number(row.ocrConfidence) : null;
   const confPct = Number.isFinite(conf) ? Math.round(conf * 100) : null;
   const confLabel = confPct != null ? `${confPct}%` : '—';
@@ -934,6 +975,17 @@ export function updateAnnPopover(row, metrics) {
     <div class="annPopoverRow">
       <span class="annPopoverCell"><label>${tt('common.unit', 'Unit')}</label><input type="text" data-ann-id="${annId}" data-ann-field="unit" value="${unit}" placeholder="mm" list="annUnitDatalist" class="annPopoverIn" /></span>
       <span class="annPopoverCell"><label>${tt('blueprint.tolShort', 'Tol')}</label><input type="text" data-ann-id="${annId}" data-ann-field="toleranceSpec" value="${tol}" placeholder="±0" class="annPopoverIn" /></span>
+    </div>
+    <div class="annPopoverRow">
+      <span class="annPopoverCell annPopoverCellWide"><label>${tt('common.instrument', 'Instrument')}</label><input type="text" data-ann-id="${annId}" data-ann-field="instrument" value="${instrument}" placeholder="${esc(tt('blueprint.noTol', 'no tol'))}" list="annInstrumentDatalist" class="annPopoverIn" /></span>
+    </div>
+    <div class="annPopoverRow">
+      <span class="annPopoverCell"><label>${tt('common.min', 'Min')}</label><input type="text" value="${minVal}" class="annPopoverIn" readonly /></span>
+      <span class="annPopoverCell"><label>${tt('common.median', 'Median')}</label><input type="text" value="${medianVal}" class="annPopoverIn" readonly /></span>
+    </div>
+    <div class="annPopoverRow">
+      <span class="annPopoverCell"><label>${tt('common.max', 'Max')}</label><input type="text" value="${maxVal}" class="annPopoverIn" readonly /></span>
+      <span class="annPopoverCell"></span>
     </div>
     <div class="annPopoverRow">
       <span class="annPopoverCell annPopoverCellWide"><label>${tt('blueprint.rotate', 'Rot')}</label><select data-ann-id="${annId}" data-ann-field="thumbnailRotation" class="annPopoverIn annPopoverRotateSel">
@@ -955,7 +1007,7 @@ export function updateAnnPopover(row, metrics) {
   `;
   const rotateSel = bodyEl.querySelector('.annPopoverRotateSel');
   if (rotateSel) {
-    rotateSel.value = String(wrapDisplayRotation(autoThumbCorrection(row) + (Number(row?.thumbnailRotation ?? 0) || 0)));
+    rotateSel.value = String(wrapDisplayRotation(autoThumbCorrection(row) + manualThumbRotation(row)));
   }
   // #region agent log
   sendAgentDebugLog({sessionId:'6d6734',runId:'initial',hypothesisId:'H2',location:'render.js:updateAnnPopover:824',message:'popover content rendered',data:{annId:String(row?.id || ''),nameLength:String(row?.name || '').length,nominalLength:String(row?.nominal ?? '').length,unitLength:String(row?.unit ?? '').length,toleranceLength:String(row?.toleranceSpec ?? '').length,box:{x1:box.x1,y1:box.y1,x2:box.x2,y2:box.y2}},timestamp:Date.now()});
@@ -1000,12 +1052,21 @@ export function updateAnnPopover(row, metrics) {
   // #endregion
 }
 
-const POPOVER_HIDE_DELAY_MS = 280;
+const POPOVER_HIDE_DELAY_MS = 500;
 
-export function clearAnnPopover() {
+function isPopoverSticky() {
+  return previewRuntime.popoverPointerInside || previewRuntime.popoverFocusInside;
+}
+
+export function clearAnnPopover(force = false) {
   if (previewRuntime.popoverHideTimeout) {
     clearTimeout(previewRuntime.popoverHideTimeout);
     previewRuntime.popoverHideTimeout = null;
+  }
+  if (!force && isPopoverSticky()) return;
+  if (force) {
+    previewRuntime.popoverPointerInside = false;
+    previewRuntime.popoverFocusInside = false;
   }
   const pop = $('annOverlayPopover');
   if (pop) pop.hidden = true;
@@ -1016,6 +1077,7 @@ function schedulePopoverHide() {
   if (previewRuntime.popoverHideTimeout) clearTimeout(previewRuntime.popoverHideTimeout);
   previewRuntime.popoverHideTimeout = setTimeout(() => {
     previewRuntime.popoverHideTimeout = null;
+    if (isPopoverSticky()) return;
     clearAnnPopover();
     renderPreviewOverlay();
   }, POPOVER_HIDE_DELAY_MS);
@@ -1250,13 +1312,21 @@ export function bindPreviewInteractions() {
     if (!m) return;
     const point = canvasEventPoint(event, m.canvas);
     const hit = hitPreviewBox(point, m);
+    const prevHoverId = String(previewRuntime.hoveredAnnId || '');
     const nextHoverId = hit?.row?.id != null ? String(hit.row.id) : '';
-    if (nextHoverId !== String(previewRuntime.hoveredAnnId || '')) {
-      previewRuntime.hoveredAnnId = nextHoverId;
-      updateAnnPopover(hit?.row || null, m);
-      renderPreviewOverlay();
-    } else if (hit?.row) {
+
+    if (hit?.row) {
+      // Hovering over a box: show/update popover and cancel any pending hide.
+      if (nextHoverId !== prevHoverId) {
+        previewRuntime.hoveredAnnId = nextHoverId;
+      }
       updateAnnPopover(hit.row, m);
+      cancelPopoverHide();
+      renderPreviewOverlay();
+    } else if (prevHoverId) {
+      // Moved off the previously hovered box: start hide timer and clear hover id.
+      previewRuntime.hoveredAnnId = '';
+      schedulePopoverHide();
     }
     if (hit?.handle) canvas.style.cursor = 'nwse-resize';
     else if (hit?.onBubble) canvas.style.cursor = 'move';
@@ -1269,10 +1339,24 @@ export function bindPreviewInteractions() {
     if (event.relatedTarget && pop?.contains(event.relatedTarget)) return;
     if (previewRuntime.hoveredAnnId) schedulePopoverHide();
   });
-  $('annOverlayPopover')?.addEventListener('pointerenter', () => cancelPopoverHide());
+  $('annOverlayPopover')?.addEventListener('pointerenter', () => {
+    previewRuntime.popoverPointerInside = true;
+    cancelPopoverHide();
+  });
   $('annOverlayPopover')?.addEventListener('pointerleave', (event) => {
+    previewRuntime.popoverPointerInside = false;
     const canvasEl = $('docOverlayCanvas');
     if (event.relatedTarget && canvasEl?.contains(event.relatedTarget)) return;
+    if (previewRuntime.hoveredAnnId) schedulePopoverHide();
+  });
+  $('annOverlayPopover')?.addEventListener('focusin', () => {
+    previewRuntime.popoverFocusInside = true;
+    cancelPopoverHide();
+  });
+  $('annOverlayPopover')?.addEventListener('focusout', (event) => {
+    const pop = $('annOverlayPopover');
+    if (event.relatedTarget && pop?.contains(event.relatedTarget)) return;
+    previewRuntime.popoverFocusInside = false;
     if (previewRuntime.hoveredAnnId) schedulePopoverHide();
   });
 
@@ -1338,7 +1422,9 @@ export function renderAnnotations() {
   host.innerHTML = rows.length ? rows.map((row) => {
     const isSelected = String(row.id) === String(state.selectedAnnId);
     const primaryLabel = String(row.sourceBubbleId || '').trim() || String(row.id || '--');
-    const rotation = wrapDisplayRotation(autoThumbCorrection(row) + (Number(row?.thumbnailRotation ?? 0) || 0));
+    const autoRotation = autoThumbCorrection(row);
+    const manualRotation = manualThumbRotation(row);
+    const rotation = wrapDisplayRotation(autoRotation + manualRotation);
     const thumbStyle = `transform: rotate(${rotation}deg);`;
     const thumbFrame = thumbFrameSize(row, thumbDisplay.listMax, thumbDisplay.listMin, rotation);
     const thumbWrapStyle = `--ann-thumb-w:${thumbFrame.width}px; --ann-thumb-h:${thumbFrame.height}px;`;
@@ -1346,10 +1432,14 @@ export function renderAnnotations() {
     const nominalStr = numText(row.nominal);
     const lowerDevStr = numText(row.lowerDeviation);
     const upperDevStr = numText(row.upperDeviation);
+    const derived = calcDerivedLimits(row);
+    const minStr = numView(derived.min);
+    const medianStr = numView(derived.median);
+    const maxStr = numView(derived.max);
     const nameLabel = String(row.name || row.characteristicId || `#${primaryLabel}`);
     const toleranceLabel = String(row.toleranceSpec || '').trim();
     const instrumentLabel = String(row.instrument || '').trim();
-    const displayRotation = String(rotation);
+    const editRotation = String(rotation);
     const confPct = row.ocrConfidence != null && Number.isFinite(Number(row.ocrConfidence))
       ? Math.round(Number(row.ocrConfidence) * 100)
       : null;
@@ -1359,6 +1449,7 @@ export function renderAnnotations() {
     const summaryParts = [];
     if (nominalStr) summaryParts.push(`${tt('blueprint.nomShort', 'Nom')} ${nominalStr}`);
     if (lowerDevStr || upperDevStr) summaryParts.push(`${lowerDevStr || '0'} / ${upperDevStr || '0'}`);
+    if (minStr || medianStr || maxStr) summaryParts.push(`${tt('common.min', 'Min')} ${minStr || '-'} | ${tt('common.median', 'Median')} ${medianStr || '-'} | ${tt('common.max', 'Max')} ${maxStr || '-'}`);
     if (row.unit) summaryParts.push(String(row.unit));
     const summaryText = summaryParts.join(' | ') || tt('blueprint.noParsedValues', 'No parsed values');
     const metaChips = [
@@ -1377,6 +1468,7 @@ export function renderAnnotations() {
           <input class="annInlineInput annNumInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="lowerDeviation" value="${esc(lowerDevStr)}" title="${esc(tt('blueprint.tolMinus', 'Tol -'))}" placeholder="${esc(tt('blueprint.tolMinus', 'Tol -'))}"${disabledAttr} />
           <input class="annInlineInput annNumInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="upperDeviation" value="${esc(upperDevStr)}" title="${esc(tt('blueprint.tolPlus', 'Tol +'))}" placeholder="${esc(tt('blueprint.tolPlus', 'Tol +'))}"${disabledAttr} />
           <input class="annInlineInput annUnitInline" type="text" data-ann-id="${esc(row.id)}" data-ann-field="unit" value="${esc(row.unit || '')}" title="${esc(tt('common.unit', 'Unit'))}" placeholder="mm" list="annUnitDatalist"${disabledAttr} />
+          <input class="annInlineInput" type="text" data-ann-id="${esc(row.id)}" data-ann-field="instrument" value="${esc(row.instrument || '')}" title="${esc(tt('common.instrument', 'Instrument'))}" placeholder="${esc(tt('blueprint.noTol', 'no tol'))}" list="annInstrumentDatalist"${disabledAttr} />
         </div>`
       : '';
     return `
@@ -1399,7 +1491,7 @@ export function renderAnnotations() {
           <button class="btn annQuickBtn" type="button" data-ann-lock="${esc(row.id)}" data-ann-lock-next="${isLocked ? '0' : '1'}">${isLocked ? tt('common.unlock', 'Unlock') : tt('blueprint.validate', 'Validate')}</button>
           <button class="btn annQuickBtn" type="button" data-ann-reocr-btn="${esc(row.id)}"${disabledAttr}>${tt('blueprint.reocr', 'Re-OCR')}</button>
           <select class="annRotateSel" data-ann-id="${esc(row.id)}" data-ann-field="thumbnailRotation" title="${esc(tt('blueprint.rotate', 'Rotate'))}"${disabledAttr}>
-            ${rotationOptionsHtml(displayRotation)}
+            ${rotationOptionsHtml(editRotation)}
           </select>
         </div>
         ${pendingDelete
@@ -1441,17 +1533,20 @@ export function renderAnnotationDetails() {
   wrap.hidden = false;
   idChip.textContent = row.id || '--';
   usageChip.textContent = `${usageCount} ${tt(usageCount === 1 ? 'blueprint.operationLinkSingular' : 'blueprint.operationLinkPlural', usageCount === 1 ? 'operation link' : 'operation links')}`;
-  const rotation = wrapDisplayRotation(autoThumbCorrection(row) + (Number(row?.thumbnailRotation ?? 0) || 0));
-  const displayRotation = String(rotation);
+  const autoRotation = autoThumbCorrection(row);
+  const manualRotation = manualThumbRotation(row);
+  const rotation = wrapDisplayRotation(autoRotation + manualRotation);
+  const editRotation = String(rotation);
   const thumbDisplay = readThumbDisplaySettings();
   const detailThumbFrame = thumbFrameSize(row, thumbDisplay.detailMax, thumbDisplay.detailMin, rotation);
   const detailThumbStyle = `--detail-thumb-w:${detailThumbFrame.width}px; --detail-thumb-h:${detailThumbFrame.height}px; transform: rotate(${rotation}deg);`;
   const detailPlaceholderStyle = `--detail-thumb-w:${detailThumbFrame.width}px; --detail-thumb-h:${detailThumbFrame.height}px;`;
+  const derived = calcDerivedLimits(row);
   thumbHost.innerHTML = row.thumbnailDataUrl
     ? `<img class="thumbLarge" src="${esc(row.thumbnailDataUrl)}" alt="${esc(tt('blueprint.annotationThumbAlt', 'annotation thumb'))}" style="${detailThumbStyle}" />`
     : `<div class="thumbLargePlaceholder" style="${detailPlaceholderStyle}">${esc(tt('blueprint.noThumb', 'No thumb'))}</div>`;
-  rotateSel.innerHTML = rotationOptionsHtml(displayRotation);
-  rotateSel.value = displayRotation;
+  rotateSel.innerHTML = rotationOptionsHtml(editRotation);
+  rotateSel.value = editRotation;
   rotateSel.dataset.annId = String(row.id || '');
   rotateSel.dataset.annField = 'thumbnailRotation';
   rotateSel.disabled = false;
@@ -1463,6 +1558,7 @@ export function renderAnnotationDetails() {
     `<div><strong>${esc(tt('blueprint.characteristic', 'Characteristic'))}:</strong> ${esc(row.characteristicId || tt('blueprint.noLinkedCharacteristic', 'No linked characteristic'))}</div>`,
     `<div><strong>${esc(tt('blueprint.nominalLimits', 'Nominal / Limits'))}:</strong> ${esc(`${numText(row.nominal) || '-'} | ${numText(row.lsl) || '-'} -> ${numText(row.usl) || '-'}`)}</div>`,
     `<div><strong>${esc(tt('blueprint.deviationsSpec', 'Deviations / Spec'))}:</strong> ${esc(`${numText(row.lowerDeviation) || '-'} / ${numText(row.upperDeviation) || '-'} | ${row.toleranceSpec || '-'}`)}</div>`,
+    `<div><strong>${esc(tt('blueprint.derivedLimits', 'Derived Min / Median / Max'))}:</strong> ${esc(`${numView(derived.min) || '-'} / ${numView(derived.median) || '-'} / ${numView(derived.max) || '-'}`)}</div>`,
     `<div><strong>${esc(tt('blueprint.methodInstrument', 'Method / Instrument'))}:</strong> ${esc(`${row.method || '-'} | ${row.instrument || '-'}`)}</div>`,
   ].join('');
 }

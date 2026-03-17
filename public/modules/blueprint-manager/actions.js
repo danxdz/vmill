@@ -653,6 +653,7 @@ function deleteAnnotation(annotationId) {
   const current = docsApi.productAnnotationById(annotationId, state.selectedProductId);
   if (!current) return;
   state.pendingDeleteAnnId = '';
+  clearAnnPopover(true);
   docsApi.deleteProductAnnotation(annotationId);
   refresh();
   setStatus(tt('blueprint.annotationDeleted', `Deleted annotation ${current.id || annotationId}.`));
@@ -749,6 +750,39 @@ async function imageDimensionsFromDataUrl(dataUrl) {
   });
 }
 
+async function rotateDataUrlWithBounds(dataUrl, rotation = 0) {
+  const src = str(dataUrl);
+  if (!src) return '';
+  const angle = Number(rotation);
+  if (!Number.isFinite(angle) || Math.abs(angle) < 0.001) return src;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const w = Math.max(1, Number(img.naturalWidth || img.width || 1));
+      const h = Math.max(1, Number(img.naturalHeight || img.height || 1));
+      const rad = (angle * Math.PI) / 180;
+      const absCos = Math.abs(Math.cos(rad));
+      const absSin = Math.abs(Math.sin(rad));
+      const outW = Math.max(1, Math.round((w * absCos) + (h * absSin)));
+      const outH = Math.max(1, Math.round((w * absSin) + (h * absCos)));
+      const canvas = document.createElement('canvas');
+      canvas.width = outW;
+      canvas.height = outH;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(src);
+        return;
+      }
+      ctx.translate(outW / 2, outH / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(img, -w / 2, -h / 2);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(src);
+    img.src = src;
+  });
+}
+
 function scaleNormalizedBboxToImage(bbox, imageSize) {
   const box = normalizeBbox(bbox);
   if (!box) return null;
@@ -790,6 +824,30 @@ function expandedRefinementBbox(bbox, imageSize, zone) {
     padX = Math.max(padX, width * 2.8, verticalish ? 72 : 42);
     padY = Math.max(padY, height * 0.8, 22);
   }
+  const expanded = {
+    x1: box.x1 - padX,
+    y1: box.y1 - padY,
+    x2: box.x2 + padX,
+    y2: box.y2 + padY,
+  };
+  if (!imgWidth || !imgHeight) return normalizeBbox(expanded);
+  return normalizeBbox({
+    x1: Math.max(0, Math.min(imgWidth, expanded.x1)),
+    y1: Math.max(0, Math.min(imgHeight, expanded.y1)),
+    x2: Math.max(0, Math.min(imgWidth, expanded.x2)),
+    y2: Math.max(0, Math.min(imgHeight, expanded.y2)),
+  });
+}
+
+function expandedVerticalRefinementBbox(bbox, imageSize) {
+  const box = normalizeBbox(bbox);
+  if (!box) return null;
+  const imgWidth = Math.max(0, Number(imageSize?.width || 0));
+  const imgHeight = Math.max(0, Number(imageSize?.height || 0));
+  const width = Math.max(1, box.x2 - box.x1);
+  const height = Math.max(1, box.y2 - box.y1);
+  const padX = Math.max(10, width * 0.35);
+  const padY = Math.max(4, height * 0.08);
   const expanded = {
     x1: box.x1 - padX,
     y1: box.y1 - padY,
@@ -878,6 +936,7 @@ function chooseInstrumentForTolerance(parsed) {
   const usl = Number(parsed?.usl);
   const lowerDev = Number(parsed?.lowerDeviation);
   const upperDev = Number(parsed?.upperDeviation);
+  const tolSpec = str(parsed?.toleranceSpec || '');
   let span = NaN;
   if (Number.isFinite(lsl) && Number.isFinite(usl)) {
     span = Math.abs(usl - lsl);
@@ -888,9 +947,11 @@ function chooseInstrumentForTolerance(parsed) {
   } else if (Number.isFinite(upperDev) && Number.isFinite(n)) {
     span = Math.abs(upperDev) * 2;
   }
-  if (!Number.isFinite(span)) return '';
+  const hasTolFromSpec = /[±+\-]/.test(tolSpec);
+  if (!Number.isFinite(span)) return hasTolFromSpec ? '' : 'no tol';
+  if (span <= 1e-6) return 'no tol';
   if (span < 0.05) return 'micrometer';
-  if (span >= 0.1) return 'caliper';
+  if (span > 0.1) return 'caliper';
   return '';
 }
 
@@ -1052,9 +1113,13 @@ function parseOcrSpecFromZone(zone, idx = 0) {
   const unit = isThread
     ? ''
     : (normalizeOcrUnit(z?.unit || tol?.unit || parsedText.unit || 'mm') || 'mm');
+  const diameterLike = tol?.is_diameter === true || /^[Ø∅Φ]/i.test(text);
+  const diameterSimpleValue = /^[Ø∅Φ]?\s*-?\d+(?:[.,]\d+)?(?:\s*(?:mm|cm|m|in|inch|inches|deg|°))?$/i.test(text);
   const name = isThread
     ? (buildThreadLabel(nominal, threadPitch, threadToleranceClass, text) || fallbackName)
-    : str(z?.name || parsedText.name || fallbackName);
+    : (diameterLike && nominal != null && diameterSimpleValue
+        ? `Ø${formatCompactNumber(nominal)}`
+        : str(z?.name || parsedText.name || fallbackName));
   return {
     name,
     nominal,
@@ -1125,18 +1190,53 @@ function ocrZoneQualityScore(zone, parsed) {
   return score;
 }
 
-function choosePreferredOcrZone(originalZone, refinedZone, idx = 0) {
+function choosePreferredOcrZone(originalZone, refinedZone, idx = 0, minDelta = 0.35) {
   const originalParsed = parseOcrSpecFromZone(originalZone, idx);
   if (!refinedZone || refinedZone?.is_empty) {
     return { zone: originalZone, parsed: originalParsed };
   }
   const refinedParsed = parseOcrSpecFromZone(refinedZone, idx);
+  const originalText = str(originalZone?.text || originalZone?.value || originalZone?.label || '');
+  const refinedText = str(refinedZone?.text || refinedZone?.value || refinedZone?.label || '');
+  const originalCompact = originalText.replace(/\s+/g, '');
+  const refinedCompact = refinedText.replace(/\s+/g, '');
+  const originalLooksDiameterCode = /^0\d{3}$/.test(originalCompact) || /^[Ø∅Φ]\d{2,4}$/i.test(originalCompact);
+  const refinedLooksSuspiciousLongInt = /^[1-9]\d{3,}$/.test(refinedCompact) && !/^[Ø∅Φ]/i.test(refinedCompact);
+  if (originalLooksDiameterCode && refinedLooksSuspiciousLongInt) {
+    return { zone: originalZone, parsed: originalParsed };
+  }
   const originalScore = ocrZoneQualityScore(originalZone, originalParsed);
   const refinedScore = ocrZoneQualityScore(refinedZone, refinedParsed);
-  if (refinedScore >= originalScore + 0.35) {
+  if (refinedScore >= originalScore + (Number(minDelta) || 0)) {
     return { zone: refinedZone, parsed: refinedParsed };
   }
   return { zone: originalZone, parsed: originalParsed };
+}
+
+function autoOcrShouldRefine(zone, parsed) {
+  const z = zone && typeof zone === 'object' ? zone : {};
+  const text = str(z?.text || z?.value || z?.label || '');
+  const compactText = text.replace(/\s+/g, '');
+  const confidence = Number(z?.confidence);
+  const rotation = wrapDisplayRotation(Number(z?.rotation ?? z?.text_orientation ?? z?.textOrientation ?? 0) || 0);
+  const bbox = z?.bbox && typeof z.bbox === 'object' ? z.bbox : {};
+  const bboxWidth = Math.max(0, Number(bbox?.width || (Number(bbox?.x2) - Number(bbox?.x1)) || 0));
+  const bboxHeight = Math.max(0, Number(bbox?.height || (Number(bbox?.y2) - Number(bbox?.y1)) || 0));
+  const verticalish = bboxHeight > bboxWidth * 1.25;
+  const hasDigits = /\d/.test(compactText);
+  const arrowLike = /^[VvYyXx!:=\-—]+$/.test(compactText);
+  const hasNumericSpec = [parsed?.nominal, parsed?.lsl, parsed?.usl, parsed?.lowerDeviation, parsed?.upperDeviation]
+    .some((v) => Number.isFinite(Number(v)));
+  const hasToleranceTag = !!str(parsed?.toleranceSpec || '').trim();
+  const importable = shouldImportOcrZone(z, parsed);
+  if (arrowLike) return true;
+  if (rotation === 90 || rotation === 270) return true;
+  if (verticalish && compactText.length <= 4) return true;
+  if (!Number.isFinite(confidence) || confidence < 0.86) return true;
+  if (compactText.length <= 2) return true;
+  if (!importable) return hasDigits || verticalish || (Number.isFinite(confidence) && confidence >= 0.6);
+  if (!hasNumericSpec && !hasToleranceTag && compactText.length <= 4) return true;
+  return false;
 }
 
 function numericMarkerOrNull(value) {
@@ -1157,14 +1257,47 @@ function allocateNumericMarker(usedSet, preferred = 1) {
 async function buildThumbForZone(imageDataUrl, bbox, rotationCorrection = 0) {
   if (!ocrApi || !imageDataUrl || !bbox) return '';
   try {
-    const out = await ocrApi.callOcrThumbnailWithRetry(imageDataUrl, bbox, ocrApi.ensureOcrUrlInput(), rotationCorrection);
+    void rotationCorrection;
+    const out = await ocrApi.callOcrThumbnailWithRetry(imageDataUrl, bbox, ocrApi.ensureOcrUrlInput(), 0);
     return str(out?.thumbnail?.data_url || '');
   } catch {
     return '';
   }
 }
 
-async function reocrAnnotation(annId) {
+async function ocrFromThumbnailDataUrl(thumbnailDataUrl, rotation = 0, options = {}) {
+  if (!ocrApi || !thumbnailDataUrl) return null;
+  const mode = str(options?.mode || 'fast') || 'fast';
+  const desiredRotation = wrapDisplayRotation(Number(rotation || 0) || 0);
+  const cardinalAngles = new Set([0, 90, -90, 180, -180]);
+  let uploadDataUrl = str(thumbnailDataUrl || '');
+  let serverRotation = 0;
+  if (cardinalAngles.has(desiredRotation)) {
+    serverRotation = ((desiredRotation % 360) + 360) % 360;
+  } else {
+    uploadDataUrl = await rotateDataUrlWithBounds(uploadDataUrl, desiredRotation);
+    serverRotation = 0;
+  }
+  if (!uploadDataUrl) return null;
+  const upload = await dataUrlToFile(uploadDataUrl, 'annotation-thumb.png', 'image/png').catch(() => null);
+  if (!upload) return null;
+  const out = await ocrApi.callOcrProcessWithRetry(upload, mode, ocrApi.ensureOcrUrlInput(), serverRotation).catch(() => null);
+  const zones = extractOcrZones(out);
+  if (!Array.isArray(zones) || !zones.length) return null;
+  let best = zones[0];
+  let bestScore = ocrZoneQualityScore(best, parseOcrSpecFromZone(best, 0));
+  for (let i = 1; i < zones.length; i += 1) {
+    const z = zones[i];
+    const score = ocrZoneQualityScore(z, parseOcrSpecFromZone(z, i));
+    if (score > bestScore) {
+      best = z;
+      bestScore = score;
+    }
+  }
+  return best || null;
+}
+
+async function reocrAnnotation(annId, options = {}) {
   const doc = selectedDocument();
   const productId = str(state.selectedProductId);
   if (!doc || !productId || !ocrApi) {
@@ -1192,39 +1325,30 @@ async function reocrAnnotation(annId) {
   const y2 = Number(bbox.y2 ?? 0);
   const centerX = (x1 + x2) / 2;
   const centerY = (y1 + y2) / 2;
-  const effectiveRotation = effectiveThumbnailRotation(current);
+  const forcedRotation = Number(options?.effectiveRotation);
+  const effectiveRotation = Number.isFinite(forcedRotation)
+    ? wrapDisplayRotation(forcedRotation)
+    : effectiveThumbnailRotation(current);
   setBusyStatus(true, `Re-OCR zone ${current.sourceBubbleId || annId}...`);
   try {
-    const out = await ocrApi.callOcrProcessCenterWithRetry(
-      imageDataUrl,
-      { x: centerX, y: centerY },
-      { x1, y1, x2, y2 },
-      ocrApi.ensureOcrUrlInput(),
-      effectiveRotation
+    void centerX;
+    void centerY;
+    const thumbForOcr = str(current.thumbnailDataUrl || '') || await buildThumbForZone(imageDataUrl, current.bbox || {}, 0);
+    const zone = await ocrFromThumbnailDataUrl(
+      thumbForOcr,
+      effectiveRotation,
+      { quick: false, mode: 'hardcore' },
     );
-    const zone = out?.zone;
     if (!zone) {
       setStatus('No text detected at this zone.');
       return;
     }
     const parsed = parseOcrSpecFromZone(zone, 0);
-    const newBbox = zone.bbox
-      ? {
-          x1: Number(zone.bbox.x1 ?? x1),
-          y1: Number(zone.bbox.y1 ?? y1),
-          x2: Number(zone.bbox.x2 ?? x2),
-          y2: Number(zone.bbox.y2 ?? y2),
-          width: Number(zone.bbox.width ?? (zone.bbox.x2 - zone.bbox.x1)),
-          height: Number(zone.bbox.height ?? (zone.bbox.y2 - zone.bbox.y1)),
-        }
-      : current.bbox;
-    const rawRotation = Number(zone.rotation ?? zone.text_orientation ?? 0);
-    const detectedOcrRotation = Number.isFinite(rawRotation) ? wrapDisplayRotation(rawRotation) : 0;
-    const ocrRotation = current.ocrRotation == null
-      ? detectedOcrRotation
-      : (Number.isFinite(Number(current.ocrRotation)) ? wrapDisplayRotation(Number(current.ocrRotation)) : 0);
-    const thumbRotation = zoneRotationToCorrection(ocrRotation);
-    const thumbDataUrl = await buildThumbForZone(imageDataUrl, newBbox, thumbRotation) || (current.thumbnailDataUrl || '');
+    const newBbox = current.bbox;
+    const ocrRotation = Number.isFinite(Number(current.ocrRotation))
+      ? wrapDisplayRotation(Number(current.ocrRotation))
+      : 0;
+    const thumbDataUrl = thumbForOcr || str(current.thumbnailDataUrl || '');
     const conf = Number(zone.confidence);
     const confPct = Number.isFinite(conf) ? Math.round(conf * 100) : null;
     docsApi.upsertProductAnnotation({
@@ -1252,6 +1376,28 @@ async function reocrAnnotation(annId) {
   } finally {
     setBusyStatus(false);
   }
+}
+
+function syncAnnRotationFromUi(annId, fallbackEffective = null) {
+  const id = str(annId);
+  if (!id) return Number.isFinite(Number(fallbackEffective)) ? wrapDisplayRotation(Number(fallbackEffective)) : null;
+  let desired = null;
+  const selected = document.querySelectorAll('select[data-ann-id][data-ann-field="thumbnailRotation"]');
+  for (const sel of selected) {
+    if (str(sel?.getAttribute?.('data-ann-id')) !== id) continue;
+    const val = Number(sel.value);
+    if (!Number.isFinite(val)) continue;
+    desired = wrapDisplayRotation(val);
+    // Prefer visible control when possible
+    if (sel.offsetParent !== null) break;
+  }
+  if (!Number.isFinite(Number(desired))) {
+    const fb = Number(fallbackEffective);
+    desired = Number.isFinite(fb) ? wrapDisplayRotation(fb) : null;
+  }
+  if (!Number.isFinite(Number(desired))) return null;
+  updateAnnotationField(id, 'thumbnailRotation', desired);
+  return desired;
 }
 
 async function createAnnotationFromPreviewPoint(sourcePoint) {
@@ -1302,9 +1448,7 @@ async function createAnnotationFromPreviewPoint(sourcePoint) {
     const rawRotation = Number(zone?.rotation ?? zone?.text_orientation ?? zone?.textOrientation ?? 0);
     const ocrRotation = Number.isFinite(rawRotation) ? wrapDisplayRotation(rawRotation) : 0;
     const thumbRotation = zoneRotationToCorrection(ocrRotation);
-    const thumbDataUrl = out?.thumbnail?.data_url
-      ? str(out.thumbnail.data_url)
-      : await buildThumbForZone(imageDataUrl, bbox, thumbRotation);
+    const thumbDataUrl = await buildThumbForZone(imageDataUrl, bbox, thumbRotation);
     const zoneConf = Number(zone?.confidence);
     const ocrConfidence = Number.isFinite(zoneConf) ? zoneConf : null;
     const annId = str(zone?.id) || docsApi.normalizeProductAnnotation({}).id;
@@ -1456,7 +1600,7 @@ async function autoOcrCurrentDocument() {
   setBusyStatus(true, 'Running OCR on selected drawing...');
   try {
     const uploadFile = await dataUrlToFile(imageDataUrl, doc.name || 'drawing.png', mime || 'image/png');
-    const out = await ocrApi.callOcrProcessWithRetry(uploadFile, 'hardcore', ocrApi.ensureOcrUrlInput(), 0);
+    const out = await ocrApi.callOcrProcessWithRetry(uploadFile, 'fast', ocrApi.ensureOcrUrlInput(), 0);
     const zones = extractOcrZones(out);
     const imageSize = await imageDimensionsFromDataUrl(imageDataUrl);
     const existingDocAnnotations = docsApi.listProductAnnotations(productId, doc.id) || [];
@@ -1471,20 +1615,42 @@ async function autoOcrCurrentDocument() {
       const zone = zones[idx];
       const bbox = scaleNormalizedBboxToImage(bboxFromOcrZone(zone), imageSize);
       if (!bbox) continue;
-      const refinementBbox = expandedRefinementBbox(bbox, imageSize, zone) || bbox;
-      const center = { x: (refinementBbox.x1 + refinementBbox.x2) / 2, y: (refinementBbox.y1 + refinementBbox.y2) / 2 };
-      const refinedOut = await ocrApi.callOcrProcessCenterWithRetry(
-        imageDataUrl,
-        center,
-        refinementBbox,
-        ocrApi.ensureOcrUrlInput(),
-        0
-      ).catch(() => null);
-      const preferred = choosePreferredOcrZone(zone, refinedOut?.zone, idx);
-      const refinedZone = preferred.zone;
-      const parsed = preferred.parsed;
+      const baseParsed = parseOcrSpecFromZone(zone, idx);
+      const rawBaseRotation = Number(zone?.rotation ?? zone?.text_orientation ?? zone?.textOrientation ?? 0);
+      const baseOcrRotation = Number.isFinite(rawBaseRotation) ? wrapDisplayRotation(rawBaseRotation) : 0;
+      const zText = str(zone?.text || zone?.value || zone?.label || '');
+      const compactText = zText.replace(/\s+/g, '');
+      const zConf = Number(zone?.confidence);
+      const bboxW = Math.max(1, Number(bbox.x2 || 0) - Number(bbox.x1 || 0));
+      const bboxH = Math.max(1, Number(bbox.y2 || 0) - Number(bbox.y1 || 0));
+      const verticalish = bboxH > bboxW * 1.25;
+      const leadingZeroShort = /^0\d{1,2}$/.test(compactText);
+      const needsRotationRefine = verticalish;
+      let refinedZone = zone;
+      let parsed = baseParsed;
+      let appliedRotationHint = baseOcrRotation;
+      let usedVerticalForcedRotation = false;
+      let thumb = '';
+      let thumbFromRefine = false;
+      if (needsRotationRefine) {
+        const refinementBbox = expandedVerticalRefinementBbox(bbox, imageSize) || bbox;
+        const rotationHint = verticalish ? 90 : (Math.abs(baseOcrRotation) >= 1 ? baseOcrRotation : 90);
+        usedVerticalForcedRotation = verticalish;
+        const refineOptions = verticalish
+          ? { quick: true, mode: 'fast' }        // Rotated thumbnail OCR first for speed/consistency
+          : { quick: true, mode: 'fast' };       // Keep non-vertical path fast
+        thumb = await buildThumbForZone(imageDataUrl, refinementBbox, 0);
+        const refinedZoneFromThumb = thumb
+          ? await ocrFromThumbnailDataUrl(thumb, rotationHint, refineOptions)
+          : null;
+        thumbFromRefine = !!thumb;
+        const preferred = choosePreferredOcrZone(zone, refinedZoneFromThumb, idx, 0.2);
+        if (preferred.zone !== zone) appliedRotationHint = rotationHint;
+        refinedZone = preferred.zone;
+        parsed = preferred.parsed;
+      }
       if (!shouldImportOcrZone(refinedZone, parsed)) continue;
-      const finalBbox = scaleNormalizedBboxToImage(bboxFromOcrZone(refinedZone), imageSize) || bbox;
+      const finalBbox = bbox;
       const annId = autoOcrAnnotationId(doc.id, refinedZone, finalBbox, idx);
       const existing = existingById.get(annId) || null;
       const existingMarker = numericMarkerOrNull(existing?.sourceBubbleId);
@@ -1492,14 +1658,33 @@ async function autoOcrCurrentDocument() {
         ? String(existingMarker)
         : allocateNumericMarker(usedMarkers, 1);
       const parsedName = str(parsed?.name || '');
-      const normalizedName = /^ocr[_\s-]*zone[_\s-]*\d+$/i.test(parsedName) ? sourceBubbleId : parsedName;
+      const zoneTol = refinedZone?.tolerance_info && typeof refinedZone.tolerance_info === 'object'
+        ? refinedZone.tolerance_info
+        : (refinedZone?.toleranceInfo && typeof refinedZone.toleranceInfo === 'object' ? refinedZone.toleranceInfo : {});
+      const nominalNum = Number(parsed?.nominal);
+      const diameterFromTol = zoneTol?.is_diameter === true;
+      const diameterFromText = /^[Ø∅Φ]/i.test(str(refinedZone?.text || ''));
+      const diameterFromLeadingZero = /^0\d{1,2}$/.test(str(refinedZone?.text || '').replace(/\s+/g, ''))
+        && Number.isFinite(nominalNum)
+        && nominalNum > 0
+        && nominalNum <= 20;
+      const displayName = diameterFromTol || diameterFromText || diameterFromLeadingZero
+        ? `Ø${formatCompactNumber(nominalNum)}`
+        : parsedName;
+      const normalizedName = /^ocr[_\s-]*zone[_\s-]*\d+$/i.test(displayName) ? sourceBubbleId : displayName;
       const rawRotation = Number(refinedZone?.rotation ?? refinedZone?.text_orientation ?? refinedZone?.textOrientation ?? 0);
       const detectedOcrRotation = Number.isFinite(rawRotation) ? wrapDisplayRotation(rawRotation) : 0;
-      const ocrRotation = existing?.ocrRotation == null
-        ? detectedOcrRotation
-        : (Number.isFinite(Number(existing.ocrRotation)) ? wrapDisplayRotation(Number(existing.ocrRotation)) : 0);
-      const thumbRotation = zoneRotationToCorrection(ocrRotation);
-      const thumb = await buildThumbForZone(imageDataUrl, finalBbox, thumbRotation);
+      const ocrRotation = usedVerticalForcedRotation
+        // Keep vertical annotations visually consistent with the opposite orientation.
+        // display = wrap(360 - ocrRotation) => ocrRotation=-90 gives display=+90.
+        ? -90
+        : (Math.abs(detectedOcrRotation) >= 1
+            ? detectedOcrRotation
+            : (Math.abs(appliedRotationHint) >= 1 ? wrapDisplayRotation(appliedRotationHint) : 0));
+      if (!thumbFromRefine || !thumb) {
+        const thumbRotation = zoneRotationToCorrection(ocrRotation);
+        thumb = await buildThumbForZone(imageDataUrl, finalBbox, thumbRotation);
+      }
       const instrument = chooseInstrumentForTolerance(parsed);
       const zoneConf = Number(refinedZone?.confidence);
       const ocrConfidence = Number.isFinite(zoneConf) ? zoneConf : null;
@@ -1623,7 +1808,9 @@ function bindEvents() {
   $('annDetailReocrBtn')?.addEventListener('click', (event) => {
     const id = str(event.currentTarget?.getAttribute('data-ann-reocr-btn'));
     if (!id) return;
-    reocrAnnotation(id);
+    const detailSel = $('annDetailRotateSel');
+    const desired = syncAnnRotationFromUi(id, Number(detailSel?.value));
+    reocrAnnotation(id, { effectiveRotation: desired });
   });
   $('annDetailRotateSel')?.addEventListener('change', (event) => {
     const input = event.currentTarget;
@@ -1707,7 +1894,10 @@ function bindEvents() {
     event.stopPropagation();
     const annId = str(wrap.getAttribute('data-ann-reocr'));
     if (!annId) return;
-    await reocrAnnotation(annId);
+    const card = wrap.closest('[data-ann-card]');
+    const rotateSel = card?.querySelector?.('select[data-ann-id][data-ann-field="thumbnailRotation"]');
+    const desired = syncAnnRotationFromUi(annId, Number(rotateSel?.value));
+    await reocrAnnotation(annId, { effectiveRotation: desired });
   });
   $('annList')?.addEventListener('click', (event) => {
     const lockBtn = event.target.closest('[data-ann-lock]');
@@ -1719,7 +1909,11 @@ function bindEvents() {
     }
     const reocrBtn = event.target.closest('[data-ann-reocr-btn]');
     if (reocrBtn) {
-      reocrAnnotation(str(reocrBtn.getAttribute('data-ann-reocr-btn')));
+      const annId = str(reocrBtn.getAttribute('data-ann-reocr-btn'));
+      const card = reocrBtn.closest('[data-ann-card]');
+      const rotateSel = card?.querySelector?.('select[data-ann-id][data-ann-field="thumbnailRotation"]');
+      const desired = syncAnnRotationFromUi(annId, Number(rotateSel?.value));
+      reocrAnnotation(annId, { effectiveRotation: desired });
       return;
     }
     const delReqBtn = event.target.closest('[data-ann-delete-request]');

@@ -120,7 +120,7 @@
     .annPrimaryValue { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:700; color:var(--text); }
     .annPrimaryInput { flex:1; min-width:0; height:30px; font-size:13px; font-weight:700; }
     .annSummaryRow { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:var(--muted); }
-    .annEditorRow { display:grid; grid-template-columns: 74px 74px 74px 58px; gap:6px; }
+    .annEditorRow { display:grid; grid-template-columns: 74px 74px 74px 58px 120px; gap:6px; }
     .annMetaRow { display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-height:18px; }
     .annInlineInput { width:100%; min-width:0; height:28px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font-size:11px; box-sizing:border-box; }
     .annInlineInput.annNameInline { font-weight:600; }
@@ -625,6 +625,20 @@
     <option value="cd"></option>
     <option value="Bq"></option>
     <option value="Sv"></option>
+  </datalist>
+  <datalist id="annInstrumentDatalist">
+    <option value="no tol"></option>
+    <option value="micrometer"></option>
+    <option value="caliper"></option>
+    <option value="bore gauge"></option>
+    <option value="height gauge"></option>
+    <option value="depth gauge"></option>
+    <option value="dial indicator"></option>
+    <option value="thread gauge"></option>
+    <option value="go/no-go gauge"></option>
+    <option value="pin gauge"></option>
+    <option value="CMM"></option>
+    <option value="optical comparator"></option>
   </datalist>
 
   <script src="./modules/module-shell.js"></script>

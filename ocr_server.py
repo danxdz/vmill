@@ -529,28 +529,42 @@ async def lifespan(app: FastAPI):
     try:
         configure_paddlex_offline_cache_mode()
 
-        # Force safe CPU flags at runtime (best effort).
+        requested_ocr_device = os.getenv("OCR_DEVICE", "auto").strip().lower()
+        paddle_device = None
+        if requested_ocr_device in {"cpu", "gpu", "cuda"}:
+            paddle_device = "gpu" if requested_ocr_device in {"gpu", "cuda"} else "cpu"
+        logger.info(f"OCR device setting: {requested_ocr_device or 'auto'}")
+
+        # Apply CPU-specific runtime flags only when CPU is explicitly requested.
         try:
-            paddle.set_device('cpu')
-            paddle.set_flags({
-                'FLAGS_use_mkldnn': False,
-                'FLAGS_enable_pir_in_executor': False,
-            })
-            logger.info("Paddle runtime flags applied: mkldnn=off, pir_executor=off")
+            if paddle_device == "cpu":
+                paddle.set_device("cpu")
+                paddle.set_flags({
+                    'FLAGS_use_mkldnn': False,
+                    'FLAGS_enable_pir_in_executor': False,
+                })
+                logger.info("Paddle runtime flags applied for CPU: mkldnn=off, pir_executor=off")
+            elif paddle_device == "gpu":
+                paddle.set_device("gpu")
+                logger.info("Paddle runtime configured for GPU")
+            else:
+                logger.info("Paddle runtime device left on auto-detect")
         except Exception as flag_error:
             logger.warning(f"Could not apply paddle runtime flags: {flag_error}")
 
         use_textline_orientation = os.getenv("OCR_TEXTLINE_ORIENTATION", "1").strip() == "1"
         logger.info(f"OCR textline orientation enabled: {use_textline_orientation}")
-        logger.info("Initializing PaddleOCR with auto GPU detection...")
+        logger.info("Initializing PaddleOCR...")
         logger.info("Creating PaddleOCR object...")
-        ocr = PaddleOCR(
+        ocr_kwargs = dict(
             use_doc_orientation_classify=False,  # Disable for better performance
             use_doc_unwarping=False,
             use_textline_orientation=use_textline_orientation,
             lang='en',
-            device='cpu',
         )
+        if paddle_device in {"cpu", "gpu"}:
+            ocr_kwargs["device"] = paddle_device
+        ocr = PaddleOCR(**ocr_kwargs)
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=OCR_WORKERS)
         logger.info("=" * 60)
         logger.info("PaddleOCR object created")
@@ -1508,9 +1522,16 @@ def clean_ocr_text_advanced(text):
     # Fix diameter symbol: OCR often reads Φ as $, 4, 0 or 9
     if '$' in cleaned:
         cleaned = cleaned.replace('$', '\u03a6')  # Φ (Greek capital Phi)
-    # Leading 0 + 2 digits in dimension context → Φ + 2 digits (e.g. 044 → Φ44, 026 → Φ26)
-    if re.match(r'^0(\d{2})(?:\s|±|\+|\-|$)', cleaned):
-        cleaned = '\u03a6' + cleaned[1:]
+    # Leading 0 + 2 digits → Φ + 2 digits, but only for real diameter-like values
+    # e.g. "044" -> "Φ44", "026" -> "Φ26", but KEEP simple values like "05" as-is.
+    m0 = re.match(r'^0(\d{2})(?:\s|±|\+|\-|$)', cleaned)
+    if m0:
+        try:
+            pair_val = int(m0.group(1))
+        except ValueError:
+            pair_val = 0
+        if pair_val >= 10:
+            cleaned = '\u03a6' + cleaned[1:]
     # 4 or 9 + 2 digits (10-99) at start (common Φ misread, e.g. 926→Φ26, 448→Φ48)
     m = re.match(r'^[49](\d{2})(?:\s|±|\+|\-|\.|$)', cleaned)
     if m and 10 <= int(m.group(1)) <= 99:
@@ -2717,6 +2738,7 @@ def process_image(image_path, mode="fast", rotation=0):
     logger.info(f">>> process_image CALLED! image_path={image_path}, mode={mode}, rotation={rotation}")
     input_image_path = str(image_path)
     fallback_temp_paths = []
+    rotated_temp_path = None
     
     source_width = 0
     source_height = 0
@@ -2764,6 +2786,7 @@ def process_image(image_path, mode="fast", rotation=0):
             cv2.imwrite(rotated_path, img)
             logger.info(f"Saved rotated image to: {rotated_path}")
             image_path = rotated_path
+            rotated_temp_path = rotated_path
         
         # Use single OCR model
         logger.info(f"Processing image with OCR mode: {mode}, rotation: {rotation}")
@@ -2994,13 +3017,6 @@ def process_image(image_path, mode="fast", rotation=0):
         )
         # endregion
         
-        # Clean up rotated image if created
-        if rotation != 0 and os.path.exists(str(image_path)) and '_rotated' in str(image_path):
-            try:
-                os.unlink(str(image_path))
-            except OSError:
-                pass
-        
         # Create overlay image
         overlay_path = create_overlay_image(image_path, zones)
         
@@ -3037,6 +3053,12 @@ def process_image(image_path, mode="fast", rotation=0):
             "metadata": {"error": str(e)}
         }
     finally:
+        if rotated_temp_path:
+            try:
+                if os.path.exists(rotated_temp_path):
+                    os.unlink(rotated_temp_path)
+            except OSError:
+                pass
         for temp_path in fallback_temp_paths:
             try:
                 if os.path.exists(temp_path):
@@ -3615,6 +3637,8 @@ async def process_center_point(request: dict = Body(...)):
         rectangle_bounds = request.get('rectangle_bounds', {})
         use_rectangle = request.get('use_rectangle', False)
         rotation = request.get('rotation', 0)  # Add rotation support
+        quick_mode = request.get('quick', False) is True
+        requested_mode = str(request.get('mode', '') or '').strip().lower()
         
         logger.info(f"Center point: ({center_x}, {center_y}), Image data length: {len(image_data) if image_data else 0}")
         if use_rectangle and rectangle_bounds:
@@ -3751,14 +3775,21 @@ async def process_center_point(request: dict = Body(...)):
                 best_rotation = 0.0
                 best_score = -1.0
 
-                for candidate_rotation in rectangle_candidate_rotations(rotation):
+                candidate_rotations = rectangle_candidate_rotations(rotation)
+                ocr_mode = "hardcore"
+                if quick_mode:
+                    candidate_rotations = [round(normalize_rotation_360(rotation, 0.0), 3)]
+                    ocr_mode = "fast" if requested_mode not in ("hardcore", "accurate") else requested_mode
+                    logger.info(f"RECTANGLE QUICK MODE enabled: rotations={candidate_rotations}, mode={ocr_mode}")
+
+                for candidate_rotation in candidate_rotations:
                     rotated_crop = rotate_image_with_bounds_clockwise(cropped_img, candidate_rotation)
                     candidate_crop_h, candidate_crop_w = rotated_crop.shape[:2]
                     cropped_path = tmp_path.replace('.jpg', f'_cropped_{str(candidate_rotation).replace(".", "_")}.jpg')
                     cv2.imwrite(cropped_path, rotated_crop)
                     try:
                         logger.info(f"Running OCR on cropped image with candidate rotation: {candidate_rotation}°")
-                        result = await process_image_async(cropped_path, mode="hardcore", rotation=0)
+                        result = await process_image_async(cropped_path, mode=ocr_mode, rotation=0)
                     finally:
                         if os.path.exists(cropped_path):
                             os.unlink(cropped_path)
