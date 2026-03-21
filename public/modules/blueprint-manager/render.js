@@ -589,7 +589,7 @@ export function renderPreviewOverlay() {
   const rows = currentPreviewAnnotations();
   rows.forEach((row, idx) => {
     const draftMatch = String(row?.id || '') === activeId && previewRuntime.draftBox;
-    const box = draftMatch ? normalizeEditableBbox(previewRuntime.draftBox) : normalizeOverlayBbox(row?.bbox, srcW, srcH);
+    const box = draftMatch ? normalizeEditableBbox(previewRuntime.draftBox) : normalizeOverlayBbox(row?.bbox, srcW, srcH, m.doc);
     if (!box) return;
     const isSel = String(row?.id || '') === selectedId;
     const isHovered = String(row?.id || '') === hoveredId;

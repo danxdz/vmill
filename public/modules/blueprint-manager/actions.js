@@ -372,7 +372,39 @@ function wrapDisplayRotation(angle) {
 }
 
 async function dataUrlToFile(dataUrl, filename, fallbackType = 'application/octet-stream') {
-  const res = await fetch(String(dataUrl || ''));
+  const src = String(dataUrl || '');
+  // Do not use fetch(data:...) — large PDF/PNG previews often hit browser limits and throw "Failed to fetch".
+  if (/^data:/i.test(src)) {
+    const comma = src.indexOf(',');
+    if (comma < 0) throw new Error('Invalid data URL');
+    const header = src.slice(0, comma);
+    const dataPart = src.slice(comma + 1);
+    const isBase64 = /;base64/i.test(header);
+    const mimeMatch = header.match(/^data:([^;,]+)/i);
+    const parsedType = mimeMatch && mimeMatch[1] ? String(mimeMatch[1]).trim() : '';
+    const type = parsedType || fallbackType;
+    let bytes;
+    try {
+      if (isBase64) {
+        const binary = atob(dataPart.replace(/\s/g, ''));
+        bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      } else {
+        bytes = new TextEncoder().encode(decodeURIComponent(dataPart.replace(/\+/g, ' ')));
+      }
+    } catch (e) {
+      throw new Error(`Invalid data URL: ${e?.message || e}`);
+    }
+    const blob = new Blob([bytes], { type });
+    let name = String(filename || 'document');
+    const hasExt = /\.[a-z0-9]{2,6}$/i.test(name);
+    const inferredExt = extensionForMimeType(blob.type || type);
+    if (!hasExt && inferredExt) name = `${name}${inferredExt}`;
+    if (!hasExt && !inferredExt) name = `${name}.bin`;
+    return new File([blob], name, { type: blob.type || type });
+  }
+  const res = await fetch(src);
+  if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
   const blob = await res.blob();
   const type = blob.type || fallbackType;
   let name = String(filename || 'document');
@@ -1755,6 +1787,7 @@ async function autoOcrCurrentDocument() {
       let usedVerticalForcedRotation = false;
       let thumb = '';
       let thumbFromRefine = false;
+      let refinedZoneFromThumb = null;
       if (needsRotationRefine) {
         const refinementBbox = expandedVerticalRefinementBbox(bbox, imageSize) || bbox;
         const rotationHint = verticalish ? 90 : (Math.abs(baseOcrRotation) >= 1 ? baseOcrRotation : 90);
@@ -1763,7 +1796,7 @@ async function autoOcrCurrentDocument() {
           ? { quick: true, mode: 'fast' }        // Rotated thumbnail OCR first for speed/consistency
           : { quick: true, mode: 'fast' };       // Keep non-vertical path fast
         thumb = await buildThumbForZone(imageDataUrl, refinementBbox, 0, doc);
-        const refinedZoneFromThumb = thumb
+        refinedZoneFromThumb = thumb
           ? await ocrFromThumbnailDataUrl(thumb, rotationHint, refineOptions)
           : null;
         thumbFromRefine = !!thumb;
@@ -1771,6 +1804,21 @@ async function autoOcrCurrentDocument() {
         if (preferred.zone !== zone) appliedRotationHint = rotationHint;
         refinedZone = preferred.zone;
         parsed = preferred.parsed;
+      }
+      // Tall/narrow bbox on full-page OCR often mislabels horizontal refs (e.g. part IDs). If the
+      // rotated-crop refinement sees a horizontal box at 0°/180°, do not force display +90°.
+      if (usedVerticalForcedRotation && refinedZoneFromThumb) {
+        const rb = bboxFromOcrZone(refinedZoneFromThumb);
+        if (rb) {
+          const rw = Math.max(1, Number(rb.x2 || 0) - Number(rb.x1 || 0));
+          const rh = Math.max(1, Number(rb.y2 || 0) - Number(rb.y1 || 0));
+          const refinedRot = wrapDisplayRotation(
+            Number(refinedZoneFromThumb?.rotation ?? refinedZoneFromThumb?.text_orientation ?? refinedZoneFromThumb?.textOrientation ?? 0) || 0,
+          );
+          const bboxLooksHorizontal = rw > rh * 1.08;
+          const rotLooksUpright = refinedRot === 0 || Math.abs(refinedRot) === 180;
+          if (bboxLooksHorizontal && rotLooksUpright) usedVerticalForcedRotation = false;
+        }
       }
       if (!shouldImportOcrZone(refinedZone, parsed)) continue;
       const finalBbox = bbox;
@@ -1840,7 +1888,14 @@ async function autoOcrCurrentDocument() {
     refresh();
     setStatus(imported ? `Imported ${imported} OCR annotation${imported === 1 ? '' : 's'} to this drawing.` : 'OCR found no usable annotation boxes.');
   } catch (err) {
-    setStatus(`Auto OCR failed: ${err?.message || err || 'unknown error'}`);
+    const name = str(err?.name || '');
+    const base = str(err?.message || err || 'unknown error');
+    const hint = name === 'AbortError' || /abort/i.test(base)
+      ? ' (request timed out — try again or lower PDF preview DPI).'
+      : (/failed to fetch/i.test(base)
+        ? ' (network/CORS or oversized payload — check OCR URL and browser console).'
+        : '');
+    setStatus(`Auto OCR failed: ${base}${hint}`);
   } finally {
     setBusyStatus(false);
   }

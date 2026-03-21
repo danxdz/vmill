@@ -50,12 +50,12 @@ window.VMillModules = [
   },
   {
     id: "records",
-    name: "Records",
-    desc: "Structured records and custom forms by system category.",
+    name: "Item Master",
+    desc: "Item and assembly master data with BOM links and custom forms.",
     href: "./records_manager.html",
     minRole: "admin",
     status: "ready",
-    tags: ["records", "crud", "forms", "schema"],
+    tags: ["items", "bom", "crud", "forms", "schema"],
   },
   {
     id: "theme",

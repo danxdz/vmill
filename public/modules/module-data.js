@@ -8,9 +8,10 @@
   const SERVER_URL_KEY = "vmill:server:url";
   const SYNC_REV_KEY = "vmill:sync:rev";
   const SYNC_CLIENT_ID_KEY = "vmill:sync:client-id";
-  const SYNC_POLL_MS = 5000;
-  const SYNC_POLL_HIDDEN_MS = 15000;
-  const SYNC_POLL_OFFLINE_MS = 7000;
+  // Hub ↔ server: long-poll style sync. Visible tab stays responsive; hidden tab backs off to save idle traffic.
+  const SYNC_POLL_MS = 8000;
+  const SYNC_POLL_HIDDEN_MS = 45000;
+  const SYNC_POLL_OFFLINE_MS = 12000;
   const SYNC_POLL_AUTH_ERROR_MS = 30000;
   const SYNC_WRITE_DEBOUNCE_MS = 700;
   const SYNC_WRITE_MAX_WAIT_MS = 2600;

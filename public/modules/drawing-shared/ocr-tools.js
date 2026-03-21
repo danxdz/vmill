@@ -153,7 +153,8 @@
       return normalizeCardinalRotation(360 - zoneRot, 0);
     }
 
-    async function fetchJsonWithRetry(buildRequest, preferredBaseUrl, timeoutMs, errorMessage) {
+    async function fetchJsonWithRetry(buildRequest, preferredBaseUrl, timeoutMs, errorMessage, fetchOptions = {}) {
+      const bailOnClientError = fetchOptions.bailOnClientError === true;
       const candidates = dedupeOcrCandidateBaseUrls(ocrCandidateBaseUrls(preferredBaseUrl));
       let lastError = null;
       for (const baseUrl of candidates) {
@@ -171,12 +172,21 @@
           if (!res.ok) {
             const detail = out?.detail;
             const detailMsg = typeof detail === 'string' ? detail : (detail?.message || detail?.error || '');
-            throw new Error(detailMsg || out?.error || `${res.status} ${res.statusText}`);
+            const err = new Error(detailMsg || out?.error || `${res.status} ${res.statusText}`);
+            err.httpStatus = res.status;
+            throw err;
           }
           syncResolvedBaseUrl(baseUrl);
           return out;
         } catch (err) {
-          lastError = err;
+          const st = err && typeof err.httpStatus === 'number' ? err.httpStatus : null;
+          if (bailOnClientError && st != null && st >= 400 && st < 500) {
+            throw err;
+          }
+          const aborted = err && (err.name === 'AbortError' || /abort/i.test(String(err.message || '')));
+          lastError = aborted
+            ? new Error('Request timed out — OCR took too long or the upload is very large.')
+            : err;
         } finally {
           clearTimeout(timeoutId);
         }
@@ -186,6 +196,7 @@
 
     async function callOcrProcessWithRetry(uploadFile, mode, preferredBaseUrl, rotation = 0) {
       const safeRotation = normalizeCardinalRotation(rotation, 0);
+      // Full-page OCR on large previews can exceed 25s (upload + inference).
       return fetchJsonWithRetry((baseUrl, signal) => {
         const formData = new FormData();
         formData.append('file', uploadFile, uploadFile.name);
@@ -193,7 +204,7 @@
           url: `${baseUrl}/ocr/process?mode=${encodeURIComponent(mode)}&rotation=${encodeURIComponent(safeRotation)}`,
           options: { method: 'POST', body: formData, signal },
         };
-      }, preferredBaseUrl, 25000, 'OCR server not reachable');
+      }, preferredBaseUrl, 180000, 'OCR server not reachable');
     }
 
     async function callOcrPdfToImageWithRetry(uploadFile, preferredBaseUrl, page = 0, dpi = 220) {
@@ -209,7 +220,18 @@
       }, preferredBaseUrl, 30000, 'OCR server not reachable');
     }
 
+    function sanitizeThumbnailBbox(bbox) {
+      if (!bbox || typeof bbox !== 'object') return null;
+      const x1 = Number(bbox.x1);
+      const y1 = Number(bbox.y1);
+      const x2 = Number(bbox.x2);
+      const y2 = Number(bbox.y2);
+      if (![x1, y1, x2, y2].every((n) => Number.isFinite(n))) return null;
+      return { x1, y1, x2, y2 };
+    }
+
     async function callOcrJsonWithRetry(path, payload, preferredBaseUrl) {
+      // Do not fan out 4xx to every candidate host (same huge JSON body; doubles log noise).
       return fetchJsonWithRetry((baseUrl, signal) => ({
         url: `${baseUrl}${path}`,
         options: {
@@ -218,7 +240,7 @@
           body: JSON.stringify(payload || {}),
           signal,
         },
-      }), preferredBaseUrl, 25000, 'OCR server not reachable');
+      }), preferredBaseUrl, 25000, 'OCR server not reachable', { bailOnClientError: true });
     }
 
     async function callOcrAnnotationClickWithRetry(imageDataUrl, point, mode, preferredBaseUrl, rotation = 0) {

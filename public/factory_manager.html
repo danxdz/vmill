@@ -336,25 +336,121 @@
       font-size: 11px;
     }
     .timeline {
-      display: grid;
-      grid-template-columns: 180px repeat(7, minmax(110px, 1fr));
       min-width: 980px;
+      display: block;
     }
-    .tlHead, .tlCell {
-      border-bottom: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
-      border-right: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
-      padding: 7px;
-      font-size: 12px;
+    .timelineGantt {
+      min-width: 980px;
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      align-items: stretch;
     }
-    .tlHead {
+    .tlGanttHead {
       position: sticky;
       top: 0;
-      z-index: 1;
-      background: color-mix(in srgb, var(--panel) 88%, #000);
+      z-index: 2;
+      display: contents;
+    }
+    .tlStationHead {
+      border-right: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+      padding: 8px;
       color: var(--muted);
       text-transform: uppercase;
       letter-spacing: .06em;
       font-size: 10px;
+      background: color-mix(in srgb, var(--panel) 92%, #000);
+    }
+    .tlScale {
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+      display: grid;
+      grid-template-columns: repeat(var(--days, 7), minmax(110px, 1fr));
+      background: color-mix(in srgb, var(--panel) 92%, #000);
+    }
+    .tlScaleCell {
+      padding: 8px 6px;
+      font-size: 10px;
+      letter-spacing: .06em;
+      color: var(--muted);
+      text-transform: uppercase;
+      border-right: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
+    }
+    .tlStationCell {
+      border-right: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+      padding: 10px 8px;
+      font-size: 13px;
+      font-weight: 700;
+      background: color-mix(in srgb, var(--panel) 72%, #000);
+    }
+    .tlTrackCell {
+      position: relative;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+      min-height: 62px;
+      background:
+        repeating-linear-gradient(
+          to right,
+          transparent 0,
+          transparent calc((100% / var(--days, 7)) - 1px),
+          color-mix(in srgb, var(--border) 40%, transparent) calc((100% / var(--days, 7)) - 1px),
+          color-mix(in srgb, var(--border) 40%, transparent) calc(100% / var(--days, 7))
+        );
+    }
+    .tlTaskBar {
+      position: absolute;
+      top: 10px;
+      height: 42px;
+      border-radius: 10px;
+      border: 1px solid color-mix(in srgb, var(--accent) 68%, transparent);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 26%, transparent), color-mix(in srgb, var(--accent) 13%, transparent));
+      padding: 4px 8px;
+      font-size: 11px;
+      color: var(--text);
+      display: grid;
+      align-content: center;
+      gap: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 36px;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+    }
+    .tlTaskBar .sub {
+      margin: 0;
+      font-size: 10px;
+      color: color-mix(in srgb, var(--text) 80%, transparent);
+    }
+    .tlTaskBar:hover {
+      border-color: color-mix(in srgb, var(--accent) 92%, transparent);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 34%, transparent), color-mix(in srgb, var(--accent) 16%, transparent));
+    }
+    .tlEmpty {
+      padding: 20px;
+      color: var(--muted);
+      font-size: 12px;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+      grid-column: 1 / span 2;
+    }
+    .tlTaskModalGrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .tlTaskModalActions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .tlTaskLine {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .tlTaskLine strong {
+      color: var(--text);
+      font-weight: 700;
     }
     .tlCell .bar {
       border-radius: 8px;
@@ -366,6 +462,16 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .tlCell .barBtn {
+      width: 100%;
+      text-align: left;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .tlCell .barBtn:hover {
+      border-color: color-mix(in srgb, var(--accent) 80%, transparent);
+      background: color-mix(in srgb, var(--accent) 24%, transparent);
     }
     .modalBack {
       position: fixed;
@@ -446,6 +552,7 @@
       .qrImg { width: 180px; height: 180px; }
       .dayChecks { grid-template-columns: repeat(4, minmax(0, 1fr)); }
       .settingsInsights, .settingsGrid { grid-template-columns: 1fr; }
+      .tlTaskModalGrid { grid-template-columns: 1fr; }
     }
     @media (max-width: 760px) {
       .erpComposer { grid-template-columns: 1fr; }
@@ -785,6 +892,41 @@
     </div>
   </div>
 
+  <div class="modalBack" id="timelineTaskModal" aria-hidden="true">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div>
+          <div class="modalTitle" id="timelineTaskModalTitle">Planned Task</div>
+          <div class="note" id="timelineTaskModalSubtitle">Edit station and schedule window.</div>
+        </div>
+        <button class="btn ghost" id="timelineTaskCloseBtn" type="button">Close</button>
+      </div>
+      <div class="tlTaskModalGrid">
+        <label class="field">
+          <span class="fieldLabel" id="timelineTaskCodeLbl">Task Code</span>
+          <input id="timelineTaskCodeIn" type="text" readonly />
+        </label>
+        <label class="field">
+          <span class="fieldLabel" id="timelineTaskStationLbl">Station</span>
+          <select id="timelineTaskStationSel"></select>
+        </label>
+        <label class="field">
+          <span class="fieldLabel" id="timelineTaskStartLbl">Planned Start</span>
+          <input id="timelineTaskStartIn" type="datetime-local" />
+        </label>
+        <label class="field">
+          <span class="fieldLabel" id="timelineTaskEndLbl">Planned End</span>
+          <input id="timelineTaskEndIn" type="datetime-local" />
+        </label>
+      </div>
+      <div class="tlTaskLine" id="timelineTaskInfo">-</div>
+      <div class="tlTaskModalActions">
+        <button class="btn ghost" id="timelineTaskLoadBtn" type="button">Load in Operator</button>
+        <button class="btn primary" id="timelineTaskSaveBtn" type="button">Save Task</button>
+      </div>
+    </div>
+  </div>
+
   <script src="./modules/module-shell.js"></script>
   <script src="./modules/module-io.js"></script>
   <script src="./modules/module-data.js"></script>
@@ -857,6 +999,7 @@
       let qualityByTaskId = new Map();
       let auditCache = [];
       let selectedOperatorTaskId = "";
+      let selectedTimelineTaskId = "";
       let selectedCalendarStationId = "";
       let calendarDraftOffDates = [];
       let timelineOffsetDays = 0;
@@ -1102,8 +1245,11 @@
       }
 
       function readFactorySettingsRow() {
-        const row = window.VMillData?.getRecord?.(FACTORY_SETTINGS_NS, FACTORY_SETTINGS_ID) || null;
-        return row && typeof row === "object" ? row : null;
+        const byGet = window.VMillData?.getRecord?.(FACTORY_SETTINGS_NS, FACTORY_SETTINGS_ID) || null;
+        if (byGet && typeof byGet === "object") return byGet;
+        const rows = window.VMillData?.listRecords?.(FACTORY_SETTINGS_NS) || [];
+        const byList = rows.find((row) => String(row?.id || "") === FACTORY_SETTINGS_ID) || null;
+        return byList && typeof byList === "object" ? byList : null;
       }
 
       function normalizeStationWorkingDays(value, fallback = STATION_CALENDAR_PRESETS.single_8x5.workingDays) {
@@ -1134,15 +1280,24 @@
 
       function normalizeCalendarConfig(source, fallback = DEFAULT_FACTORY_CALENDAR) {
         const base = fallback && typeof fallback === "object" ? fallback : DEFAULT_FACTORY_CALENDAR;
-        const preset = stationCalendarPreset(source?.scheduleProfile || source?.profile || base.profile);
-        const shiftStartHour = Number(source?.shiftStartHour ?? base.shiftStartHour ?? preset.shiftStartHour);
-        const workingMinutesPerDay = Number(source?.workingMinutesPerDay ?? base.workingMinutesPerDay ?? preset.workingMinutesPerDay);
+        const scheduleProfile = String(
+          source?.scheduleProfile
+          || source?.schedule_profile
+          || source?.profile
+          || base.profile
+          || "single_8x5"
+        );
+        const preset = stationCalendarPreset(scheduleProfile);
+        const shiftStartHour = Number(source?.shiftStartHour ?? source?.shift_start_hour ?? base.shiftStartHour ?? preset.shiftStartHour);
+        const workingMinutesPerDay = Number(source?.workingMinutesPerDay ?? source?.working_minutes_per_day ?? base.workingMinutesPerDay ?? preset.workingMinutesPerDay);
+        const workingDaysRaw = source?.workingDays ?? source?.working_days;
+        const offDatesRaw = source?.offDates ?? source?.off_dates;
         return {
-          profile: String(source?.scheduleProfile || source?.profile || base.profile || preset.profile || "single_8x5"),
+          profile: scheduleProfile,
           shiftStartHour: Number.isFinite(shiftStartHour) ? Math.min(23.5, Math.max(0, shiftStartHour)) : preset.shiftStartHour,
           workingMinutesPerDay: Number.isFinite(workingMinutesPerDay) ? Math.min(24 * 60, Math.max(60, Math.round(workingMinutesPerDay))) : preset.workingMinutesPerDay,
-          workingDays: normalizeStationWorkingDays(source?.workingDays, Array.isArray(base?.workingDays) ? base.workingDays : preset.workingDays),
-          offDates: normalizeOffDates(source?.offDates ?? base?.offDates),
+          workingDays: normalizeStationWorkingDays(workingDaysRaw, Array.isArray(base?.workingDays) ? base.workingDays : preset.workingDays),
+          offDates: normalizeOffDates(offDatesRaw ?? base?.offDates),
         };
       }
 
@@ -1152,14 +1307,17 @@
 
       function hasStationCalendarOverride(station) {
         if (!station || typeof station !== "object") return false;
-        if (station.scheduleOverride === false) return false;
-        if (station.scheduleOverride === true) return true;
+        const scheduleOverride = station.scheduleOverride ?? station.schedule_override;
+        if (scheduleOverride === false) return false;
+        if (scheduleOverride === true) return true;
+        const workingDays = station.workingDays ?? station.working_days;
+        const offDates = station.offDates ?? station.off_dates;
         return [
-          station.scheduleProfile,
-          station.shiftStartHour,
-          station.workingMinutesPerDay,
-          Array.isArray(station.workingDays) ? station.workingDays.length : 0,
-          Array.isArray(station.offDates) ? station.offDates.length : 0,
+          station.scheduleProfile ?? station.schedule_profile,
+          station.shiftStartHour ?? station.shift_start_hour,
+          station.workingMinutesPerDay ?? station.working_minutes_per_day,
+          Array.isArray(workingDays) ? workingDays.length : 0,
+          Array.isArray(offDates) ? offDates.length : 0,
         ].some((value) => value != null && value !== "" && value !== 0);
       }
 
@@ -1310,13 +1468,40 @@
         return `${startDay} ${startTime} -> ${endDay} ${endTime}`;
       }
 
+      function toLocalDateTimeInput(iso) {
+        const ts = Date.parse(String(iso || ""));
+        if (!Number.isFinite(ts)) return "";
+        const d = new Date(ts);
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        return d.toISOString().slice(0, 16);
+      }
+
+      function fromLocalDateTimeInput(raw) {
+        const txt = String(raw || "").trim();
+        if (!txt) return "";
+        const ts = Date.parse(txt);
+        if (!Number.isFinite(ts)) return "";
+        return new Date(ts).toISOString();
+      }
+
       function calendarFromInputs() {
-        const profile = String($("stationCalProfileSel")?.value || "single_8x5");
+        const selectedProfile = String($("stationCalProfileSel")?.value || "single_8x5");
+        const shiftStartHour = Number($("stationCalStartIn")?.value || 0);
+        const workingMinutesPerDay = Math.round(Math.max(1, Number($("stationCalHoursIn")?.value || 8)) * 60);
+        const workingDays = STATION_CALENDAR_DAY_ORDER.filter((day) => !!$(`stationCalDay${day}`)?.checked);
+        let profile = selectedProfile;
+        if (selectedProfile !== "custom") {
+          const preset = stationCalendarPreset(selectedProfile);
+          const samePreset = Number(preset.shiftStartHour) === Number(shiftStartHour)
+            && Number(preset.workingMinutesPerDay) === Number(workingMinutesPerDay)
+            && normalizeStationWorkingDays(preset.workingDays).join(",") === normalizeStationWorkingDays(workingDays).join(",");
+          if (!samePreset) profile = "custom";
+        }
         return normalizeCalendarConfig({
           profile,
-          shiftStartHour: Number($("stationCalStartIn")?.value || 0),
-          workingMinutesPerDay: Math.round(Math.max(1, Number($("stationCalHoursIn")?.value || 8)) * 60),
-          workingDays: STATION_CALENDAR_DAY_ORDER.filter((day) => !!$(`stationCalDay${day}`)?.checked),
+          shiftStartHour,
+          workingMinutesPerDay,
+          workingDays,
           offDates: calendarDraftOffDates.slice(),
         }, readFactoryCalendar());
       }
@@ -1352,6 +1537,10 @@
 
       function syncCalendarPreview() {
         const cal = calendarFromInputs();
+        const profileSel = $("stationCalProfileSel");
+        if (profileSel && profileSel.value !== String(cal.profile || "custom")) {
+          profileSel.value = String(cal.profile || "custom");
+        }
         const summary = $("stationCalSummary");
         if (summary) summary.textContent = stationCalendarSummary(cal);
         renderCalendarOffDates();
@@ -1470,6 +1659,12 @@
         }
       }
 
+      function replanAfterCalendarChange() {
+        const openOrders = readWorkOrders().filter((wo) => String(wo?.status || "open") !== "closed");
+        if (!openOrders.length) return 0;
+        return autoPlanSchedule();
+      }
+
       function saveCalendarSettings() {
         if (!requirePermission(canEditPlanning, tt("factory.erp.denied.planning", "Permission denied: planner/manager/admin required."))) return;
         const cal = calendarFromInputs();
@@ -1484,8 +1679,13 @@
             updatedAt: nowIso(),
           });
           addAudit("factory_calendar_save", "factory", cal.profile);
-          $("statusLine").textContent = tt("factory.calendar.savedFactory", "Factory calendar defaults saved.");
+          const replanned = replanAfterCalendarChange();
           render();
+          $("statusLine").textContent = tt(
+            "factory.calendar.savedFactoryReplanned",
+            "Factory calendar defaults saved. Replanned {count} task(s).",
+            { count: replanned },
+          );
           return;
         }
         const station = currentCalendarStation(readApp());
@@ -1500,8 +1700,13 @@
           updatedAt: nowIso(),
         });
         addAudit("factory_calendar_save", String(station.id || ""), cal.profile);
-        $("statusLine").textContent = tt("factory.calendar.savedStation", "Station calendar override saved.");
+        const replanned = replanAfterCalendarChange();
         render();
+        $("statusLine").textContent = tt(
+          "factory.calendar.savedStationReplanned",
+          "Station calendar override saved. Replanned {count} task(s).",
+          { count: replanned },
+        );
       }
 
       function resetCalendarSettings() {
@@ -1509,8 +1714,13 @@
         if (calendarScope() === "factory") {
           window.VMillData?.deleteRecord?.(FACTORY_SETTINGS_NS, FACTORY_SETTINGS_ID);
           addAudit("factory_calendar_reset", "factory", "default");
-          $("statusLine").textContent = tt("factory.calendar.resetFactory", "Factory calendar reset to default.");
+          const replanned = replanAfterCalendarChange();
           render();
+          $("statusLine").textContent = tt(
+            "factory.calendar.resetFactoryReplanned",
+            "Factory calendar reset to default. Replanned {count} task(s).",
+            { count: replanned },
+          );
           return;
         }
         const station = currentCalendarStation(readApp());
@@ -1525,8 +1735,13 @@
           updatedAt: nowIso(),
         });
         addAudit("factory_calendar_reset", String(station.id || ""), "inherit");
-        $("statusLine").textContent = tt("factory.calendar.resetStation", "Station now inherits factory defaults.");
+        const replanned = replanAfterCalendarChange();
         render();
+        $("statusLine").textContent = tt(
+          "factory.calendar.resetStationReplanned",
+          "Station now inherits factory defaults. Replanned {count} task(s).",
+          { count: replanned },
+        );
       }
 
       function childProductIds(app, rootProductId) {
@@ -2111,73 +2326,73 @@
         if (!host) return;
         const stations = stationRows(app);
         if (!stations.length) {
-          host.innerHTML = `<div class="tlCell" style="grid-column:1 / span 8;">${esc(tt("factory.erp.station.empty", "No stations available."))}</div>`;
+          host.className = "timeline timelineGantt";
+          host.innerHTML = `<div class="tlEmpty">${esc(tt("factory.erp.station.empty", "No stations available."))}</div>`;
           return;
         }
-        const span = Math.max(1, Number(timelineSpanDays || 7) || 7);
-        const start = new Date();
-        start.setHours(0, 0, 0, 0);
-        if (timelineOffsetDays) start.setDate(start.getDate() + timelineOffsetDays);
+        const { startTs, endTs, span } = visibleTimelineRange();
+        const start = new Date(startTs);
         const days = [];
         for (let i = 0; i < span; i += 1) {
-          const d = new Date(start.getTime() + (i * 86400000));
+          const d = new Date(startTs + (i * 86400000));
           days.push({
+            startTs: d.getTime(),
             key: formatDateInput(d.getTime()),
             label: d.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "2-digit" }),
           });
         }
-        const end = new Date(start.getTime() + ((span - 1) * 86400000));
+        const end = new Date(startTs + ((span - 1) * 86400000));
         const rangeLbl = $("timelineRangeLbl");
         if (rangeLbl) {
           rangeLbl.textContent = tt(
             "factory.erp.timelineRange",
             "Range: {from} -> {to} ({days} days)",
             {
-              from: formatDateInput(start.getTime()),
+              from: formatDateInput(startTs),
               to: formatDateInput(end.getTime()),
               days: span,
             },
           );
         }
-        host.style.gridTemplateColumns = `180px repeat(${days.length}, minmax(110px, 1fr))`;
-        host.style.minWidth = `${980 + (Math.max(0, days.length - 7) * 110)}px`;
-        const byStationDay = new Map();
+        host.className = "timeline timelineGantt";
+        host.style.minWidth = `${980 + (Math.max(0, days.length - 7) * 120)}px`;
+        const rangeMs = Math.max(1, endTs - startTs);
+        const byStation = new Map();
         for (const task of scheduleCache) {
-          const startTs = Date.parse(String(task.plannedStart || ""));
-          const endTs = Date.parse(String(task.plannedEnd || ""));
+          const taskStartTs = Date.parse(String(task.plannedStart || ""));
+          const taskEndTs = Date.parse(String(task.plannedEnd || ""));
           const stationId = String(task.stationId || "");
-          if (!stationId || !Number.isFinite(startTs) || !Number.isFinite(endTs) || !(endTs > startTs)) continue;
-          for (const day of days) {
-            const dayStart = Date.parse(`${day.key}T00:00:00`);
-            const dayEnd = dayStart + 86400000;
-            if (!(endTs > dayStart && startTs < dayEnd)) continue;
-            const key = `${stationId}|${day.key}`;
-            if (!byStationDay.has(key)) byStationDay.set(key, []);
-            byStationDay.get(key).push({
-              ...task,
-              segStartTs: Math.max(startTs, dayStart),
-              segEndTs: Math.min(endTs, dayEnd),
-            });
-          }
+          if (!stationId || !Number.isFinite(taskStartTs) || !Number.isFinite(taskEndTs) || !(taskEndTs > taskStartTs)) continue;
+          if (!(taskEndTs > startTs && taskStartTs < endTs)) continue;
+          if (!byStation.has(stationId)) byStation.set(stationId, []);
+          byStation.get(stationId).push({
+            ...task,
+            viewStartTs: Math.max(taskStartTs, startTs),
+            viewEndTs: Math.min(taskEndTs, endTs),
+            rawStartTs: taskStartTs,
+            rawEndTs: taskEndTs,
+          });
         }
         const out = [];
-        out.push(`<div class="tlHead">${esc(tt("common.station", "Station"))}</div>`);
-        days.forEach((d) => out.push(`<div class="tlHead">${esc(d.label)}</div>`));
+        out.push(`<div class="tlGanttHead">`);
+        out.push(`<div class="tlStationHead">${esc(tt("common.station", "Station"))}</div>`);
+        out.push(`<div class="tlScale" style="--days:${days.length};">${days.map((d) => `<div class="tlScaleCell">${esc(d.label)}</div>`).join("")}</div>`);
+        out.push(`</div>`);
         for (const st of stations) {
-          out.push(`<div class="tlCell"><strong>${esc(st.name || st.code || st.id)}</strong></div>`);
-          for (const d of days) {
-            const items = (byStationDay.get(`${String(st.id || "")}|${d.key}`) || [])
-              .slice()
-              .sort((a, b) => Number(a.segStartTs || 0) - Number(b.segStartTs || 0));
-            const bars = items.slice(0, 3).map((task) => {
-              const segStart = Number(task.segStartTs || 0);
-              const segEnd = Number(task.segEndTs || 0);
-              const label = `${task.operationName || tt("factory.erp.task.default", "Task")} · ${task.woCode || task.woId || ""} · ${formatClockHour(new Date(segStart).getHours() + (new Date(segStart).getMinutes() / 60))}-${formatClockHour(new Date(segEnd).getHours() + (new Date(segEnd).getMinutes() / 60))}`;
-              return `<div class="bar">${esc(label)}</div>`;
-            }).join("");
-            const more = items.length > 3 ? `<div class="erpMini">+${items.length - 3} ${esc(tt("common.more", "more"))}</div>` : "";
-            out.push(`<div class="tlCell">${bars}${more}</div>`);
-          }
+          const stationTasks = (byStation.get(String(st.id || "")) || [])
+            .slice()
+            .sort((a, b) => Number(a.viewStartTs || 0) - Number(b.viewStartTs || 0));
+          out.push(`<div class="tlStationCell">${esc(st.name || st.code || st.id)}</div>`);
+          const bars = stationTasks.map((task) => {
+            const leftPct = Math.max(0, Math.min(100, ((Number(task.viewStartTs || startTs) - startTs) / rangeMs) * 100));
+            const widthPct = Math.max(0.8, Math.min(100 - leftPct, ((Number(task.viewEndTs || endTs) - Number(task.viewStartTs || startTs)) / rangeMs) * 100));
+            const label = String(task.operationName || tt("factory.erp.task.default", "Task"));
+            const sub = `${task.woCode || task.woId || "-"} · ${formatClockHour(new Date(task.rawStartTs).getHours() + (new Date(task.rawStartTs).getMinutes() / 60))}-${formatClockHour(new Date(task.rawEndTs).getHours() + (new Date(task.rawEndTs).getMinutes() / 60))}`;
+            const title = `${label} | ${sub}`;
+            return `<button class="tlTaskBar" type="button" data-timeline-task="${esc(String(task.id || ""))}" style="left:${leftPct.toFixed(3)}%;width:${widthPct.toFixed(3)}%;" title="${esc(title)}"><span>${esc(label)}</span><span class="sub">${esc(sub)}</span></button>`;
+          }).join("");
+          const empty = stationTasks.length ? "" : `<div class="erpMini" style="padding:22px 10px;color:var(--muted);">${esc(tt("factory.erp.timeline.noTask", "No task in selected range."))}</div>`;
+          out.push(`<div class="tlTrackCell" style="--days:${days.length};">${bars}${empty}</div>`);
         }
         host.innerHTML = out.join("");
       }
@@ -2242,6 +2457,69 @@
         const wanted = String(code || "").trim().toUpperCase();
         if (!wanted) return null;
         return scheduleCache.find((task) => String(task?.taskCode || "").toUpperCase() === wanted) || null;
+      }
+
+      function openTimelineTaskModal(taskId) {
+        const task = taskById(taskId);
+        if (!task) return;
+        selectedTimelineTaskId = String(task.id || "");
+        const app = readApp() || {};
+        const stations = stationRows(app);
+        const stationSel = $("timelineTaskStationSel");
+        if (stationSel) {
+          stationSel.innerHTML = stations.map((st) => `<option value="${esc(String(st.id || ""))}">${esc(st.name || st.code || st.id || "-")}</option>`).join("");
+          stationSel.value = String(task.stationId || "");
+        }
+        if ($("timelineTaskCodeIn")) $("timelineTaskCodeIn").value = String(task.taskCode || task.id || "");
+        if ($("timelineTaskStartIn")) $("timelineTaskStartIn").value = toLocalDateTimeInput(task.plannedStart);
+        if ($("timelineTaskEndIn")) $("timelineTaskEndIn").value = toLocalDateTimeInput(task.plannedEnd);
+        const exec = execByTaskId.get(String(task.id || "")) || { status: "planned", qtyGood: 0, qtyScrap: 0 };
+        const info = $("timelineTaskInfo");
+        if (info) {
+          info.innerHTML = `${esc(tt("common.task", "Task"))}: <strong>${esc(task.operationName || "-")}</strong> · ${esc(tt("common.status", "Status"))}: <strong>${esc(execStatusLabel(exec.status))}</strong> · ${esc(tt("common.qty", "Qty"))}: <strong>${Number(task?.durationMin || 0)} min</strong>`;
+        }
+        showModal("timelineTaskModal", true);
+      }
+
+      function closeTimelineTaskModal() {
+        selectedTimelineTaskId = "";
+        showModal("timelineTaskModal", false);
+      }
+
+      function saveTimelineTaskModal() {
+        const task = taskById(selectedTimelineTaskId);
+        if (!task) return;
+        const stationId = String($("timelineTaskStationSel")?.value || task.stationId || "");
+        const station = stationRows(readApp() || {}).find((st) => String(st?.id || "") === stationId) || null;
+        if (!station) {
+          $("statusLine").textContent = tt("factory.erp.timeline.save.noStation", "Select a valid station.");
+          return;
+        }
+        const startIsoRaw = fromLocalDateTimeInput($("timelineTaskStartIn")?.value || "");
+        const endIsoRaw = fromLocalDateTimeInput($("timelineTaskEndIn")?.value || "");
+        let startTs = Date.parse(startIsoRaw);
+        let endTs = Date.parse(endIsoRaw);
+        if (!Number.isFinite(startTs) || !Number.isFinite(endTs) || endTs <= startTs) {
+          $("statusLine").textContent = tt("factory.erp.timeline.save.badWindow", "Start/end window is invalid.");
+          return;
+        }
+        const durationMin = Math.max(1, Math.round((endTs - startTs) / 60000));
+        const slot = scheduleTaskWindowOnStation(station, startTs, durationMin);
+        startTs = slot.startTs;
+        endTs = slot.endTs;
+        const patch = {
+          ...task,
+          stationId,
+          stationName: String(station.name || station.code || stationId),
+          plannedStart: new Date(startTs).toISOString(),
+          plannedEnd: new Date(endTs).toISOString(),
+          durationMin,
+        };
+        window.VMillData?.upsertRecord?.(SCHEDULE_NS, patch);
+        addAudit("timeline_task_edit", String(task.id || ""), `${patch.stationName} ${patch.plannedStart}`);
+        render();
+        $("statusLine").textContent = tt("factory.erp.timeline.save.ok", "Task updated from timeline.");
+        closeTimelineTaskModal();
       }
 
       function resolveTaskFromInput(raw) {
@@ -2878,6 +3156,26 @@
           const failId = target.getAttribute("data-quality-fail");
           if (failId) return setQuality(failId, "fail");
         });
+        $("timelineBoard")?.addEventListener("click", (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          if (!target) return;
+          const hit = target.closest("[data-timeline-task]");
+          if (!(hit instanceof Element)) return;
+          const taskId = String(hit.getAttribute("data-timeline-task") || "");
+          if (!taskId) return;
+          openTimelineTaskModal(taskId);
+        });
+        $("timelineTaskCloseBtn")?.addEventListener("click", closeTimelineTaskModal);
+        $("timelineTaskLoadBtn")?.addEventListener("click", () => {
+          if (!selectedTimelineTaskId) return;
+          loadOperatorTask(selectedTimelineTaskId);
+          $("statusLine").textContent = tt("factory.erp.timeline.loadedTask", "Loaded task from timeline.");
+          closeTimelineTaskModal();
+        });
+        $("timelineTaskSaveBtn")?.addEventListener("click", saveTimelineTaskModal);
+        $("timelineTaskModal")?.addEventListener("click", (event) => {
+          if (event.target === $("timelineTaskModal")) closeTimelineTaskModal();
+        });
 
         window.addEventListener("storage", (event) => {
           if (event.key && WATCH_KEYS.has(event.key)) requestReactiveRender(120);
@@ -2893,6 +3191,7 @@
         window.addEventListener("keydown", (event) => {
           if (event.key !== "Escape") return;
           if ($("planningSettingsModal")?.classList.contains("show")) showModal("planningSettingsModal", false);
+          if ($("timelineTaskModal")?.classList.contains("show")) closeTimelineTaskModal();
           if ($("qrModal")?.classList.contains("show")) showModal("qrModal", false);
           if ($("scanModal")?.classList.contains("show")) closeScanModal();
         });
@@ -3035,6 +3334,15 @@
         $("scanCloseBtn").textContent = tt("common.close", "Close");
         $("scanRetryBtn").textContent = tt("common.retry", "Retry Camera");
         $("scanHelpTxt").textContent = tt("factory.erp.scan.help", "Point camera to a QR/barcode. Task loads automatically when detected.");
+        $("timelineTaskModalTitle").textContent = tt("factory.erp.timeline.modal.title", "Planned Task");
+        $("timelineTaskModalSubtitle").textContent = tt("factory.erp.timeline.modal.subtitle", "Edit station and schedule window.");
+        $("timelineTaskCloseBtn").textContent = tt("common.close", "Close");
+        $("timelineTaskCodeLbl").textContent = tt("common.code", "Code");
+        $("timelineTaskStationLbl").textContent = tt("common.station", "Station");
+        $("timelineTaskStartLbl").textContent = tt("factory.erp.timeline.start", "Planned Start");
+        $("timelineTaskEndLbl").textContent = tt("factory.erp.timeline.end", "Planned End");
+        $("timelineTaskLoadBtn").textContent = tt("factory.erp.timeline.loadOperator", "Load in Operator");
+        $("timelineTaskSaveBtn").textContent = tt("common.save", "Save");
         $("qrModalTitle").textContent = tt("factory.erp.qr.title", "Task QR code");
         $("qrCloseBtn").textContent = tt("common.close", "Close");
         $("qrCodeLbl").textContent = tt("factory.erp.qr.code", "Task code");

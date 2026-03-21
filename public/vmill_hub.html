@@ -1704,7 +1704,7 @@
       <a class="dockBtn" data-dock-id="blueprint-manager" data-module-id="blueprint-manager" href="./blueprint_manager.html">Drawings</a>
       <a class="dockBtn" data-dock-id="factory" data-module-id="factory" href="./factory_manager.html">Factory</a>
       <a class="dockBtn" data-dock-id="shop-tree" data-module-id="shop-tree" href="./shop_tree.html">Shop</a>
-      <a class="dockBtn" data-dock-id="records" data-module-id="records" href="./records_manager.html">Records</a>
+      <a class="dockBtn" data-dock-id="records" data-module-id="records" href="./records_manager.html">Item Master</a>
       <a class="dockBtn" data-dock-id="can-bus" data-module-id="can-bus" href="./logger.html">Logger</a>
       <a class="dockBtn" data-dock-id="contas" data-module-id="contas" href="./contas_calc.html">Contas</a>
       <a class="dockBtn" data-dock-id="cnc-sim" data-module-id="cnc-sim" href="./cnc_sim.html">CNC</a>
@@ -1758,6 +1758,12 @@
               <label class="toggle">
                 <input id="hubReduceMotionChk" type="checkbox" />
                 <span id="hubReduceMotionLbl">Reduce motion</span>
+              </label>
+            </div>
+            <div class="controlRow" style="margin-top:8px;">
+              <label class="toggle" style="flex:1 1 220px;">
+                <input id="hubPollOcrLogsChk" type="checkbox" />
+                <span id="hubPollOcrLogsLbl">Poll OCR server logs (Logger)</span>
               </label>
             </div>
             <div class="widgetToggles" id="widgetToggles" style="margin-top:8px;"></div>
@@ -1988,6 +1994,7 @@
       const HUB_SCOPE_DOCK_STYLE_KEY = "vmill:scope-dock-style:v1";
       const HUB_TOPBAR_KEY = "vmill:hub-topbar:v1";
       const HUB_UI_PREF_KEY = "vmill:hub-ui-prefs:v1";
+      const HUB_OCR_LOG_POLL_KEY = "vmill:hub:ocrLogPoll";
 	      const HUB_DEMO_PRESET_KEY = "vmill:hub-demo-preset:v1";
 	      const NAV_HANDOFF_KEY = "vmill:navigate:handoff:v1";
 	      const HUB_REQUIRE_LOGIN = true;
@@ -2003,7 +2010,7 @@
         { id: "blueprint-manager", name: "Drawing Manager", desc: "Product-level drawings, OCR sources, styles, and master marks linked into Router operations.", href: "./blueprint_manager.html", status: "ready", tags: ["drawings", "ocr", "annotations", "product-docs"] },
         { id: "factory", name: "Factory Operations", desc: "Production planning, work orders, scheduling, and execution control.", href: "./factory_manager.html", status: "ready", tags: ["factory", "operations", "capacity", "planning"] },
         { id: "shop-tree", name: "Shop Organizer", desc: "Recursive shop hierarchy with node CRUD, linked jobs, and drag reparenting.", href: "./shop_tree.html", status: "ready", tags: ["shop", "tree", "nodes", "crud"] },
-        { id: "records", name: "Records", desc: "Structured records and custom forms by system category.", href: "./records_manager.html", status: "ready", tags: ["records", "crud", "forms", "schema"] },
+        { id: "records", name: "Item Master", desc: "Item and assembly master data with BOM links and custom forms.", href: "./records_manager.html", status: "ready", tags: ["items", "bom", "crud", "forms", "schema"] },
         { id: "contas", name: "Contas CNC", desc: "Legacy CNC calculators: thread, milling, turning, and trig helpers.", href: "./contas_calc.html", status: "ready", tags: ["cnc", "calculator", "thread", "milling", "turning"] },
         { id: "theme", name: "Theme Studio", desc: "Global palette and visual theme controls for all modules.", href: "./theme_studio.html", status: "ready", tags: ["theme", "ui", "palette"] },
         { id: "translations", name: "Translation Studio", desc: "Manage EN, FR, and PT interface strings.", href: "./translation_studio.html", status: "ready", tags: ["i18n", "localization", "strings"] },
@@ -2054,6 +2061,7 @@
       const scopeDockStyleResetBtn = document.getElementById("scopeDockStyleResetBtn");
       const hubCompactChk = document.getElementById("hubCompactChk");
       const hubReduceMotionChk = document.getElementById("hubReduceMotionChk");
+      const hubPollOcrLogsChk = document.getElementById("hubPollOcrLogsChk");
       const USE_SINGLE_GLOBAL_SCOPE = true;
       const HIDE_HUB_LOGGER_WIDGET = true;
       if (USE_SINGLE_GLOBAL_SCOPE) document.body.classList.add("hubSingleScope");
@@ -2141,7 +2149,7 @@
       let themeStudioDirty = false;
       let translationStudioDirty = false;
       let imageUploadTarget = null;
-      let hubUiPrefs = { autoScale: true, scalePct: 100, compact: false, reduceMotion: false, panelStack: "vertical" };
+      let hubUiPrefs = { autoScale: true, scalePct: 100, compact: false, reduceMotion: false, panelStack: "vertical", pollOcrLogs: false };
       let scopeToolbarPrefs = { mode: "roots", hiddenTypeIds: [] };
       let scopeDockStylePrefs = { widthPct: 92, selectPct: 14, searchPct: 17 };
       let adminUsersCache = [];
@@ -2278,7 +2286,7 @@
           ["blueprint-manager", "", "Drawings"],
           ["factory", "hub.dock.factory", "Factory"],
           ["shop-tree", "hub.dock.shopTree", "Shop"],
-          ["records", "hub.dock.records", "Records"],
+          ["records", "hub.dock.records", "Item Master"],
           ["can-bus", "hub.dock.logger", "Logger"],
           ["contas", "hub.dock.contas", "Contas"],
           ["cnc-sim", "hub.dock.cnc", "CNC"],
@@ -2382,6 +2390,7 @@
         setTxt("hubScaleLbl", "hub.personalize.scale", "Scale");
         setTxt("hubCompactLbl", "hub.personalize.compact", "Compact UI");
         setTxt("hubReduceMotionLbl", "hub.personalize.reduceMotion", "Reduce motion");
+        setTxt("hubPollOcrLogsLbl", "hub.personalize.pollOcrLogs", "Poll OCR server logs (Logger)");
         setTxt("hubLogoutBtn", "hub.auth.logout", "Logout");
         setTxt("openThemeSettingsBtn", "hub.top.themeSettings", "Theme Settings");
         setTxt("openTranslationSettingsBtn", "hub.top.translationsSettings", "Translations");
@@ -2770,6 +2779,7 @@
           scalePct: Math.round(scalePct),
           compact: !!src.compact,
           reduceMotion: !!src.reduceMotion,
+          pollOcrLogs: !!src.pollOcrLogs,
           panelStack,
         };
       }
@@ -2852,6 +2862,10 @@
         if (hubPanelStackSel) hubPanelStackSel.value = hubUiPrefs.panelStack;
         if (hubCompactChk) hubCompactChk.checked = hubUiPrefs.compact;
         if (hubReduceMotionChk) hubReduceMotionChk.checked = hubUiPrefs.reduceMotion;
+        if (hubPollOcrLogsChk) hubPollOcrLogsChk.checked = hubUiPrefs.pollOcrLogs;
+        try {
+          localStorage.setItem(HUB_OCR_LOG_POLL_KEY, hubUiPrefs.pollOcrLogs ? "1" : "0");
+        } catch {}
         document.body.classList.toggle("hubCompact", hubUiPrefs.compact);
         document.body.classList.toggle("hubReducedMotion", hubUiPrefs.reduceMotion);
         document.body.classList.toggle("hubPanelStackVertical", hubUiPrefs.panelStack === "vertical");
@@ -2861,6 +2875,10 @@
           workspaceFrame?.contentWindow?.postMessage?.({
             type: "vmill:ui:prefs",
             payload: { ...hubUiPrefs, effectiveScalePct: effectivePct },
+          }, "*");
+          workspaceFrame?.contentWindow?.postMessage?.({
+            type: "vmill:hub:ocrLogPoll",
+            value: !!hubUiPrefs.pollOcrLogs,
           }, "*");
         } catch {}
         if (persist) writeHubUiPrefs(hubUiPrefs);
@@ -2934,6 +2952,11 @@
         if (hubReduceMotionChk) {
           hubReduceMotionChk.addEventListener("change", () => {
             applyHubUiPrefs({ ...hubUiPrefs, reduceMotion: !!hubReduceMotionChk.checked }, true);
+          });
+        }
+        if (hubPollOcrLogsChk) {
+          hubPollOcrLogsChk.addEventListener("change", () => {
+            applyHubUiPrefs({ ...hubUiPrefs, pollOcrLogs: !!hubPollOcrLogsChk.checked }, true);
           });
         }
         if (seedDemoPresetSel) {

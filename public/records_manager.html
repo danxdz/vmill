@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Records</title>
+  <title>Item Master</title>
   <style>
     :root {
       --bg: #0b1220;
@@ -28,6 +28,9 @@
       color-scheme: dark;
       font: 500 15px/1.45 "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       min-height: 100%;
+    }
+    body.modalOpen {
+      overflow: hidden;
     }
     .page {
       width: min(1680px, calc(100vw - 16px));
@@ -306,6 +309,29 @@
       gap: 8px;
       min-width: 260px;
     }
+    .bomCompact {
+      display: grid;
+      gap: 6px;
+      min-width: 190px;
+    }
+    .bomSummary {
+      border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+      border-radius: 10px;
+      padding: 6px 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+      background: color-mix(in srgb, var(--panel2) 78%, transparent);
+    }
+    .bomOpenBtn {
+      justify-self: start;
+      border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+      background: color-mix(in srgb, var(--accent) 11%, transparent);
+      color: var(--text);
+      min-height: 32px;
+      padding: 5px 10px;
+      font-size: 12px;
+    }
     .bomRows {
       display: grid;
       gap: 6px;
@@ -350,6 +376,76 @@
     .bomEditor select,
     .bomEditor input {
       min-width: 0;
+    }
+    .bomModal {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: grid;
+      place-items: center;
+      padding: 14px;
+      background: rgba(5, 10, 20, .66);
+      backdrop-filter: blur(4px);
+    }
+    .bomModal[hidden] {
+      display: none;
+    }
+    .bomModalCard {
+      width: min(980px, calc(100vw - 20px));
+      max-height: min(86vh, 900px);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
+      border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+      border-radius: 14px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow: hidden;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, .42);
+    }
+    .bomModalHead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 11px 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    .bomModalTitle {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: .01em;
+    }
+    .bomModalBody {
+      padding: 12px;
+      overflow: auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .bomPanel {
+      border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+      border-radius: 12px;
+      padding: 10px;
+      background: color-mix(in srgb, var(--panel2) 70%, transparent);
+      min-height: 0;
+    }
+    .bomPanel h4 {
+      margin: 0 0 7px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--muted);
+    }
+    .bomModalActions {
+      padding: 10px 13px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      background: color-mix(in srgb, var(--panel2) 76%, transparent);
+    }
+    .btnGhost {
+      border-color: color-mix(in srgb, var(--border) 94%, transparent);
+      background: color-mix(in srgb, var(--panel2) 86%, transparent);
     }
     .empty {
       border: 1px dashed var(--border);
@@ -419,6 +515,9 @@
       .toolbarGrid {
         grid-template-columns: 1fr;
       }
+      .bomModalBody {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -426,7 +525,7 @@
   <div class="page">
     <aside class="card left">
       <div class="cardHead">
-        <h2 id="titleEl">Records</h2>
+        <h2 id="titleEl">Item Master</h2>
       </div>
       <div class="leftBody">
         <div class="row">
@@ -484,6 +583,31 @@
       </div>
     </main>
   </div>
+  <div class="bomModal" id="bomModal" hidden>
+    <div class="bomModalCard" role="dialog" aria-modal="true" aria-labelledby="bomModalTitle">
+      <div class="bomModalHead">
+        <div>
+          <div class="bomModalTitle" id="bomModalTitle">BOM Editor</div>
+          <div class="tiny" id="bomModalSubtitle"></div>
+        </div>
+        <button type="button" class="btnGhost" id="bomModalCloseBtn">Close</button>
+      </div>
+      <div class="bomModalBody">
+        <section class="bomPanel">
+          <h4 id="bomModalParentsTitle">Used in assemblies</h4>
+          <div id="bomModalParents"></div>
+        </section>
+        <section class="bomPanel">
+          <h4 id="bomModalChildrenTitle">Contains components</h4>
+          <div id="bomModalChildren"></div>
+        </section>
+      </div>
+      <div class="bomModalActions">
+        <button type="button" class="btnGhost" id="bomModalCancelBtn">Cancel</button>
+        <button type="button" class="btnPrimary" id="bomModalSaveBtn">Apply BOM</button>
+      </div>
+    </div>
+  </div>
   <input id="recordImageFilePicker" type="file" accept="image/*" hidden />
 
   <script src="./modules/module-shell.js"></script>
@@ -533,6 +657,16 @@
         listMetaEl: document.getElementById("listMetaEl"),
         recordsHead: document.getElementById("recordsHead"),
         recordsBody: document.getElementById("recordsBody"),
+        bomModal: document.getElementById("bomModal"),
+        bomModalTitle: document.getElementById("bomModalTitle"),
+        bomModalSubtitle: document.getElementById("bomModalSubtitle"),
+        bomModalParentsTitle: document.getElementById("bomModalParentsTitle"),
+        bomModalChildrenTitle: document.getElementById("bomModalChildrenTitle"),
+        bomModalParents: document.getElementById("bomModalParents"),
+        bomModalChildren: document.getElementById("bomModalChildren"),
+        bomModalCloseBtn: document.getElementById("bomModalCloseBtn"),
+        bomModalCancelBtn: document.getElementById("bomModalCancelBtn"),
+        bomModalSaveBtn: document.getElementById("bomModalSaveBtn"),
         recordImageFilePicker: document.getElementById("recordImageFilePicker"),
       };
 
@@ -912,6 +1046,30 @@
         }
       }
 
+      function bomRelationsForKind(kind, row, relationOverride = null) {
+        const rid = String(row?.id || "");
+        if (Array.isArray(relationOverride)) {
+          return normalizeProductBomLinks(relationOverride, null, rid, kind === "children" ? "childProductId" : "parentProductId");
+        }
+        return kind === "children"
+          ? productBomChildren(rid, state.app.products || [])
+          : productBomParents(row, null, rid);
+      }
+
+      function bomSummaryText(kind, relationRows) {
+        const count = Array.isArray(relationRows) ? relationRows.length : 0;
+        const totalQty = Number((relationRows || []).reduce((sum, rel) => sum + (Number(rel?.qty || 0) || 0), 0));
+        if (!count) {
+          return kind === "children"
+            ? tt("records.bom.childrenEmptyCompact", "No components linked")
+            : tt("records.bom.parentsEmptyCompact", "No parent assemblies");
+        }
+        if (kind === "children") {
+          return tt("records.bom.childrenSummary", "{count} components | total qty {qty}", { count, qty: totalQty });
+        }
+        return tt("records.bom.parentsSummary", "{count} assemblies | total qty {qty}", { count, qty: totalQty });
+      }
+
       function bomRowEditorHtml(kind, relation, currentProductId) {
         const keyName = kind === "children" ? "childProductId" : "parentProductId";
         const selectedId = String(relation?.[keyName] || "");
@@ -935,12 +1093,10 @@
         `;
       }
 
-      function bomEditorHtml(kind, row) {
-        const rid = String(row?.id || "");
-        const relationRows = kind === "children"
-          ? productBomChildren(rid, state.app.products || [])
-          : productBomParents(row, null, rid);
-        const hiddenKey = kind === "children" ? "__bomChildren" : "__bomParents";
+      function bomEditorHtml(kind, relationRows, currentProductId = "", hiddenKey = "") {
+        const rid = String(currentProductId || "");
+        const rows = bomRelationsForKind(kind, { id: rid }, relationRows);
+        const hiddenFieldKey = String(hiddenKey || (kind === "children" ? "__bomChildren" : "__bomParents"));
         const emptyText = kind === "children"
           ? tt("records.bom.childrenEmpty", "No components linked yet.")
           : tt("records.bom.parentsEmpty", "No parent assemblies linked yet.");
@@ -952,12 +1108,29 @@
           : tt("records.bom.addParent", "+ Assembly");
         return `
           <div class="bomEditor" data-bom-editor="${esc(kind)}" data-product-id="${esc(rid)}">
-            <input type="hidden" data-field-key="${esc(hiddenKey)}" value="${esc(serializeBomLinks(relationRows, kind === "children" ? "childProductId" : "parentProductId"))}" />
+            <input type="hidden" data-field-key="${esc(hiddenFieldKey)}" value="${esc(serializeBomLinks(rows, kind === "children" ? "childProductId" : "parentProductId"))}" />
             <div class="bomRows">
-              ${relationRows.length ? relationRows.map((rel) => bomRowEditorHtml(kind, rel, rid)).join("") : `<div class="bomEmpty" data-bom-empty>${esc(emptyText)}</div>`}
+              ${rows.length ? rows.map((rel) => bomRowEditorHtml(kind, rel, rid)).join("") : `<div class="bomEmpty" data-bom-empty>${esc(emptyText)}</div>`}
             </div>
             <div class="bomHint">${esc(hintText)}</div>
             <button type="button" class="bomAddBtn" data-bom-add="${esc(kind)}">${esc(addText)}</button>
+          </div>
+        `;
+      }
+
+      function bomCompactHtml(kind, row) {
+        const rid = String(row?.id || "");
+        const hiddenKey = kind === "children" ? "__bomChildren" : "__bomParents";
+        const relationRows = bomRelationsForKind(kind, row);
+        const relationKey = kind === "children" ? "childProductId" : "parentProductId";
+        const openLabel = kind === "children"
+          ? tt("records.bom.manageChildren", "Edit components")
+          : tt("records.bom.manageParents", "Edit parents");
+        return `
+          <div class="bomCompact">
+            <input type="hidden" data-field-key="${esc(hiddenKey)}" value="${esc(serializeBomLinks(relationRows, relationKey))}" />
+            <div class="bomSummary" data-bom-summary="${esc(kind)}">${esc(bomSummaryText(kind, relationRows))}</div>
+            <button type="button" class="bomOpenBtn" data-bom-open="${esc(kind)}" data-record-id="${esc(rid || "__new__")}">${esc(openLabel)}</button>
           </div>
         `;
       }
@@ -1168,7 +1341,7 @@
           return `<select data-field-key="${esc(key)}">${opts}</select>`;
         }
         if (defType === "bom-relations") {
-          return bomEditorHtml(String(def?.scope || "parents"), row);
+          return bomCompactHtml(String(def?.scope || "parents"), row);
         }
         if (defType === "select-product") {
           const opts = [`<option value="">(none)</option>`, ...productRows
@@ -1728,8 +1901,8 @@
       function applyTexts() {
         const type = findType(state.selectedTypeId);
         const productMode = isProductType(type);
-        document.title = tt("records.title", "Records");
-        el.titleEl.textContent = tt("records.title", "Records");
+        document.title = tt("records.title", "Item Master");
+        el.titleEl.textContent = tt("records.title", "Item Master");
         el.searchLabelEl.textContent = tt("records.search.folders", "Search folders");
         el.catLabelEl.textContent = tt("records.form.category", "System category");
         el.recSearchLabelEl.textContent = productMode
@@ -1750,6 +1923,12 @@
         el.recordSearchIn.placeholder = productMode
           ? tt("records.search.items.placeholder", "Search code, item, or assembly...")
           : tt("records.search.records.placeholder", "Search code/name...");
+        if (el.bomModalTitle) el.bomModalTitle.textContent = tt("records.bom.modal.title", "BOM Editor");
+        if (el.bomModalParentsTitle) el.bomModalParentsTitle.textContent = tt("records.bom.parentsLabel", "Used in assemblies");
+        if (el.bomModalChildrenTitle) el.bomModalChildrenTitle.textContent = tt("records.bom.childrenLabel", "Contains components");
+        if (el.bomModalCloseBtn) el.bomModalCloseBtn.textContent = tt("common.close", "Close");
+        if (el.bomModalCancelBtn) el.bomModalCancelBtn.textContent = tt("common.cancel", "Cancel");
+        if (el.bomModalSaveBtn) el.bomModalSaveBtn.textContent = tt("records.bom.apply", "Apply BOM");
       }
 
       function applyTheme(event) {
@@ -1781,6 +1960,97 @@
             void saveInlineRow(rid, rowEl, isNew);
           }, 220);
           state.autoSaveTimers.set(rowEl, timer);
+        };
+
+        const findRowElByRid = (rid) => {
+          const id = String(rid || "");
+          if (!id) return null;
+          if (id === "__new__") return el.recordsBody?.querySelector('tr[data-row-new="1"]') || null;
+          const escRid = (typeof CSS !== "undefined" && typeof CSS.escape === "function")
+            ? CSS.escape(id)
+            : id.replace(/"/g, '\\"');
+          return el.recordsBody?.querySelector(`tr[data-record-id="${escRid}"]`) || null;
+        };
+
+        const closeBomModal = () => {
+          if (el.bomModal) {
+            el.bomModal.hidden = true;
+            el.bomModal.removeAttribute("data-row-record-id");
+          }
+          if (el.bomModalParents) el.bomModalParents.innerHTML = "";
+          if (el.bomModalChildren) el.bomModalChildren.innerHTML = "";
+          document.body.classList.remove("modalOpen");
+        };
+
+        const openBomModal = (rowEl) => {
+          if (!(rowEl instanceof HTMLElement) || !(el.bomModal instanceof HTMLElement)) return;
+          const rid = String(rowEl.getAttribute("data-record-id") || "");
+          const productId = rid && rid !== "__new__" ? rid : "";
+          const nameNode = rowEl.querySelector('input[data-field-key="name"]');
+          const displayName = nameNode instanceof HTMLInputElement
+            ? String(nameNode.value || "").trim()
+            : tt("records.bom.modal.unnamed", "Unnamed item");
+          const validProductIds = new Set((state.app.products || []).map((p) => String(p?.id || "")).filter(Boolean));
+          if (productId) validProductIds.add(productId);
+
+          const parentHidden = rowEl.querySelector('input[data-field-key="__bomParents"]');
+          const childHidden = rowEl.querySelector('input[data-field-key="__bomChildren"]');
+          const parentRows = parseBomLinksJson(
+            parentHidden instanceof HTMLInputElement ? parentHidden.value : "",
+            validProductIds,
+            productId,
+            "parentProductId"
+          );
+          const childRows = parseBomLinksJson(
+            childHidden instanceof HTMLInputElement ? childHidden.value : "",
+            validProductIds,
+            productId,
+            "childProductId"
+          );
+          if (el.bomModalSubtitle) {
+            el.bomModalSubtitle.textContent = tt("records.bom.modal.subtitle", "Editing BOM for {name}", {
+              name: displayName || tt("records.bom.modal.unnamed", "Unnamed item"),
+            });
+          }
+          if (el.bomModalParents) {
+            el.bomModalParents.innerHTML = bomEditorHtml("parents", parentRows, productId, "__bomParents");
+          }
+          if (el.bomModalChildren) {
+            el.bomModalChildren.innerHTML = bomEditorHtml("children", childRows, productId, "__bomChildren");
+          }
+          el.bomModal.setAttribute("data-row-record-id", rid || "__new__");
+          el.bomModal.hidden = false;
+          document.body.classList.add("modalOpen");
+          const firstFocus = el.bomModal.querySelector("[data-bom-select], [data-bom-qty], .bomAddBtn");
+          if (firstFocus instanceof HTMLElement && typeof firstFocus.focus === "function") firstFocus.focus();
+        };
+
+        const applyBomModalToRow = () => {
+          if (!(el.bomModal instanceof HTMLElement)) return;
+          const rid = String(el.bomModal.getAttribute("data-row-record-id") || "");
+          const rowEl = findRowElByRid(rid);
+          if (!(rowEl instanceof HTMLElement)) {
+            closeBomModal();
+            return;
+          }
+          const modalParentHidden = el.bomModalParents?.querySelector('input[data-field-key="__bomParents"]');
+          const modalChildHidden = el.bomModalChildren?.querySelector('input[data-field-key="__bomChildren"]');
+          const rowParentHidden = rowEl.querySelector('input[data-field-key="__bomParents"]');
+          const rowChildHidden = rowEl.querySelector('input[data-field-key="__bomChildren"]');
+          if (rowParentHidden instanceof HTMLInputElement && modalParentHidden instanceof HTMLInputElement) {
+            rowParentHidden.value = modalParentHidden.value || "[]";
+            const rows = parseBomLinksJson(rowParentHidden.value, null, "", "parentProductId");
+            const summaryEl = rowEl.querySelector('[data-bom-summary="parents"]');
+            if (summaryEl instanceof HTMLElement) summaryEl.textContent = bomSummaryText("parents", rows);
+          }
+          if (rowChildHidden instanceof HTMLInputElement && modalChildHidden instanceof HTMLInputElement) {
+            rowChildHidden.value = modalChildHidden.value || "[]";
+            const rows = parseBomLinksJson(rowChildHidden.value, null, "", "childProductId");
+            const summaryEl = rowEl.querySelector('[data-bom-summary="children"]');
+            if (summaryEl instanceof HTMLElement) summaryEl.textContent = bomSummaryText("children", rows);
+          }
+          scheduleRowAutoSave(rowEl);
+          closeBomModal();
         };
 
         el.refreshBtn?.addEventListener("click", () => { void loadAll(); });
@@ -1818,29 +2088,10 @@
         el.recordsBody?.addEventListener("click", (e) => {
           const target = e.target;
           if (!(target instanceof HTMLElement)) return;
-          const bomAddBtn = target.closest("[data-bom-add]");
-          if (bomAddBtn instanceof HTMLElement) {
-            const editorEl = bomAddBtn.closest("[data-bom-editor]");
-            if (!(editorEl instanceof HTMLElement)) return;
-            const kind = String(editorEl.getAttribute("data-bom-editor") || "parents");
-            const rowsWrap = editorEl.querySelector(".bomRows");
-            if (!(rowsWrap instanceof HTMLElement)) return;
-            const empty = rowsWrap.querySelector("[data-bom-empty]");
-            if (empty instanceof HTMLElement) empty.remove();
-            rowsWrap.insertAdjacentHTML("beforeend", bomRowEditorHtml(kind, {}, String(editorEl.getAttribute("data-product-id") || "")));
-            syncBomEditorField(editorEl);
-            const lastRow = rowsWrap.querySelector("[data-bom-row]:last-child select, [data-bom-row]:last-child input");
-            if (lastRow instanceof HTMLElement && typeof lastRow.focus === "function") lastRow.focus();
-            return;
-          }
-          const bomRemoveBtn = target.closest("[data-bom-remove]");
-          if (bomRemoveBtn instanceof HTMLElement) {
-            const editorEl = bomRemoveBtn.closest("[data-bom-editor]");
-            const rowEl = bomRemoveBtn.closest("tr[data-record-id]");
-            const bomRow = bomRemoveBtn.closest("[data-bom-row]");
-            if (bomRow instanceof HTMLElement) bomRow.remove();
-            if (editorEl instanceof HTMLElement) syncBomEditorField(editorEl);
-            if (rowEl instanceof HTMLElement) scheduleRowAutoSave(rowEl);
+          const bomOpenBtn = target.closest("[data-bom-open]");
+          if (bomOpenBtn instanceof HTMLElement) {
+            const rowEl = bomOpenBtn.closest("tr[data-record-id]");
+            openBomModal(rowEl);
             return;
           }
           const pickBtn = target.closest("[data-image-pick]");
@@ -1877,42 +2128,16 @@
         el.recordsBody?.addEventListener("change", (e) => {
           const target = e.target;
           if (!(target instanceof HTMLElement)) return;
-          const bomEditor = target.closest("[data-bom-editor]");
-          if (bomEditor instanceof HTMLElement) {
-            const rowEl = target.closest("tr[data-record-id]");
-            syncBomEditorField(bomEditor);
-            if (rowEl instanceof HTMLElement) scheduleRowAutoSave(rowEl);
-            return;
-          }
           const fieldNode = target.closest("[data-field-key]");
           if (!(fieldNode instanceof HTMLElement)) return;
           const rowEl = target.closest("tr[data-record-id]");
           if (!(rowEl instanceof HTMLElement)) return;
           scheduleRowAutoSave(rowEl);
         });
-        el.recordsBody?.addEventListener("input", (e) => {
-          const target = e.target;
-          if (!(target instanceof HTMLElement)) return;
-          const bomEditor = target.closest("[data-bom-editor]");
-          if (!(bomEditor instanceof HTMLElement)) return;
-          const rowEl = target.closest("tr[data-record-id]");
-          syncBomEditorField(bomEditor);
-          if (rowEl instanceof HTMLElement) scheduleRowAutoSave(rowEl);
-        });
         el.recordsBody?.addEventListener("keydown", (e) => {
           const target = e.target;
           if (!(target instanceof HTMLElement)) return;
           if (e.key !== "Enter" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
-          const bomEditor = target.closest("[data-bom-editor]");
-          if (bomEditor instanceof HTMLElement) {
-            const rowEl = target.closest("tr[data-record-id]");
-            e.preventDefault();
-            e.stopPropagation();
-            syncBomEditorField(bomEditor);
-            if (rowEl instanceof HTMLElement) scheduleRowAutoSave(rowEl);
-            if (typeof target.blur === "function") target.blur();
-            return;
-          }
           const fieldNode = target.closest("[data-field-key]");
           if (!(fieldNode instanceof HTMLElement)) return;
           const rowEl = target.closest("tr[data-record-id]");
@@ -1925,19 +2150,74 @@
         el.recordsBody?.addEventListener("focusout", (e) => {
           const target = e.target;
           if (!(target instanceof HTMLElement)) return;
-          const bomEditor = target.closest("[data-bom-editor]");
-          if (bomEditor instanceof HTMLElement) {
-            const rowEl = target.closest("tr[data-record-id]");
-            syncBomEditorField(bomEditor);
-            if (rowEl instanceof HTMLElement) scheduleRowAutoSave(rowEl);
-            return;
-          }
           const fieldNode = target.closest("[data-field-key]");
           if (!(fieldNode instanceof HTMLElement)) return;
           const rowEl = target.closest("tr[data-record-id]");
           if (!(rowEl instanceof HTMLElement)) return;
           scheduleRowAutoSave(rowEl);
         });
+        el.bomModal?.addEventListener("click", (e) => {
+          const target = e.target;
+          if (!(target instanceof HTMLElement)) return;
+          if (target === el.bomModal) {
+            closeBomModal();
+            return;
+          }
+          const addBtn = target.closest("[data-bom-add]");
+          if (addBtn instanceof HTMLElement) {
+            const editorEl = addBtn.closest("[data-bom-editor]");
+            if (!(editorEl instanceof HTMLElement)) return;
+            const kind = String(editorEl.getAttribute("data-bom-editor") || "parents");
+            const rowsWrap = editorEl.querySelector(".bomRows");
+            if (!(rowsWrap instanceof HTMLElement)) return;
+            const empty = rowsWrap.querySelector("[data-bom-empty]");
+            if (empty instanceof HTMLElement) empty.remove();
+            rowsWrap.insertAdjacentHTML("beforeend", bomRowEditorHtml(kind, {}, String(editorEl.getAttribute("data-product-id") || "")));
+            syncBomEditorField(editorEl);
+            const focusNode = rowsWrap.querySelector("[data-bom-row]:last-child select, [data-bom-row]:last-child input");
+            if (focusNode instanceof HTMLElement && typeof focusNode.focus === "function") focusNode.focus();
+            return;
+          }
+          const removeBtn = target.closest("[data-bom-remove]");
+          if (removeBtn instanceof HTMLElement) {
+            const rowNode = removeBtn.closest("[data-bom-row]");
+            const editorEl = removeBtn.closest("[data-bom-editor]");
+            if (rowNode instanceof HTMLElement) rowNode.remove();
+            if (editorEl instanceof HTMLElement) syncBomEditorField(editorEl);
+            return;
+          }
+        });
+        el.bomModal?.addEventListener("change", (e) => {
+          const target = e.target;
+          if (!(target instanceof HTMLElement)) return;
+          const editorEl = target.closest("[data-bom-editor]");
+          if (!(editorEl instanceof HTMLElement)) return;
+          syncBomEditorField(editorEl);
+        });
+        el.bomModal?.addEventListener("input", (e) => {
+          const target = e.target;
+          if (!(target instanceof HTMLElement)) return;
+          const editorEl = target.closest("[data-bom-editor]");
+          if (!(editorEl instanceof HTMLElement)) return;
+          syncBomEditorField(editorEl);
+        });
+        el.bomModal?.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            closeBomModal();
+            return;
+          }
+          const target = e.target;
+          if (!(target instanceof HTMLElement)) return;
+          if (e.key !== "Enter" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+          const editorEl = target.closest("[data-bom-editor]");
+          if (!(editorEl instanceof HTMLElement)) return;
+          e.preventDefault();
+          syncBomEditorField(editorEl);
+        });
+        el.bomModalCloseBtn?.addEventListener("click", () => { closeBomModal(); });
+        el.bomModalCancelBtn?.addEventListener("click", () => { closeBomModal(); });
+        el.bomModalSaveBtn?.addEventListener("click", () => { applyBomModalToRow(); });
         el.recordImageFilePicker?.addEventListener("change", (e) => {
           const picker = e.target;
           if (!(picker instanceof HTMLInputElement)) return;

@@ -85,9 +85,17 @@ OCR_RECENT_LOGS_LOCK = threading.Lock()
 OCR_RECENT_LOG_SEQ = 0
 
 
+def ocr_recent_log_buffer_enabled() -> bool:
+    """Set OCR_RECENT_LOGS=0 to disable the in-memory ring + /ocr/logs/recent (saves CPU on busy OCR)."""
+    v = str(os.getenv("OCR_RECENT_LOGS", "1") or "1").strip().lower()
+    return v not in ("0", "false", "off", "no")
+
+
 class RecentOcrLogHandler(logging.Handler):
     def emit(self, record):
         global OCR_RECENT_LOG_SEQ
+        if not ocr_recent_log_buffer_enabled():
+            return
         try:
             msg = self.format(record)
             with OCR_RECENT_LOGS_LOCK:
@@ -636,6 +644,8 @@ async def debug_log_ingest(request: dict = Body(...)):
 async def ocr_logs_recent(after: int = Query(0), limit: int = Query(80)):
     safe_after = max(0, int(after or 0))
     safe_limit = max(1, min(200, int(limit or 80)))
+    if not ocr_recent_log_buffer_enabled():
+        return {"ok": True, "items": [], "latest_seq": safe_after, "disabled": True}
     with OCR_RECENT_LOGS_LOCK:
         rows = [row for row in OCR_RECENT_LOGS if int(row.get("seq", 0)) > safe_after]
     return {
@@ -3427,16 +3437,52 @@ def decode_image_data_to_temp(image_data: str, suffix=None) -> str:
         return tmp_file.name
 
 
+def _bbox_coord_float(value, default=0.0) -> float:
+    try:
+        if value is None:
+            return float(default)
+        return float(value)
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def rescale_bbox_if_oversized_for_thumb(bbox: dict, iw: int, ih: int) -> dict:
+    """If bbox exceeds decoded image size (metadata/preview mismatch), scale uniformly."""
+    x1 = _bbox_coord_float(bbox.get("x1"))
+    y1 = _bbox_coord_float(bbox.get("y1"))
+    x2 = _bbox_coord_float(bbox.get("x2"))
+    y2 = _bbox_coord_float(bbox.get("y2"))
+    iw = max(1, int(iw))
+    ih = max(1, int(ih))
+    if x2 <= x1 or y2 <= y1:
+        return bbox
+    if x2 > iw * 1.02 or y2 > ih * 1.02:
+        s = min(iw / max(x2, 1e-9), ih / max(y2, 1e-9))
+        nx1 = int(round(x1 * s))
+        ny1 = int(round(y1 * s))
+        nx2 = int(round(x2 * s))
+        ny2 = int(round(y2 * s))
+        return {
+            "x1": nx1,
+            "y1": ny1,
+            "x2": nx2,
+            "y2": ny2,
+            "width": max(1, nx2 - nx1),
+            "height": max(1, ny2 - ny1),
+        }
+    return bbox
+
+
 def zone_bbox(zone):
     """Extract bbox dict from OCR zone payload."""
     if not isinstance(zone, dict):
         return None
     bbox = zone.get("bbox")
     if isinstance(bbox, dict):
-        x1 = int(round(float(bbox.get("x1", 0))))
-        y1 = int(round(float(bbox.get("y1", 0))))
-        x2 = int(round(float(bbox.get("x2", 0))))
-        y2 = int(round(float(bbox.get("y2", 0))))
+        x1 = int(round(_bbox_coord_float(bbox.get("x1"))))
+        y1 = int(round(_bbox_coord_float(bbox.get("y1"))))
+        x2 = int(round(_bbox_coord_float(bbox.get("x2"))))
+        y2 = int(round(_bbox_coord_float(bbox.get("y2"))))
         if x2 > x1 and y2 > y1:
             return {
                 "x1": x1,
@@ -3447,10 +3493,10 @@ def zone_bbox(zone):
                 "height": y2 - y1,
             }
     if all(k in zone for k in ("x", "y", "width", "height")):
-        x1 = int(round(float(zone.get("x", 0))))
-        y1 = int(round(float(zone.get("y", 0))))
-        w = max(1, int(round(float(zone.get("width", 0)))))
-        h = max(1, int(round(float(zone.get("height", 0)))))
+        x1 = int(round(_bbox_coord_float(zone.get("x"))))
+        y1 = int(round(_bbox_coord_float(zone.get("y"))))
+        w = max(1, int(round(_bbox_coord_float(zone.get("width"), 0.0))))
+        h = max(1, int(round(_bbox_coord_float(zone.get("height"), 0.0))))
         return {
             "x1": x1,
             "y1": y1,
@@ -3611,6 +3657,11 @@ async def annotation_thumbnail(request: dict = Body(...)):
         normalized_bbox = zone_bbox(zone)
         if not normalized_bbox:
             raise HTTPException(status_code=400, detail="Invalid bbox")
+        img_probe = cv2.imread(temp_path)
+        if img_probe is None:
+            raise HTTPException(status_code=400, detail="Could not decode image")
+        ph, pw = img_probe.shape[:2]
+        normalized_bbox = rescale_bbox_if_oversized_for_thumb(normalized_bbox, pw, ph)
         thumb = make_annotation_thumbnail(
             temp_path,
             normalized_bbox,
@@ -3620,6 +3671,13 @@ async def annotation_thumbnail(request: dict = Body(...)):
             jpeg_quality=quality,
         )
         if not thumb:
+            logger.warning(
+                "annotation-thumbnail empty crop: image=%dx%d bbox=%s rotation=%s",
+                pw,
+                ph,
+                normalized_bbox,
+                rotation,
+            )
             raise HTTPException(status_code=400, detail="Could not create thumbnail")
         return {"ok": True, "thumbnail": thumb}
     finally:

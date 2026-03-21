@@ -292,6 +292,8 @@
           <label class="toggle"><input id="lvlWarn" type="checkbox" checked /> warn</label>
           <label class="toggle"><input id="lvlError" type="checkbox" checked /> error</label>
           <label class="toggle"><input id="autoScrollChk" type="checkbox" checked /> autoscroll</label>
+          <label class="toggle" title="Periodically fetch OCR server log lines (uses HTTP polling; turn off to save idle traffic)."><input id="pollOcrChk" type="checkbox" /> OCR poll</label>
+          <button class="btn ghost" type="button" id="pullOcrLogsBtn" title="Fetch OCR server logs once (no background loop)">OCR ↓</button>
         </div>
       </div>
     </section>
@@ -338,6 +340,7 @@
       const OFFLINE_MODE_KEY = "vmill:offline:mode";
       const UI_KEY = "vmill:logger:ui:v1";
       const LOG_KEY = "vmill:logger:entries:v1";
+      const HUB_OCR_LOG_POLL_KEY = "vmill:hub:ocrLogPoll";
       const EMBED_MODE = (() => {
         try {
           const qp = new URLSearchParams(window.location.search || "");
@@ -386,6 +389,8 @@
       const activeChk = document.getElementById("activeChk");
       const posSel = document.getElementById("posSel");
       const alertOnlyChk = document.getElementById("alertOnlyChk");
+      const pollOcrChk = document.getElementById("pollOcrChk");
+      const pullOcrLogsBtn = document.getElementById("pullOcrLogsBtn");
       const rowsRange = document.getElementById("rowsRange");
       const rowsVal = document.getElementById("rowsVal");
       const logWrap = document.getElementById("logWrap");
@@ -395,6 +400,7 @@
         ocrLogSeq: 0,
         ocrLogPollTimer: null,
         ocrLogPollError: "",
+        ocrLogVisibilityBound: false,
         ui: {
           position: "bottom-right",
           maxRows: 350,
@@ -402,6 +408,7 @@
           active: true,
           alertOnly: false,
           panelOpen: false,
+          pollOcrServer: false,
         },
       };
 
@@ -456,7 +463,26 @@
         return `${window.location.protocol}//${window.location.hostname}:${port}`;
       }
 
+      const OCR_LOG_POLL_MS = 8000;
+      const OCR_LOG_POLL_HIDDEN_MS = 60000;
+
+      /** URL ?ocrLogs=1 forces poll; ?ocrLogs=0 disables even if saved UI prefers on. */
+      function ocrPollingWanted() {
+        try {
+          const qp = new URLSearchParams(window.location.search || "");
+          if (qp.get("ocrLogs") === "1") return true;
+          if (qp.get("ocrLogs") === "0") return false;
+        } catch {}
+        return !!state.ui.pollOcrServer;
+      }
+
+      function stopOcrLogPolling() {
+        if (state.ocrLogPollTimer) clearInterval(state.ocrLogPollTimer);
+        state.ocrLogPollTimer = null;
+      }
+
       async function pollOcrServerLogs() {
+        if (typeof document !== "undefined" && document.hidden) return;
         const base = resolveOcrBaseUrl();
         if (!base || !window.CANBus?.emit) return;
         try {
@@ -494,14 +520,54 @@
         }
       }
 
-      function startOcrLogPolling() {
+      function ocrLogPollIntervalMs() {
+        return typeof document !== "undefined" && document.hidden ? OCR_LOG_POLL_HIDDEN_MS : OCR_LOG_POLL_MS;
+      }
+
+      function hubDefaultOcrPollFromStorage() {
+        try {
+          const v = String(localStorage.getItem(HUB_OCR_LOG_POLL_KEY) || "").trim();
+          if (v === "1") return true;
+          if (v === "0") return false;
+        } catch {}
+        return null;
+      }
+
+      function onOcrLogVisibilityChange() {
+        if (!ocrPollingWanted()) {
+          stopOcrLogPolling();
+          return;
+        }
         if (state.ocrLogPollTimer) clearInterval(state.ocrLogPollTimer);
-        pollOcrServerLogs();
-        state.ocrLogPollTimer = setInterval(pollOcrServerLogs, 2500);
+        state.ocrLogPollTimer = setInterval(() => {
+          void pollOcrServerLogs();
+        }, ocrLogPollIntervalMs());
+        if (typeof document !== "undefined" && !document.hidden) void pollOcrServerLogs();
+      }
+
+      function startOcrLogPollingIfEnabled() {
+        stopOcrLogPolling();
+        if (typeof document !== "undefined" && !state.ocrLogVisibilityBound) {
+          state.ocrLogVisibilityBound = true;
+          document.addEventListener("visibilitychange", onOcrLogVisibilityChange);
+        }
+        if (!ocrPollingWanted()) return;
+        void pollOcrServerLogs();
+        state.ocrLogPollTimer = setInterval(() => {
+          void pollOcrServerLogs();
+        }, ocrLogPollIntervalMs());
       }
 
       function readUi() {
         const src = safeParse(localStorage.getItem(UI_KEY), {});
+        const rawPoll = src.pollOcrServer;
+        let pollOcrServer;
+        if (rawPoll === true) pollOcrServer = true;
+        else if (rawPoll === false) pollOcrServer = false;
+        else {
+          const hubPref = hubDefaultOcrPollFromStorage();
+          pollOcrServer = hubPref !== null ? hubPref : !EMBED_MODE;
+        }
         return {
           position: ["top-left", "top-right", "bottom-left", "bottom-right"].includes(String(src.position || "")) ? String(src.position) : "bottom-right",
           maxRows: Math.max(50, Math.min(1200, Number(src.maxRows || 350))),
@@ -509,6 +575,7 @@
           active: src.active !== false,
           alertOnly: src.alertOnly === true,
           panelOpen: src.panelOpen === true,
+          pollOcrServer,
         };
       }
 
@@ -523,6 +590,7 @@
         rowsVal.textContent = String(state.ui.maxRows);
         autoScrollChk.checked = !!state.ui.autoScroll;
         if (alertOnlyChk) alertOnlyChk.checked = !!state.ui.alertOnly;
+        if (pollOcrChk) pollOcrChk.checked = !!state.ui.pollOcrServer;
       }
 
       function readLogs() {
@@ -720,6 +788,16 @@
           render();
         });
 
+        pollOcrChk?.addEventListener("change", () => {
+          state.ui.pollOcrServer = !!pollOcrChk.checked;
+          writeUi();
+          startOcrLogPollingIfEnabled();
+        });
+
+        pullOcrLogsBtn?.addEventListener("click", () => {
+          void pollOcrServerLogs();
+        });
+
         window.addEventListener("vmill:logger:new", () => {
           if (state.paused) return;
           render();
@@ -733,6 +811,7 @@
           if (String(e.key || "") === UI_KEY) {
             state.ui = readUi();
             applyUi();
+            startOcrLogPollingIfEnabled();
             render();
           }
         });
@@ -746,6 +825,17 @@
           applyI18n();
           render();
         });
+
+        window.addEventListener("message", (ev) => {
+          try {
+            if (!ev?.data || ev.data.type !== "vmill:hub:ocrLogPoll") return;
+            const on = !!ev.data.value;
+            state.ui.pollOcrServer = on;
+            if (pollOcrChk) pollOcrChk.checked = on;
+            writeUi();
+            startOcrLogPollingIfEnabled();
+          } catch {}
+        });
       }
 
       state.ui = readUi();
@@ -753,7 +843,7 @@
       applyUi();
       applyI18n();
       bind();
-      startOcrLogPolling();
+      startOcrLogPollingIfEnabled();
       render();
     })();
   </script>
