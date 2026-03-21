@@ -1858,104 +1858,54 @@
         render();
       }
 
-      function loadFactoryDemoData() {
-        const app = readApp() || {};
-        const next = { ...app };
-        next.products = Array.isArray(next.products) ? next.products.slice() : [];
-        next.stations = Array.isArray(next.stations) ? next.stations.slice() : [];
-        next.operations = Array.isArray(next.operations) ? next.operations.slice() : [];
-        const upsertById = (arr, row) => {
-          const id = String(row?.id || "");
-          if (!id) return;
-          const idx = arr.findIndex((x) => String(x?.id || "") === id);
-          if (idx >= 0) arr[idx] = { ...arr[idx], ...row };
-          else arr.push(row);
-        };
-        const stations = [
-          { id: "demo_st_cut", code: "CUT", name: "Cutting Cell", categoryIds: ["cut"] },
-          { id: "demo_st_cnc1", code: "CNC1", name: "CNC Mill #1", categoryIds: ["cnc"] },
-          { id: "demo_st_cnc2", code: "CNC2", name: "CNC Mill #2", categoryIds: ["cnc"] },
-          { id: "demo_st_qc", code: "QC", name: "Quality Bench", categoryIds: ["qc"] },
-          { id: "demo_st_pack", code: "PACK", name: "Pack & Ship", categoryIds: ["pack"] },
-        ];
-        const products = [
-          { id: "demo_prod_alpha", code: "D-ALPHA", name: "Demo Alpha Housing", parentProductId: "", imageUrl: "" },
-          { id: "demo_prod_beta", code: "D-BETA", name: "Demo Beta Shaft", parentProductId: "", imageUrl: "" },
-          { id: "demo_prod_gamma", code: "D-GAMMA", name: "Demo Gamma Bracket", parentProductId: "", imageUrl: "" },
-        ];
-        const opsAlpha = [
-          { id: "demo_op_a10", seq: 10, operationCode: "10", name: "Stock Cut", estimatedTimeMin: 12, stationId: "demo_st_cut" },
-          { id: "demo_op_a20", seq: 20, operationCode: "20", name: "Rough CNC", estimatedTimeMin: 22, allowedStationIds: ["demo_st_cnc1", "demo_st_cnc2"] },
-          { id: "demo_op_a30", seq: 30, operationCode: "30", name: "Finish CNC", estimatedTimeMin: 18, allowedStationIds: ["demo_st_cnc1", "demo_st_cnc2"] },
-          { id: "demo_op_a40", seq: 40, operationCode: "40", name: "Final QC", estimatedTimeMin: 8, stationId: "demo_st_qc" },
-        ];
-        const opsBeta = [
-          { id: "demo_op_b10", seq: 10, operationCode: "10", name: "Cut Bar", estimatedTimeMin: 8, stationId: "demo_st_cut" },
-          { id: "demo_op_b20", seq: 20, operationCode: "20", name: "Turn + Mill", estimatedTimeMin: 19, allowedStationIds: ["demo_st_cnc1", "demo_st_cnc2"] },
-          { id: "demo_op_b30", seq: 30, operationCode: "30", name: "Inspection", estimatedTimeMin: 6, stationId: "demo_st_qc" },
-          { id: "demo_op_b40", seq: 40, operationCode: "40", name: "Pack", estimatedTimeMin: 5, stationId: "demo_st_pack" },
-        ];
-        const opsGamma = [
-          { id: "demo_op_g10", seq: 10, operationCode: "10", name: "Laser Cut", estimatedTimeMin: 7, stationId: "demo_st_cut" },
-          { id: "demo_op_g20", seq: 20, operationCode: "20", name: "CNC Drill", estimatedTimeMin: 13, allowedStationIds: ["demo_st_cnc1", "demo_st_cnc2"] },
-          { id: "demo_op_g30", seq: 30, operationCode: "30", name: "Pack", estimatedTimeMin: 4, stationId: "demo_st_pack" },
-        ];
-        stations.forEach((row) => upsertById(next.stations, row));
-        products.forEach((row) => upsertById(next.products, row));
-        [...opsAlpha, ...opsBeta, ...opsGamma].forEach((op) => {
-          const stationId = String(op?.stationId || "");
-          const firstStation = stationId || String((Array.isArray(op?.allowedStationIds) && op.allowedStationIds[0]) || "");
-          const samples = Math.max(1, Number(op.estimatedTimeMin || 5) * 60000);
-          upsertById(next.operations, {
-            id: String(op.id || ""),
-            name: String(op.name || ""),
-            code: String(op.operationCode || ""),
-            productId: String(op.id || "").includes("_a") ? "demo_prod_alpha" : (String(op.id || "").includes("_b") ? "demo_prod_beta" : "demo_prod_gamma"),
-            stationId: firstStation,
-            cycles: [
-              { id: `${op.id}_c1`, totalMs: samples * 0.95, laps: [] },
-              { id: `${op.id}_c2`, totalMs: samples * 1.05, laps: [] },
-            ],
-          });
-        });
-
-        const routeRows = [
-          { id: "demo_route_alpha", routeName: "Demo Alpha Route", productId: "demo_prod_alpha", operations: opsAlpha },
-          { id: "demo_route_beta", routeName: "Demo Beta Route", productId: "demo_prod_beta", operations: opsBeta },
-          { id: "demo_route_gamma", routeName: "Demo Gamma Route", productId: "demo_prod_gamma", operations: opsGamma },
-        ];
-
+      async function loadFactoryDemoData() {
+        const hubPreset = String(localStorage.getItem("vmill:hub-demo-preset:v1") || "medium").toLowerCase();
+        if (typeof window.VMillData?.loadDemoAppState !== "function") {
+          $("statusLine").textContent = tt("factory.erp.demo.noLoader", "Demo loader unavailable.");
+          return;
+        }
+        $("statusLine").textContent = tt("factory.erp.demo.loadingHub", "Loading Hub demo preset: {preset}...", { preset: hubPreset });
+        await window.VMillData.loadDemoAppState(hubPreset);
+        routesCache = readRoutes();
+        const hubRoutes = routesCache.filter((r) => String(r?.productId || "")).slice(0, 6);
+        if (!hubRoutes.length) {
+          $("statusLine").textContent = tt("factory.erp.demo.noRoutes", "Demo loaded but no routes were generated.");
+          render();
+          return;
+        }
         const due = (days) => formatDateInput(Date.now() + (days * 86400000));
-        const woRows = [
-          { id: `demo_wo_${Date.now()}_1`, code: "DEMO-WO-001", productId: "demo_prod_alpha", routeId: "demo_route_alpha", qty: 8, dueDate: due(2), selectedOperationIds: [], status: "open", createdAt: nowIso() },
-          { id: `demo_wo_${Date.now()}_2`, code: "DEMO-WO-002", productId: "demo_prod_beta", routeId: "demo_route_beta", qty: 14, dueDate: due(3), selectedOperationIds: [], status: "open", createdAt: nowIso() },
-          { id: `demo_wo_${Date.now()}_3`, code: "DEMO-WO-003", productId: "demo_prod_gamma", routeId: "demo_route_gamma", qty: 20, dueDate: due(4), selectedOperationIds: [], status: "open", createdAt: nowIso() },
-        ];
-
+        const woRows = hubRoutes.map((route, i) => ({
+          id: `facdemo_wo_${Date.now()}_${i + 1}`,
+          code: `HUB-WO-${String(i + 1).padStart(3, "0")}`,
+          productId: String(route.productId || ""),
+          routeId: String(route.id || ""),
+          qty: [8, 12, 20, 6, 16, 24][i] || 10,
+          dueDate: due((i % 4) + 2),
+          selectedOperationIds: [],
+          status: "open",
+          createdAt: nowIso(),
+        }));
         withBulkMutations(() => {
-          window.VMillData?.writeAppState?.(next);
-          routeRows.forEach((route) => window.VMillData?.upsertRecord?.("spacial_routes", route));
           for (const row of (window.VMillData?.listRecords?.(WO_NS) || [])) {
-            if (String(row?.id || "").startsWith("demo_wo_")) window.VMillData?.deleteRecord?.(WO_NS, String(row.id));
+            if (String(row?.id || "").startsWith("facdemo_wo_")) window.VMillData?.deleteRecord?.(WO_NS, String(row.id));
           }
           for (const row of (window.VMillData?.listRecords?.(SCHEDULE_NS) || [])) {
-            if (String(row?.woCode || "").startsWith("DEMO-WO-")) window.VMillData?.deleteRecord?.(SCHEDULE_NS, String(row?.id || ""));
+            if (String(row?.woCode || "").startsWith("HUB-WO-")) window.VMillData?.deleteRecord?.(SCHEDULE_NS, String(row?.id || ""));
           }
           for (const row of (window.VMillData?.listRecords?.(EXEC_NS) || [])) {
-            if (String(row?.id || "").includes("demo_wo_")) window.VMillData?.deleteRecord?.(EXEC_NS, String(row?.id || ""));
+            if (String(row?.id || "").includes("facdemo_wo_")) window.VMillData?.deleteRecord?.(EXEC_NS, String(row?.id || ""));
           }
           woRows.forEach((wo) => window.VMillData?.upsertRecord?.(WO_NS, wo));
         });
-        addAudit("demo_load", "factory", `wo:${woRows.length}`);
-        routesCache = readRoutes();
+        addAudit("demo_load_hub", "factory", `preset:${hubPreset},wo:${woRows.length}`);
         workOrdersCache = readWorkOrders();
         plansById = readPlans();
         rowsCache = makeRows();
         const count = autoPlanSchedule();
         $("statusLine").textContent = tt(
-          "factory.erp.demo.loaded",
-          "Demo loaded: {routes} routes, {wo} work orders, {count} planned tasks.",
-          { routes: routeRows.length, wo: woRows.length, count },
+          "factory.erp.demo.loadedHub",
+          "Hub demo loaded: {routes} routes, {wo} work orders, {count} planned tasks.",
+          { routes: hubRoutes.length, wo: woRows.length, count },
         );
         render();
       }
@@ -1995,7 +1945,7 @@
 
       function wire() {
         $("reloadBtn").addEventListener("click", render);
-        $("loadDemoBtn").addEventListener("click", loadFactoryDemoData);
+        $("loadDemoBtn").addEventListener("click", () => { void loadFactoryDemoData(); });
         $("woAddBtn").addEventListener("click", addWorkOrder);
         $("autoPlanBtn").addEventListener("click", () => {
           if (!requirePermission(canEditPlanning, tt("factory.erp.denied.schedule", "Permission denied: planner/manager/admin required for scheduling."))) return;
@@ -2126,7 +2076,7 @@
         $("searchLbl").textContent = tt("common.search", "Search");
         $("issuesLbl").textContent = tt("factory.issues_only", "Issues only");
         $("erpLayerLbl").textContent = tt("factory.erp.layer", "ERP Layer · Work Orders + Scheduling");
-        $("loadDemoBtn").textContent = tt("factory.erp.loadDemo", "Load Factory Demo");
+        $("loadDemoBtn").textContent = tt("factory.erp.loadDemo", "Load Demo (Hub Backup/Data)");
         $("woProductLbl").textContent = tt("factory.erp.woProduct", "WO Product");
         $("woRouteLbl").textContent = tt("factory.erp.woRoute", "WO Route");
         $("woOpsModeLbl").textContent = tt("factory.erp.opsMode", "Operations");

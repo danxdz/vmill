@@ -855,6 +855,7 @@
     return {
       id: `routeplan_${String(j.id || uuid())}`,
       jobId: String(j.id || ""),
+      productId: String(pd?.id || ""),
       stationId: String(j.stationId || st?.id || ""),
       jobName: String(j.name || "Operation"),
       stationLabel: st?.id ? `${st.code || "--"} - ${st.name || "Station"}` : "",
@@ -1074,6 +1075,7 @@
       ...src,
       id,
       jobId,
+      productId: String(src.productId || ""),
       stationId: String(src.stationId || ""),
       jobName: String(src.jobName || ""),
       stationLabel: String(src.stationLabel || ""),
@@ -1116,35 +1118,113 @@
     const app = normalizeImportedAppState(appState);
     if (!app) return 0;
     const jobs = Array.isArray(app.jobs) ? app.jobs : [];
+    const operations = Array.isArray(app.operations) ? app.operations : [];
     const stationById = new Map((app.stations || []).map((s) => [String(s.id || ""), s]));
     const productById = new Map((app.products || []).map((p) => [String(p.id || ""), p]));
     const st = readModuleState();
     if (!Array.isArray(st.store[NS_ROUTE])) st.store[NS_ROUTE] = [];
     const routes = st.store[NS_ROUTE];
     const jobIds = new Set(jobs.map((j) => String(j?.id || "")).filter(Boolean));
+    const operationProductIds = new Set(operations.map((op) => String(op?.productId || "")).filter(Boolean));
     let changed = 0;
     if (pruneMissing) {
       const before = routes.length;
       st.store[NS_ROUTE] = routes.filter((r) => {
         const rid = String(r?.jobId || "");
-        return !rid || jobIds.has(rid);
+        const pid = String(r?.productId || "");
+        if (rid) return jobIds.has(rid);
+        if (pid) return operationProductIds.has(pid);
+        return true;
       });
       if (st.store[NS_ROUTE].length !== before) changed += (before - st.store[NS_ROUTE].length);
     }
     const target = st.store[NS_ROUTE];
-    for (const job of jobs) {
-      const jid = String(job?.id || "");
-      if (!jid) continue;
-      const idx = target.findIndex((r) =>
-        String(r?.jobId || "") === jid || String(r?.id || "") === `routeplan_${jid}`
-      );
-      if (idx >= 0 && !overwrite) continue;
-      const station = stationById.get(String(job?.stationId || "")) || null;
-      const product = productById.get(String(job?.productId || "")) || null;
-      const route = buildRouteForJob(job, station, product);
-      if (idx >= 0) target[idx] = { ...target[idx], ...route, updatedAt: new Date().toISOString() };
-      else target.push({ createdAt: new Date().toISOString(), ...route, updatedAt: new Date().toISOString() });
-      changed += 1;
+    if (jobs.length) {
+      for (const job of jobs) {
+        const jid = String(job?.id || "");
+        if (!jid) continue;
+        const idx = target.findIndex((r) =>
+          String(r?.jobId || "") === jid || String(r?.id || "") === `routeplan_${jid}`
+        );
+        if (idx >= 0 && !overwrite) continue;
+        const station = stationById.get(String(job?.stationId || "")) || null;
+        const product = productById.get(String(job?.productId || "")) || null;
+        const route = buildRouteForJob(job, station, product);
+        if (idx >= 0) target[idx] = { ...target[idx], ...route, updatedAt: new Date().toISOString() };
+        else target.push({ createdAt: new Date().toISOString(), ...route, updatedAt: new Date().toISOString() });
+        changed += 1;
+      }
+    } else if (operations.length) {
+      const avgOperationMin = (op) => {
+        const est = Number(op?.estimatedTimeMin || 0);
+        if (Number.isFinite(est) && est > 0) return Math.max(0.01, Number(est.toFixed(3)));
+        const cycles = Array.isArray(op?.cycles) ? op.cycles : [];
+        let sum = 0;
+        let count = 0;
+        for (const cyc of cycles) {
+          const ms = Number(cyc?.totalMs || 0);
+          if (!Number.isFinite(ms) || ms <= 0) continue;
+          sum += ms;
+          count += 1;
+        }
+        if (!count) return null;
+        return Math.max(0.01, Number(((sum / count) / 60000).toFixed(3)));
+      };
+      const byProduct = new Map();
+      for (const op of operations) {
+        const pid = String(op?.productId || "");
+        if (!pid) continue;
+        if (!byProduct.has(pid)) byProduct.set(pid, []);
+        byProduct.get(pid).push(op);
+      }
+      for (const [pid, ops] of byProduct.entries()) {
+        const product = productById.get(pid) || {};
+        const routeId = `routeplan_prod_${pid}`;
+        const routeNameBase = String(product?.name || product?.code || "Route");
+        const sorted = ops.slice().sort((a, b) => {
+          const as = Number(a?.seq || 0);
+          const bs = Number(b?.seq || 0);
+          if (Number.isFinite(as) && Number.isFinite(bs) && as !== bs) return as - bs;
+          return String(a?.name || "").localeCompare(String(b?.name || ""));
+        });
+        const routeOps = sorted.map((op, i) => {
+          const station = stationById.get(String(op?.stationId || "")) || null;
+          return {
+            id: String(op?.id || uuid()),
+            seq: Number.isFinite(Number(op?.seq || NaN)) ? Number(op.seq) : ((i + 1) * 10),
+            name: String(op?.name || `Operation ${i + 1}`),
+            stationCode: String(station?.code || ""),
+            workstation: String(station?.name || ""),
+            estimatedTimeMin: avgOperationMin(op),
+            sampleSize: null,
+            frequency: "",
+            controlMethod: "",
+            critical: false,
+            notes: "",
+            bubbles: [],
+          };
+        });
+        const route = {
+          id: routeId,
+          jobId: "",
+          productId: pid,
+          stationId: "",
+          jobName: String(routeNameBase || "Route"),
+          stationLabel: "",
+          routeName: sanitizeLegacyImportLabel(`${routeNameBase} Route`, "Route"),
+          revision: normalizeRouteRevision("A", "A"),
+          productRef: product?.id ? `${product.code || "--"} - ${product.name || "Product"}` : "",
+          operations: routeOps,
+          updatedAt: new Date().toISOString(),
+        };
+        const idx = target.findIndex((r) =>
+          String(r?.id || "") === routeId || String(r?.productId || "") === pid
+        );
+        if (idx >= 0 && !overwrite) continue;
+        if (idx >= 0) target[idx] = { ...target[idx], ...route, updatedAt: new Date().toISOString() };
+        else target.push({ createdAt: new Date().toISOString(), ...route, updatedAt: new Date().toISOString() });
+        changed += 1;
+      }
     }
     if (changed > 0) {
       writeModuleState(st, {
