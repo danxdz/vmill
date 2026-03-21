@@ -104,10 +104,24 @@ function readThumbDisplaySettings() {
 
 function thumbFrameSize(row, maxSize, minSize, angle = 0) {
   const box = row?.thumbnailBBox || row?.bbox || null;
-  const x1 = Number(box?.x1);
-  const y1 = Number(box?.y1);
-  const x2 = Number(box?.x2);
-  const y2 = Number(box?.y2);
+  let x1 = Number(box?.x1);
+  let y1 = Number(box?.y1);
+  let x2 = Number(box?.x2);
+  let y2 = Number(box?.y2);
+  const looksNormalized = [x1, y1, x2, y2].every((v) => Number.isFinite(v) && v >= -0.02 && v <= 1.02);
+  if (looksNormalized) {
+    const doc = row?.documentId
+      ? docsApi.productDocumentById(row.documentId, state.selectedProductId)
+      : null;
+    const srcW = Math.max(0, Number(doc?.imageWidth || 0));
+    const srcH = Math.max(0, Number(doc?.imageHeight || 0));
+    if (srcW > 0 && srcH > 0) {
+      x1 *= srcW;
+      y1 *= srcH;
+      x2 *= srcW;
+      y2 *= srcH;
+    }
+  }
   const width = Math.max(1, Math.abs((Number.isFinite(x2) ? x2 : 0) - (Number.isFinite(x1) ? x1 : 0)));
   const height = Math.max(1, Math.abs((Number.isFinite(y2) ? y2 : 0) - (Number.isFinite(y1) ? y1 : 0)));
   if (!Number.isFinite(width) || !Number.isFinite(height)) {
@@ -168,6 +182,22 @@ function currentPreviewAnnotations() {
   return docsApi.listProductAnnotations(state.selectedProductId, docId);
 }
 
+const ANN_POPOVER_MIN_STORAGE_KEY = 'vmill-bm-ann-popover-minimized';
+
+function loadStoredAnnPopoverMinimized() {
+  try {
+    return window.localStorage?.getItem(ANN_POPOVER_MIN_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function persistAnnPopoverMinimized(minimized) {
+  try {
+    window.localStorage?.setItem(ANN_POPOVER_MIN_STORAGE_KEY, minimized ? '1' : '0');
+  } catch {}
+}
+
 const previewRuntime = {
   bound: false,
   zoom: 1,
@@ -189,6 +219,8 @@ const previewRuntime = {
   popoverPointerInside: false,
   popoverFocusInside: false,
   createBoxStart: null,
+  annPopoverMinimized: loadStoredAnnPopoverMinimized(),
+  popoverAnchorAnnId: '',
 };
 
 function clamp(value, min, max) {
@@ -223,6 +255,21 @@ function clampEditableBboxToSource(raw, srcW, srcH) {
   return normalizeEditableBbox({ x1, y1, x2, y2 });
 }
 
+/** Annotation coords are stored vs doc.imageWidth/Height; trust decoded bitmap when metadata disagrees (e.g. after server downscale). */
+function previewSourceDimensions(img, doc) {
+  const imageW = Math.max(1, Number(img.naturalWidth || img.width || 1));
+  const imageH = Math.max(1, Number(img.naturalHeight || img.height || 1));
+  let srcW = Math.max(1, Number(doc?.imageWidth || 0) || imageW);
+  let srcH = Math.max(1, Number(doc?.imageHeight || 0) || imageH);
+  const relW = Math.abs(srcW - imageW) / Math.max(imageW, 1);
+  const relH = Math.abs(srcH - imageH) / Math.max(imageH, 1);
+  if (relW > 0.03 || relH > 0.03) {
+    srcW = imageW;
+    srcH = imageH;
+  }
+  return { imageW, imageH, srcW, srcH };
+}
+
 function previewMetrics() {
   const wrap = $('docPreviewWrap');
   const canvas = $('docOverlayCanvas');
@@ -231,10 +278,7 @@ function previewMetrics() {
   if (!wrap || !canvas || !img || !doc || img.hidden || !str(img.src)) return null;
   const canvasW = Math.max(1, Math.round(wrap.clientWidth || 0));
   const canvasH = Math.max(1, Math.round(wrap.clientHeight || 0));
-  const imageW = Math.max(1, Number(img.naturalWidth || img.width || 1));
-  const imageH = Math.max(1, Number(img.naturalHeight || img.height || 1));
-  const srcW = Math.max(1, Number(doc.imageWidth || imageW || 1));
-  const srcH = Math.max(1, Number(doc.imageHeight || imageH || 1));
+  const { imageW, imageH, srcW, srcH } = previewSourceDimensions(img, doc);
   const baseScale = Math.min(canvasW / imageW, canvasH / imageH);
   const zoom = clamp(Number(previewRuntime.zoom || 1), 0.25, 6);
   const scale = baseScale * zoom;
@@ -335,7 +379,7 @@ function overlayResizeHandles(box, metrics) {
 
 function previewRowBoxInSource(row, metrics) {
   if (!row) return null;
-  return normalizeOverlayBbox(row?.bbox, metrics?.srcW || 0, metrics?.srcH || 0);
+  return normalizeOverlayBbox(row?.bbox, metrics?.srcW || 0, metrics?.srcH || 0, metrics?.doc);
 }
 
 function bubbleCenterAndRadius(row, box, metrics) {
@@ -439,7 +483,7 @@ function readDisplaySettingsFromUi() {
   };
 }
 
-function normalizeOverlayBbox(raw, srcW, srcH) {
+function normalizeOverlayBbox(raw, srcW, srcH, doc = null) {
   const x1 = Number(raw?.x1 ?? raw?.x ?? raw?.left);
   const y1 = Number(raw?.y1 ?? raw?.y ?? raw?.top);
   const x2Direct = Number(raw?.x2 ?? raw?.right);
@@ -459,6 +503,21 @@ function normalizeOverlayBbox(raw, srcW, srcH) {
     ny1 *= srcH;
     nx2 *= srcW;
     ny2 *= srcH;
+  } else if (!looksNormalized && doc) {
+    const metaW = Math.max(0, Number(doc?.imageWidth || 0));
+    const metaH = Math.max(0, Number(doc?.imageHeight || 0));
+    if (metaW > 0 && metaH > 0 && srcW > 0 && srcH > 0) {
+      const rw = Math.abs(srcW - metaW) / Math.max(metaW, 1);
+      const rh = Math.abs(srcH - metaH) / Math.max(metaH, 1);
+      if (rw > 0.03 || rh > 0.03) {
+        const sx = srcW / metaW;
+        const sy = srcH / metaH;
+        nx1 *= sx;
+        ny1 *= sy;
+        nx2 *= sx;
+        ny2 *= sy;
+      }
+    }
   }
   if (Math.abs(nx2 - nx1) < 1e-6 || Math.abs(ny2 - ny1) < 1e-6) return null;
   return { x1: nx1, y1: ny1, x2: nx2, y2: ny2 };
@@ -604,6 +663,17 @@ export function renderPreviewOverlay() {
       ctx.textBaseline = 'alphabetic';
     }
   });
+  const hid = String(previewRuntime.hoveredAnnId || '');
+  const sid = String(state.selectedAnnId || '');
+  if ((hid || sid) && m) {
+    const popRow = sid
+      ? rows.find((r) => String(r?.id || '') === sid)
+      : (hid ? rows.find((r) => String(r?.id || '') === hid) : null);
+    if (popRow) {
+      updateAnnPopover(popRow, m);
+      cancelPopoverHide();
+    }
+  }
   if (previewRuntime.mode === 'createBox' && previewRuntime.draftBox) {
     const box = normalizeEditableBbox(previewRuntime.draftBox);
     if (box) {
@@ -646,8 +716,7 @@ export function renderSettingsLivePreview() {
   canvas.hidden = false;
   empty.hidden = true;
 
-  const imageW = Math.max(1, Number(img.naturalWidth || img.width || 1));
-  const imageH = Math.max(1, Number(img.naturalHeight || img.height || 1));
+  const { imageW, imageH, srcW, srcH } = previewSourceDimensions(img, doc);
   const scale = Math.min(width / imageW, height / imageH);
   const drawW = imageW * scale;
   const drawH = imageH * scale;
@@ -658,14 +727,11 @@ export function renderSettingsLivePreview() {
   ctx.fillStyle = themeVar('--vm-theme-surface', '#ffffff');
   ctx.fillRect(0, 0, width, height);
   ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-
-  const srcW = Math.max(1, Number(doc.imageWidth || imageW || 1));
-  const srcH = Math.max(1, Number(doc.imageHeight || imageH || 1));
   const cfg = readDisplaySettingsFromUi();
   const rows = currentPreviewAnnotations();
   const selectedId = String(state.selectedAnnId || '');
   rows.forEach((row, idx) => {
-    const box = normalizeOverlayBbox(row?.bbox, srcW, srcH);
+    const box = normalizeOverlayBbox(row?.bbox, srcW, srcH, doc);
     if (!box) return;
     const isSel = String(row?.id || '') === selectedId;
     const stroke = isSel ? cfg.selectedColor : cfg.boxColor;
@@ -818,6 +884,7 @@ export function renderPreview() {
     previewRuntime.panX = 0;
     previewRuntime.panY = 0;
     previewRuntime.zoom = 1;
+    clearAnnPopover(true);
     img.hidden = true;
     frame.hidden = true;
     if (canvas) canvas.hidden = true;
@@ -838,6 +905,7 @@ export function renderPreview() {
     previewRuntime.draftBox = null;
     previewRuntime.activeAnnId = '';
     previewRuntime.activeHandle = '';
+    clearAnnPopover(true);
   }
   if (doc.mime?.includes('pdf') && !doc.previewDataUrl) {
     frame.src = doc.dataUrl;
@@ -894,10 +962,21 @@ function saveOverlayDraft() {
   if (!annId || !box) return false;
   const current = docsApi.productAnnotationById(annId, state.selectedProductId);
   if (!current) return false;
+  const m = previewMetrics();
+  const srcW = Math.max(0, Number(m?.srcW || 0));
+  const srcH = Math.max(0, Number(m?.srcH || 0));
+  const normalizedBox = srcW > 0 && srcH > 0
+    ? normalizeEditableBbox({
+        x1: box.x1 / srcW,
+        y1: box.y1 / srcH,
+        x2: box.x2 / srcW,
+        y2: box.y2 / srcH,
+      })
+    : box;
   docsApi.upsertProductAnnotation({
     ...current,
-    bbox: box,
-    coordSpace: 'source',
+    bbox: normalizedBox || box,
+    coordSpace: 'normalized',
   });
   try {
     window.dispatchEvent(new CustomEvent('vmill:refresh-annotation-thumbnail', { detail: { id: annId, delayMs: 1000 } }));
@@ -923,14 +1002,14 @@ function saveOverlayBubbleOffset() {
 
 export function updateAnnPopover(row, metrics) {
   const pop = $('annOverlayPopover');
-  const titleEl = pop?.querySelector('.annOverlayPopoverTitle');
+  const headEl = pop?.querySelector('.annOverlayPopoverHead');
   const bodyEl = pop?.querySelector('.annOverlayPopoverBody');
-  if (!pop || !bodyEl) return;
+  if (!pop || !headEl || !bodyEl) return;
   if (!row || !metrics) {
     pop.hidden = true;
     return;
   }
-  const box = normalizeOverlayBbox(row?.bbox, metrics.srcW, metrics.srcH);
+  const box = normalizeOverlayBbox(row?.bbox, metrics.srcW, metrics.srcH, metrics.doc);
   if (!box) {
     pop.hidden = true;
     return;
@@ -946,49 +1025,44 @@ export function updateAnnPopover(row, metrics) {
   const scaleY = canvas.clientHeight / Math.max(1, canvas.height);
   const wrapRect = wrap.getBoundingClientRect();
   const canvasRect = canvas.getBoundingClientRect();
+  previewRuntime.popoverAnchorAnnId = String(row?.id || '');
+
+  const loN = numValue(row?.lowerDeviation);
+  const hiN = numValue(row?.upperDeviation);
+  const lslN = numValue(row?.lsl);
+  const uslN = numValue(row?.usl);
+  const tolInverted = loN != null && hiN != null && hiN < loN;
+  const limitsInverted = lslN != null && uslN != null && uslN < lslN;
+  const tolAlertText = esc(tt(
+    'blueprint.tolInvertedHint',
+    'Max tolerance is smaller than min (limits may be invalid).',
+  ));
+  const derivedPop = calcDerivedLimits(row);
+  const medianStr = numView(derivedPop.median);
+  const medianRow = medianStr
+    ? `<div class="annPopoverMedianRow" title="${esc(tt('blueprint.medianHint', 'Mid-point of LSL–USL (same as nominal after tolerance sync).'))}">
+        <span class="annPopoverMedianLab">${esc(tt('blueprint.medianShort', 'Median'))}</span>
+        <span class="annPopoverMedianVal">${esc(medianStr)}</span>
+      </div>`
+    : '';
+
+  const minimized = !!previewRuntime.annPopoverMinimized;
+
   const annId = esc(String(row?.id || ''));
-  const name = esc(String(row?.name ?? ''));
+  const rawName = String(row?.name ?? '');
+  const name = esc(rawName);
   const nominal = esc(String(row?.nominal ?? ''));
-  const lsl = esc(String(row?.lsl ?? ''));
-  const usl = esc(String(row?.usl ?? ''));
-  const unit = esc(String(row?.unit ?? ''));
-  const instrument = esc(String(row?.instrument ?? ''));
-  const tol = esc(String(row?.toleranceSpec ?? ''));
-  const derived = calcDerivedLimits(row);
-  const minVal = esc(numView(derived.min) || '-');
-  const medianVal = esc(numView(derived.median) || '-');
-  const maxVal = esc(numView(derived.max) || '-');
-  const conf = row?.ocrConfidence != null ? Number(row.ocrConfidence) : null;
-  const confPct = Number.isFinite(conf) ? Math.round(conf * 100) : null;
-  const confLabel = confPct != null ? `${confPct}%` : '—';
-  const maybeRadius = (name === '61' || name === '62') ? ` <span class="annPopoverHint">(${tt('blueprint.radiusHint', name === '61' ? 'R1?' : 'R2?')})</span>` : '';
-  if (titleEl) titleEl.textContent = `#${row?.sourceBubbleId ?? row?.id ?? ''}`;
-  bodyEl.innerHTML = `
-    <div class="annPopoverRow">
-      <span class="annPopoverCell"><label>${tt('common.name', 'Name')}${maybeRadius}</label><input type="text" data-ann-id="${annId}" data-ann-field="name" value="${name}" placeholder="${esc(tt('common.name', 'Name'))}" class="annPopoverIn" /></span>
-      <span class="annPopoverCell"><label>${tt('blueprint.nomShort', 'Nom')}</label><input type="text" data-ann-id="${annId}" data-ann-field="nominal" value="${nominal}" placeholder="—" class="annPopoverIn" /></span>
-    </div>
-    <div class="annPopoverRow">
-      <span class="annPopoverCell"><label>${tt('blueprint.lsl', 'LSL')}</label><input type="text" data-ann-id="${annId}" data-ann-field="lsl" value="${lsl}" placeholder="${esc(tt('blueprint.lsl', 'LSL'))}" class="annPopoverIn" /></span>
-      <span class="annPopoverCell"><label>${tt('blueprint.usl', 'USL')}</label><input type="text" data-ann-id="${annId}" data-ann-field="usl" value="${usl}" placeholder="${esc(tt('blueprint.usl', 'USL'))}" class="annPopoverIn" /></span>
-    </div>
-    <div class="annPopoverRow">
-      <span class="annPopoverCell"><label>${tt('common.unit', 'Unit')}</label><input type="text" data-ann-id="${annId}" data-ann-field="unit" value="${unit}" placeholder="mm" list="annUnitDatalist" class="annPopoverIn" /></span>
-      <span class="annPopoverCell"><label>${tt('blueprint.tolShort', 'Tol')}</label><input type="text" data-ann-id="${annId}" data-ann-field="toleranceSpec" value="${tol}" placeholder="±0" class="annPopoverIn" /></span>
-    </div>
-    <div class="annPopoverRow">
-      <span class="annPopoverCell annPopoverCellWide"><label>${tt('common.instrument', 'Instrument')}</label><input type="text" data-ann-id="${annId}" data-ann-field="instrument" value="${instrument}" placeholder="${esc(tt('blueprint.noTol', 'no tol'))}" list="annInstrumentDatalist" class="annPopoverIn" /></span>
-    </div>
-    <div class="annPopoverRow">
-      <span class="annPopoverCell"><label>${tt('common.min', 'Min')}</label><input type="text" value="${minVal}" class="annPopoverIn" readonly /></span>
-      <span class="annPopoverCell"><label>${tt('common.median', 'Median')}</label><input type="text" value="${medianVal}" class="annPopoverIn" readonly /></span>
-    </div>
-    <div class="annPopoverRow">
-      <span class="annPopoverCell"><label>${tt('common.max', 'Max')}</label><input type="text" value="${maxVal}" class="annPopoverIn" readonly /></span>
-      <span class="annPopoverCell"></span>
-    </div>
-    <div class="annPopoverRow">
-      <span class="annPopoverCell annPopoverCellWide"><label>${tt('blueprint.rotate', 'Rot')}</label><select data-ann-id="${annId}" data-ann-field="thumbnailRotation" class="annPopoverIn annPopoverRotateSel">
+  const lowerDevStr = esc(numText(row?.lowerDeviation));
+  const upperDevStr = esc(numText(row?.upperDeviation));
+  const nomRead = esc(numView(row?.nominal) || '—');
+  const maybeRadius = (rawName === '61' || rawName === '62')
+    ? ` <span class="annPopoverHint">(${tt('blueprint.radiusHint', rawName === '61' ? 'R1?' : 'R2?')})</span>`
+    : '';
+  const titleText = esc(`#${row?.sourceBubbleId ?? row?.id ?? ''}`);
+  const delTitle = esc(tt('blueprint.deleteAnnotation', 'Delete this annotation'));
+  const minTitle = esc(tt('blueprint.popoverMinimize', 'Minimize'));
+  const expTitle = esc(tt('blueprint.popoverExpand', 'Expand'));
+  const rotateOptionsHtml = `
         <option value="-180">-180°</option>
         <option value="-135">-135°</option>
         <option value="-90">-90°</option>
@@ -997,24 +1071,84 @@ export function updateAnnPopover(row, metrics) {
         <option value="45">+45°</option>
         <option value="90">+90°</option>
         <option value="135">+135°</option>
-        <option value="180">+180°</option>
-      </select></span>
-    </div>
-    <div class="annPopoverFooter">
-      <span class="annPopoverConf">${esc(tt('blueprint.ocrLabel', 'OCR'))}: ${esc(confLabel)}</span>
-      <button type="button" class="btn bad annPopoverRemove" data-ann-delete="${annId}" title="${esc(tt('blueprint.deleteAnnotation', 'Delete this annotation'))}">${tt('common.remove', 'Remove')}</button>
+        <option value="180">+180°</option>`;
+
+  pop.classList.toggle('annOverlayPopover--min', minimized);
+
+  if (minimized) {
+    headEl.innerHTML = `
+    <span class="annOverlayPopoverTitle annPopoverMiniId">${titleText}</span>
+    <span class="annPopoverMiniNom" data-ann-popover-expand role="button" tabindex="0" title="${expTitle}" aria-label="${expTitle}">${nomRead}</span>
+    <div class="annOverlayPopoverHeadActions annPopoverMiniActions">
+      <button type="button" class="annPopoverIconBtn annPopoverIconBtnSm" data-ann-popover-expand title="${expTitle}" aria-label="${expTitle}">+</button>
+      <button type="button" class="annPopoverIconBtn annPopoverIconBtnSm annPopoverIconBtnDanger" data-ann-delete="${annId}" title="${delTitle}" aria-label="${delTitle}">×</button>
     </div>
   `;
-  const rotateSel = bodyEl.querySelector('.annPopoverRotateSel');
-  if (rotateSel) {
-    rotateSel.value = String(wrapDisplayRotation(autoThumbCorrection(row) + manualThumbRotation(row)));
+    bodyEl.innerHTML = '';
+  } else {
+    headEl.innerHTML = `
+    <span class="annOverlayPopoverTitle">${titleText}</span>
+    <div class="annPopoverHeadMain">
+      <div class="annPopoverField annPopoverFieldName">
+        <label class="annPopoverLab">${tt('common.name', 'Name')}${maybeRadius}</label>
+        <input type="text" data-ann-id="${annId}" data-ann-field="name" value="${name}" placeholder="${esc(tt('common.name', 'Name'))}" class="annPopoverIn" />
+      </div>
+      <div class="annPopoverField annPopoverFieldRotHead">
+        <label class="annPopoverLab">${tt('blueprint.rotate', 'Rot')}</label>
+        <select data-ann-id="${annId}" data-ann-field="thumbnailRotation" class="annPopoverIn annPopoverRotateSel">${rotateOptionsHtml}</select>
+      </div>
+    </div>
+    <div class="annOverlayPopoverHeadActions">
+      <button type="button" class="annPopoverIconBtn annPopoverIconBtnSm" data-ann-popover-minimize title="${minTitle}" aria-label="${minTitle}">−</button>
+      <button type="button" class="annPopoverIconBtn annPopoverIconBtnSm annPopoverIconBtnDanger" data-ann-delete="${annId}" title="${delTitle}" aria-label="${delTitle}">×</button>
+    </div>
+  `;
+    const alertBlock = (tolInverted || limitsInverted)
+      ? `<div class="annPopoverTolAlert" role="status">${tolAlertText}</div>`
+      : '';
+    bodyEl.innerHTML = `
+    <div class="annPopoverForm annPopoverFormCompact">
+    <div class="annPopoverGrid3">
+      <div class="annPopoverField annPopoverFieldNom">
+        <label class="annPopoverLab">${tt('blueprint.nomShort', 'Nom')}</label>
+        <input type="text" data-ann-id="${annId}" data-ann-field="nominal" value="${nominal}" placeholder="—" class="annPopoverIn annPopoverInNum" inputmode="decimal" autocomplete="off" />
+      </div>
+      <div class="annPopoverField annPopoverFieldTol">
+        <label class="annPopoverLab">${tt('blueprint.minTolShort', 'Min tol')}</label>
+        <input type="text" data-ann-id="${annId}" data-ann-field="lowerDeviation" value="${lowerDevStr}" placeholder="${esc(tt('blueprint.tolMinus', 'Tol -'))}" class="annPopoverIn annPopoverInTol" inputmode="decimal" autocomplete="off" />
+      </div>
+      <div class="annPopoverField annPopoverFieldTol">
+        <label class="annPopoverLab">${tt('blueprint.maxTolShort', 'Max tol')}</label>
+        <input type="text" data-ann-id="${annId}" data-ann-field="upperDeviation" value="${upperDevStr}" placeholder="${esc(tt('blueprint.tolPlus', 'Tol +'))}" class="annPopoverIn annPopoverInTol" inputmode="decimal" autocomplete="off" />
+      </div>
+    </div>
+    ${medianRow}
+    ${alertBlock}
+    </div>
+  `;
+  }
+  if (!minimized) {
+    const rotateSel = pop.querySelector('.annPopoverRotateSel');
+    if (rotateSel) {
+      rotateSel.value = String(wrapDisplayRotation(autoThumbCorrection(row) + manualThumbRotation(row)));
+    }
   }
   // #region agent log
   sendAgentDebugLog({sessionId:'6d6734',runId:'initial',hypothesisId:'H2',location:'render.js:updateAnnPopover:824',message:'popover content rendered',data:{annId:String(row?.id || ''),nameLength:String(row?.name || '').length,nominalLength:String(row?.nominal ?? '').length,unitLength:String(row?.unit ?? '').length,toleranceLength:String(row?.toleranceSpec ?? '').length,box:{x1:box.x1,y1:box.y1,x2:box.x2,y2:box.y2}},timestamp:Date.now()});
   // #endregion
   cancelPopoverHide();
   pop.hidden = false;
-  const popW = Math.max(176, Math.min(220, pop.offsetWidth || 188));
+  let popW;
+  if (minimized) {
+    pop.style.width = 'auto';
+    pop.style.minWidth = '0';
+    popW = Math.min(320, Math.max(48, Math.ceil(pop.getBoundingClientRect().width || pop.offsetWidth || 48)));
+    pop.style.width = `${popW}px`;
+  } else {
+    pop.style.minWidth = '';
+    popW = Math.max(260, Math.min(400, pop.offsetWidth || 300));
+    pop.style.width = `${popW}px`;
+  }
   const popH = pop.offsetHeight || 170;
   const gap = 6;
   const boxLeftInWrap = (canvasRect.left - wrapRect.left) + x * scaleX;
@@ -1058,12 +1192,19 @@ function isPopoverSticky() {
   return previewRuntime.popoverPointerInside || previewRuntime.popoverFocusInside;
 }
 
+function isPopoverPinned() {
+  const sid = String(state.selectedAnnId || '');
+  const aid = String(previewRuntime.popoverAnchorAnnId || '');
+  return Boolean(sid && aid && sid === aid);
+}
+
 export function clearAnnPopover(force = false) {
   if (previewRuntime.popoverHideTimeout) {
     clearTimeout(previewRuntime.popoverHideTimeout);
     previewRuntime.popoverHideTimeout = null;
   }
   if (!force && isPopoverSticky()) return;
+  if (!force && isPopoverPinned()) return;
   if (force) {
     previewRuntime.popoverPointerInside = false;
     previewRuntime.popoverFocusInside = false;
@@ -1071,9 +1212,11 @@ export function clearAnnPopover(force = false) {
   const pop = $('annOverlayPopover');
   if (pop) pop.hidden = true;
   previewRuntime.hoveredAnnId = '';
+  previewRuntime.popoverAnchorAnnId = '';
 }
 
 function schedulePopoverHide() {
+  if (isPopoverPinned()) return;
   if (previewRuntime.popoverHideTimeout) clearTimeout(previewRuntime.popoverHideTimeout);
   previewRuntime.popoverHideTimeout = setTimeout(() => {
     previewRuntime.popoverHideTimeout = null;
@@ -1266,6 +1409,10 @@ export function bindPreviewInteractions() {
         state.selectedAnnId = id;
         renderAnnotations();
       }
+    } else if (event.button === 0 && !event.shiftKey && state.previewPickerMode !== 'box') {
+      state.selectedAnnId = '';
+      renderAnnotations();
+      clearAnnPopover(true);
     }
     previewRuntime.pointerId = event.pointerId;
     previewRuntime.startClientX = event.clientX;
@@ -1314,19 +1461,41 @@ export function bindPreviewInteractions() {
     const hit = hitPreviewBox(point, m);
     const prevHoverId = String(previewRuntime.hoveredAnnId || '');
     const nextHoverId = hit?.row?.id != null ? String(hit.row.id) : '';
+    const pinSid = String(state.selectedAnnId || '');
+    const hoverPopoverAllowed = !pinSid || nextHoverId === pinSid;
 
     if (hit?.row) {
-      // Hovering over a box: show/update popover and cancel any pending hide.
-      if (nextHoverId !== prevHoverId) {
-        previewRuntime.hoveredAnnId = nextHoverId;
+      if (hoverPopoverAllowed) {
+        // Hovering over a box: show/update popover for this row (or same as selection).
+        if (nextHoverId !== prevHoverId) {
+          previewRuntime.hoveredAnnId = nextHoverId;
+        }
+        updateAnnPopover(hit.row, m);
+        cancelPopoverHide();
+      } else {
+        // Another annotation is selected: do not activate hover/popover on other boxes.
+        previewRuntime.hoveredAnnId = '';
+        const selRow = currentPreviewAnnotations().find((r) => String(r?.id || '') === pinSid);
+        if (selRow) {
+          updateAnnPopover(selRow, m);
+          cancelPopoverHide();
+        }
       }
-      updateAnnPopover(hit.row, m);
-      cancelPopoverHide();
       renderPreviewOverlay();
-    } else if (prevHoverId) {
-      // Moved off the previously hovered box: start hide timer and clear hover id.
+    } else {
       previewRuntime.hoveredAnnId = '';
-      schedulePopoverHide();
+      if (pinSid) {
+        const selRow = currentPreviewAnnotations().find((r) => String(r?.id || '') === pinSid);
+        if (selRow) {
+          updateAnnPopover(selRow, m);
+          cancelPopoverHide();
+        } else {
+          schedulePopoverHide();
+        }
+      } else if (prevHoverId) {
+        schedulePopoverHide();
+      }
+      if (prevHoverId) renderPreviewOverlay();
     }
     if (hit?.handle) canvas.style.cursor = 'nwse-resize';
     else if (hit?.onBubble) canvas.style.cursor = 'move';
@@ -1358,6 +1527,31 @@ export function bindPreviewInteractions() {
     if (event.relatedTarget && pop?.contains(event.relatedTarget)) return;
     previewRuntime.popoverFocusInside = false;
     if (previewRuntime.hoveredAnnId) schedulePopoverHide();
+  });
+
+  $('annOverlayPopover')?.addEventListener('click', (event) => {
+    if (event.target.closest('[data-ann-popover-minimize]')) {
+      previewRuntime.annPopoverMinimized = true;
+      persistAnnPopoverMinimized(true);
+      event.preventDefault();
+      const m = previewMetrics();
+      const id = String(previewRuntime.hoveredAnnId || previewRuntime.popoverAnchorAnnId || '');
+      const row = docsApi.productAnnotationById(id, state.selectedProductId);
+      if (m && row) updateAnnPopover(row, m);
+      renderPreviewOverlay();
+      return;
+    }
+    if (event.target.closest('[data-ann-popover-expand]')) {
+      previewRuntime.annPopoverMinimized = false;
+      persistAnnPopoverMinimized(false);
+      event.preventDefault();
+      const m = previewMetrics();
+      const id = String(previewRuntime.hoveredAnnId || previewRuntime.popoverAnchorAnnId || '');
+      const row = docsApi.productAnnotationById(id, state.selectedProductId);
+      if (m && row) updateAnnPopover(row, m);
+      renderPreviewOverlay();
+      return;
+    }
   });
 
   canvas.addEventListener('dblclick', (event) => {

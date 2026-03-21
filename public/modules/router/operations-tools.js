@@ -83,7 +83,7 @@
         "routeNameIn","routeRevisionIn","routeProductRefIn","routeSaveBtn","routeResetBtn",
         "routeExportJsonBtn","routeExportCsvBtn","routeExportPdfBtn",
         "routeOpSel","opAddBtn","opDeleteBtn","opUpBtn","opDownBtn","opSeqIn","opNameIn",
-        "opStationIn","opWorkstationIn","opEstTimeIn","opSampleSizeIn","opFrequencyIn","opControlMethodIn",
+        "opStationIn","opWorkstationIn","opEstTimeIn","opEstQtyBaseIn","opSampleSizeIn","opFrequencyIn","opControlMethodIn",
         "opNotesIn","opCriticalChk","opSaveBtn",
         "opOpenChronoBtn","opTaskAddBtn","opProductDocSel","opLinkProductDocBtn","opUnlinkDrawingBtn","opOpenDrawingMgrBtn","opAnnSelectAllBtn","opAnnClearBtn",
         "bubbleIdIn","bubbleCharSel","bubbleNameIn","bubbleNomIn","bubbleTolSpecIn","bubbleDevMinusIn","bubbleDevPlusIn",
@@ -514,6 +514,7 @@
         stationCode: "",
         workstation: "",
         estimatedTimeMin: null,
+        estimatedQtyBase: 1,
         sampleSize: null,
         frequency: "",
         controlMethod: "",
@@ -547,6 +548,10 @@
       op.stationCode = strOrEmpty($("opStationIn").value);
       op.workstation = strOrEmpty($("opWorkstationIn").value);
       op.estimatedTimeMin = numOrNull($("opEstTimeIn").value);
+      {
+        const qtyBase = Number($("opEstQtyBaseIn").value || 1);
+        op.estimatedQtyBase = Number.isFinite(qtyBase) && qtyBase > 0 ? Math.max(1, Math.round(qtyBase)) : 1;
+      }
       op.sampleSize = numOrNull($("opSampleSizeIn").value);
       op.frequency = strOrEmpty($("opFrequencyIn").value);
       op.controlMethod = sanitizeStructuredMarker($("opControlMethodIn").value);

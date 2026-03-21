@@ -57,6 +57,30 @@
       return base || fallback;
     }
 
+    function resolveBubbleBoxForTarget(bubble, targetWidth = 0, targetHeight = 0, sourceWidth = 0, sourceHeight = 0) {
+      const box = normalizeBbox(bubble?.bbox);
+      if (!box) return null;
+      const values = [box.x1, box.y1, box.x2, box.y2];
+      const looksNormalized = values.every((v) => Number.isFinite(v) && v >= -0.02 && v <= 1.02);
+      if (looksNormalized && targetWidth > 0 && targetHeight > 0) {
+        return normalizeBbox({
+          x1: box.x1 * targetWidth,
+          y1: box.y1 * targetHeight,
+          x2: box.x2 * targetWidth,
+          y2: box.y2 * targetHeight,
+        });
+      }
+      if (String(bubble?.coordSpace || "") === "source" && sourceWidth > 0 && sourceHeight > 0 && targetWidth > 0 && targetHeight > 0) {
+        return normalizeBbox({
+          x1: box.x1 * (targetWidth / sourceWidth),
+          y1: box.y1 * (targetHeight / sourceHeight),
+          x2: box.x2 * (targetWidth / sourceWidth),
+          y2: box.y2 * (targetHeight / sourceHeight),
+        });
+      }
+      return box;
+    }
+
     function routeRowsForExport(plan) {
       const rows = [];
       if (!plan) return rows;
@@ -83,6 +107,7 @@
               opStation: op.stationCode,
               opWorkstation: op.workstation,
               opEstMin: op.estimatedTimeMin,
+              opEstQtyBase: op.estimatedQtyBase ?? "",
               opSampleSize: op.sampleSize,
               opFrequency: op.frequency,
               opControl: sanitizeStructuredMarker(op.controlMethod),
@@ -115,7 +140,13 @@
             continue;
           }
           for (const b of bubbles) {
-            const bb = normalizeBbox(b?.bbox);
+            const bb = resolveBubbleBoxForTarget(
+              b,
+              Number(f?.imageWidth || 0) || 0,
+              Number(f?.imageHeight || 0) || 0,
+              Number(f?.imageWidth || 0) || 0,
+              Number(f?.imageHeight || 0) || 0,
+            );
             const off = (b?.bubbleOffset && Number.isFinite(Number(b.bubbleOffset.x)) && Number.isFinite(Number(b.bubbleOffset.y)))
               ? { x: Number(b.bubbleOffset.x), y: Number(b.bubbleOffset.y) }
               : null;
@@ -131,6 +162,7 @@
               opStation: op.stationCode,
               opWorkstation: op.workstation,
               opEstMin: op.estimatedTimeMin ?? "",
+              opEstQtyBase: op.estimatedQtyBase ?? "",
               opSampleSize: op.sampleSize ?? "",
               opFrequency: op.frequency,
               opControl: sanitizeStructuredMarker(op.controlMethod),
@@ -176,7 +208,7 @@
       const routePlan = getRoutePlan();
       if (!routePlan) return;
       const rows = routeRowsForExport(routePlan);
-      const headers = ["routeName","revision","productRef","station","opSeq","opName","opStation","opWorkstation","opEstMin","opSampleSize","opFrequency","opControl","opCritical","opNotes","opCharacteristics","opFileId","opFileName","opFileType","bubbleId","characteristicId","characteristicName","bubbleName","nominal","lsl","usl","unit","method","instrument","reaction","bubbleX1","bubbleY1","bubbleX2","bubbleY2","bubbleWidth","bubbleHeight","bubbleLabelX","bubbleLabelY"];
+      const headers = ["routeName","revision","productRef","station","opSeq","opName","opStation","opWorkstation","opEstMin","opEstQtyBase","opSampleSize","opFrequency","opControl","opCritical","opNotes","opCharacteristics","opFileId","opFileName","opFileType","bubbleId","characteristicId","characteristicName","bubbleName","nominal","lsl","usl","unit","method","instrument","reaction","bubbleX1","bubbleY1","bubbleX2","bubbleY2","bubbleWidth","bubbleHeight","bubbleLabelX","bubbleLabelY"];
       const lines = [headers.join(",")];
       for (const row of rows) lines.push(headers.map((h) => csvCell(row[h])).join(","));
       exportTextFile(`Route_${safeRecordToken(routePlan.routeName || routePlan.productRef || "route")}_${new Date().toISOString().slice(0, 10)}.csv`, lines.join("\n"), "text/csv");
@@ -290,9 +322,13 @@
       const selectedId = strOrEmpty(options?.selectedId);
       const fontSize = clampDisplaySettingNumber(display?.bubbleFontSize, 6, 36, 12);
       const bubbleRadius = clampDisplaySettingNumber(display?.bubbleSize, 6, 44, 14);
+      const targetWidth = Math.max(1, Number(ctx?.canvas?.width || 1));
+      const targetHeight = Math.max(1, Number(ctx?.canvas?.height || 1));
+      const sourceWidth = Math.max(0, Number(options?.sourceWidth || 0) || 0);
+      const sourceHeight = Math.max(0, Number(options?.sourceHeight || 0) || 0);
       for (let i = 0; i < bubbles.length; i += 1) {
         const b = bubbles[i];
-        const box = normalizeBbox(b?.bbox);
+        const box = resolveBubbleBoxForTarget(b, targetWidth, targetHeight, sourceWidth, sourceHeight);
         if (!box) continue;
         const isSel = selectedId ? String(b.id || "") === selectedId : false;
         const accent = exportBubbleColorForIndex(i, display, theme, { rainbow });
@@ -399,6 +435,8 @@
         selectedId: "",
         rainbow: !!exportDisplay.rainbowExport,
         displaySettings: exportDisplay,
+        sourceWidth: Number(file?.imageWidth || 0) || width,
+        sourceHeight: Number(file?.imageHeight || 0) || height,
       });
       return cv;
     }

@@ -415,8 +415,19 @@
       name: String(p?.name || `Product ${idx + 1}`),
       family: String(p?.family || p?.meta?.family || ""),
       parentProductId: String(p?.parentProductId || ""),
+      parentQty: Number(p?.parentQty || p?.meta?.parentQty || 1) || 1,
+      bomParents: normalizeBomParents(
+        Array.isArray(p?.bomParents) && p.bomParents.length
+          ? p.bomParents
+          : (
+            Array.isArray(p?.meta?.bomParents) && p.meta.bomParents.length
+              ? p.meta.bomParents
+              : (p?.parentProductId ? [{ parentProductId: p.parentProductId, qty: Number(p?.parentQty || p?.meta?.parentQty || 1) || 1 }] : [])
+          )
+      ),
       categoryIds: Array.isArray(p?.categoryIds) ? p.categoryIds.map((x) => String(x || "")).filter((x) => categoryIds.has(x)) : [],
       imageUrl: String(p?.imageUrl || ""),
+      meta: normalizeMeta(p?.meta),
     }));
     if (!Array.isArray(st.jobs)) st.jobs = [];
     if (!st.products.length && st.jobs.length) {
@@ -437,10 +448,13 @@
             name: baseName ? `${baseName} Product` : `Product ${n}`,
             family: "",
             parentProductId: "",
+            parentQty: 1,
+            bomParents: [],
             categoryIds: Array.isArray(job?.categoryIds)
               ? job.categoryIds.map((x) => String(x || "")).filter((x) => categoryIds.has(x))
               : [],
             imageUrl: "",
+            meta: {},
           });
         }
         const prod = map.get(key);
@@ -449,7 +463,38 @@
       }
       st.products = [...map.values()];
     }
+    applyHydrogenDemoScenario(st);
     const productIds = new Set(st.products.map((p) => String(p?.id || "")).filter(Boolean));
+    st.products = st.products.map((p) => {
+      const meta = normalizeMeta(p?.meta);
+      const family = String(p?.family || meta.family || "");
+      const bomParents = normalizeBomParents(
+        Array.isArray(p?.bomParents) && p.bomParents.length
+          ? p.bomParents
+          : (
+            Array.isArray(meta?.bomParents) && meta.bomParents.length
+              ? meta.bomParents
+              : (p?.parentProductId ? [{ parentProductId: p.parentProductId, qty: Number(p?.parentQty || meta.parentQty || 1) || 1 }] : [])
+          ),
+        productIds,
+        p?.id
+      );
+      const parentProductId = String(bomParents[0]?.parentProductId || "");
+      const parentQty = Number(bomParents[0]?.qty || p?.parentQty || meta.parentQty || 1) || 1;
+      return {
+        ...p,
+        family,
+        bomParents,
+        parentProductId,
+        parentQty,
+        meta: {
+          ...meta,
+          ...(family ? { family } : {}),
+          bomParents,
+          ...(parentQty > 0 ? { parentQty } : {}),
+        },
+      };
+    });
     const productByCode = new Map(st.products.map((p) => [String(p?.code || "").toLowerCase(), String(p?.id || "")]));
     const productByName = new Map(st.products.map((p) => [String(p?.name || "").toLowerCase(), String(p?.id || "")]));
     const stationById = new Map(st.stations.map((s) => [String(s?.id || ""), s]));
@@ -546,12 +591,72 @@
     return st;
   }
 
+  function stationScheduleSeed(index = 0) {
+    const presets = [
+      { scheduleProfile: "single_8x5", shiftStartHour: 8, workingMinutesPerDay: 8 * 60, workingDays: [1, 2, 3, 4, 5] },
+      { scheduleProfile: "double_16x5", shiftStartHour: 6, workingMinutesPerDay: 16 * 60, workingDays: [1, 2, 3, 4, 5] },
+      { scheduleProfile: "continuous_24x7", shiftStartHour: 0, workingMinutesPerDay: 24 * 60, workingDays: [0, 1, 2, 3, 4, 5, 6] },
+    ];
+    return { ...presets[Math.abs(Number(index || 0)) % presets.length], offDates: [] };
+  }
+
+  function suggestedPlanningForOperation(name = "", index = 0) {
+    const text = String(name || "").trim().toLowerCase();
+    if (text.includes("machine")) return { estimatedTimeMin: 120, estimatedQtyBase: 10 };
+    if (text.includes("prep") || text.includes("pick")) return { estimatedTimeMin: 45, estimatedQtyBase: 10 };
+    if (text.includes("assembly") || text.includes("align") || text.includes("place")) return { estimatedTimeMin: 75, estimatedQtyBase: 10 };
+    if (text.includes("inspect") || text.includes("check") || text.includes("qc")) return { estimatedTimeMin: 35, estimatedQtyBase: 10 };
+    if (text.includes("label")) return { estimatedTimeMin: 20, estimatedQtyBase: 20 };
+    if (text.includes("pack")) return { estimatedTimeMin: 40, estimatedQtyBase: 20 };
+    return { estimatedTimeMin: 50 + ((Math.abs(Number(index || 0)) % 4) * 15), estimatedQtyBase: 10 };
+  }
+
+  function normalizePlanningDefaults(state) {
+    const st = state && typeof state === "object" ? state : {};
+    if (Array.isArray(st.stations)) {
+      st.stations = st.stations.map((station, index) => {
+        const base = (station && typeof station === "object") ? { ...station } : {};
+        const seed = stationScheduleSeed(index);
+        const hasOverride = base.scheduleOverride === true || base.scheduleOverride === false
+          ? !!base.scheduleOverride
+          : !!(base.scheduleProfile || base.shiftStartHour != null || base.workingMinutesPerDay != null || (Array.isArray(base.workingDays) && base.workingDays.length) || (Array.isArray(base.offDates) && base.offDates.length));
+        if (!base.scheduleProfile) base.scheduleProfile = seed.scheduleProfile;
+        if (base.shiftStartHour == null) base.shiftStartHour = seed.shiftStartHour;
+        if (base.workingMinutesPerDay == null) base.workingMinutesPerDay = seed.workingMinutesPerDay;
+        if (!Array.isArray(base.workingDays) || !base.workingDays.length) base.workingDays = seed.workingDays.slice();
+        if (!Array.isArray(base.offDates)) base.offDates = [];
+        base.scheduleOverride = hasOverride;
+        return base;
+      });
+    }
+    const ops = getOperationRows(st);
+    if (Array.isArray(ops)) {
+      for (let i = 0; i < ops.length; i += 1) {
+        const op = ops[i];
+        if (!op || typeof op !== "object") continue;
+        const suggestion = suggestedPlanningForOperation(op.name, i);
+        if (!(Number(op.estimatedTimeMin) > 0)) op.estimatedTimeMin = suggestion.estimatedTimeMin;
+        if (!(Number(op.estimatedQtyBase) > 0)) op.estimatedQtyBase = suggestion.estimatedQtyBase;
+        if (Array.isArray(op.elements)) {
+          op.elements = op.elements.map((element, elIndex) => {
+            const item = element && typeof element === "object" ? { ...element } : {};
+            const elSuggestion = suggestedPlanningForOperation(item.name, elIndex);
+            if (!(Number(item.estimatedTimeMin) > 0)) item.estimatedTimeMin = elSuggestion.estimatedTimeMin;
+            if (!(Number(item.estimatedQtyBase) > 0)) item.estimatedQtyBase = elSuggestion.estimatedQtyBase;
+            return item;
+          });
+        }
+      }
+    }
+    return st;
+  }
+
   function normalizeImportedAppState(v) {
     const src = (v && typeof v === "object" && v.app && typeof v.app === "object") ? v.app : v;
     if (!isValidAppState(src)) return null;
     const st = toInternalJobShape(safeParse(JSON.stringify(src), null));
     if (!isValidAppState(st)) return null;
-    const normalized = normalizeProductsAndJobs(st);
+    const normalized = normalizePlanningDefaults(normalizeProductsAndJobs(st));
     if (!normalized.activeProductId && normalized.products[0]) normalized.activeProductId = normalized.products[0].id;
     if (!normalized.activeJobId && normalized.jobs[0]) normalized.activeJobId = normalized.jobs[0].id;
     const canonical = toCanonicalOperationShape(normalized);
@@ -720,8 +825,30 @@
     const c2 = { id: uuid(), code: "CAT002", name: "Packaging", parentCategoryId: "" };
     const p1 = { id: uuid(), code: "P001", name: "Alpha Product", family: "", parentProductId: "", categoryIds: [c1.id], imageUrl: "" };
     const p2 = { id: uuid(), code: "P002", name: "Beta Product", family: "", parentProductId: p1.id, categoryIds: [c2.id], imageUrl: "" };
-    const st1 = { id: uuid(), code: "S01", name: "Assembly Line A - Station 1", categoryIds: [c1.id] };
-    const st2 = { id: uuid(), code: "S02", name: "Packaging Cell - Station 2", categoryIds: [c2.id] };
+    const st1 = {
+      id: uuid(),
+      code: "S01",
+      name: "Assembly Line A - Station 1",
+      categoryIds: [c1.id],
+      scheduleOverride: true,
+      scheduleProfile: "single_8x5",
+      shiftStartHour: 8,
+      workingMinutesPerDay: 8 * 60,
+      workingDays: [1, 2, 3, 4, 5],
+      offDates: [],
+    };
+    const st2 = {
+      id: uuid(),
+      code: "S02",
+      name: "Packaging Cell - Station 2",
+      categoryIds: [c2.id],
+      scheduleOverride: true,
+      scheduleProfile: "double_16x5",
+      shiftStartHour: 6,
+      workingMinutesPerDay: 16 * 60,
+      workingDays: [1, 2, 3, 4, 5],
+      offDates: [],
+    };
     const e1 = { id: uuid(), name: "Pick part", type: "HUMAN" };
     const e2 = { id: uuid(), name: "Place part", type: "HUMAN" };
     const e3 = { id: uuid(), name: "Machine cycle", type: "MACHINE" };
@@ -836,7 +963,12 @@
     const elements = Array.isArray(j.elements) ? j.elements : [];
     const ops = elements.map((el, i) => {
       const ms = avgElementMs(j, el?.id);
-      const estMin = ms && Number.isFinite(ms) ? Math.max(0.01, Number((ms / 60000).toFixed(3))) : null;
+      const derivedMin = ms && Number.isFinite(ms) ? Math.max(0.01, Number((ms / 60000).toFixed(3))) : null;
+      const explicitMin = Number(el?.estimatedTimeMin || 0);
+      const suggestion = suggestedPlanningForOperation(el?.name, i);
+      const estMin = explicitMin > 0
+        ? explicitMin
+        : ((derivedMin != null && derivedMin >= 10) ? derivedMin : suggestion.estimatedTimeMin);
       return {
         id: String(el?.id || uuid()),
         seq: (i + 1) * 10,
@@ -844,6 +976,7 @@
         stationCode: String(st?.code || ""),
         workstation: String(st?.name || ""),
         estimatedTimeMin: estMin,
+        estimatedQtyBase: Math.max(1, Number(el?.estimatedQtyBase || suggestion.estimatedQtyBase || 1) || 1),
         sampleSize: null,
         frequency: "",
         controlMethod: "",
@@ -1196,6 +1329,7 @@
             stationCode: String(station?.code || ""),
             workstation: String(station?.name || ""),
             estimatedTimeMin: avgOperationMin(op),
+            estimatedQtyBase: Math.max(1, Number(op?.estimatedQtyBase || 1) || 1),
             sampleSize: null,
             frequency: "",
             controlMethod: "",
@@ -1368,16 +1502,132 @@
     return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
   }
 
+  function normalizeBomParents(value, validProductIds = null, selfId = "") {
+    const self = String(selfId || "");
+    const map = new Map();
+    const rows = Array.isArray(value) ? value : [];
+    for (const row of rows) {
+      const src = row && typeof row === "object" ? row : { parentProductId: row };
+      const parentProductId = String(
+        src.parentProductId
+        || src.parentId
+        || src.parent_id
+        || src.productId
+        || src.product_id
+        || ""
+      ).trim();
+      if (!parentProductId || parentProductId === self) continue;
+      if (validProductIds && !validProductIds.has(parentProductId)) continue;
+      const qtyRaw = Number(src.qty ?? src.quantity ?? src.parentQty ?? 1);
+      const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? Number(Number(qtyRaw).toFixed(4)) : 1;
+      const unit = String(src.unit || src.uom || "ea").trim() || "ea";
+      const note = String(src.note || src.notes || "").trim();
+      const existing = map.get(parentProductId);
+      if (existing) {
+        existing.qty = Number(Number((existing.qty + qty)).toFixed(4));
+        if (!existing.note && note) existing.note = note;
+        if (!existing.unit && unit) existing.unit = unit;
+      } else {
+        map.set(parentProductId, { parentProductId, qty, unit, note });
+      }
+    }
+    return [...map.values()];
+  }
+
+  function firstBomParentId(product) {
+    const links = normalizeBomParents(product?.bomParents);
+    if (links[0]?.parentProductId) return String(links[0].parentProductId);
+    return String(product?.parentProductId || "");
+  }
+
+  function firstBomParentQty(product) {
+    const links = normalizeBomParents(product?.bomParents);
+    if (links[0]?.qty > 0) return Number(links[0].qty);
+    const legacy = Number(product?.parentQty || product?.meta?.parentQty || 1);
+    return Number.isFinite(legacy) && legacy > 0 ? legacy : 1;
+  }
+
+  function looksLikeGenericDemoProducts(products) {
+    const generic = new Set([
+      "alpha product", "beta product", "gamma product", "delta product", "epsilon product", "zeta product",
+      "eta product", "theta product", "iota product", "kappa product", "lambda product", "mu product",
+      "nu product", "xi product", "omicron product", "pi product",
+    ]);
+    const names = (Array.isArray(products) ? products : [])
+      .map((p) => String(p?.name || "").trim().toLowerCase())
+      .filter(Boolean);
+    const matches = names.filter((name) => generic.has(name)).length;
+    return matches >= Math.min(3, names.length || 0);
+  }
+
+  function applyHydrogenDemoScenario(st) {
+    if (!Array.isArray(st?.products) || !st.products.length) return st;
+    if (!looksLikeGenericDemoProducts(st.products)) return st;
+    const templates = [
+      { name: "Propulsion Unit Assembly", family: "sellable-assembly", parents: [] },
+      { name: "Hydrogen Drive Motor", family: "end-assembly", parents: [{ code: "P001", qty: 1 }] },
+      { name: "H2O Aluminum Battery Pack", family: "end-assembly", parents: [{ code: "P001", qty: 1 }] },
+      { name: "Power Electronics Module", family: "subassembly", parents: [{ code: "P001", qty: 1 }] },
+      { name: "Stator Core Assembly", family: "subassembly", parents: [{ code: "P002", qty: 1 }] },
+      { name: "Rotor Shaft Assembly", family: "subassembly", parents: [{ code: "P002", qty: 1 }] },
+      { name: "Cooling Manifold", family: "subassembly", parents: [{ code: "P002", qty: 1 }, { code: "P003", qty: 1 }] },
+      { name: "Hydrogen Regulator Module", family: "subassembly", parents: [{ code: "P003", qty: 1 }] },
+      { name: "Control Harness Kit", family: "component-kit", parents: [{ code: "P002", qty: 1 }, { code: "P003", qty: 1 }, { code: "P004", qty: 1 }] },
+      { name: "Housing And Seal Kit", family: "component-kit", parents: [{ code: "P002", qty: 1 }, { code: "P003", qty: 1 }] },
+      { name: "Aluminum Cell Cartridge", family: "consumable", parents: [{ code: "P003", qty: 8 }] },
+      { name: "Water Activation Plate", family: "component", parents: [{ code: "P003", qty: 2 }] },
+      { name: "Sensor And Safety Harness", family: "component-kit", parents: [{ code: "P004", qty: 1 }, { code: "P001", qty: 1 }] },
+      { name: "Service Manifold Kit", family: "service", parents: [{ code: "P007", qty: 1 }] },
+    ];
+    const codeToId = new Map((st.products || []).map((p) => [String(p?.code || "").trim().toUpperCase(), String(p?.id || "")]));
+    st.products = st.products.map((product, index) => {
+      const tpl = templates[index];
+      if (!tpl) return product;
+      const bomParents = tpl.parents
+        .map((rel) => {
+          const parentProductId = codeToId.get(String(rel.code || "").toUpperCase()) || "";
+          return parentProductId ? { parentProductId, qty: Number(rel.qty || 1), unit: "ea", note: "" } : null;
+        })
+        .filter(Boolean);
+      const baseMeta = normalizeMeta(product?.meta);
+      return {
+        ...product,
+        name: tpl.name,
+        family: tpl.family,
+        bomParents,
+        parentProductId: String(bomParents[0]?.parentProductId || ""),
+        parentQty: Number(bomParents[0]?.qty || 1),
+        meta: {
+          ...baseMeta,
+          family: tpl.family,
+          bomParents,
+        },
+      };
+    });
+    return st;
+  }
+
   function apiProductFromLocal(raw) {
     const src = raw && typeof raw === "object" ? raw : {};
     const family = String(firstRecordValue(src, "family") || "").trim();
     const baseMeta = normalizeMeta(firstRecordValue(src, "meta"));
-    const meta = family ? { ...baseMeta, family } : baseMeta;
+    const bomParents = normalizeBomParents(
+      Array.isArray(firstRecordValue(src, "bomParents")) ? firstRecordValue(src, "bomParents") : baseMeta?.bomParents,
+      null,
+      src?.id
+    );
+    const parentQty = Number(firstRecordValue(src, "parentQty") || baseMeta?.parentQty || firstBomParentQty({ bomParents })) || 1;
+    const meta = {
+      ...baseMeta,
+      ...(family ? { family } : {}),
+      bomParents,
+      parentQty,
+    };
     return {
       id: String(src.id || uuid()),
       code: String(firstRecordValue(src, "code") || ""),
       name: String(firstRecordValue(src, "name") || "Product"),
-      parent_product_id: String(firstRecordValue(src, "parent_product_id") || firstRecordValue(src, "parentProductId") || ""),
+      parent_product_id: String(firstBomParentId({ ...src, bomParents }) || firstRecordValue(src, "parent_product_id") || firstRecordValue(src, "parentProductId") || ""),
       image_url: String(firstRecordValue(src, "image_url") || firstRecordValue(src, "imageUrl") || ""),
       meta,
     };
@@ -1387,15 +1637,44 @@
     const src = raw && typeof raw === "object" ? raw : {};
     const prev = current && typeof current === "object" ? current : {};
     const meta = normalizeMeta(firstRecordValue(src, "meta") || prev.meta || {});
+    const productId = String(src.id || prev.id || uuid());
+    const bomParents = normalizeBomParents(
+      Array.isArray(firstRecordValue(src, "bomParents")) && firstRecordValue(src, "bomParents").length
+        ? firstRecordValue(src, "bomParents")
+        : (
+          Array.isArray(meta?.bomParents) && meta.bomParents.length
+            ? meta.bomParents
+            : (
+              firstRecordValue(src, "parent_product_id") || firstRecordValue(src, "parentProductId") || prev.parentProductId
+                ? [{
+                  parentProductId: String(firstRecordValue(src, "parent_product_id") || firstRecordValue(src, "parentProductId") || prev.parentProductId || ""),
+                  qty: Number(firstRecordValue(src, "parentQty") || meta.parentQty || prev.parentQty || 1) || 1,
+                }]
+                : []
+            )
+        ),
+      null,
+      productId
+    );
+    const family = String(firstRecordValue(src, "family") || meta.family || prev.family || "");
+    const parentProductId = String(firstBomParentId({ ...src, ...prev, bomParents }) || "");
+    const parentQty = Number(firstBomParentQty({ ...src, ...prev, bomParents, parentQty: firstRecordValue(src, "parentQty") || meta.parentQty || prev.parentQty })) || 1;
     return {
       ...prev,
-      id: String(src.id || prev.id || uuid()),
+      id: productId,
       code: String(firstRecordValue(src, "code") || prev.code || ""),
       name: String(firstRecordValue(src, "name") || prev.name || "Product"),
-      family: String(firstRecordValue(src, "family") || meta.family || prev.family || ""),
-      parentProductId: String(firstRecordValue(src, "parent_product_id") || firstRecordValue(src, "parentProductId") || prev.parentProductId || ""),
+      family,
+      bomParents,
+      parentProductId,
+      parentQty,
       imageUrl: String(firstRecordValue(src, "image_url") || firstRecordValue(src, "imageUrl") || prev.imageUrl || ""),
-      meta,
+      meta: {
+        ...meta,
+        ...(family ? { family } : {}),
+        bomParents,
+        parentQty,
+      },
       updatedAt: String(firstRecordValue(src, "updated_at") || firstRecordValue(src, "updatedAt") || prev.updatedAt || ""),
     };
   }
@@ -1517,6 +1796,8 @@
         String(prev.code || "") !== String(next.code || "")
         || String(prev.name || "") !== String(next.name || "")
         || String(prev.parentProductId || "") !== String(next.parentProductId || "")
+        || Number(prev.parentQty || 1) !== Number(next.parentQty || 1)
+        || stableJson(prev.bomParents) !== stableJson(next.bomParents)
         || String(prev.imageUrl || "") !== String(next.imageUrl || "")
         || stableJson(prev.meta) !== stableJson(next.meta)
       );
@@ -1567,6 +1848,29 @@
       const app = readAppState({ seedIfMissing: false }) || createEmptyAppState();
       const before = Array.isArray(app.products) ? app.products.length : 0;
       app.products = (app.products || []).filter((x) => String(x?.id || "") !== rid);
+      const validIds = new Set(app.products.map((x) => String(x?.id || "")).filter(Boolean));
+      for (const product of app.products) {
+        const existingLinks = normalizeBomParents(
+          Array.isArray(product?.bomParents) && product.bomParents.length
+            ? product.bomParents
+            : (String(product?.parentProductId || "") ? [{ parentProductId: String(product.parentProductId || ""), qty: Number(product?.parentQty || product?.meta?.parentQty || 1) || 1 }] : []),
+          null,
+          product?.id
+        );
+        const nextBomParents = normalizeBomParents(existingLinks, validIds, product?.id)
+          .filter((rel) => String(rel?.parentProductId || "") !== rid);
+        if (stableJson(existingLinks) !== stableJson(nextBomParents) || String(product?.parentProductId || "") === rid) {
+          product.bomParents = nextBomParents;
+          product.parentProductId = String(nextBomParents[0]?.parentProductId || "");
+          product.parentQty = Number(nextBomParents[0]?.qty || 1) || 1;
+          product.meta = {
+            ...normalizeMeta(product?.meta),
+            ...(String(product?.family || "") ? { family: String(product.family || "") } : {}),
+            bomParents: nextBomParents,
+            parentQty: product.parentQty,
+          };
+        }
+      }
       if (String(app.activeProductId || "") === rid) app.activeProductId = app.products[0]?.id || null;
       for (const job of (app.jobs || [])) {
         if (String(job?.productId || "") === rid) job.productId = "";

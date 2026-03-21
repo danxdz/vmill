@@ -888,7 +888,9 @@ def validate_image_dimensions(image_path: str) -> bool:
         return False
 
 
-def normalize_image_dimensions_for_ocr(image_path: str, max_dimension: int = MAX_IMAGE_DIMENSIONS) -> str:
+def normalize_image_dimensions_for_ocr(
+    image_path: str, max_dimension: int = MAX_IMAGE_DIMENSIONS, temp_suffix: str = ".jpg"
+) -> str:
     """Downscale oversized images for OCR instead of rejecting them outright."""
     try:
         img = cv2.imread(str(image_path))
@@ -904,12 +906,14 @@ def normalize_image_dimensions_for_ocr(image_path: str, max_dimension: int = MAX
         scale = max_dimension / float(max_size)
         new_width = max(1, int(round(width * scale)))
         new_height = max(1, int(round(height * scale)))
-        logger.warning(
+        # Expected path for large scans/PDF renders — INFO avoids "loop" noise when retries hit /ocr/process.
+        logger.info(
             f"📉 Downscaling oversized OCR image from {width}x{height} "
             f"to {new_width}x{new_height} (limit {max_dimension}px)"
         )
         resized_img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
-        resized_path = create_secure_temp_file('.jpg')
+        safe_suffix = temp_suffix if str(temp_suffix).lower().endswith((".png", ".jpg", ".jpeg", ".webp")) else ".jpg"
+        resized_path = create_secure_temp_file(safe_suffix)
         cv2.imwrite(resized_path, resized_img)
         return resized_path
     except HTTPException:
@@ -2593,6 +2597,57 @@ def remap_zone_from_rotated_pass(zone, orig_w, orig_h, rotation):
     return out
 
 
+def scale_zone_bbox_to_source(zone, src_w, src_h, ocr_w, ocr_h):
+    """Scale one OCR zone bbox/polygon from OCR image size to source image size."""
+    if not isinstance(zone, dict):
+        return zone
+    if src_w <= 0 or src_h <= 0 or ocr_w <= 0 or ocr_h <= 0:
+        return zone
+    sx = float(src_w) / float(ocr_w)
+    sy = float(src_h) / float(ocr_h)
+    out = dict(zone)
+    bbox = out.get("bbox") if isinstance(out.get("bbox"), dict) else None
+    if bbox:
+        x1 = float(bbox.get("x1", 0) or 0) * sx
+        y1 = float(bbox.get("y1", 0) or 0) * sy
+        x2 = float(bbox.get("x2", 0) or 0) * sx
+        y2 = float(bbox.get("y2", 0) or 0) * sy
+        out["bbox"] = {
+            "x1": x1,
+            "y1": y1,
+            "x2": x2,
+            "y2": y2,
+            "width": max(0.0, x2 - x1),
+            "height": max(0.0, y2 - y1),
+        }
+        out["x"] = x1
+        out["y"] = y1
+        out["width"] = max(0.0, x2 - x1)
+        out["height"] = max(0.0, y2 - y1)
+    poly = out.get("polygon")
+    if isinstance(poly, list):
+        scaled_poly = []
+        for pt in poly:
+            if isinstance(pt, (list, tuple)) and len(pt) >= 2:
+                try:
+                    scaled_poly.append([float(pt[0]) * sx, float(pt[1]) * sy])
+                except (TypeError, ValueError):
+                    scaled_poly.append(pt)
+            else:
+                scaled_poly.append(pt)
+        out["polygon"] = scaled_poly
+    return out
+
+
+def scale_zones_to_source_dimensions(zones, src_w, src_h, ocr_w, ocr_h):
+    """Scale all zone coordinates from OCR image dimensions to source dimensions."""
+    if src_w <= 0 or src_h <= 0 or ocr_w <= 0 or ocr_h <= 0:
+        return zones
+    if int(src_w) == int(ocr_w) and int(src_h) == int(ocr_h):
+        return zones
+    return [scale_zone_bbox_to_source(zone, src_w, src_h, ocr_w, ocr_h) for zone in (zones or [])]
+
+
 def bbox_iou(box_a, box_b):
     if not isinstance(box_a, dict) or not isinstance(box_b, dict):
         return 0.0
@@ -3017,8 +3072,11 @@ def process_image(image_path, mode="fast", rotation=0):
         )
         # endregion
         
-        # Create overlay image
-        overlay_path = create_overlay_image(image_path, zones)
+        # Map OCR-space boxes back to source-image coordinates when OCR used a resized image.
+        zones = scale_zones_to_source_dimensions(zones, source_width, source_height, width, height)
+
+        # Create overlay image against source image for consistent coordinates.
+        overlay_path = create_overlay_image(input_image_path, zones)
         
         # Return result
         result = {
@@ -3276,6 +3334,7 @@ async def pdf_to_image(
     safe_dpi = max(120, min(400, int(dpi or 220)))
     temp_pdf_path = create_secure_temp_file(".pdf")
     temp_image_path = None
+    image_paths_to_cleanup = []
     page_width_pt = 0.0
     page_height_pt = 0.0
     try:
@@ -3297,14 +3356,21 @@ async def pdf_to_image(
             page_height_pt = 0.0
 
         temp_image_path = convert_pdf_to_image(temp_pdf_path, page_number=safe_page, dpi=safe_dpi)
-        with open(temp_image_path, "rb") as img_f:
+        image_paths_to_cleanup.append(temp_image_path)
+        response_path = normalize_image_dimensions_for_ocr(
+            temp_image_path, MAX_IMAGE_DIMENSIONS, ".png"
+        )
+        if response_path != temp_image_path:
+            image_paths_to_cleanup.append(response_path)
+        response_mime = "image/png"
+        with open(response_path, "rb") as img_f:
             image_bytes = img_f.read()
         image_b64 = base64.b64encode(image_bytes).decode("ascii")
-        data_url = f"data:image/png;base64,{image_b64}"
+        data_url = f"data:{response_mime};base64,{image_b64}"
 
         width = 0
         height = 0
-        img = cv2.imread(temp_image_path)
+        img = cv2.imread(response_path)
         if img is not None:
             height, width = img.shape[:2]
 
@@ -3313,7 +3379,7 @@ async def pdf_to_image(
                 "ok": True,
                 "image": {
                     "data_url": data_url,
-                    "mime": "image/png",
+                    "mime": response_mime,
                     "width": int(width),
                     "height": int(height),
                     "page": int(safe_page),
@@ -3325,7 +3391,7 @@ async def pdf_to_image(
             }
         )
     finally:
-        for path in (temp_pdf_path, temp_image_path):
+        for path in (temp_pdf_path, *image_paths_to_cleanup):
             if path and os.path.exists(path):
                 try:
                     os.unlink(path)
@@ -3333,18 +3399,30 @@ async def pdf_to_image(
                     pass
 
 
-def decode_image_data_to_temp(image_data: str, suffix: str = ".jpg") -> str:
+def decode_image_data_to_temp(image_data: str, suffix=None) -> str:
     """Decode base64 image data/dataURL to a temp file and return its path."""
-    raw = str(image_data or "").strip()
-    if not raw:
+    raw_full = str(image_data or "").strip()
+    if not raw_full:
         raise HTTPException(status_code=400, detail="No image data provided")
+    lower = raw_full.lower()
+    if suffix:
+        inferred = str(suffix)
+    else:
+        inferred = ".png"
+        if lower.startswith("data:image/png"):
+            inferred = ".png"
+        elif lower.startswith("data:image/webp"):
+            inferred = ".webp"
+        elif lower.startswith("data:image/jpeg") or lower.startswith("data:image/jpg"):
+            inferred = ".jpg"
     try:
+        raw = raw_full
         if raw.startswith("data:image"):
             raw = raw.split(",", 1)[1]
         image_bytes = base64.b64decode(raw)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid image data format")
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=inferred or ".png") as tmp_file:
         tmp_file.write(image_bytes)
         return tmp_file.name
 
@@ -3527,7 +3605,7 @@ async def annotation_thumbnail(request: dict = Body(...)):
     quality = int(request.get("quality", 85) or 85)
     rotation = float(request.get("rotation", 0) or 0)
 
-    temp_path = decode_image_data_to_temp(image_data, suffix=".jpg")
+    temp_path = decode_image_data_to_temp(image_data, suffix=None)
     try:
         zone = {"bbox": bbox}
         normalized_bbox = zone_bbox(zone)
@@ -3570,7 +3648,7 @@ async def annotation_click_ocr(request: dict = Body(...)):
     if rotation not in [0, 90, 180, 270]:
         rotation = 0
 
-    temp_path = decode_image_data_to_temp(image_data, suffix=".jpg")
+    temp_path = decode_image_data_to_temp(image_data, suffix=None)
     try:
         result = await process_image_async(temp_path, mode=mode, rotation=rotation)
         zones = result.get("zones", []) if isinstance(result, dict) else []

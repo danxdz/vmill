@@ -625,8 +625,8 @@ function updateAnnotationField(annotationId, field, value) {
     }
   }
 
-  if (field === 'lowerDeviation' && lowerDeviation != null && lowerDeviation > 0) lowerDeviation = -Math.abs(lowerDeviation);
-  if (field === 'upperDeviation' && upperDeviation != null && upperDeviation < 0) upperDeviation = Math.abs(upperDeviation);
+  // Do not coerce signs on lowerDeviation / upperDeviation: users type signed values in the list
+  // (e.g. -0.01); forcing upper ≥ 0 broke negatives in the "max tol" field.
 
   if (field === 'lsl' || field === 'usl') {
     if (lsl != null && usl != null) nominal = round6((lsl + usl) / 2);
@@ -641,6 +641,33 @@ function updateAnnotationField(annotationId, field, value) {
   if (nominal != null && lsl != null && (field === 'nominal' || field === 'lsl')) lowerDeviation = round6(lsl - nominal);
   if (nominal != null && usl != null && (field === 'nominal' || field === 'usl')) upperDeviation = round6(usl - nominal);
 
+  // No midpoint refit on tol edits: changing only min or max tol must leave the *other* tol as stored and
+  // keep the value you typed (no ±split / halving). LSL/USL follow nominal + lower / nominal + upper above.
+
+  const fmtTol = (n) => {
+    if (n == null || !Number.isFinite(Number(n))) return '';
+    return String(Number(Number(n).toFixed(6)));
+  };
+  const formatToleranceSpecFromDeviations = (lo, hi) => {
+    const l = toNumOrNull(lo);
+    const u = toNumOrNull(hi);
+    if (l == null && u == null) return null;
+    if (l != null && u != null) {
+      if (l <= 0 && u >= 0 && Math.abs(Math.abs(l) - u) < 1e-6) {
+        return `±${fmtTol(Math.abs(u))}`;
+      }
+      const upPart = u >= 0 ? `+${fmtTol(u)}` : fmtTol(u);
+      return `${upPart} / ${fmtTol(l)}`;
+    }
+    if (l != null) return fmtTol(l);
+    if (u != null) return u >= 0 ? `+${fmtTol(u)}` : fmtTol(u);
+    return null;
+  };
+  if (field !== 'toleranceSpec') {
+    const specStr = formatToleranceSpecFromDeviations(lowerDeviation, upperDeviation);
+    if (specStr != null && specStr !== '') next.toleranceSpec = specStr;
+  }
+
   next.nominal = nominal;
   next.lsl = lsl;
   next.usl = usl;
@@ -653,6 +680,7 @@ function deleteAnnotation(annotationId) {
   const current = docsApi.productAnnotationById(annotationId, state.selectedProductId);
   if (!current) return;
   state.pendingDeleteAnnId = '';
+  if (String(state.selectedAnnId || '') === String(annotationId || '')) state.selectedAnnId = '';
   clearAnnPopover(true);
   docsApi.deleteProductAnnotation(annotationId);
   refresh();
@@ -687,15 +715,21 @@ async function rebuildAnnotationThumbnail(annotationId) {
     : selectedDocument();
   const imageDataUrl = str(doc?.previewDataUrl || doc?.dataUrl || '');
   if (!imageDataUrl) return false;
+  const imageSize = await imageDimensionsFromDataUrl(imageDataUrl).catch(() => null);
+  if (!imageSize?.width || !imageSize?.height) return false;
+  const bboxPx = bboxToPreviewPixels(current.bbox, imageSize, doc);
+  if (!bboxPx) return false;
   const ocrRotation = Number(current.ocrRotation ?? 0);
   const serverRotation = zoneRotationToCorrection(ocrRotation);
-  const thumb = await buildThumbForZone(imageDataUrl, current.bbox, serverRotation);
+  const thumb = await buildThumbForZone(imageDataUrl, current.bbox, serverRotation, doc);
   if (!thumb) return false;
+  const bboxNorm = bboxToNormalizedSpace(bboxPx, imageSize) || current.bbox;
   docsApi.upsertProductAnnotation({
     ...current,
     thumbnailDataUrl: thumb,
-    thumbnailBBox: current.bbox,
+    thumbnailBBox: bboxNorm,
     thumbnailRotation: Number(current.thumbnailRotation ?? 0) || 0,
+    coordSpace: 'normalized',
   });
   refresh();
   return true;
@@ -798,6 +832,75 @@ function scaleNormalizedBboxToImage(bbox, imageSize) {
     x2: box.x2 * width,
     y2: box.y2 * height,
   });
+}
+
+function looksNormalizedBbox(bbox) {
+  const box = normalizeBbox(bbox);
+  if (!box) return false;
+  return [box.x1, box.y1, box.x2, box.y2].every((v) => Number.isFinite(v) && v >= -0.02 && v <= 1.02);
+}
+
+function bboxToImagePixels(bbox, imageSize) {
+  const box = normalizeBbox(bbox);
+  if (!box) return null;
+  const width = Math.max(0, Number(imageSize?.width || 0));
+  const height = Math.max(0, Number(imageSize?.height || 0));
+  if (!width || !height) return box;
+  if (!looksNormalizedBbox(box)) return box;
+  return normalizeBbox({
+    x1: box.x1 * width,
+    y1: box.y1 * height,
+    x2: box.x2 * width,
+    y2: box.y2 * height,
+  });
+}
+
+function bboxToNormalizedSpace(bbox, imageSize) {
+  const box = normalizeBbox(bbox);
+  if (!box) return null;
+  const width = Math.max(0, Number(imageSize?.width || 0));
+  const height = Math.max(0, Number(imageSize?.height || 0));
+  if (!width || !height) return box;
+  if (looksNormalizedBbox(box)) return box;
+  return normalizeBbox({
+    x1: box.x1 / width,
+    y1: box.y1 / height,
+    x2: box.x2 / width,
+    y2: box.y2 / height,
+  });
+}
+
+/** Map stored bbox to pixel coords for the *current* preview bitmap (handles meta vs bitmap size mismatch). */
+function bboxToPreviewPixels(bbox, imageSize, doc) {
+  const box0 = normalizeBbox(bbox);
+  if (!box0 || !imageSize?.width || !imageSize?.height) return null;
+  const pixW = Math.max(1, Number(imageSize.width));
+  const pixH = Math.max(1, Number(imageSize.height));
+  if (looksNormalizedBbox(box0)) {
+    return normalizeBbox({
+      x1: box0.x1 * pixW,
+      y1: box0.y1 * pixH,
+      x2: box0.x2 * pixW,
+      y2: box0.y2 * pixH,
+    });
+  }
+  const metaW = Math.max(0, Number(doc?.imageWidth || 0));
+  const metaH = Math.max(0, Number(doc?.imageHeight || 0));
+  if (metaW > 0 && metaH > 0) {
+    const rw = Math.abs(pixW - metaW) / Math.max(metaW, 1);
+    const rh = Math.abs(pixH - metaH) / Math.max(metaH, 1);
+    if (rw > 0.03 || rh > 0.03) {
+      const sx = pixW / metaW;
+      const sy = pixH / metaH;
+      return normalizeBbox({
+        x1: box0.x1 * sx,
+        y1: box0.y1 * sy,
+        x2: box0.x2 * sx,
+        y2: box0.y2 * sy,
+      });
+    }
+  }
+  return box0;
 }
 
 function expandedRefinementBbox(bbox, imageSize, zone) {
@@ -1254,11 +1357,21 @@ function allocateNumericMarker(usedSet, preferred = 1) {
   return String(candidate);
 }
 
-async function buildThumbForZone(imageDataUrl, bbox, rotationCorrection = 0) {
+async function buildThumbForZone(imageDataUrl, bbox, rotationCorrection = 0, doc = null) {
   if (!ocrApi || !imageDataUrl || !bbox) return '';
   try {
-    void rotationCorrection;
-    const out = await ocrApi.callOcrThumbnailWithRetry(imageDataUrl, bbox, ocrApi.ensureOcrUrlInput(), 0);
+    const imageSize = await imageDimensionsFromDataUrl(imageDataUrl).catch(() => null);
+    const bboxPx = bboxToPreviewPixels(bbox, imageSize, doc)
+      || (imageSize ? bboxToImagePixels(bbox, imageSize) : null)
+      || normalizeBbox(bbox);
+    if (!bboxPx) return '';
+    const rot = normalizeCardinalRotation(rotationCorrection, 0);
+    const out = await ocrApi.callOcrThumbnailWithRetry(
+      imageDataUrl,
+      bboxPx,
+      ocrApi.ensureOcrUrlInput(),
+      rot,
+    );
     return str(out?.thumbnail?.data_url || '');
   } catch {
     return '';
@@ -1318,7 +1431,11 @@ async function reocrAnnotation(annId, options = {}) {
     setStatus('Document needs an image preview to re-OCR.');
     return;
   }
-  const bbox = current.bbox || {};
+  const imageSize = await imageDimensionsFromDataUrl(imageDataUrl).catch(() => null);
+  const bbox = bboxToPreviewPixels(current.bbox || {}, imageSize, doc)
+    || bboxToImagePixels(current.bbox || {}, imageSize)
+    || normalizeBbox(current.bbox || {})
+    || {};
   const x1 = Number(bbox.x1 ?? 0);
   const y1 = Number(bbox.y1 ?? 0);
   const x2 = Number(bbox.x2 ?? 0);
@@ -1333,7 +1450,7 @@ async function reocrAnnotation(annId, options = {}) {
   try {
     void centerX;
     void centerY;
-    const thumbForOcr = str(current.thumbnailDataUrl || '') || await buildThumbForZone(imageDataUrl, current.bbox || {}, 0);
+    const thumbForOcr = str(current.thumbnailDataUrl || '') || await buildThumbForZone(imageDataUrl, current.bbox, 0, doc);
     const zone = await ocrFromThumbnailDataUrl(
       thumbForOcr,
       effectiveRotation,
@@ -1344,7 +1461,7 @@ async function reocrAnnotation(annId, options = {}) {
       return;
     }
     const parsed = parseOcrSpecFromZone(zone, 0);
-    const newBbox = current.bbox;
+    const newBbox = bboxToNormalizedSpace(bbox, imageSize) || current.bbox;
     const ocrRotation = Number.isFinite(Number(current.ocrRotation))
       ? wrapDisplayRotation(Number(current.ocrRotation))
       : 0;
@@ -1368,6 +1485,7 @@ async function reocrAnnotation(annId, options = {}) {
       thumbnailBBox: newBbox,
       thumbnailRotation: Number(current.thumbnailRotation ?? 0) || 0,
       ocrRotation,
+      coordSpace: 'normalized',
     });
     refresh();
     setStatus(confPct != null ? `Re-OCR: "${zone.text}" (${confPct}% confidence)` : `Re-OCR: "${zone.text}"`);
@@ -1448,7 +1566,8 @@ async function createAnnotationFromPreviewPoint(sourcePoint) {
     const rawRotation = Number(zone?.rotation ?? zone?.text_orientation ?? zone?.textOrientation ?? 0);
     const ocrRotation = Number.isFinite(rawRotation) ? wrapDisplayRotation(rawRotation) : 0;
     const thumbRotation = zoneRotationToCorrection(ocrRotation);
-    const thumbDataUrl = await buildThumbForZone(imageDataUrl, bbox, thumbRotation);
+    const thumbDataUrl = await buildThumbForZone(imageDataUrl, bbox, thumbRotation, doc);
+    const bboxNorm = bboxToNormalizedSpace(bbox, imageSize) || bbox;
     const zoneConf = Number(zone?.confidence);
     const ocrConfidence = Number.isFinite(zoneConf) ? zoneConf : null;
     const annId = str(zone?.id) || docsApi.normalizeProductAnnotation({}).id;
@@ -1468,11 +1587,12 @@ async function createAnnotationFromPreviewPoint(sourcePoint) {
       unit: parsed.unit || 'mm',
       instrument: chooseInstrumentForTolerance(parsed),
       ocrConfidence,
-      bbox,
+      bbox: bboxNorm,
       thumbnailDataUrl: thumbDataUrl,
-      thumbnailBBox: bbox,
+      thumbnailBBox: bboxNorm,
       thumbnailRotation: 0,
       ocrRotation,
+      coordSpace: 'normalized',
     });
     state.selectedAnnId = annId;
     refresh();
@@ -1538,8 +1658,10 @@ async function createAnnotationFromPreviewBox(sourceBox) {
     const normalizedName = /^ocr[_\s-]*zone[_\s-]*\d+$/i.test(parsedName) ? sourceBubbleId : parsedName;
     const rawRotation = Number(zone?.rotation ?? zone?.text_orientation ?? 0);
     const ocrRotation = Number.isFinite(rawRotation) ? wrapDisplayRotation(rawRotation) : 0;
+    const imageSize = await imageDimensionsFromDataUrl(imageDataUrl).catch(() => null);
     const thumbRotation = zoneRotationToCorrection(ocrRotation);
-    const thumbDataUrl = await buildThumbForZone(imageDataUrl, bbox, thumbRotation);
+    const thumbDataUrl = await buildThumbForZone(imageDataUrl, bbox, thumbRotation, doc);
+    const bboxNorm = bboxToNormalizedSpace(bbox, imageSize) || bbox;
     const zoneConf = Number(zone?.confidence);
     const ocrConfidence = Number.isFinite(zoneConf) ? zoneConf : null;
     const annId = str(zone?.id) || docsApi.normalizeProductAnnotation({}).id;
@@ -1559,11 +1681,12 @@ async function createAnnotationFromPreviewBox(sourceBox) {
       unit: parsed.unit || 'mm',
       instrument: chooseInstrumentForTolerance(parsed),
       ocrConfidence,
-      bbox,
+      bbox: bboxNorm,
       thumbnailDataUrl: thumbDataUrl,
-      thumbnailBBox: bbox,
+      thumbnailBBox: bboxNorm,
       thumbnailRotation: 0,
       ocrRotation,
+      coordSpace: 'normalized',
     });
     state.selectedAnnId = annId;
     refresh();
@@ -1639,7 +1762,7 @@ async function autoOcrCurrentDocument() {
         const refineOptions = verticalish
           ? { quick: true, mode: 'fast' }        // Rotated thumbnail OCR first for speed/consistency
           : { quick: true, mode: 'fast' };       // Keep non-vertical path fast
-        thumb = await buildThumbForZone(imageDataUrl, refinementBbox, 0);
+        thumb = await buildThumbForZone(imageDataUrl, refinementBbox, 0, doc);
         const refinedZoneFromThumb = thumb
           ? await ocrFromThumbnailDataUrl(thumb, rotationHint, refineOptions)
           : null;
@@ -1683,7 +1806,7 @@ async function autoOcrCurrentDocument() {
             : (Math.abs(appliedRotationHint) >= 1 ? wrapDisplayRotation(appliedRotationHint) : 0));
       if (!thumbFromRefine || !thumb) {
         const thumbRotation = zoneRotationToCorrection(ocrRotation);
-        thumb = await buildThumbForZone(imageDataUrl, finalBbox, thumbRotation);
+        thumb = await buildThumbForZone(imageDataUrl, finalBbox, thumbRotation, doc);
       }
       const instrument = chooseInstrumentForTolerance(parsed);
       const zoneConf = Number(refinedZone?.confidence);
@@ -1704,11 +1827,12 @@ async function autoOcrCurrentDocument() {
         unit: parsed.unit,
         instrument,
         ocrConfidence,
-        bbox: finalBbox,
+        bbox: bboxToNormalizedSpace(finalBbox, imageSize) || finalBbox,
         thumbnailDataUrl: thumb,
-        thumbnailBBox: finalBbox,
+        thumbnailBBox: bboxToNormalizedSpace(finalBbox, imageSize) || finalBbox,
         thumbnailRotation: existing ? (Number(existing.thumbnailRotation ?? 0) || 0) : 0,
         ocrRotation,
+        coordSpace: 'normalized',
       });
       existingById.set(annId, saved || { id: annId, sourceBubbleId, thumbnailRotation: existing ? (Number(existing.thumbnailRotation ?? 0) || 0) : 0, ocrRotation });
       imported += 1;
@@ -2001,7 +2125,14 @@ function bindEvents() {
   window.addEventListener('vmill:data:changed', refresh);
   window.addEventListener('storage', refresh);
   window.addEventListener('vmill:lang:changed', refresh);
-  window.addEventListener('resize', () => renderPreviewOverlay());
+  let previewResizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (previewResizeTimer != null) clearTimeout(previewResizeTimer);
+    previewResizeTimer = setTimeout(() => {
+      previewResizeTimer = null;
+      renderPreviewOverlay();
+    }, 120);
+  });
 }
 
 export function boot() {

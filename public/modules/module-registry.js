@@ -25,8 +25,8 @@ window.VMillModules = [
   },
   {
     id: "factory",
-    name: "Factory Manager",
-    desc: "Unified flow manager for products, stations, operations, and capacity targets.",
+    name: "Factory Operations",
+    desc: "Production planning, work orders, scheduling, and execution control.",
     href: "./factory_manager.html",
     status: "ready",
     tags: ["factory", "operations", "capacity", "planning"],
@@ -50,8 +50,8 @@ window.VMillModules = [
   },
   {
     id: "records",
-    name: "Records Manager",
-    desc: "Dynamic record CRUD forms generated from selected system category fields.",
+    name: "Records",
+    desc: "Structured records and custom forms by system category.",
     href: "./records_manager.html",
     minRole: "admin",
     status: "ready",
@@ -68,8 +68,8 @@ window.VMillModules = [
   },
   {
     id: "translations",
-    name: "Translations",
-    desc: "Global translation manager for EN/FR/PT strings.",
+    name: "Translation Studio",
+    desc: "Manage EN, FR, and PT interface strings.",
     href: "./translation_studio.html",
     minRole: "admin",
     status: "ready",

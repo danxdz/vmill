@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Translation Manager</title>
+  <title>Translation Studio</title>
   <style>
     :root {
       --bg:var(--vm-theme-bg, #0a0f17);
@@ -23,6 +23,7 @@
       margin: 0;
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       color: var(--text);
+      color-scheme: dark;
       background:
         radial-gradient(980px 540px at 10% -12%, rgba(var(--accent-rgb), .20), transparent 62%),
         linear-gradient(180deg,var(--bg),color-mix(in srgb, var(--bg) 84%, #000));
@@ -159,7 +160,7 @@
   <div class="wrap">
     <div class="hero">
       <div>
-        <h1 id="tTitle">Translation Manager</h1>
+        <h1 id="tTitle">Translation Studio</h1>
         <div class="sub" id="tSubtitle">Edit EN/FR/PT strings globally and save overrides offline.</div>
       </div>
       <div class="row">
@@ -418,7 +419,8 @@
       }
 
       function applyI18nText() {
-        $("tTitle").textContent = tt("i18n.title", "Translation Manager");
+        document.title = tt("i18n.title", "Translation Studio");
+        $("tTitle").textContent = tt("i18n.title", "Translation Studio");
         $("tSubtitle").textContent = tt("i18n.subtitle", "Edit EN/FR/PT strings globally and save overrides offline.");
         $("langLbl").textContent = tt("i18n.language", "Language");
         $("searchIn").placeholder = tt("i18n.search", "Search key/value");
@@ -515,3 +517,8 @@
   </script>
 </body>
 </html>
+    select option,
+    select optgroup {
+      background: color-mix(in srgb, var(--panel2) 94%, #000);
+      color: var(--text);
+    }

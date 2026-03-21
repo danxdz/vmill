@@ -110,6 +110,36 @@
       return Array.from(set);
     }
 
+    /** Same host:port only once; treat localhost / 127.0.0.1 / ::1 as one endpoint (avoids triple OCR uploads). */
+    function canonicalOcrEndpointKey(normalized) {
+      try {
+        const u = new URL(normalized);
+        const proto = (u.protocol || 'http:').toLowerCase();
+        const port = u.port || (proto === 'https:' ? '443' : '80');
+        const host = (u.hostname || '').toLowerCase();
+        const loopback = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+        const hostKey = loopback ? '__loopback__' : host;
+        return `${proto}//${hostKey}:${port}`;
+      } catch {
+        return normalized;
+      }
+    }
+
+    function dedupeOcrCandidateBaseUrls(list) {
+      if (!list || !list.length) return list;
+      const seen = new Set();
+      const out = [];
+      for (const item of list) {
+        const n = normalizeHttpBaseUrl(item);
+        if (!n) continue;
+        const key = canonicalOcrEndpointKey(n);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(n);
+      }
+      return out.length ? out : list;
+    }
+
     function normalizeCardinalRotation(value, fallback = 0) {
       const raw = Number(value);
       if (!Number.isFinite(raw)) return fallback;
@@ -124,7 +154,7 @@
     }
 
     async function fetchJsonWithRetry(buildRequest, preferredBaseUrl, timeoutMs, errorMessage) {
-      const candidates = ocrCandidateBaseUrls(preferredBaseUrl);
+      const candidates = dedupeOcrCandidateBaseUrls(ocrCandidateBaseUrls(preferredBaseUrl));
       let lastError = null;
       for (const baseUrl of candidates) {
         const controller = new AbortController();

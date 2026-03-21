@@ -66,10 +66,10 @@
     .annOverlayPopover {
       position: absolute;
       z-index: 100;
-      width: 188px;
-      max-width: 188px;
-      padding: 9px 10px;
-      border-radius: 12px;
+      width: min(300px, calc(100vw - 20px));
+      max-width: 400px;
+      padding: 6px 8px 7px;
+      border-radius: 10px;
       border: 1px solid var(--border);
       background:
         radial-gradient(180px 90px at 0 0, rgba(var(--accent-rgb), .10), transparent 60%),
@@ -77,21 +77,235 @@
       box-shadow: 0 12px 28px rgba(0,0,0,.28);
       pointer-events: auto;
     }
-    .annOverlayPopoverHead { margin-bottom: 6px; }
-    .annOverlayPopoverTitle { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-    .annOverlayPopoverBody { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+    .annOverlayPopover.annOverlayPopover--min {
+      padding: 5px 8px 5px 10px;
+      max-width: min(320px, calc(100vw - 20px));
+      width: fit-content;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+    .annOverlayPopoverHead {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 0;
+      flex-wrap: nowrap;
+    }
+    .annOverlayPopover:not(.annOverlayPopover--min) .annOverlayPopoverTitle {
+      padding-bottom: 0;
+      align-self: center;
+    }
+    .annOverlayPopover:not(.annOverlayPopover--min) .annOverlayPopoverHeadActions {
+      align-self: center;
+      padding-bottom: 0;
+    }
+    .annOverlayPopover--min .annOverlayPopoverHead {
+      align-items: center;
+      justify-content: flex-start;
+      gap: 8px;
+      margin-bottom: 0;
+      flex-wrap: nowrap;
+      width: fit-content;
+      max-width: 100%;
+    }
+    .annOverlayPopover--min .annOverlayPopoverBody {
+      display: none;
+    }
+    .annOverlayPopover:not(.annOverlayPopover--min) .annOverlayPopoverHead {
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .annOverlayPopoverTitle {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      flex: 0 0 auto;
+      line-height: 1;
+      padding: 0 2px 7px 0;
+      min-width: 1.5rem;
+    }
+    .annOverlayPopover--min .annOverlayPopoverTitle.annPopoverMiniId {
+      flex: 0 0 auto;
+      min-width: 0;
+      padding-bottom: 0;
+      font-size: 9px;
+      opacity: 0.9;
+    }
+    .annOverlayPopover--min .annPopoverMiniActions {
+      flex: 0 0 auto;
+      padding-bottom: 0;
+      margin-left: 0;
+    }
+    .annOverlayPopover--min .annPopoverMiniNom {
+      flex: 0 0 auto;
+      min-width: 0;
+      font-size: 15px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+      line-height: 1.1;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 6px;
+      padding: 2px 6px;
+      margin: 0 -2px;
+      color: var(--text);
+    }
+    .annOverlayPopover--min .annPopoverMiniNom:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .annOverlayPopover--min .annPopoverMiniNom:focus-visible {
+      outline: 2px solid rgba(var(--accent-rgb), 0.65);
+      outline-offset: 1px;
+    }
+    .annPopoverHeadMain {
+      display: flex;
+      align-items: flex-end;
+      align-self: center;
+      gap: 7px;
+      flex: 1;
+      min-width: 0;
+    }
+    .annPopoverFieldName { flex: 1; min-width: 0; }
+    .annPopoverFieldRotHead {
+      flex: 0 0 72px;
+      width: 72px;
+      min-width: 72px;
+    }
+    .annPopoverFieldRotHead .annPopoverIn,
+    .annPopoverFieldRotHead .annPopoverRotateSel {
+      font-size: 10px;
+      padding: 3px 4px;
+    }
+    .annOverlayPopoverHeadActions { display: flex; align-items: center; gap: 3px; flex-shrink: 0; padding-bottom: 1px; }
+    .annPopoverIconBtn {
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      margin: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .annPopoverIconBtn:hover { background: rgba(var(--accent-rgb), .12); border-color: rgba(var(--accent-rgb), .35); }
+    .annPopoverIconBtnDanger { color: #f87171; border-color: rgba(248,113,113,.35); }
+    .annPopoverIconBtnDanger:hover { background: rgba(248,113,113,.12); }
+    .annPopoverIconBtnSm {
+      width: 22px;
+      height: 22px;
+      font-size: 13px;
+      border-radius: 6px;
+    }
+    .annPopoverMiniBody {
+      padding: 6px 4px;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 8px;
+    }
+    .annPopoverMiniBody:hover { background: rgba(255,255,255,.05); }
+    .annOverlayPopoverBody { display: flex; flex-direction: column; gap: 0; font-size: 12px; }
+    .annPopoverForm { display: flex; flex-direction: column; gap: 8px; }
+    .annPopoverFormCompact { gap: 5px; }
+    .annPopoverGrid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 8px;
+      align-items: end;
+    }
+    /* Nom capped (~7–10ch); min/max tol wider so values are not clipped */
+    .annPopoverGrid3 {
+      display: grid;
+      grid-template-columns: minmax(7ch, 10.5ch) minmax(6.5ch, 1fr) minmax(6.5ch, 1fr);
+      gap: 6px 8px;
+      align-items: end;
+    }
+    .annPopoverField { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .annPopoverFieldNom .annPopoverInNum {
+      min-width: 7ch;
+      max-width: 100%;
+      font-variant-numeric: tabular-nums;
+    }
+    .annPopoverFieldTol .annPopoverInTol {
+      min-width: 6.5ch;
+      max-width: 100%;
+      font-variant-numeric: tabular-nums;
+      padding-left: 5px;
+      padding-right: 5px;
+    }
+    .annPopoverMedianRow {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 2px;
+      font-size: 9px;
+      color: var(--muted);
+    }
+    .annPopoverMedianLab {
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .annPopoverMedianVal {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--text);
+      opacity: 0.9;
+    }
+    .annPopoverFieldFull { grid-column: 1 / -1; }
+    .annPopoverLab {
+      margin: 0;
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      line-height: 1.15;
+    }
+    .annPopoverTolAlert {
+      margin: 0;
+      padding: 4px 6px;
+      font-size: 9px;
+      line-height: 1.3;
+      color: #fcd34d;
+      background: rgba(251, 191, 36, .12);
+      border: 1px solid rgba(251, 191, 36, .28);
+      border-radius: 8px;
+    }
     .annOverlayPopoverBody .annPopoverRow { display: flex; gap: 8px; align-items: stretch; }
     .annOverlayPopoverBody .annPopoverCell { display: flex; flex-direction: column; align-items: stretch; gap: 3px; flex: 1; min-width: 0; }
     .annOverlayPopoverBody .annPopoverCellWide { flex: 1 1 100%; }
     .annOverlayPopoverBody .annPopoverCell label { margin: 0; font-size: 8px; color: var(--muted); white-space: nowrap; flex-shrink: 0; width: auto; }
-    .annOverlayPopoverBody .annPopoverIn { padding: 5px 6px; font-size: 12px; width: 100%; min-width: 0; max-width: none; box-sizing: border-box; border-radius: 8px; }
-    .annOverlayPopoverBody .annPopoverRotateSel { max-width: none; }
+    .annOverlayPopoverBody .annPopoverIn,
+    .annOverlayPopoverHead .annPopoverIn {
+      padding: 3px 6px;
+      font-size: 11px;
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+      box-sizing: border-box;
+      border-radius: 6px;
+    }
+    .annOverlayPopoverBody .annPopoverRotateSel,
+    .annOverlayPopoverHead .annPopoverRotateSel { max-width: none; }
     .annOverlayPopoverBody .annPopoverFooter { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; flex-wrap: wrap; }
     .annOverlayPopoverBody .annPopoverConf { font-size: 9px; color: var(--muted); }
     .annOverlayPopoverBody .annPopoverHint { color: var(--accent); font-weight: 600; }
     .annOverlayPopoverBody .annPopoverRemove { padding: 5px 8px; font-size: 11px; flex-shrink: 0; min-width: 88px; }
     .annOverlayPopoverBody .annPopoverRotate { min-width: 78px; font-size: 7px; padding: 1px 2px; }
-    .previewWrap.fullscreen .annOverlayPopover { max-width: 220px; width: 220px; }
+    .previewWrap.fullscreen .annOverlayPopover { max-width: 400px; width: min(320px, calc(100vw - 28px)); }
     .empty { color:var(--muted); font-size:13px; padding:18px; text-align:center; }
     .list { display:grid; gap:8px; }
     .docCard, .annCard {

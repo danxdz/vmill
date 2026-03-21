@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Core Data Manager</title>
+  <title>Records</title>
   <style>
     :root {
       --bg: #0b1220;
@@ -256,7 +256,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 620px;
+      min-width: 980px;
     }
     th, td {
       padding: 7px 8px;
@@ -301,6 +301,56 @@
       white-space: nowrap;
       cursor: pointer;
     }
+    .bomEditor {
+      display: grid;
+      gap: 8px;
+      min-width: 260px;
+    }
+    .bomRows {
+      display: grid;
+      gap: 6px;
+    }
+    .bomRow {
+      display: grid;
+      grid-template-columns: minmax(140px, 1fr) 92px auto;
+      gap: 6px;
+      align-items: center;
+    }
+    .bomQty {
+      text-align: right;
+    }
+    .bomRemoveBtn,
+    .bomAddBtn {
+      min-height: 34px;
+      padding: 6px 10px;
+    }
+    .bomRemoveBtn {
+      border-color: color-mix(in srgb, var(--warn) 60%, var(--border));
+      color: #ffd6e0;
+      background: color-mix(in srgb, var(--warn) 12%, transparent);
+    }
+    .bomAddBtn {
+      justify-self: start;
+      border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+    }
+    .bomHint {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .bomEmpty {
+      border: 1px dashed color-mix(in srgb, var(--border) 85%, transparent);
+      border-radius: 10px;
+      padding: 8px 10px;
+      color: var(--muted);
+      font-size: 12px;
+      background: color-mix(in srgb, var(--panel2) 68%, transparent);
+    }
+    .bomEditor select,
+    .bomEditor input {
+      min-width: 0;
+    }
     .empty {
       border: 1px dashed var(--border);
       border-radius: 10px;
@@ -327,6 +377,36 @@
       color: var(--text);
       font-weight: 600;
     }
+    .toolbarActions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .quickAddWrap {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .quickAddWrap[hidden] {
+      display: none;
+    }
+    .quickAddBtn {
+      border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      color: var(--text);
+      font-weight: 700;
+    }
+    .quickAddBtn[data-preset-family="service"] {
+      border-color: color-mix(in srgb, #c79a32 55%, var(--border));
+      background: color-mix(in srgb, #c79a32 12%, transparent);
+    }
+    .quickAddBtn[data-preset-family="component"] {
+      border-color: color-mix(in srgb, #2ea26c 50%, var(--border));
+      background: color-mix(in srgb, #2ea26c 10%, transparent);
+    }
     @media (max-width: 1160px) {
       .page {
         width: calc(100vw - 12px);
@@ -346,7 +426,7 @@
   <div class="page">
     <aside class="card left">
       <div class="cardHead">
-        <h2 id="titleEl">Core Data Manager</h2>
+        <h2 id="titleEl">Records</h2>
       </div>
       <div class="leftBody">
         <div class="row">
@@ -372,7 +452,12 @@
             <label id="recSearchLabelEl">Search entries</label>
             <input id="recordSearchIn" type="text" placeholder="Search code/name..." />
           </div>
-          <div class="row" style="justify-content:flex-end;">
+          <div class="toolbarActions">
+            <div class="quickAddWrap" id="quickAddWrap" hidden>
+              <button id="quickAddAssemblyBtn" class="quickAddBtn" type="button" data-preset-family="sellable-assembly">+ Assembly</button>
+              <button id="quickAddComponentBtn" class="quickAddBtn" type="button" data-preset-family="component">+ Component</button>
+              <button id="quickAddServiceBtn" class="quickAddBtn" type="button" data-preset-family="service">+ Service</button>
+            </div>
             <button id="addRecordBtn" class="btnPrimary" type="button">+ Entry</button>
             <span class="pill" id="recordCountPill">0 records</span>
           </div>
@@ -417,6 +502,7 @@
         recordSearch: "",
         selectedTypeId: "",
         inlineNewRow: false,
+        inlineNewPreset: null,
         flashTimer: 0,
         autoSaveTimers: new Map(),
         saveLocks: new Set(),
@@ -435,6 +521,10 @@
         typeList: document.getElementById("typeList"),
         typeSel: document.getElementById("typeSel"),
         addRecordBtn: document.getElementById("addRecordBtn"),
+        quickAddWrap: document.getElementById("quickAddWrap"),
+        quickAddAssemblyBtn: document.getElementById("quickAddAssemblyBtn"),
+        quickAddComponentBtn: document.getElementById("quickAddComponentBtn"),
+        quickAddServiceBtn: document.getElementById("quickAddServiceBtn"),
         recordSearchIn: document.getElementById("recordSearchIn"),
         recordCountPill: document.getElementById("recordCountPill"),
         toolbarMeta: document.getElementById("toolbarMeta"),
@@ -656,6 +746,8 @@
           out.add("name");
           out.add("family");
           out.add("parentproductid");
+          out.add("bomparents");
+          out.add("bomchildren");
           out.add("imageurl");
           return out;
         }
@@ -714,6 +806,30 @@
         return "";
       }
 
+      function productFamilyOptions(currentValue = "") {
+        const current = String(currentValue || "").trim();
+        const base = [
+          { value: "", label: tt("records.family.none", "Unclassified") },
+          { value: "sellable-assembly", label: tt("records.family.sellableAssembly", "Sellable assembly") },
+          { value: "end-assembly", label: tt("records.family.endAssembly", "End assembly") },
+          { value: "subassembly", label: tt("records.family.subassembly", "Subassembly") },
+          { value: "component", label: tt("records.family.component", "Component") },
+          { value: "component-kit", label: tt("records.family.componentKit", "Component kit") },
+          { value: "consumable", label: tt("records.family.consumable", "Consumable") },
+          { value: "service", label: tt("records.family.service", "Service part") },
+          { value: "purchased-part", label: tt("records.family.purchasedPart", "Purchased part") },
+          { value: "raw-material", label: tt("records.family.rawMaterial", "Raw material") },
+        ];
+        if (current && !base.some((row) => row.value === current)) {
+          base.push({ value: current, label: current });
+        }
+        return base;
+      }
+
+      function isProductType(type) {
+        return normalizeRole(type?.moduleRole, type?.id) === "product";
+      }
+
       function getParentOptions(type) {
         const rule = incomingRule(String(type?.id || ""));
         const parentTypeId = String(rule?.parentTypeId || "");
@@ -726,14 +842,169 @@
         };
       }
 
+      function normalizeProductBomLinks(raw, validProductIds = null, selfId = "", keyName = "parentProductId") {
+        const rows = Array.isArray(raw) ? raw : [];
+        const self = String(selfId || "");
+        const out = new Map();
+        for (const row of rows) {
+          const src = row && typeof row === "object" ? row : {};
+          const relationId = String(
+            src[keyName]
+            || src.parentProductId
+            || src.childProductId
+            || src.parentId
+            || src.childId
+            || ""
+          ).trim();
+          if (!relationId || relationId === self) continue;
+          if (validProductIds && !validProductIds.has(relationId)) continue;
+          const parsedQty = parseLooseNumberValue(src.qty ?? src.quantity ?? 1);
+          const qty = parsedQty.ok && Number(parsedQty.value) > 0 ? Number(Number(parsedQty.value).toFixed(4)) : 1;
+          const existing = out.get(relationId);
+          if (existing) existing.qty = Number(Number(existing.qty + qty).toFixed(4));
+          else out.set(relationId, { [keyName]: relationId, qty, unit: "ea", note: "" });
+        }
+        return [...out.values()];
+      }
+
+      function productBomParents(product, validProductIds = null, selfId = "") {
+        const links = Array.isArray(product?.bomParents) && product.bomParents.length
+          ? product.bomParents
+          : (
+            String(product?.parentProductId || "")
+              ? [{ parentProductId: String(product.parentProductId || ""), qty: Number(product?.parentQty || product?.meta?.parentQty || 1) || 1 }]
+              : []
+          );
+        return normalizeProductBomLinks(links, validProductIds, selfId, "parentProductId");
+      }
+
+      function productBomChildren(productId, products) {
+        const pid = String(productId || "");
+        if (!pid) return [];
+        const validIds = new Set((Array.isArray(products) ? products : []).map((p) => String(p?.id || "")).filter(Boolean));
+        const out = [];
+        for (const product of (Array.isArray(products) ? products : [])) {
+          const childId = String(product?.id || "");
+          if (!childId || childId === pid) continue;
+          const link = productBomParents(product, validIds, childId)
+            .find((row) => String(row?.parentProductId || "") === pid);
+          if (!link) continue;
+          out.push({ childProductId: childId, qty: Number(link.qty || 1) || 1, unit: "ea", note: "" });
+        }
+        return normalizeProductBomLinks(out, validIds, pid, "childProductId");
+      }
+
+      function serializeBomLinks(rows, keyName) {
+        try {
+          return JSON.stringify(normalizeProductBomLinks(rows, null, "", keyName));
+        } catch {
+          return "[]";
+        }
+      }
+
+      function parseBomLinksJson(raw, validProductIds, selfId, keyName) {
+        const text = String(raw || "").trim();
+        if (!text) return [];
+        try {
+          return normalizeProductBomLinks(JSON.parse(text), validProductIds, selfId, keyName);
+        } catch {
+          return [];
+        }
+      }
+
+      function bomRowEditorHtml(kind, relation, currentProductId) {
+        const keyName = kind === "children" ? "childProductId" : "parentProductId";
+        const selectedId = String(relation?.[keyName] || "");
+        const products = (state.app.products || [])
+          .filter((p) => {
+            const pid = String(p?.id || "");
+            return pid && pid !== String(currentProductId || "");
+          });
+        const options = [`<option value="">${esc(tt("records.bom.none", "(none)"))}</option>`, ...products.map((product) => {
+          const pid = String(product?.id || "");
+          const selected = pid === selectedId ? "selected" : "";
+          return `<option value="${esc(pid)}" ${selected}>${esc(itemLabel(product))}</option>`;
+        })].join("");
+        const qty = Number(relation?.qty || 1) || 1;
+        return `
+          <div class="bomRow" data-bom-row data-bom-kind="${esc(kind)}">
+            <select data-bom-select="${esc(keyName)}">${options}</select>
+            <input class="bomQty" data-bom-qty type="text" inputmode="decimal" value="${esc(String(qty))}" />
+            <button type="button" class="bomRemoveBtn" data-bom-remove="${esc(kind)}">${esc(tt("common.delete", "Delete"))}</button>
+          </div>
+        `;
+      }
+
+      function bomEditorHtml(kind, row) {
+        const rid = String(row?.id || "");
+        const relationRows = kind === "children"
+          ? productBomChildren(rid, state.app.products || [])
+          : productBomParents(row, null, rid);
+        const hiddenKey = kind === "children" ? "__bomChildren" : "__bomParents";
+        const emptyText = kind === "children"
+          ? tt("records.bom.childrenEmpty", "No components linked yet.")
+          : tt("records.bom.parentsEmpty", "No parent assemblies linked yet.");
+        const hintText = kind === "children"
+          ? tt("records.bom.childrenHint", "Components linked here will point back to this assembly with the quantity per build.")
+          : tt("records.bom.parentsHint", "Use this when one component is consumed by several assemblies.");
+        const addText = kind === "children"
+          ? tt("records.bom.addChild", "+ Component")
+          : tt("records.bom.addParent", "+ Assembly");
+        return `
+          <div class="bomEditor" data-bom-editor="${esc(kind)}" data-product-id="${esc(rid)}">
+            <input type="hidden" data-field-key="${esc(hiddenKey)}" value="${esc(serializeBomLinks(relationRows, kind === "children" ? "childProductId" : "parentProductId"))}" />
+            <div class="bomRows">
+              ${relationRows.length ? relationRows.map((rel) => bomRowEditorHtml(kind, rel, rid)).join("") : `<div class="bomEmpty" data-bom-empty>${esc(emptyText)}</div>`}
+            </div>
+            <div class="bomHint">${esc(hintText)}</div>
+            <button type="button" class="bomAddBtn" data-bom-add="${esc(kind)}">${esc(addText)}</button>
+          </div>
+        `;
+      }
+
+      function syncBomEditorField(editorEl) {
+        if (!(editorEl instanceof HTMLElement)) return;
+        const kind = String(editorEl.getAttribute("data-bom-editor") || "");
+        const keyName = kind === "children" ? "childProductId" : "parentProductId";
+        const currentProductId = String(editorEl.getAttribute("data-product-id") || "");
+        const hidden = editorEl.querySelector(`input[data-field-key="${kind === "children" ? "__bomChildren" : "__bomParents"}"]`);
+        if (!(hidden instanceof HTMLInputElement)) return;
+        const validProductIds = new Set((state.app.products || []).map((p) => String(p?.id || "")).filter(Boolean));
+        const rows = [...editorEl.querySelectorAll("[data-bom-row]")].map((rowEl) => {
+          if (!(rowEl instanceof HTMLElement)) return null;
+          const select = rowEl.querySelector(`[data-bom-select="${keyName}"]`);
+          const qtyInput = rowEl.querySelector("[data-bom-qty]");
+          return {
+            [keyName]: select instanceof HTMLSelectElement ? String(select.value || "") : "",
+            qty: qtyInput instanceof HTMLInputElement ? String(qtyInput.value || "") : "1",
+          };
+        }).filter(Boolean);
+        hidden.value = serializeBomLinks(
+          normalizeProductBomLinks(rows, validProductIds, currentProductId, keyName),
+          keyName
+        );
+        const rowsWrap = editorEl.querySelector(".bomRows");
+        if (!(rowsWrap instanceof HTMLElement)) return;
+        if (rowsWrap.querySelector("[data-bom-row]")) {
+          const empty = rowsWrap.querySelector("[data-bom-empty]");
+          if (empty instanceof HTMLElement) empty.remove();
+          return;
+        }
+        const emptyText = kind === "children"
+          ? tt("records.bom.childrenEmpty", "No components linked yet.")
+          : tt("records.bom.parentsEmpty", "No parent assemblies linked yet.");
+        rowsWrap.innerHTML = `<div class="bomEmpty" data-bom-empty>${esc(emptyText)}</div>`;
+      }
+
       function buildFieldDefs(type, editingRow = null) {
         const role = normalizeRole(type?.moduleRole, type?.id);
         const defs = [];
         const row = editingRow && typeof editingRow === "object" ? editingRow : {};
         if (role === "product") {
           defs.push({ key: "name", label: "Name", type: "string", required: true });
-          defs.push({ key: "family", label: "Family", type: "string", required: false });
-          defs.push({ key: "parentProductId", label: "Parent product", type: "select-product", required: false });
+          defs.push({ key: "family", label: tt("records.family.label", "Item class"), type: "select-family", required: false });
+          defs.push({ key: "__bomParents", label: tt("records.bom.parentsLabel", "Used in assemblies"), type: "bom-relations", scope: "parents", required: false });
+          defs.push({ key: "__bomChildren", label: tt("records.bom.childrenLabel", "Contains components"), type: "bom-relations", scope: "children", required: false });
           defs.push({ key: "imageUrl", label: "Image URL", type: "url", required: false });
         } else if (role === "route") {
           defs.push({ key: "routeName", label: "Route", type: "string", required: true });
@@ -831,9 +1102,11 @@
         const key = String(def?.key || "");
         const meta = (row?.meta && typeof row.meta === "object") ? row.meta : {};
         if (isNew) {
+          const preset = state.inlineNewPreset && typeof state.inlineNewPreset === "object" ? state.inlineNewPreset : {};
           if (key === "code") return nextCode(rolePrefix(role), recordsForType(type));
           if (key === "status") return "active";
           if (key === "__ops" || key === "__cycles") return 0;
+          if (Object.prototype.hasOwnProperty.call(preset, key)) return preset[key];
           if (key.startsWith("attr:") && String(def?.type || "") === "timestamp") return new Date().toISOString();
         }
         if (key === "__ops") return Array.isArray(row?.operations) ? row.operations.length : 0;
@@ -887,6 +1160,15 @@
         }
         if (defType === "timestamp") {
           return `<input data-field-key="${esc(key)}" type="datetime-local" value="${esc(toLocalDateTimeInput(value))}" ${req} />`;
+        }
+        if (defType === "select-family") {
+          const opts = productFamilyOptions(value)
+            .map((row) => `<option value="${esc(String(row.value || ""))}" ${String(row.value || "") === String(value || "") ? "selected" : ""}>${esc(String(row.label || row.value || ""))}</option>`)
+            .join("");
+          return `<select data-field-key="${esc(key)}">${opts}</select>`;
+        }
+        if (defType === "bom-relations") {
+          return bomEditorHtml(String(def?.scope || "parents"), row);
         }
         if (defType === "select-product") {
           const opts = [`<option value="">(none)</option>`, ...productRows
@@ -970,15 +1252,26 @@
           </tr>`;
         };
 
-        const newRow = state.inlineNewRow ? renderRow({ id: "", code: "", name: "", meta: {} }, true) : "";
+        const presetRow = {
+          id: "",
+          code: "",
+          name: "",
+          family: String(state.inlineNewPreset?.family || ""),
+          meta: {},
+        };
+        const newRow = state.inlineNewRow ? renderRow(presetRow, true) : "";
         const bodyRows = rows.map((r) => renderRow(r, false)).join("");
         const hasAny = !!newRow || !!bodyRows;
         el.recordsBody.innerHTML = hasAny
           ? `${newRow}${bodyRows}`
           : `<tr><td colspan="${defs.length + 1}"><div class="empty">No records.</div></td></tr>`;
 
-        el.recordCountPill.textContent = `${rows.length} ${rows.length === 1 ? "record" : "records"}`;
-        el.listMetaEl.textContent = `Type: ${String(type.nameSingular || type.id || "")} - Auto-save inline edit`;
+        const singularKey = isProductType(type) ? "records.count.item" : "records.count.record";
+        const pluralKey = isProductType(type) ? "records.count.items" : "records.count.records";
+        el.recordCountPill.textContent = `${rows.length} ${tt(rows.length === 1 ? singularKey : pluralKey, rows.length === 1 ? "item" : "items")}`;
+        el.listMetaEl.textContent = isProductType(type)
+          ? tt("records.meta.product", "One catalog for sellable assemblies, subassemblies, components, and service parts.")
+          : tt("records.meta.default", "Inline edit with auto-save enabled.");
       }
 
       function showFlash(msg = "Saved ✓") {
@@ -1067,24 +1360,61 @@
 
         if (role === "product") {
           const family = String(form.family || prev.family || prev?.meta?.family || "");
+          const validProductIds = new Set(app.products.map((product) => String(product?.id || "")).filter(Boolean));
+          validProductIds.add(rid);
+          const bomParents = parseBomLinksJson(form.__bomParents, validProductIds, rid, "parentProductId");
+          const bomChildren = parseBomLinksJson(form.__bomChildren, validProductIds, rid, "childProductId");
+          const nextParentId = String(bomParents[0]?.parentProductId || "");
+          const nextParentQty = Number(bomParents[0]?.qty || 1) || 1;
           const next = {
             ...prev,
             id: rid,
             code: String(form.code || prev.code || nextCode("P", rows)),
             name: String(form.name || prev.name || "Product"),
             family,
-            parentProductId: String(form.parentProductId || prev.parentProductId || ""),
+            bomParents,
+            parentProductId: nextParentId,
+            parentQty: nextParentQty,
             imageUrl: String(form.imageUrl || prev.imageUrl || ""),
             meta: nextMeta,
           };
-          if (family) next.meta = { ...(next.meta || {}), family };
-          else if (next.meta && typeof next.meta === "object" && Object.prototype.hasOwnProperty.call(next.meta, "family")) {
+          if (idx >= 0) rows[idx] = next;
+          else rows.push(next);
+          for (let i = 0; i < rows.length; i++) {
+            const product = rows[i];
+            const productId = String(product?.id || "");
+            if (!productId || productId === rid) continue;
+            const links = productBomParents(product, validProductIds, productId);
+            const nextLinks = links.filter((rel) => String(rel?.parentProductId || "") !== rid);
+            const requested = bomChildren.find((rel) => String(rel?.childProductId || "") === productId);
+            if (requested) nextLinks.push({ parentProductId: rid, qty: Number(requested.qty || 1) || 1, unit: "ea", note: "" });
+            const normalizedLinks = normalizeProductBomLinks(nextLinks, validProductIds, productId, "parentProductId");
+            rows[i] = {
+              ...product,
+              bomParents: normalizedLinks,
+              parentProductId: String(normalizedLinks[0]?.parentProductId || ""),
+              parentQty: Number(normalizedLinks[0]?.qty || 1) || 1,
+              meta: {
+                ...((product?.meta && typeof product.meta === "object") ? product.meta : {}),
+                ...(String(product?.family || "").trim() ? { family: String(product.family || "").trim() } : {}),
+                bomParents: normalizedLinks,
+                parentQty: Number(normalizedLinks[0]?.qty || 1) || 1,
+              },
+            };
+          }
+          next.meta = {
+            ...(next.meta || {}),
+            ...(family ? { family } : {}),
+            bomParents,
+            parentQty: nextParentQty,
+          };
+          if (!family && next.meta && typeof next.meta === "object" && Object.prototype.hasOwnProperty.call(next.meta, "family")) {
             const m = { ...next.meta };
             delete m.family;
             next.meta = m;
           }
           if (idx >= 0) rows[idx] = next;
-          else rows.push(next);
+          else rows[rows.findIndex((product) => String(product?.id || "") === rid)] = next;
           if (!app.activeProductId) app.activeProductId = rid;
         } else if (role === "station") {
           const next = {
@@ -1137,6 +1467,24 @@
         if (r === "product") {
           const before = app.products.length;
           app.products = app.products.filter((x) => String(x?.id || "") !== rid);
+          const validProductIds = new Set(app.products.map((product) => String(product?.id || "")).filter(Boolean));
+          app.products = app.products.map((product) => {
+            const productId = String(product?.id || "");
+            const nextBomParents = productBomParents(product, validProductIds, productId)
+              .filter((rel) => String(rel?.parentProductId || "") !== rid);
+            return {
+              ...product,
+              bomParents: nextBomParents,
+              parentProductId: String(nextBomParents[0]?.parentProductId || ""),
+              parentQty: Number(nextBomParents[0]?.qty || 1) || 1,
+              meta: {
+                ...((product?.meta && typeof product.meta === "object") ? product.meta : {}),
+                ...(String(product?.family || "").trim() ? { family: String(product.family || "").trim() } : {}),
+                bomParents: nextBomParents,
+                parentQty: Number(nextBomParents[0]?.qty || 1) || 1,
+              },
+            };
+          });
           for (const j of app.jobs) if (String(j?.productId || "") === rid) j.productId = "";
           if (String(app.activeProductId || "") === rid) app.activeProductId = app.products[0]?.id || null;
           if (before === app.products.length) return false;
@@ -1165,16 +1513,28 @@
         const type = findType(state.selectedTypeId);
         if (!type) {
           el.toolbarMeta.textContent = "";
+          if (el.quickAddWrap) el.quickAddWrap.hidden = true;
           return;
         }
         const role = normalizeRole(type.moduleRole, type.id);
         const rule = incomingRule(String(type.id || ""));
         const parentType = rule?.parentTypeId ? findType(String(rule.parentTypeId || "")) : null;
         const parentLabel = parentType ? String(parentType.nameSingular || parentType.id || "") : "(root)";
-        el.toolbarMeta.textContent = `Role: ${roleLabel(role)} - Parent: ${parentLabel} - Fields: ${mergedTypeAttributes(type).length}`;
+        if (isProductType(type)) {
+          el.toolbarMeta.textContent = tt("records.toolbar.product", "Products are the master item catalog: assemblies, subassemblies, components, consumables, and service parts.");
+          if (el.quickAddWrap) el.quickAddWrap.hidden = false;
+          return;
+        }
+        if (el.quickAddWrap) el.quickAddWrap.hidden = true;
+        el.toolbarMeta.textContent = tt("records.toolbar.default", "Role: {role} | Parent: {parent} | Fields: {count}", {
+          role: roleLabel(role),
+          parent: parentLabel,
+          count: mergedTypeAttributes(type).length,
+        });
       }
 
       function renderAll() {
+        applyTexts();
         renderTypeOptions();
         renderMetaText();
         renderRecordsTable();
@@ -1185,7 +1545,14 @@
         if (!id) return;
         state.selectedTypeId = id;
         state.inlineNewRow = false;
+        state.inlineNewPreset = null;
         renderAll();
+      }
+
+      function startInlineCreate(preset = null) {
+        state.inlineNewRow = true;
+        state.inlineNewPreset = preset && typeof preset === "object" ? { ...preset } : null;
+        renderRecordsTable();
       }
 
       async function loadAll() {
@@ -1231,6 +1598,7 @@
           const productTypeId = String(window.VMillData?.resolveEntityTypeIdByRole?.("product") || "");
           state.selectedTypeId = productTypeId || String(state.model.types?.[0]?.id || "");
           state.inlineNewRow = false;
+          state.inlineNewPreset = null;
         }
         renderAll();
       }
@@ -1320,6 +1688,7 @@
           }
           if (!id) return;
           state.inlineNewRow = false;
+          state.inlineNewPreset = null;
           window.CANBus?.emit("shop:tree:changed", { reason: "records-manager-save", typeId: String(type.id || ""), id }, "records-manager");
           await loadAll();
           showFlash("Saved ✓");
@@ -1330,6 +1699,7 @@
       async function deleteInlineRow(recordId, isNew = false) {
         if (isNew) {
           state.inlineNewRow = false;
+          state.inlineNewPreset = null;
           renderRecordsTable();
           return;
         }
@@ -1349,23 +1719,37 @@
         }
         if (!ok) return;
         state.inlineNewRow = false;
+        state.inlineNewPreset = null;
         window.CANBus?.emit("shop:tree:changed", { reason: "records-manager-delete", typeId: String(type.id || ""), id: rid }, "records-manager");
         await loadAll();
         showFlash("Deleted ✓");
       }
 
       function applyTexts() {
-        document.title = tt("records.title", "Records Manager");
-        el.titleEl.textContent = tt("records.title", "Records Manager");
+        const type = findType(state.selectedTypeId);
+        const productMode = isProductType(type);
+        document.title = tt("records.title", "Records");
+        el.titleEl.textContent = tt("records.title", "Records");
         el.searchLabelEl.textContent = tt("records.search.folders", "Search folders");
         el.catLabelEl.textContent = tt("records.form.category", "System category");
-        el.recSearchLabelEl.textContent = tt("records.search.records", "Search records");
-        el.listTitleEl.textContent = tt("records.list.title", "Records");
+        el.recSearchLabelEl.textContent = productMode
+          ? tt("records.search.items", "Search items and assemblies")
+          : tt("records.search.records", "Search records");
+        el.listTitleEl.textContent = productMode
+          ? tt("records.list.products", "Items & Assemblies")
+          : tt("records.list.title", "Records");
         el.refreshBtn.textContent = tt("common.refresh", "Refresh");
         el.openHubBtn.textContent = tt("common.hub", "Hub");
-        if (el.addRecordBtn) el.addRecordBtn.textContent = tt("records.action.addRecord", "+ Record");
+        if (el.addRecordBtn) el.addRecordBtn.textContent = productMode
+          ? tt("records.action.addItem", "+ Item")
+          : tt("records.action.addRecord", "+ Record");
+        if (el.quickAddAssemblyBtn) el.quickAddAssemblyBtn.textContent = tt("records.bom.addAssemblyQuick", "+ Assembly");
+        if (el.quickAddComponentBtn) el.quickAddComponentBtn.textContent = tt("records.bom.addChild", "+ Component");
+        if (el.quickAddServiceBtn) el.quickAddServiceBtn.textContent = tt("records.quick.service", "+ Service");
         el.typeSearchIn.placeholder = tt("shop.search.placeholder", "Search folders...");
-        el.recordSearchIn.placeholder = tt("records.search.records.placeholder", "Search code/name...");
+        el.recordSearchIn.placeholder = productMode
+          ? tt("records.search.items.placeholder", "Search code, item, or assembly...")
+          : tt("records.search.records.placeholder", "Search code/name...");
       }
 
       function applyTheme(event) {
@@ -1375,6 +1759,11 @@
 
       function wireEvents() {
         let pendingImageFieldInput = null;
+        const isActiveEditor = (node) => {
+          if (!(node instanceof HTMLElement)) return false;
+          if (node instanceof HTMLInputElement || node instanceof HTMLSelectElement || node instanceof HTMLTextAreaElement) return true;
+          return !!node.closest("[data-bom-editor]");
+        };
         const scheduleRowAutoSave = (rowEl) => {
           if (!(rowEl instanceof HTMLElement)) return;
           const rid = String(rowEl.getAttribute("data-record-id") || "");
@@ -1383,6 +1772,11 @@
           const prev = state.autoSaveTimers.get(rowEl);
           if (prev) clearTimeout(prev);
           const timer = window.setTimeout(() => {
+            const active = document.activeElement;
+            if (active instanceof HTMLElement && rowEl.contains(active) && isActiveEditor(active)) {
+              scheduleRowAutoSave(rowEl);
+              return;
+            }
             state.autoSaveTimers.delete(rowEl);
             void saveInlineRow(rid, rowEl, isNew);
           }, 220);
@@ -1399,8 +1793,16 @@
           renderTypeOptions();
         });
         el.addRecordBtn?.addEventListener("click", () => {
-          state.inlineNewRow = true;
-          renderRecordsTable();
+          startInlineCreate(null);
+        });
+        el.quickAddAssemblyBtn?.addEventListener("click", () => {
+          startInlineCreate({ family: "sellable-assembly" });
+        });
+        el.quickAddComponentBtn?.addEventListener("click", () => {
+          startInlineCreate({ family: "component" });
+        });
+        el.quickAddServiceBtn?.addEventListener("click", () => {
+          startInlineCreate({ family: "service" });
         });
         el.recordSearchIn?.addEventListener("input", () => {
           state.recordSearch = String(el.recordSearchIn.value || "");
@@ -1416,6 +1818,31 @@
         el.recordsBody?.addEventListener("click", (e) => {
           const target = e.target;
           if (!(target instanceof HTMLElement)) return;
+          const bomAddBtn = target.closest("[data-bom-add]");
+          if (bomAddBtn instanceof HTMLElement) {
+            const editorEl = bomAddBtn.closest("[data-bom-editor]");
+            if (!(editorEl instanceof HTMLElement)) return;
+            const kind = String(editorEl.getAttribute("data-bom-editor") || "parents");
+            const rowsWrap = editorEl.querySelector(".bomRows");
+            if (!(rowsWrap instanceof HTMLElement)) return;
+            const empty = rowsWrap.querySelector("[data-bom-empty]");
+            if (empty instanceof HTMLElement) empty.remove();
+            rowsWrap.insertAdjacentHTML("beforeend", bomRowEditorHtml(kind, {}, String(editorEl.getAttribute("data-product-id") || "")));
+            syncBomEditorField(editorEl);
+            const lastRow = rowsWrap.querySelector("[data-bom-row]:last-child select, [data-bom-row]:last-child input");
+            if (lastRow instanceof HTMLElement && typeof lastRow.focus === "function") lastRow.focus();
+            return;
+          }
+          const bomRemoveBtn = target.closest("[data-bom-remove]");
+          if (bomRemoveBtn instanceof HTMLElement) {
+            const editorEl = bomRemoveBtn.closest("[data-bom-editor]");
+            const rowEl = bomRemoveBtn.closest("tr[data-record-id]");
+            const bomRow = bomRemoveBtn.closest("[data-bom-row]");
+            if (bomRow instanceof HTMLElement) bomRow.remove();
+            if (editorEl instanceof HTMLElement) syncBomEditorField(editorEl);
+            if (rowEl instanceof HTMLElement) scheduleRowAutoSave(rowEl);
+            return;
+          }
           const pickBtn = target.closest("[data-image-pick]");
           if (pickBtn instanceof HTMLElement) {
             const fieldWrap = pickBtn.closest(".imageField");
@@ -1450,16 +1877,42 @@
         el.recordsBody?.addEventListener("change", (e) => {
           const target = e.target;
           if (!(target instanceof HTMLElement)) return;
+          const bomEditor = target.closest("[data-bom-editor]");
+          if (bomEditor instanceof HTMLElement) {
+            const rowEl = target.closest("tr[data-record-id]");
+            syncBomEditorField(bomEditor);
+            if (rowEl instanceof HTMLElement) scheduleRowAutoSave(rowEl);
+            return;
+          }
           const fieldNode = target.closest("[data-field-key]");
           if (!(fieldNode instanceof HTMLElement)) return;
           const rowEl = target.closest("tr[data-record-id]");
           if (!(rowEl instanceof HTMLElement)) return;
           scheduleRowAutoSave(rowEl);
         });
+        el.recordsBody?.addEventListener("input", (e) => {
+          const target = e.target;
+          if (!(target instanceof HTMLElement)) return;
+          const bomEditor = target.closest("[data-bom-editor]");
+          if (!(bomEditor instanceof HTMLElement)) return;
+          const rowEl = target.closest("tr[data-record-id]");
+          syncBomEditorField(bomEditor);
+          if (rowEl instanceof HTMLElement) scheduleRowAutoSave(rowEl);
+        });
         el.recordsBody?.addEventListener("keydown", (e) => {
           const target = e.target;
           if (!(target instanceof HTMLElement)) return;
           if (e.key !== "Enter" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+          const bomEditor = target.closest("[data-bom-editor]");
+          if (bomEditor instanceof HTMLElement) {
+            const rowEl = target.closest("tr[data-record-id]");
+            e.preventDefault();
+            e.stopPropagation();
+            syncBomEditorField(bomEditor);
+            if (rowEl instanceof HTMLElement) scheduleRowAutoSave(rowEl);
+            if (typeof target.blur === "function") target.blur();
+            return;
+          }
           const fieldNode = target.closest("[data-field-key]");
           if (!(fieldNode instanceof HTMLElement)) return;
           const rowEl = target.closest("tr[data-record-id]");
@@ -1472,6 +1925,13 @@
         el.recordsBody?.addEventListener("focusout", (e) => {
           const target = e.target;
           if (!(target instanceof HTMLElement)) return;
+          const bomEditor = target.closest("[data-bom-editor]");
+          if (bomEditor instanceof HTMLElement) {
+            const rowEl = target.closest("tr[data-record-id]");
+            syncBomEditorField(bomEditor);
+            if (rowEl instanceof HTMLElement) scheduleRowAutoSave(rowEl);
+            return;
+          }
           const fieldNode = target.closest("[data-field-key]");
           if (!(fieldNode instanceof HTMLElement)) return;
           const rowEl = target.closest("tr[data-record-id]");

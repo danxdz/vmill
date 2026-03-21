@@ -2001,12 +2001,12 @@
         { id: "chrono-camera", name: "Chrono Camera", desc: "Camera-assisted capture with sequence marks and bookmark export.", href: "./chrono/chrono_camera.html", status: "ready", tags: ["capture", "camera", "bookmarks"] },
         { id: "spacial", name: "Router", desc: "Route and operation planning with linked drawings, specs, and control exports.", href: "./SPaCial.html", status: "ready", tags: ["router", "operations", "quality", "control"] },
         { id: "blueprint-manager", name: "Drawing Manager", desc: "Product-level drawings, OCR sources, styles, and master marks linked into Router operations.", href: "./blueprint_manager.html", status: "ready", tags: ["drawings", "ocr", "annotations", "product-docs"] },
-        { id: "factory", name: "Factory Manager", desc: "Unified flow manager for products, stations, operations, and capacity targets.", href: "./factory_manager.html", status: "ready", tags: ["factory", "operations", "capacity", "planning"] },
+        { id: "factory", name: "Factory Operations", desc: "Production planning, work orders, scheduling, and execution control.", href: "./factory_manager.html", status: "ready", tags: ["factory", "operations", "capacity", "planning"] },
         { id: "shop-tree", name: "Shop Organizer", desc: "Recursive shop hierarchy with node CRUD, linked jobs, and drag reparenting.", href: "./shop_tree.html", status: "ready", tags: ["shop", "tree", "nodes", "crud"] },
-        { id: "records", name: "Records Manager", desc: "Dynamic record CRUD forms generated from selected system category fields.", href: "./records_manager.html", status: "ready", tags: ["records", "crud", "forms", "schema"] },
+        { id: "records", name: "Records", desc: "Structured records and custom forms by system category.", href: "./records_manager.html", status: "ready", tags: ["records", "crud", "forms", "schema"] },
         { id: "contas", name: "Contas CNC", desc: "Legacy CNC calculators: thread, milling, turning, and trig helpers.", href: "./contas_calc.html", status: "ready", tags: ["cnc", "calculator", "thread", "milling", "turning"] },
         { id: "theme", name: "Theme Studio", desc: "Global palette and visual theme controls for all modules.", href: "./theme_studio.html", status: "ready", tags: ["theme", "ui", "palette"] },
-        { id: "translations", name: "Translations", desc: "Global translation manager for EN/FR/PT strings.", href: "./translation_studio.html", status: "ready", tags: ["i18n", "localization", "strings"] },
+        { id: "translations", name: "Translation Studio", desc: "Manage EN, FR, and PT interface strings.", href: "./translation_studio.html", status: "ready", tags: ["i18n", "localization", "strings"] },
         { id: "cnc-sim", name: "CNC Simulator", desc: "Opens the CNC simulator launcher.", href: "./cnc_sim.html", status: "ready", tags: ["cnc", "simulation"] },
         { id: "can-bus", name: "Logger", desc: "Real-time event logger for sync/auth/data changes with filters and export.", href: "./logger.html", status: "ready", tags: ["logger", "can", "diagnostics", "audit"] },
       ];
@@ -4192,6 +4192,8 @@
           code,
           name,
           parentProductId: "",
+          parentQty: 1,
+          bomParents: [],
           categoryIds: [],
           imageUrl: "",
         };
@@ -4224,7 +4226,16 @@
         }))) return;
         st.products = st.products.filter((p) => String(p.id || "") !== pid);
         for (const p of st.products) {
-          if (String(p.parentProductId || "") === pid) p.parentProductId = "";
+          const bomParents = Array.isArray(p?.bomParents) ? p.bomParents : [];
+          const nextBomParents = bomParents.filter((rel) => String(rel?.parentProductId || "") !== pid);
+          if (nextBomParents.length !== bomParents.length || String(p.parentProductId || "") === pid) {
+            p.bomParents = nextBomParents;
+            p.parentProductId = String(nextBomParents[0]?.parentProductId || "");
+            p.parentQty = Number(nextBomParents[0]?.qty || 1) || 1;
+            if (p.meta && typeof p.meta === "object") {
+              p.meta = { ...p.meta, bomParents: nextBomParents, parentQty: p.parentQty };
+            }
+          }
         }
         for (const j of (st.jobs || [])) {
           if (String(j.productId || "") === pid) j.productId = "";

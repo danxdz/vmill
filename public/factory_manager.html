@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="data:," />
-  <title>Factory Manager</title>
+  <title>Factory Operations</title>
   <style>
     :root {
       --bg: var(--vm-theme-bg, #0b111b);
@@ -17,6 +17,8 @@
       --ok: var(--vm-theme-ok, #33d19b);
       --warn: var(--vm-theme-warn, #f3c76b);
       --danger: var(--vm-theme-danger, #ff6173);
+      --control-bg: color-mix(in srgb, var(--panel) 88%, #000);
+      --control-bg-2: color-mix(in srgb, var(--panel2) 92%, #000);
       --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
     * { box-sizing: border-box; }
@@ -24,6 +26,7 @@
     body {
       margin: 0;
       color: var(--text);
+      color-scheme: dark;
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       background:
         radial-gradient(980px 540px at 10% -20%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 60%),
@@ -31,6 +34,7 @@
       overflow-x: hidden;
       overflow-y: auto;
     }
+    body.modalOpen { overflow: hidden; }
     .wrap { width: 100%; max-width: none; margin: 0; padding: 16px 14px 24px; min-height: 100dvh; }
     .hero { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
     h1 { margin: 0; font-size: 30px; letter-spacing: .02em; }
@@ -44,16 +48,46 @@
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
     }
     .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    .grow { flex: 1 1 170px; }
+    .grow { flex: 1 1 170px; min-width: 0; }
     .btn, select, input {
       border-radius: 10px;
       border: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.03);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--control-bg) 92%, transparent), color-mix(in srgb, var(--control-bg-2) 96%, transparent));
       color: var(--text);
       padding: 9px 10px;
       font-size: 13px;
+      min-height: 40px;
+      transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
     }
-    .btn { cursor: pointer; font-weight: 700; width: auto; }
+    select, input[type="text"], input[type="number"], input[type="date"] { width: 100%; }
+    input::placeholder { color: color-mix(in srgb, var(--muted) 92%, transparent); }
+    select, option { color-scheme: dark; }
+    select option, select optgroup { background: var(--control-bg-2); color: var(--text); }
+    select[multiple] {
+      min-height: 150px;
+      padding: 6px;
+      scrollbar-color: color-mix(in srgb, var(--accent) 45%, transparent) transparent;
+    }
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      min-height: 16px;
+      accent-color: var(--accent);
+    }
+    input::-webkit-calendar-picker-indicator {
+      cursor: pointer;
+      opacity: 0.88;
+      filter: invert(0.92) sepia(0.06) saturate(0.7) hue-rotate(176deg);
+    }
+    .btn:hover, select:hover, input:hover {
+      border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+    }
+    .btn:focus-visible, select:focus-visible, input:focus-visible {
+      outline: none;
+      border-color: color-mix(in srgb, var(--accent) 72%, transparent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+    .btn { cursor: pointer; font-weight: 700; width: auto; white-space: nowrap; }
     .btn.primary {
       border-color: color-mix(in srgb, var(--accent) 62%, transparent);
       color: var(--accent);
@@ -146,6 +180,100 @@
       text-decoration: none;
     }
     .act:hover { border-color: color-mix(in srgb, var(--accent) 66%, transparent); color: var(--accent); }
+    .field {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .fieldLabel {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .03em;
+    }
+    .fieldCheck {
+      justify-content: flex-end;
+    }
+    .fieldCheckRow {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 2px 2px 0;
+      color: var(--text);
+      font-size: 12px;
+    }
+    .fieldCompact input, .fieldCompact select { max-width: 100%; }
+    .chipList {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+      background: color-mix(in srgb, var(--control-bg) 92%, transparent);
+      font-size: 12px;
+    }
+    .chip button {
+      min-height: 0;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+    }
+    .dayChecks {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .dayCheck {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 40px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+      background: color-mix(in srgb, var(--control-bg) 88%, transparent);
+      font-size: 12px;
+      color: var(--text);
+    }
+    .erpPanelHead {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .erpHeadCopy {
+      min-width: 0;
+      flex: 1 1 320px;
+    }
+    .erpToolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .erpComposer {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(10, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+    .span1 { grid-column: span 1; }
+    .span2 { grid-column: span 2; }
+    .span3 { grid-column: span 3; }
+    .span4 { grid-column: span 4; }
+    .span5 { grid-column: span 5; }
     .grid2 { display: grid; grid-template-columns: 1.2fr .8fr; gap: 10px; }
     .erpMini { color: var(--muted); font-size: 11px; }
     .erpList {
@@ -175,6 +303,37 @@
       border-radius: 10px;
       overflow: auto;
       background: rgba(255,255,255,.015);
+    }
+    .settingsInsights {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .settingsInsight {
+      border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: color-mix(in srgb, var(--panel) 86%, #000);
+      min-width: 0;
+    }
+    .settingsInsight .label {
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 6px;
+    }
+    .settingsInsight .value {
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.2;
+      word-break: break-word;
+    }
+    .settingsInsight .hint {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 11px;
     }
     .timeline {
       display: grid;
@@ -228,6 +387,11 @@
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
       padding: 12px;
     }
+    .modalCard.settingsCard {
+      width: min(1120px, 100%);
+      max-height: min(90vh, 920px);
+      overflow: auto;
+    }
     .modalHead {
       display: flex;
       align-items: center;
@@ -236,6 +400,16 @@
       margin-bottom: 10px;
     }
     .modalTitle { font-size: 15px; font-weight: 800; }
+    .settingsGrid {
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 10px;
+      align-items: start;
+    }
+    .settingsStack {
+      display: grid;
+      gap: 10px;
+    }
     .scanVideo {
       width: 100%;
       max-height: 58dvh;
@@ -266,9 +440,19 @@
     @media (max-width: 1180px) {
       .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .tableWrap { max-height: 56vh; }
+      .erpComposer { grid-template-columns: repeat(6, minmax(0, 1fr)); }
       .grid2 { grid-template-columns: 1fr; }
       .qrWrap { grid-template-columns: 1fr; }
       .qrImg { width: 180px; height: 180px; }
+      .dayChecks { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .settingsInsights, .settingsGrid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 760px) {
+      .erpComposer { grid-template-columns: 1fr; }
+      .span1, .span2, .span3, .span4, .span5 { grid-column: auto; }
+      .erpToolbar { width: 100%; justify-content: stretch; }
+      .erpToolbar .btn { flex: 1 1 100%; }
+      .dayChecks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
   </style>
 </head>
@@ -276,11 +460,11 @@
   <div class="wrap">
     <div class="hero">
       <div>
-        <h1 id="title">Factory Manager</h1>
+        <h1 id="title">Factory Operations</h1>
         <div id="subtitle" class="sub">Unified flow manager for products, stations, operations, cycle targets, and bottleneck control.</div>
       </div>
       <div class="row">
-        <button class="btn ghost" id="reloadBtn" type="button">Reload</button>
+        <button class="btn ghost" id="reloadBtn" type="button">Refresh</button>
       </div>
     </div>
 
@@ -295,43 +479,60 @@
     </section>
 
     <section class="card kpis">
-      <article class="kpi"><div class="label">Visible Ops</div><div id="kOps" class="value">0</div><div id="kOpsHint" class="hint">0 with samples</div></article>
-      <article class="kpi"><div class="label">Weighted Avg Cycle</div><div id="kAvg" class="value">-</div><div class="hint">seconds</div></article>
-      <article class="kpi"><div class="label">Target Attainment</div><div id="kAtt" class="value">-</div><div id="kAttHint" class="hint">on target</div></article>
-      <article class="kpi"><div class="label">Issue Mix</div><div id="kMix" class="value">-</div><div class="hint">drift / risk / no target / no data</div></article>
+      <article class="kpi"><div class="label" id="kOpsLbl">Visible Ops</div><div id="kOps" class="value">0</div><div id="kOpsHint" class="hint">0 with samples</div></article>
+      <article class="kpi"><div class="label" id="kAvgLbl">Weighted Avg Cycle</div><div id="kAvg" class="value">-</div><div class="hint" id="kAvgHint">seconds</div></article>
+      <article class="kpi"><div class="label" id="kAttLbl">Target Attainment</div><div id="kAtt" class="value">-</div><div id="kAttHint" class="hint">0/0 on target</div></article>
+      <article class="kpi"><div class="label" id="kMixLbl">Issue Mix</div><div id="kMix" class="value">-</div><div class="hint" id="kMixHint">drift / risk / no target / no data</div></article>
     </section>
 
     <section class="card">
-      <div class="row" style="justify-content:space-between;">
-        <div>
+      <div class="erpPanelHead">
+        <div class="erpHeadCopy">
           <div class="mini" id="erpLayerLbl">ERP Layer · Work Orders + Scheduling</div>
           <div class="erpMini" id="erpSummary">0 work orders | 0 scheduled tasks | 0 running</div>
         </div>
-        <div class="row">
-          <button class="btn ghost" id="loadDemoBtn" type="button">Load Factory Demo</button>
+        <div class="erpToolbar">
           <button class="btn" id="woAddBtn" type="button">+ Work Order</button>
           <button class="btn primary" id="autoPlanBtn" type="button">Auto Plan (Route -> Station)</button>
           <button class="btn ghost" id="clearPlanBtn" type="button">Clear Schedule</button>
         </div>
       </div>
-      <div class="row" style="margin-top:8px;">
-        <div class="grow"><div class="erpMini" id="woProductLbl">WO Product</div><select id="woProductSel"></select></div>
-        <div class="grow"><div class="erpMini" id="woRouteLbl">WO Route</div><select id="woRouteSel"></select></div>
-        <div style="width:180px;">
-          <div class="erpMini" id="woOpsModeLbl">Operations</div>
+      <div class="erpComposer">
+        <label class="field span3">
+          <span class="fieldLabel" id="woProductLbl">WO Product</span>
+          <select id="woProductSel"></select>
+        </label>
+        <label class="field span3">
+          <span class="fieldLabel" id="woRouteLbl">WO Route</span>
+          <select id="woRouteSel"></select>
+        </label>
+        <label class="field span2">
+          <span class="fieldLabel" id="woOpsModeLbl">Operations</span>
           <select id="woOpsModeSel">
             <option value="all">All operations</option>
             <option value="selected">Only selected</option>
           </select>
-        </div>
-        <div class="grow" style="min-width:260px;">
-          <div class="erpMini" id="woOpsPickLbl">Pick operations</div>
-          <select id="woOpsSel" multiple size="4"></select>
-        </div>
-        <div class="grow"><div class="erpMini" id="woEndStationLbl">End Station (optional)</div><select id="woEndStationSel"></select></div>
-        <div style="width:110px;"><div class="erpMini" id="woQtyLbl">Qty</div><input id="woQtyIn" type="number" min="1" step="1" value="1" /></div>
-        <div style="width:150px;"><div class="erpMini" id="woDueLbl">Due Date</div><input id="woDueIn" type="date" /></div>
-        <label style="display:flex;align-items:center;gap:6px;margin-top:18px;white-space:nowrap;"><input id="woIncludeChildrenChk" type="checkbox" /><span class="erpMini" id="woIncludeChildrenLbl" style="margin:0;">Include child products</span></label>
+        </label>
+        <label class="field span2 fieldCompact">
+          <span class="fieldLabel" id="woQtyLbl">Qty</span>
+          <input id="woQtyIn" type="number" min="1" step="1" value="1" />
+        </label>
+        <label class="field span4">
+          <span class="fieldLabel" id="woOpsPickLbl">Pick operations</span>
+          <select id="woOpsSel" multiple size="6"></select>
+        </label>
+        <label class="field span3">
+          <span class="fieldLabel" id="woEndStationLbl">End Station (optional)</span>
+          <select id="woEndStationSel"></select>
+        </label>
+        <label class="field span2">
+          <span class="fieldLabel" id="woDueLbl">Due Date</span>
+          <input id="woDueIn" type="date" />
+        </label>
+        <label class="field span3 fieldCheck">
+          <span class="fieldLabel" id="woOptionsLbl">Options</span>
+          <span class="fieldCheckRow"><input id="woIncludeChildrenChk" type="checkbox" /><span id="woIncludeChildrenLbl">Include child products</span></span>
+        </label>
       </div>
       <div class="grid2" style="margin-top:8px;">
         <div>
@@ -339,7 +540,7 @@
           <div class="erpList">
             <table>
               <thead>
-                <tr><th>WO</th><th>Product</th><th>Route</th><th>Qty</th><th>Due</th><th>Status</th><th>Actions</th></tr>
+                <tr><th id="woHeadWo">WO</th><th id="woHeadProduct">Product</th><th id="woHeadRoute">Route</th><th id="woHeadQty">Qty</th><th id="woHeadDue">Due</th><th id="woHeadStatus">Status</th><th id="woHeadActions">Actions</th></tr>
               </thead>
               <tbody id="woRows"></tbody>
             </table>
@@ -350,7 +551,7 @@
           <div class="erpList">
             <table>
               <thead>
-                <tr><th>Task</th><th>Code</th><th>Station</th><th>Plan</th><th>Exec</th><th>Actions</th></tr>
+                <tr><th id="execHeadTask">Task</th><th id="execHeadCode">Code</th><th id="execHeadStation">Station</th><th id="execHeadPlan">Plan</th><th id="execHeadExec">Exec</th><th id="execHeadActions">Actions</th></tr>
               </thead>
               <tbody id="execRows"></tbody>
             </table>
@@ -366,6 +567,7 @@
           <div class="erpMini" id="timelineRangeLbl">Range: -</div>
         </div>
         <div class="row">
+          <button class="btn ghost" id="planningSettingsBtn" type="button">Planning Settings</button>
           <button class="btn ghost" id="timelinePrevBtn" type="button">Prev</button>
           <button class="btn ghost" id="timelineTodayBtn" type="button">Today</button>
           <button class="btn ghost" id="timelineNextBtn" type="button">Next</button>
@@ -378,6 +580,23 @@
       </div>
       <div class="timelineWrap">
         <div class="timeline" id="timelineBoard"></div>
+      </div>
+      <div class="settingsInsights">
+        <div class="settingsInsight">
+          <div class="label" id="planningSummaryFactoryLbl">Factory Default</div>
+          <div class="value" id="planningSummaryFactoryVal">-</div>
+          <div class="hint" id="planningSummaryFactoryHint">Base calendar for stations without overrides.</div>
+        </div>
+        <div class="settingsInsight">
+          <div class="label" id="planningSummaryOverrideLbl">Station Overrides</div>
+          <div class="value" id="planningSummaryOverrideVal">-</div>
+          <div class="hint" id="planningSummaryOverrideHint">How many stations diverge from the factory default.</div>
+        </div>
+        <div class="settingsInsight">
+          <div class="label" id="planningSummaryLoadLbl">Visible Load</div>
+          <div class="value" id="planningSummaryLoadVal">-</div>
+          <div class="hint" id="planningSummaryLoadHint">Planned hours versus visible capacity in the selected horizon.</div>
+        </div>
       </div>
     </section>
 
@@ -392,7 +611,7 @@
           <div class="erpList">
             <table>
               <thead>
-                <tr><th>Task</th><th>Spec</th><th>Result</th><th>Note</th><th>Actions</th></tr>
+                <tr><th id="qualityHeadTask">Task</th><th id="qualityHeadSpec">Spec</th><th id="qualityHeadResult">Result</th><th id="qualityHeadNote">Note</th><th id="qualityHeadActions">Actions</th></tr>
               </thead>
               <tbody id="qualityRows"></tbody>
             </table>
@@ -403,7 +622,7 @@
           <div class="erpList">
             <table>
               <thead>
-                <tr><th>When</th><th>User</th><th>Action</th><th>Ref</th></tr>
+                <tr><th id="auditHeadWhen">When</th><th id="auditHeadUser">User</th><th id="auditHeadAction">Action</th><th id="auditHeadRef">Ref</th></tr>
               </thead>
               <tbody id="auditRows"></tbody>
             </table>
@@ -451,6 +670,98 @@
     </div>
   </div>
 
+  <div class="modalBack" id="planningSettingsModal" aria-hidden="true">
+    <div class="modalCard settingsCard">
+      <div class="modalHead">
+        <div>
+          <div class="modalTitle" id="planningSettingsModalTitle">Planning Settings</div>
+          <div class="note" id="planningSettingsModalHint">Factory defaults, station overrides, workdays, and closed dates.</div>
+        </div>
+        <button class="btn ghost" id="planningSettingsCloseBtn" type="button">Close</button>
+      </div>
+      <div class="settingsGrid">
+        <section class="card" style="margin:0;">
+          <div class="mini" id="stationCalendarLbl">Factory Calendar Defaults</div>
+          <div class="erpComposer" style="margin-top:0;grid-template-columns:repeat(6, minmax(0, 1fr));">
+            <label class="field span2">
+              <span class="fieldLabel" id="stationCalendarScopeLbl">Scope</span>
+              <select id="stationCalScopeSel">
+                <option value="factory">Factory default</option>
+                <option value="station">Station override</option>
+              </select>
+            </label>
+            <label class="field span2">
+              <span class="fieldLabel" id="stationCalendarStationLbl">Station</span>
+              <select id="stationCalStationSel"></select>
+            </label>
+            <label class="field span2">
+              <span class="fieldLabel" id="stationCalendarProfileLbl">Profile</span>
+              <select id="stationCalProfileSel">
+                <option value="single_8x5">Single Shift 5x8</option>
+                <option value="double_16x5">Double Shift 5x16</option>
+                <option value="continuous_24x7">Continuous 7x24</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <label class="field span1">
+              <span class="fieldLabel" id="stationCalendarStartLbl">Start Hour</span>
+              <input id="stationCalStartIn" type="number" min="0" max="23.5" step="0.5" value="8" />
+            </label>
+            <label class="field span1">
+              <span class="fieldLabel" id="stationCalendarHoursLbl">Hours / Day</span>
+              <input id="stationCalHoursIn" type="number" min="1" max="24" step="0.5" value="8" />
+            </label>
+          </div>
+          <div class="note" id="stationCalModeHint" style="margin-top:8px;">Factory defaults apply to stations without a local override.</div>
+          <div class="dayChecks">
+            <label class="dayCheck"><input id="stationCalDay1" type="checkbox" /><span id="stationCalDay1Lbl">Mon</span></label>
+            <label class="dayCheck"><input id="stationCalDay2" type="checkbox" /><span id="stationCalDay2Lbl">Tue</span></label>
+            <label class="dayCheck"><input id="stationCalDay3" type="checkbox" /><span id="stationCalDay3Lbl">Wed</span></label>
+            <label class="dayCheck"><input id="stationCalDay4" type="checkbox" /><span id="stationCalDay4Lbl">Thu</span></label>
+            <label class="dayCheck"><input id="stationCalDay5" type="checkbox" /><span id="stationCalDay5Lbl">Fri</span></label>
+            <label class="dayCheck"><input id="stationCalDay6" type="checkbox" /><span id="stationCalDay6Lbl">Sat</span></label>
+            <label class="dayCheck"><input id="stationCalDay0" type="checkbox" /><span id="stationCalDay0Lbl">Sun</span></label>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn primary" id="stationCalSaveBtn" type="button">Save Calendar</button>
+            <button class="btn ghost" id="stationCalResetBtn" type="button">Reset</button>
+          </div>
+        </section>
+        <div class="settingsStack">
+          <section class="card" style="margin:0;">
+            <div class="erpMini" id="stationCalendarPreviewLbl">Capacity Preview</div>
+            <div class="note" id="stationCalSummary">-</div>
+            <div class="row" style="margin-top:10px;align-items:flex-end;">
+              <label class="field grow">
+                <span class="fieldLabel" id="stationCalendarOffDateLbl">Closed Date</span>
+                <input id="stationCalOffDateIn" type="date" />
+              </label>
+              <button class="btn ghost" id="stationCalAddOffBtn" type="button">Add Closed Date</button>
+            </div>
+            <div class="erpMini" id="stationCalendarOffDatesLbl" style="margin-top:10px;">Closed Dates</div>
+            <div id="stationCalOffDatesList" class="chipList"></div>
+            <div class="note" id="stationCalOffDatesEmpty">No closed dates.</div>
+          </section>
+          <section class="card" style="margin:0;">
+            <div class="mini" id="planningSettingsQuickTitle">Planning Snapshot</div>
+            <div class="settingsStack">
+              <div class="settingsInsight" style="padding:0;border:none;background:transparent;">
+                <div class="label" id="planningModalFactoryLbl">Factory Default</div>
+                <div class="value" id="planningModalFactoryVal">-</div>
+                <div class="hint" id="planningModalFactoryHint">Current default calendar applied across the plant.</div>
+              </div>
+              <div class="settingsInsight" style="padding:0;border:none;background:transparent;">
+                <div class="label" id="planningModalStationLbl">Selected Station</div>
+                <div class="value" id="planningModalStationVal">-</div>
+                <div class="hint" id="planningModalStationHint">Whether the selected station inherits or overrides the factory default.</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modalBack" id="qrModal" aria-hidden="true">
     <div class="modalCard">
       <div class="modalHead">
@@ -493,8 +804,27 @@
       const EXEC_NS = "factory_execution_v1";
       const QUALITY_NS = "factory_quality_v1";
       const AUDIT_NS = "factory_audit_v1";
+      const FACTORY_SETTINGS_NS = "factory_settings_v1";
+      const FACTORY_SETTINGS_ID = "defaults";
       const SHIFT_START_HOUR = 8;
       const SHIFT_MINUTES_PER_DAY = 8 * 60;
+      const FACTORY_DEMO_WO_PREFIX = "facdemo_wo_";
+      const FACTORY_DEMO_WO_CODE_PREFIX = "HUB-WO-";
+      const GLOBAL_DEMO_ROUTE_PREFIX = "routeplan_prod_";
+      const STATION_CALENDAR_PRESETS = {
+        single_8x5: { profile: "single_8x5", shiftStartHour: 8, workingMinutesPerDay: 8 * 60, workingDays: [1, 2, 3, 4, 5] },
+        double_16x5: { profile: "double_16x5", shiftStartHour: 6, workingMinutesPerDay: 16 * 60, workingDays: [1, 2, 3, 4, 5] },
+        continuous_24x7: { profile: "continuous_24x7", shiftStartHour: 0, workingMinutesPerDay: 24 * 60, workingDays: [0, 1, 2, 3, 4, 5, 6] },
+        custom: { profile: "custom", shiftStartHour: 8, workingMinutesPerDay: 8 * 60, workingDays: [1, 2, 3, 4, 5] },
+      };
+      const DEFAULT_FACTORY_CALENDAR = {
+        profile: "single_8x5",
+        shiftStartHour: SHIFT_START_HOUR,
+        workingMinutesPerDay: SHIFT_MINUTES_PER_DAY,
+        workingDays: [1, 2, 3, 4, 5],
+        offDates: [],
+      };
+      const STATION_CALENDAR_DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
       const APP_KEYS = Array.isArray(window.VMillData?.keys?.ALL_APP_KEYS)
         ? window.VMillData.keys.ALL_APP_KEYS.slice()
         : ["vmill:app-state:v1"];
@@ -527,6 +857,8 @@
       let qualityByTaskId = new Map();
       let auditCache = [];
       let selectedOperatorTaskId = "";
+      let selectedCalendarStationId = "";
+      let calendarDraftOffDates = [];
       let timelineOffsetDays = 0;
       let timelineSpanDays = 7;
       let suppressReactiveRender = 0;
@@ -620,6 +952,10 @@
 
       function readRoutes() {
         return (window.VMillData?.listRecords?.("spacial_routes") || [])
+          .filter((row) => {
+            const id = String(row?.id || "");
+            return id && !id.startsWith(GLOBAL_DEMO_ROUTE_PREFIX);
+          })
           .map((row) => ({
             id: String(row?.id || ""),
             routeName: String(row?.routeName || row?.name || "Route"),
@@ -716,6 +1052,35 @@
         return rows.slice(0, Math.max(1, Number(limit || 60)));
       }
 
+      function cleanupLegacyFactoryDemoData() {
+        if (typeof window.VMillData?.listRecords !== "function" || typeof window.VMillData?.deleteRecord !== "function") return 0;
+        let removed = 0;
+        const removeIf = (ns, predicate) => {
+          for (const row of (window.VMillData?.listRecords?.(ns) || [])) {
+            const id = String(row?.id || "");
+            if (!id || !predicate(row, id)) continue;
+            window.VMillData?.deleteRecord?.(ns, id);
+            removed += 1;
+          }
+        };
+        withBulkMutations(() => {
+          removeIf(WO_NS, (row, id) => id.startsWith(FACTORY_DEMO_WO_PREFIX) || String(row?.code || "").startsWith(FACTORY_DEMO_WO_CODE_PREFIX));
+          removeIf(SCHEDULE_NS, (row, id) =>
+            id.includes(FACTORY_DEMO_WO_PREFIX)
+            || String(row?.woId || "").startsWith(FACTORY_DEMO_WO_PREFIX)
+            || String(row?.woCode || "").startsWith(FACTORY_DEMO_WO_CODE_PREFIX)
+          );
+          removeIf(EXEC_NS, (_row, id) => id.includes(FACTORY_DEMO_WO_PREFIX));
+          removeIf(QUALITY_NS, (_row, id) => id.includes(FACTORY_DEMO_WO_PREFIX));
+          removeIf(AUDIT_NS, (row) => {
+            const action = String(row?.action || "");
+            const ref = String(row?.ref || "");
+            return ref === "factory" && (action === "demo_load" || action === "demo_load_hub");
+          });
+        });
+        return removed;
+      }
+
       function productNameById(app, productId) {
         const products = Array.isArray(app?.products) ? app.products : [];
         const row = products.find((p) => String(p?.id || "") === String(productId || ""));
@@ -724,6 +1089,444 @@
 
       function stationRows(app) {
         return Array.isArray(app?.stations) ? app.stations : [];
+      }
+
+      function localDayStartTs(ts) {
+        const d = new Date(ts || Date.now());
+        d.setHours(0, 0, 0, 0);
+        return d.getTime();
+      }
+
+      function stationCalendarPreset(profile) {
+        return STATION_CALENDAR_PRESETS[String(profile || "single_8x5")] || STATION_CALENDAR_PRESETS.single_8x5;
+      }
+
+      function readFactorySettingsRow() {
+        const row = window.VMillData?.getRecord?.(FACTORY_SETTINGS_NS, FACTORY_SETTINGS_ID) || null;
+        return row && typeof row === "object" ? row : null;
+      }
+
+      function normalizeStationWorkingDays(value, fallback = STATION_CALENDAR_PRESETS.single_8x5.workingDays) {
+        const seen = new Set();
+        const out = (Array.isArray(value) ? value : fallback)
+          .map((day) => Number(day))
+          .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+          .filter((day) => {
+            if (seen.has(day)) return false;
+            seen.add(day);
+            return true;
+          });
+        return out.length ? out : fallback.slice();
+      }
+
+      function normalizeOffDates(value) {
+        const seen = new Set();
+        return (Array.isArray(value) ? value : [])
+          .map((row) => String(row || "").slice(0, 10))
+          .filter((row) => /^\d{4}-\d{2}-\d{2}$/.test(row))
+          .filter((row) => {
+            if (seen.has(row)) return false;
+            seen.add(row);
+            return true;
+          })
+          .sort();
+      }
+
+      function normalizeCalendarConfig(source, fallback = DEFAULT_FACTORY_CALENDAR) {
+        const base = fallback && typeof fallback === "object" ? fallback : DEFAULT_FACTORY_CALENDAR;
+        const preset = stationCalendarPreset(source?.scheduleProfile || source?.profile || base.profile);
+        const shiftStartHour = Number(source?.shiftStartHour ?? base.shiftStartHour ?? preset.shiftStartHour);
+        const workingMinutesPerDay = Number(source?.workingMinutesPerDay ?? base.workingMinutesPerDay ?? preset.workingMinutesPerDay);
+        return {
+          profile: String(source?.scheduleProfile || source?.profile || base.profile || preset.profile || "single_8x5"),
+          shiftStartHour: Number.isFinite(shiftStartHour) ? Math.min(23.5, Math.max(0, shiftStartHour)) : preset.shiftStartHour,
+          workingMinutesPerDay: Number.isFinite(workingMinutesPerDay) ? Math.min(24 * 60, Math.max(60, Math.round(workingMinutesPerDay))) : preset.workingMinutesPerDay,
+          workingDays: normalizeStationWorkingDays(source?.workingDays, Array.isArray(base?.workingDays) ? base.workingDays : preset.workingDays),
+          offDates: normalizeOffDates(source?.offDates ?? base?.offDates),
+        };
+      }
+
+      function readFactoryCalendar() {
+        return normalizeCalendarConfig(readFactorySettingsRow(), DEFAULT_FACTORY_CALENDAR);
+      }
+
+      function hasStationCalendarOverride(station) {
+        if (!station || typeof station !== "object") return false;
+        if (station.scheduleOverride === false) return false;
+        if (station.scheduleOverride === true) return true;
+        return [
+          station.scheduleProfile,
+          station.shiftStartHour,
+          station.workingMinutesPerDay,
+          Array.isArray(station.workingDays) ? station.workingDays.length : 0,
+          Array.isArray(station.offDates) ? station.offDates.length : 0,
+        ].some((value) => value != null && value !== "" && value !== 0);
+      }
+
+      function readStationCalendarOverride(station) {
+        return normalizeCalendarConfig(station, readFactoryCalendar());
+      }
+
+      function readEffectiveStationCalendar(station) {
+        const factory = readFactoryCalendar();
+        if (!hasStationCalendarOverride(station)) return factory;
+        return normalizeCalendarConfig(station, factory);
+      }
+
+      function weekdayShortLabel(day) {
+        try {
+          const lang = window.VMillLang?.getLanguage?.() || undefined;
+          const base = new Date(2024, 0, 7 + Number(day || 0));
+          return new Intl.DateTimeFormat(lang, { weekday: "short" }).format(base);
+        } catch {
+          return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][Number(day || 0)] || "-";
+        }
+      }
+
+      function stationCalendarSummary(cal) {
+        const hours = Number((Number(cal?.workingMinutesPerDay || 0) / 60).toFixed(1));
+        const days = STATION_CALENDAR_DAY_ORDER
+          .filter((day) => (cal?.workingDays || []).includes(day))
+          .map((day) => weekdayShortLabel(day))
+          .join(" · ");
+        return tt(
+          "factory.calendar.summary",
+          "{hours} h/day | start {start} | {days} | {closures} closed date(s)",
+          {
+            hours: Number.isFinite(hours) ? hours : 0,
+            start: `${String(Math.floor(Number(cal?.shiftStartHour || 0))).padStart(2, "0")}:${String(Math.round((Number(cal?.shiftStartHour || 0) % 1) * 60)).padStart(2, "0")}`,
+            days: days || "-",
+            closures: (cal?.offDates || []).length,
+          },
+        );
+      }
+
+      function stationDaySegments(station, dayTs) {
+        const cal = readEffectiveStationCalendar(station);
+        const dayStart = localDayStartTs(dayTs);
+        const day = new Date(dayStart).getDay();
+        if (!cal.workingDays.includes(day)) return [];
+        if (cal.offDates.includes(formatDateInput(dayStart))) return [];
+        const startTs = dayStart + (Number(cal.shiftStartHour || 0) * 3600000);
+        const endTs = startTs + (Number(cal.workingMinutesPerDay || 0) * 60000);
+        if (!(endTs > startTs)) return [];
+        return [{ startTs, endTs }];
+      }
+
+      function nextStationWorkingStart(station, earliestTs) {
+        let probe = Number(earliestTs || Date.now());
+        for (let i = 0; i < 370; i += 1) {
+          const dayStart = localDayStartTs(probe);
+          const segments = stationDaySegments(station, dayStart);
+          for (const seg of segments) {
+            if (probe <= seg.endTs) return Math.max(probe, seg.startTs);
+          }
+          probe = dayStart + 86400000;
+        }
+        return Number(earliestTs || Date.now());
+      }
+
+      function scheduleTaskWindowOnStation(station, earliestTs, durationMin) {
+        let remaining = Math.max(1, Number(durationMin || 1) || 1);
+        let cursor = Number.isFinite(Number(earliestTs)) ? Number(earliestTs) : Date.now();
+        let startTs = 0;
+        for (let guard = 0; guard < 2000 && remaining > 0; guard += 1) {
+          const nextStart = nextStationWorkingStart(station, cursor);
+          const segments = stationDaySegments(station, nextStart);
+          const seg = segments.find((row) => nextStart <= row.endTs) || null;
+          if (!seg) {
+            cursor = localDayStartTs(cursor) + 86400000;
+            continue;
+          }
+          const actualStart = Math.max(nextStart, seg.startTs);
+          const availableMin = Math.max(0, Math.floor((seg.endTs - actualStart) / 60000));
+          if (availableMin <= 0) {
+            cursor = seg.endTs + 60000;
+            continue;
+          }
+          if (!startTs) startTs = actualStart;
+          if (availableMin >= remaining) {
+            return { startTs, endTs: actualStart + (remaining * 60000) };
+          }
+          remaining -= availableMin;
+          cursor = localDayStartTs(actualStart) + 86400000;
+        }
+        const fallbackStart = Number.isFinite(Number(earliestTs)) ? Number(earliestTs) : Date.now();
+        return { startTs: fallbackStart, endTs: fallbackStart + (Math.max(1, Number(durationMin || 1) || 1) * 60000) };
+      }
+
+      function updateStationRecord(stationId, patch) {
+        const sid = String(stationId || "");
+        if (!sid) return false;
+        const app = readApp();
+        if (!app || !Array.isArray(app.stations)) return false;
+        const idx = app.stations.findIndex((row) => String(row?.id || "") === sid);
+        if (idx < 0) return false;
+        const next = { ...app, stations: app.stations.slice() };
+        next.stations[idx] = { ...next.stations[idx], ...patch };
+        window.VMillData?.writeAppState?.(next);
+        return true;
+      }
+
+      function calendarScope() {
+        return String($("stationCalScopeSel")?.value || "factory");
+      }
+
+      function currentCalendarStation(app = readApp()) {
+        const stations = stationRows(app || {});
+        const selected = stations.find((row) => String(row?.id || "") === String(selectedCalendarStationId || ""));
+        if (selected) return selected;
+        selectedCalendarStationId = String(stations[0]?.id || "");
+        return stations[0] || null;
+      }
+
+      function calendarProfileLabel(profile) {
+        const key = String(profile || "single_8x5");
+        return tt(`factory.calendar.profile.${key}`, key);
+      }
+
+      function formatClockHour(value) {
+        const raw = Number(value || 0);
+        const hrs = Math.floor(raw);
+        const mins = Math.round((raw % 1) * 60);
+        return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+      }
+
+      function formatPlanStamp(iso) {
+        const ts = Date.parse(String(iso || ""));
+        if (!Number.isFinite(ts)) return "-";
+        return `${formatDateInput(ts)} ${formatClockHour(new Date(ts).getHours() + (new Date(ts).getMinutes() / 60))}`;
+      }
+
+      function formatPlanRange(startIso, endIso) {
+        const startTs = Date.parse(String(startIso || ""));
+        const endTs = Date.parse(String(endIso || ""));
+        if (!Number.isFinite(startTs) || !Number.isFinite(endTs)) return "-";
+        const startDay = formatDateInput(startTs);
+        const endDay = formatDateInput(endTs);
+        const startTime = formatClockHour(new Date(startTs).getHours() + (new Date(startTs).getMinutes() / 60));
+        const endTime = formatClockHour(new Date(endTs).getHours() + (new Date(endTs).getMinutes() / 60));
+        if (startDay === endDay) return `${startDay} ${startTime} -> ${endTime}`;
+        return `${startDay} ${startTime} -> ${endDay} ${endTime}`;
+      }
+
+      function calendarFromInputs() {
+        const profile = String($("stationCalProfileSel")?.value || "single_8x5");
+        return normalizeCalendarConfig({
+          profile,
+          shiftStartHour: Number($("stationCalStartIn")?.value || 0),
+          workingMinutesPerDay: Math.round(Math.max(1, Number($("stationCalHoursIn")?.value || 8)) * 60),
+          workingDays: STATION_CALENDAR_DAY_ORDER.filter((day) => !!$(`stationCalDay${day}`)?.checked),
+          offDates: calendarDraftOffDates.slice(),
+        }, readFactoryCalendar());
+      }
+
+      function writeCalendarInputs(cal) {
+        if ($("stationCalProfileSel")) $("stationCalProfileSel").value = String(cal?.profile || "single_8x5");
+        if ($("stationCalStartIn")) $("stationCalStartIn").value = String(Number(cal?.shiftStartHour || 0));
+        if ($("stationCalHoursIn")) $("stationCalHoursIn").value = String(Number(((Number(cal?.workingMinutesPerDay || 0) / 60).toFixed(2)) || 0));
+        STATION_CALENDAR_DAY_ORDER.forEach((day) => {
+          const input = $(`stationCalDay${day}`);
+          if (input) input.checked = Array.isArray(cal?.workingDays) && cal.workingDays.includes(day);
+        });
+        calendarDraftOffDates = normalizeOffDates(cal?.offDates);
+      }
+
+      function renderCalendarOffDates() {
+        const host = $("stationCalOffDatesList");
+        const empty = $("stationCalOffDatesEmpty");
+        if (!host || !empty) return;
+        if (!calendarDraftOffDates.length) {
+          host.innerHTML = "";
+          empty.style.display = "";
+          return;
+        }
+        empty.style.display = "none";
+        host.innerHTML = calendarDraftOffDates.map((date) => `
+          <span class="chip">
+            <span class="mono">${esc(date)}</span>
+            <button class="act" type="button" data-cal-off-remove="${esc(date)}">${esc(tt("common.delete", "Delete"))}</button>
+          </span>
+        `).join("");
+      }
+
+      function syncCalendarPreview() {
+        const cal = calendarFromInputs();
+        const summary = $("stationCalSummary");
+        if (summary) summary.textContent = stationCalendarSummary(cal);
+        renderCalendarOffDates();
+      }
+
+      function renderStationCalendar(app) {
+        const scopeSel = $("stationCalScopeSel");
+        const stationSel = $("stationCalStationSel");
+        const stations = stationRows(app || {});
+        if (scopeSel) scopeSel.value = calendarScope();
+        if (stationSel) {
+          stationSel.innerHTML = stations.map((station) => `<option value="${esc(station.id)}">${esc(station.name || station.code || station.id)}</option>`).join("");
+        }
+        const station = currentCalendarStation(app);
+        if (stationSel) {
+          stationSel.value = String(station?.id || "");
+          stationSel.disabled = calendarScope() !== "station" || !stations.length;
+        }
+        const scope = calendarScope();
+        const baseCal = scope === "factory"
+          ? readFactoryCalendar()
+          : (hasStationCalendarOverride(station) ? readStationCalendarOverride(station) : readEffectiveStationCalendar(station));
+        writeCalendarInputs(baseCal);
+        const profileSel = $("stationCalProfileSel");
+        if (profileSel) profileSel.value = String(baseCal.profile || "single_8x5");
+        const hint = $("stationCalModeHint");
+        if (hint) {
+          if (scope === "factory") {
+            hint.textContent = tt("factory.calendar.scope.factoryHint", "Factory defaults apply to stations without a local override.");
+          } else if (hasStationCalendarOverride(station)) {
+            hint.textContent = tt("factory.calendar.scope.stationOverrideHint", "This station has its own override. Reset to inherit factory defaults again.");
+          } else {
+            hint.textContent = tt("factory.calendar.scope.stationInheritHint", "This station currently inherits factory defaults. Save to create a local override.");
+          }
+        }
+        const title = $("stationCalendarLbl");
+        if (title && scope === "factory") title.textContent = tt("factory.calendar.factoryTitle", "Factory Calendar Defaults");
+        if (title && scope !== "factory") title.textContent = tt("factory.calendar.stationTitle", "Station Calendar Override");
+        const modalFactoryVal = $("planningModalFactoryVal");
+        if (modalFactoryVal) modalFactoryVal.textContent = stationCalendarSummary(readFactoryCalendar());
+        const modalStationVal = $("planningModalStationVal");
+        if (modalStationVal) {
+          const stationLabel = String(station?.name || station?.code || tt("common.na", "n/a"));
+          const inherit = !hasStationCalendarOverride(station);
+          modalStationVal.textContent = inherit
+            ? `${stationLabel} · ${tt("factory.calendar.inheritTag", "inherits default")}`
+            : `${stationLabel} · ${tt("factory.calendar.overrideTag", "local override")}`;
+        }
+        syncCalendarPreview();
+      }
+
+      function visibleTimelineRange() {
+        const span = Math.max(1, Number(timelineSpanDays || 7) || 7);
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        if (timelineOffsetDays) start.setDate(start.getDate() + timelineOffsetDays);
+        const startTs = start.getTime();
+        return { startTs, endTs: startTs + (span * 86400000), span };
+      }
+
+      function overlapMinutes(startA, endA, startB, endB) {
+        const start = Math.max(Number(startA || 0), Number(startB || 0));
+        const end = Math.min(Number(endA || 0), Number(endB || 0));
+        if (!(end > start)) return 0;
+        return (end - start) / 60000;
+      }
+
+      function stationCapacityMinutesInRange(station, startTs, endTs) {
+        let total = 0;
+        for (let dayTs = localDayStartTs(startTs); dayTs < endTs; dayTs += 86400000) {
+          for (const seg of stationDaySegments(station, dayTs)) {
+            total += overlapMinutes(seg.startTs, seg.endTs, startTs, endTs);
+          }
+        }
+        return total;
+      }
+
+      function renderPlanningSummary(app) {
+        const stations = stationRows(app || {});
+        const factoryCal = readFactoryCalendar();
+        const overrides = stations.filter((station) => hasStationCalendarOverride(station));
+        const { startTs, endTs, span } = visibleTimelineRange();
+        let loadMin = 0;
+        for (const task of scheduleCache) {
+          const taskStart = Date.parse(String(task?.plannedStart || ""));
+          const taskEnd = Date.parse(String(task?.plannedEnd || ""));
+          if (!Number.isFinite(taskStart) || !Number.isFinite(taskEnd)) continue;
+          loadMin += overlapMinutes(taskStart, taskEnd, startTs, endTs);
+        }
+        const capacityMin = stations.reduce((sum, station) => sum + stationCapacityMinutesInRange(station, startTs, endTs), 0);
+        const loadPct = capacityMin > 0 ? Math.round((loadMin / capacityMin) * 100) : 0;
+        const factoryVal = $("planningSummaryFactoryVal");
+        if (factoryVal) factoryVal.textContent = stationCalendarSummary(factoryCal);
+        const overrideVal = $("planningSummaryOverrideVal");
+        if (overrideVal) overrideVal.textContent = `${overrides.length}/${stations.length || 0}`;
+        const overrideHint = $("planningSummaryOverrideHint");
+        if (overrideHint) {
+          overrideHint.textContent = overrides.length
+            ? overrides.map((station) => String(station.code || station.name || station.id)).slice(0, 4).join(" · ")
+            : tt("factory.calendar.overrideNone", "No local station overrides.");
+        }
+        const loadVal = $("planningSummaryLoadVal");
+        if (loadVal) {
+          loadVal.textContent = tt("factory.calendar.loadValue", "{load}h / {capacity}h ({pct}%)", {
+            load: Number((loadMin / 60).toFixed(1)),
+            capacity: Number((capacityMin / 60).toFixed(1)),
+            pct: loadPct,
+          });
+        }
+        const loadHint = $("planningSummaryLoadHint");
+        if (loadHint) {
+          loadHint.textContent = tt("factory.calendar.loadHint", "{stations} station(s) across {days} day(s) in view.", {
+            stations: stations.length,
+            days: span,
+          });
+        }
+      }
+
+      function saveCalendarSettings() {
+        if (!requirePermission(canEditPlanning, tt("factory.erp.denied.planning", "Permission denied: planner/manager/admin required."))) return;
+        const cal = calendarFromInputs();
+        if (calendarScope() === "factory") {
+          window.VMillData?.upsertRecord?.(FACTORY_SETTINGS_NS, {
+            id: FACTORY_SETTINGS_ID,
+            profile: cal.profile,
+            shiftStartHour: cal.shiftStartHour,
+            workingMinutesPerDay: cal.workingMinutesPerDay,
+            workingDays: cal.workingDays.slice(),
+            offDates: cal.offDates.slice(),
+            updatedAt: nowIso(),
+          });
+          addAudit("factory_calendar_save", "factory", cal.profile);
+          $("statusLine").textContent = tt("factory.calendar.savedFactory", "Factory calendar defaults saved.");
+          render();
+          return;
+        }
+        const station = currentCalendarStation(readApp());
+        if (!station) return;
+        updateStationRecord(station.id, {
+          scheduleOverride: true,
+          scheduleProfile: cal.profile,
+          shiftStartHour: cal.shiftStartHour,
+          workingMinutesPerDay: cal.workingMinutesPerDay,
+          workingDays: cal.workingDays.slice(),
+          offDates: cal.offDates.slice(),
+          updatedAt: nowIso(),
+        });
+        addAudit("factory_calendar_save", String(station.id || ""), cal.profile);
+        $("statusLine").textContent = tt("factory.calendar.savedStation", "Station calendar override saved.");
+        render();
+      }
+
+      function resetCalendarSettings() {
+        if (!requirePermission(canEditPlanning, tt("factory.erp.denied.planning", "Permission denied: planner/manager/admin required."))) return;
+        if (calendarScope() === "factory") {
+          window.VMillData?.deleteRecord?.(FACTORY_SETTINGS_NS, FACTORY_SETTINGS_ID);
+          addAudit("factory_calendar_reset", "factory", "default");
+          $("statusLine").textContent = tt("factory.calendar.resetFactory", "Factory calendar reset to default.");
+          render();
+          return;
+        }
+        const station = currentCalendarStation(readApp());
+        if (!station) return;
+        updateStationRecord(station.id, {
+          scheduleOverride: false,
+          scheduleProfile: "",
+          shiftStartHour: null,
+          workingMinutesPerDay: null,
+          workingDays: [],
+          offDates: [],
+          updatedAt: nowIso(),
+        });
+        addAudit("factory_calendar_reset", String(station.id || ""), "inherit");
+        $("statusLine").textContent = tt("factory.calendar.resetStation", "Station now inherits factory defaults.");
+        render();
       }
 
       function childProductIds(app, rootProductId) {
@@ -737,9 +1540,12 @@
           const parent = queue.shift();
           for (const p of products) {
             const pid = String(p?.id || "");
-            const pParent = String(p?.parentProductId || "");
-            if (!pid || !pParent) continue;
-            if (pParent !== parent) continue;
+            if (!pid) continue;
+            const bomParents = Array.isArray(p?.bomParents) ? p.bomParents : [];
+            const parentIds = bomParents.length
+              ? bomParents.map((rel) => String(rel?.parentProductId || "")).filter(Boolean)
+              : [String(p?.parentProductId || "")].filter(Boolean);
+            if (!parentIds.includes(parent)) continue;
             if (seen.has(pid)) continue;
             seen.add(pid);
             out.push(pid);
@@ -822,17 +1628,17 @@
         const prevR = String(rSel.value || "");
         const prevS = String(sSel.value || "");
         pSel.innerHTML = products.length
-          ? products.map((p) => `<option value="${esc(String(p.id || ""))}">${esc(`${p.code || "--"} - ${p.name || "Product"}`)}</option>`).join("")
-          : `<option value="">No products</option>`;
+          ? products.map((p) => `<option value="${esc(String(p.id || ""))}">${esc(`${p.code || "--"} - ${p.name || tt("common.product", "Product")}`)}</option>`).join("")
+          : `<option value="">${esc(tt("factory.erp.select.noProducts", "No products"))}</option>`;
         if (products.some((p) => String(p.id || "") === prevP)) pSel.value = prevP;
         const activeP = String(pSel.value || products[0]?.id || "");
         const productRoutes = routesCache.filter((r) => String(r.productId || "") === activeP);
         const routeRows = productRoutes;
         rSel.innerHTML = routeRows.length
           ? `<option value="__all__">${esc(tt("factory.erp.routeAll", "All routes"))}</option>${routeRows.map((r) => `<option value="${esc(String(r.id || ""))}">${esc(r.routeName || r.id || "Route")}</option>`).join("")}`
-          : `<option value="">No routes</option>`;
+          : `<option value="">${esc(tt("factory.erp.select.noRoutes", "No routes"))}</option>`;
         if (routeRows.some((r) => String(r.id || "") === prevR)) rSel.value = prevR;
-        sSel.innerHTML = `<option value="">Auto</option>${stations.map((s) => `<option value="${esc(String(s.id || ""))}">${esc(s.name || s.code || s.id)}</option>`).join("")}`;
+        sSel.innerHTML = `<option value="">${esc(tt("factory.erp.select.auto", "Auto"))}</option>${stations.map((s) => `<option value="${esc(String(s.id || ""))}">${esc(s.name || s.code || s.id)}</option>`).join("")}`;
         if (stations.some((s) => String(s.id || "") === prevS)) sSel.value = prevS;
         fillWoOperationOptions();
         const dueIn = $("woDueIn");
@@ -976,7 +1782,8 @@
 
       function taskDurationMin(op, qty) {
         const est = Number(op?.estimatedTimeMin || 0);
-        if (est > 0) return Math.max(1, Math.round(est * Math.max(1, qty)));
+        const qtyBase = Math.max(1, Number(op?.estimatedQtyBase || 1) || 1);
+        if (est > 0) return Math.max(1, Math.round(est * (Math.max(1, qty) / qtyBase)));
         const byName = rowsCache.find((row) => String(row.id || "") === String(op?.id || ""));
         if (byName?.avgSec > 0) return Math.max(1, Math.round((byName.avgSec * Math.max(1, qty)) / 60));
         return Math.max(3, 5 * Math.max(1, qty));
@@ -1045,6 +1852,7 @@
         const nextByStation = new Map();
         const tasks = [];
         const ordered = woList.slice().sort((a, b) => String(a.dueDate || "").localeCompare(String(b.dueDate || "")));
+        const planningAnchorTs = Date.now();
         let created = 0;
         let updated = 0;
         let removed = 0;
@@ -1060,8 +1868,7 @@
               ops = ops.filter((op) => selectedSet.has(String(op?.id || "")));
             }
             if (!ops.length) continue;
-            const dueTs = wo.dueDate ? startOfShiftTs(`${wo.dueDate}T00:00:00`) : startOfShiftTs(Date.now());
-            let prevEndTs = startOfShiftTs(Date.now());
+            let prevEndTs = planningAnchorTs;
             for (let i = 0; i < ops.length; i += 1) {
               const op = ops[i] || {};
               let candidates = stationCandidatesForOperation(app, op);
@@ -1072,26 +1879,27 @@
               }
               if (!candidates.length) continue;
               let station = candidates[0];
-              let bestStart = Number.POSITIVE_INFINITY;
+              let bestWindow = null;
               for (const cand of candidates) {
                 const sid = String(cand?.id || "");
-                const stationReadyTs = nextByStation.has(sid)
-                  ? Number(nextByStation.get(sid))
-                  : Math.min(dueTs, startOfShiftTs(Date.now()));
-                const candidateStart = Math.max(stationReadyTs, prevEndTs, startOfShiftTs(Date.now()));
-                if (candidateStart < bestStart) {
-                  bestStart = candidateStart;
+                const stationReadyTs = nextByStation.has(sid) ? Number(nextByStation.get(sid)) : planningAnchorTs;
+                const dur = taskDurationMin(op, wo.qty);
+                const candidateWindow = scheduleTaskWindowOnStation(cand, Math.max(planningAnchorTs, prevEndTs, stationReadyTs), dur);
+                if (!bestWindow || candidateWindow.endTs < bestWindow.endTs || (candidateWindow.endTs === bestWindow.endTs && candidateWindow.startTs < bestWindow.startTs)) {
+                  bestWindow = candidateWindow;
                   station = cand;
                 }
               }
               if (!station) continue;
               const stationId = String(station.id || "");
-              const baseTs = nextByStation.has(stationId)
-                ? Number(nextByStation.get(stationId))
-                : Math.min(dueTs, startOfShiftTs(Date.now()));
               const dur = taskDurationMin(op, wo.qty);
-              const startTs = Math.max(baseTs, prevEndTs, startOfShiftTs(Date.now()));
-              const endTs = startTs + (dur * 60000);
+              const window = bestWindow || scheduleTaskWindowOnStation(
+                station,
+                Math.max(planningAnchorTs, prevEndTs, Number(nextByStation.get(stationId) || planningAnchorTs)),
+                dur,
+              );
+              const startTs = window.startTs;
+              const endTs = window.endTs;
               nextByStation.set(stationId, endTs);
               prevEndTs = endTs;
               seqCounter += 1;
@@ -1191,8 +1999,8 @@
           if (row.productId) products.set(row.productId, row.product);
           if (row.stationId) stations.set(row.stationId, row.station);
         }
-        productSel.innerHTML = `<option value=\"all\">All (${rows.length})</option>`;
-        stationSel.innerHTML = `<option value=\"all\">All (${rows.length})</option>`;
+        productSel.innerHTML = `<option value=\"all\">${esc(tt("common.all", "All"))} (${rows.length})</option>`;
+        stationSel.innerHTML = `<option value=\"all\">${esc(tt("common.all", "All"))} (${rows.length})</option>`;
         for (const [id, label] of [...products.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1])))) {
           productSel.insertAdjacentHTML("beforeend", `<option value=\"${esc(id)}\">${esc(label)}</option>`);
         }
@@ -1282,7 +2090,7 @@
             <td><strong>${esc(task.operationName || "-")}</strong><div class="erpMini mono">${esc(task.woId)}</div></td>
             <td class="mono">${esc(task.taskCode || "-")}</td>
             <td>${esc(task.stationName || "-")}</td>
-            <td class="mono">${esc(String(task.plannedStart || "").replace("T", " ").slice(0, 16))}</td>
+            <td class="mono">${esc(formatPlanRange(task.plannedStart, task.plannedEnd))}</td>
             <td><span class="erpTag ${tagClass}">${esc(execStatusLabel(exec.status))}</span><div class="erpMini mono">G:${Number(exec.qtyGood || 0)} S:${Number(exec.qtyScrap || 0)}</div></td>
             <td class="actions">
               <button class="act" data-task-top="${esc(task.id)}">Top</button>
@@ -1335,11 +2143,22 @@
         host.style.minWidth = `${980 + (Math.max(0, days.length - 7) * 110)}px`;
         const byStationDay = new Map();
         for (const task of scheduleCache) {
-          const day = String(task.plannedStart || "").slice(0, 10);
+          const startTs = Date.parse(String(task.plannedStart || ""));
+          const endTs = Date.parse(String(task.plannedEnd || ""));
           const stationId = String(task.stationId || "");
-          const key = `${stationId}|${day}`;
-          if (!byStationDay.has(key)) byStationDay.set(key, []);
-          byStationDay.get(key).push(task);
+          if (!stationId || !Number.isFinite(startTs) || !Number.isFinite(endTs) || !(endTs > startTs)) continue;
+          for (const day of days) {
+            const dayStart = Date.parse(`${day.key}T00:00:00`);
+            const dayEnd = dayStart + 86400000;
+            if (!(endTs > dayStart && startTs < dayEnd)) continue;
+            const key = `${stationId}|${day.key}`;
+            if (!byStationDay.has(key)) byStationDay.set(key, []);
+            byStationDay.get(key).push({
+              ...task,
+              segStartTs: Math.max(startTs, dayStart),
+              segEndTs: Math.min(endTs, dayEnd),
+            });
+          }
         }
         const out = [];
         out.push(`<div class="tlHead">${esc(tt("common.station", "Station"))}</div>`);
@@ -1347,8 +2166,15 @@
         for (const st of stations) {
           out.push(`<div class="tlCell"><strong>${esc(st.name || st.code || st.id)}</strong></div>`);
           for (const d of days) {
-            const items = byStationDay.get(`${String(st.id || "")}|${d.key}`) || [];
-            const bars = items.slice(0, 3).map((task) => `<div class="bar">${esc(task.operationName || tt("factory.erp.task.default", "Task"))} · ${esc(task.woId || "")}</div>`).join("");
+            const items = (byStationDay.get(`${String(st.id || "")}|${d.key}`) || [])
+              .slice()
+              .sort((a, b) => Number(a.segStartTs || 0) - Number(b.segStartTs || 0));
+            const bars = items.slice(0, 3).map((task) => {
+              const segStart = Number(task.segStartTs || 0);
+              const segEnd = Number(task.segEndTs || 0);
+              const label = `${task.operationName || tt("factory.erp.task.default", "Task")} · ${task.woCode || task.woId || ""} · ${formatClockHour(new Date(segStart).getHours() + (new Date(segStart).getMinutes() / 60))}-${formatClockHour(new Date(segEnd).getHours() + (new Date(segEnd).getMinutes() / 60))}`;
+              return `<div class="bar">${esc(label)}</div>`;
+            }).join("");
             const more = items.length > 3 ? `<div class="erpMini">+${items.length - 3} ${esc(tt("common.more", "more"))}</div>` : "";
             out.push(`<div class="tlCell">${bars}${more}</div>`);
           }
@@ -1491,6 +2317,7 @@
         if (!node) return;
         node.classList.toggle("show", !!on);
         node.setAttribute("aria-hidden", on ? "false" : "true");
+        document.body.classList.toggle("modalOpen", !!document.querySelector(".modalBack.show"));
       }
 
       function closeScanModal() {
@@ -1663,6 +2490,8 @@
         renderWorkOrders(app);
         renderExecution();
         renderTimeline(app);
+        renderPlanningSummary(app);
+        renderStationCalendar(app);
         renderQuality();
         renderAudit();
         fillOperatorTaskOptions();
@@ -1695,12 +2524,15 @@
         const noData = rows.filter((row) => row.state === "no-data").length;
 
         $("kOps").textContent = String(rows.length);
-        $("kOpsHint").textContent = `${withSamples.length} with samples`;
+        $("kOpsHint").textContent = tt("factory.kpi.withSamples", "{count} with samples", { count: withSamples.length });
         $("kAvg").textContent = weightedAvg ? `${fmt(weightedAvg)} s` : "-";
         $("kAtt").textContent = withTarget.length ? `${((onTarget / withTarget.length) * 100).toFixed(0)}%` : "-";
-        $("kAttHint").textContent = `${onTarget}/${withTarget.length || 0} on target`;
+        $("kAttHint").textContent = tt("factory.kpi.onTargetCount", "{on}/{total} on target", { on: onTarget, total: withTarget.length || 0 });
         $("kMix").textContent = `${drift}/${risk}/${noTarget}/${noData}`;
-        $("statusLine").textContent = `${rows.length} visible operations | ${drift + risk + noTarget + noData} issue(s)`;
+        $("statusLine").textContent = tt("factory.status.summary", "{count} visible operations | {issues} issue(s)", {
+          count: rows.length,
+          issues: drift + risk + noTarget + noData,
+        });
 
         renderErp();
       }
@@ -1796,9 +2628,33 @@
         render();
       }
 
+      function resequenceStationTasks(app, stationId, orderedTasks) {
+        const station = stationRows(app).find((row) => String(row?.id || "") === String(stationId || ""));
+        if (!station || !orderedTasks.length) return;
+        const firstStartTs = orderedTasks
+          .map((task) => Date.parse(String(task?.plannedStart || "")))
+          .filter((ts) => Number.isFinite(ts))
+          .sort((a, b) => a - b)[0];
+        let cursor = Number.isFinite(firstStartTs) ? firstStartTs : Date.now();
+        withBulkMutations(() => {
+          orderedTasks.forEach((task, idx) => {
+            const dur = Math.max(1, Number(task?.durationMin || 1) || 1);
+            const slot = scheduleTaskWindowOnStation(station, cursor, dur);
+            cursor = slot.endTs;
+            window.VMillData?.upsertRecord?.(SCHEDULE_NS, {
+              ...task,
+              plannedStart: new Date(slot.startTs).toISOString(),
+              plannedEnd: new Date(slot.endTs).toISOString(),
+              seq: idx + 1,
+            });
+          });
+        });
+      }
+
       function moveTaskInStation(taskId, direction) {
         if (!requirePermission(canEditPlanning, tt("factory.erp.denied.planning", "Permission denied: planner/manager/admin required."))) return;
         const id = String(taskId || "");
+        const app = readApp() || {};
         const current = scheduleCache.find((t) => String(t?.id || "") === id);
         if (!current) return;
         const sameStation = scheduleCache
@@ -1808,21 +2664,10 @@
         if (idx < 0) return;
         const swapIdx = direction < 0 ? idx - 1 : idx + 1;
         if (swapIdx < 0 || swapIdx >= sameStation.length) return;
-        const other = sameStation[swapIdx];
-        const a = {
-          ...current,
-          plannedStart: other.plannedStart,
-          plannedEnd: other.plannedEnd,
-          seq: Number(other.seq || 0),
-        };
-        const b = {
-          ...other,
-          plannedStart: current.plannedStart,
-          plannedEnd: current.plannedEnd,
-          seq: Number(current.seq || 0),
-        };
-        window.VMillData?.upsertRecord?.(SCHEDULE_NS, a);
-        window.VMillData?.upsertRecord?.(SCHEDULE_NS, b);
+        const reordered = sameStation.slice();
+        const [task] = reordered.splice(idx, 1);
+        reordered.splice(swapIdx, 0, task);
+        resequenceStationTasks(app, current.stationId, reordered);
         addAudit("task_reorder", id, direction < 0 ? "up" : "down");
         render();
       }
@@ -1830,83 +2675,16 @@
       function moveTaskToTop(taskId) {
         if (!requirePermission(canEditPlanning, tt("factory.erp.denied.planning", "Permission denied: planner/manager/admin required."))) return;
         const id = String(taskId || "");
+        const app = readApp() || {};
         const current = scheduleCache.find((t) => String(t?.id || "") === id);
         if (!current) return;
         const sameStation = scheduleCache
           .filter((t) => String(t?.stationId || "") === String(current.stationId || ""))
           .sort((a, b) => String(a?.plannedStart || "").localeCompare(String(b?.plannedStart || "")));
         if (!sameStation.length) return;
-        const firstStartTs = Date.parse(String(sameStation[0]?.plannedStart || ""));
-        if (!Number.isFinite(firstStartTs)) return;
         const reordered = [current, ...sameStation.filter((t) => String(t?.id || "") !== id)];
-        let cursor = firstStartTs;
-        withBulkMutations(() => {
-          reordered.forEach((task, idx) => {
-            const dur = Math.max(1, Number(task?.durationMin || 1) || 1);
-            const startIso = new Date(cursor).toISOString();
-            const endIso = new Date(cursor + (dur * 60000)).toISOString();
-            cursor += dur * 60000;
-            window.VMillData?.upsertRecord?.(SCHEDULE_NS, {
-              ...task,
-              plannedStart: startIso,
-              plannedEnd: endIso,
-              seq: idx + 1,
-            });
-          });
-        });
+        resequenceStationTasks(app, current.stationId, reordered);
         addAudit("task_priority_top", id, "top");
-        render();
-      }
-
-      async function loadFactoryDemoData() {
-        const hubPreset = String(localStorage.getItem("vmill:hub-demo-preset:v1") || "medium").toLowerCase();
-        if (typeof window.VMillData?.loadDemoAppState !== "function") {
-          $("statusLine").textContent = tt("factory.erp.demo.noLoader", "Demo loader unavailable.");
-          return;
-        }
-        $("statusLine").textContent = tt("factory.erp.demo.loadingHub", "Loading Hub demo preset: {preset}...", { preset: hubPreset });
-        await window.VMillData.loadDemoAppState(hubPreset);
-        routesCache = readRoutes();
-        const hubRoutes = routesCache.filter((r) => String(r?.productId || "")).slice(0, 6);
-        if (!hubRoutes.length) {
-          $("statusLine").textContent = tt("factory.erp.demo.noRoutes", "Demo loaded but no routes were generated.");
-          render();
-          return;
-        }
-        const due = (days) => formatDateInput(Date.now() + (days * 86400000));
-        const woRows = hubRoutes.map((route, i) => ({
-          id: `facdemo_wo_${Date.now()}_${i + 1}`,
-          code: `HUB-WO-${String(i + 1).padStart(3, "0")}`,
-          productId: String(route.productId || ""),
-          routeId: String(route.id || ""),
-          qty: [8, 12, 20, 6, 16, 24][i] || 10,
-          dueDate: due((i % 4) + 2),
-          selectedOperationIds: [],
-          status: "open",
-          createdAt: nowIso(),
-        }));
-        withBulkMutations(() => {
-          for (const row of (window.VMillData?.listRecords?.(WO_NS) || [])) {
-            if (String(row?.id || "").startsWith("facdemo_wo_")) window.VMillData?.deleteRecord?.(WO_NS, String(row.id));
-          }
-          for (const row of (window.VMillData?.listRecords?.(SCHEDULE_NS) || [])) {
-            if (String(row?.woCode || "").startsWith("HUB-WO-")) window.VMillData?.deleteRecord?.(SCHEDULE_NS, String(row?.id || ""));
-          }
-          for (const row of (window.VMillData?.listRecords?.(EXEC_NS) || [])) {
-            if (String(row?.id || "").includes("facdemo_wo_")) window.VMillData?.deleteRecord?.(EXEC_NS, String(row?.id || ""));
-          }
-          woRows.forEach((wo) => window.VMillData?.upsertRecord?.(WO_NS, wo));
-        });
-        addAudit("demo_load_hub", "factory", `preset:${hubPreset},wo:${woRows.length}`);
-        workOrdersCache = readWorkOrders();
-        plansById = readPlans();
-        rowsCache = makeRows();
-        const count = autoPlanSchedule();
-        $("statusLine").textContent = tt(
-          "factory.erp.demo.loadedHub",
-          "Hub demo loaded: {routes} routes, {wo} work orders, {count} planned tasks.",
-          { routes: hubRoutes.length, wo: woRows.length, count },
-        );
         render();
       }
 
@@ -1945,7 +2723,6 @@
 
       function wire() {
         $("reloadBtn").addEventListener("click", render);
-        $("loadDemoBtn").addEventListener("click", () => { void loadFactoryDemoData(); });
         $("woAddBtn").addEventListener("click", addWorkOrder);
         $("autoPlanBtn").addEventListener("click", () => {
           if (!requirePermission(canEditPlanning, tt("factory.erp.denied.schedule", "Permission denied: planner/manager/admin required for scheduling."))) return;
@@ -1961,10 +2738,52 @@
         $("timelinePrevBtn")?.addEventListener("click", () => shiftTimeline(-1));
         $("timelineTodayBtn")?.addEventListener("click", resetTimeline);
         $("timelineNextBtn")?.addEventListener("click", () => shiftTimeline(1));
+        $("planningSettingsBtn")?.addEventListener("click", () => showModal("planningSettingsModal", true));
+        $("planningSettingsCloseBtn")?.addEventListener("click", () => showModal("planningSettingsModal", false));
         $("timelineSpanSel")?.addEventListener("change", () => {
           timelineSpanDays = Math.max(1, Number($("timelineSpanSel")?.value || 7) || 7);
           timelineOffsetDays = 0;
           renderErp();
+        });
+        $("stationCalScopeSel")?.addEventListener("change", () => renderStationCalendar(readApp() || {}));
+        $("stationCalStationSel")?.addEventListener("change", () => {
+          selectedCalendarStationId = String($("stationCalStationSel")?.value || "");
+          renderStationCalendar(readApp() || {});
+        });
+        $("stationCalProfileSel")?.addEventListener("change", () => {
+          const profile = String($("stationCalProfileSel")?.value || "single_8x5");
+          if (profile !== "custom") {
+            const preset = stationCalendarPreset(profile);
+            $("stationCalStartIn").value = String(preset.shiftStartHour);
+            $("stationCalHoursIn").value = String(Number((preset.workingMinutesPerDay / 60).toFixed(1)));
+            STATION_CALENDAR_DAY_ORDER.forEach((day) => {
+              const input = $(`stationCalDay${day}`);
+              if (input) input.checked = preset.workingDays.includes(day);
+            });
+          }
+          syncCalendarPreview();
+        });
+        $("stationCalStartIn")?.addEventListener("input", syncCalendarPreview);
+        $("stationCalHoursIn")?.addEventListener("input", syncCalendarPreview);
+        STATION_CALENDAR_DAY_ORDER.forEach((day) => {
+          $(`stationCalDay${day}`)?.addEventListener("change", syncCalendarPreview);
+        });
+        $("stationCalSaveBtn")?.addEventListener("click", saveCalendarSettings);
+        $("stationCalResetBtn")?.addEventListener("click", resetCalendarSettings);
+        $("stationCalAddOffBtn")?.addEventListener("click", () => {
+          const raw = String($("stationCalOffDateIn")?.value || "").slice(0, 10);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return;
+          calendarDraftOffDates = normalizeOffDates([...calendarDraftOffDates, raw]);
+          if ($("stationCalOffDateIn")) $("stationCalOffDateIn").value = "";
+          syncCalendarPreview();
+        });
+        $("stationCalOffDatesList")?.addEventListener("click", (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          if (!target) return;
+          const removeDate = String(target.getAttribute("data-cal-off-remove") || "");
+          if (!removeDate) return;
+          calendarDraftOffDates = calendarDraftOffDates.filter((date) => date !== removeDate);
+          syncCalendarPreview();
         });
         $("woProductSel")?.addEventListener("change", fillWoFormOptions);
         $("woRouteSel")?.addEventListener("change", fillWoOperationOptions);
@@ -2004,6 +2823,9 @@
         $("qrCloseBtn")?.addEventListener("click", () => showModal("qrModal", false));
         $("qrModal")?.addEventListener("click", (event) => {
           if (event.target === $("qrModal")) showModal("qrModal", false);
+        });
+        $("planningSettingsModal")?.addEventListener("click", (event) => {
+          if (event.target === $("planningSettingsModal")) showModal("planningSettingsModal", false);
         });
         $("qrCopyBtn")?.addEventListener("click", async () => {
           const code = String(qrTaskCode || "").trim();
@@ -2064,19 +2886,35 @@
           if (String(msg?.type || "").startsWith("data:")) requestReactiveRender(120);
         });
         window.addEventListener("vmill:theme:changed", applyTheme);
-        window.addEventListener("vmill:lang:changed", applyI18n);
+        window.addEventListener("vmill:lang:changed", () => {
+          applyI18n();
+          render();
+        });
+        window.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape") return;
+          if ($("planningSettingsModal")?.classList.contains("show")) showModal("planningSettingsModal", false);
+          if ($("qrModal")?.classList.contains("show")) showModal("qrModal", false);
+          if ($("scanModal")?.classList.contains("show")) closeScanModal();
+        });
         window.addEventListener("beforeunload", closeScanModal);
       }
 
       function applyI18n() {
-        $("title").textContent = tt("hub.mod.factory.name", "Factory Manager");
+        $("title").textContent = tt("hub.mod.factory.name", "Factory Operations");
         $("subtitle").textContent = tt("hub.mod.factory.desc", "Unified flow manager for products, stations, operations, and capacity targets.");
+        $("reloadBtn").textContent = tt("common.refresh", "Refresh");
         $("productLbl").textContent = tt("common.product", "Product");
         $("stationLbl").textContent = tt("common.station", "Station");
         $("searchLbl").textContent = tt("common.search", "Search");
+        $("searchIn").placeholder = tt("factory.search.placeholder", "operation / product / station / owner");
         $("issuesLbl").textContent = tt("factory.issues_only", "Issues only");
+        $("kOpsLbl").textContent = tt("factory.kpi.visibleOps", "Visible Ops");
+        $("kAvgLbl").textContent = tt("factory.kpi.weightedAvg", "Weighted Avg Cycle");
+        $("kAvgHint").textContent = tt("factory.kpi.seconds", "seconds");
+        $("kAttLbl").textContent = tt("factory.kpi.targetAttainment", "Target Attainment");
+        $("kMixLbl").textContent = tt("factory.kpi.issueMix", "Issue Mix");
+        $("kMixHint").textContent = tt("factory.kpi.issueMixHint", "drift / risk / no target / no data");
         $("erpLayerLbl").textContent = tt("factory.erp.layer", "ERP Layer · Work Orders + Scheduling");
-        $("loadDemoBtn").textContent = tt("factory.erp.loadDemo", "Load Demo (Hub Backup/Data)");
         $("woProductLbl").textContent = tt("factory.erp.woProduct", "WO Product");
         $("woRouteLbl").textContent = tt("factory.erp.woRoute", "WO Route");
         $("woOpsModeLbl").textContent = tt("factory.erp.opsMode", "Operations");
@@ -2091,13 +2929,53 @@
         $("woEndStationLbl").textContent = tt("factory.erp.endStation", "End Station (optional)");
         $("woQtyLbl").textContent = tt("common.qty", "Qty");
         $("woDueLbl").textContent = tt("factory.erp.dueDate", "Due Date");
+        $("woOptionsLbl").textContent = tt("factory.erp.options", "Options");
         $("woIncludeChildrenLbl").textContent = tt("factory.erp.includeChildren", "Include child products");
         $("woSectionLbl").textContent = tt("factory.erp.workOrders", "Work Orders");
+        $("woHeadWo").textContent = tt("factory.erp.head.wo", "WO");
+        $("woHeadProduct").textContent = tt("common.product", "Product");
+        $("woHeadRoute").textContent = tt("factory.erp.head.route", "Route");
+        $("woHeadQty").textContent = tt("common.qty", "Qty");
+        $("woHeadDue").textContent = tt("factory.erp.head.due", "Due");
+        $("woHeadStatus").textContent = tt("common.status", "Status");
+        $("woHeadActions").textContent = tt("common.actions", "Actions");
         $("execSectionLbl").textContent = tt("factory.erp.executionQueue", "Execution Queue");
+        $("execHeadTask").textContent = tt("common.task", "Task");
+        $("execHeadCode").textContent = tt("common.code", "Code");
+        $("execHeadStation").textContent = tt("common.station", "Station");
+        $("execHeadPlan").textContent = tt("common.plan", "Plan");
+        $("execHeadExec").textContent = tt("factory.erp.head.exec", "Exec");
+        $("execHeadActions").textContent = tt("common.actions", "Actions");
         $("timelineSectionLbl").textContent = tt("factory.erp.timeline", "Station Timeline");
+        $("planningSettingsBtn").textContent = tt("factory.calendar.open", "Planning Settings");
         $("timelinePrevBtn").textContent = tt("common.prev", "Prev");
         $("timelineTodayBtn").textContent = tt("common.today", "Today");
         $("timelineNextBtn").textContent = tt("common.next", "Next");
+        $("planningSummaryFactoryLbl").textContent = tt("factory.calendar.summary.factory", "Factory Default");
+        $("planningSummaryFactoryHint").textContent = tt("factory.calendar.summary.factoryHint", "Base calendar for stations without overrides.");
+        $("planningSummaryOverrideLbl").textContent = tt("factory.calendar.summary.overrides", "Station Overrides");
+        $("planningSummaryOverrideHint").textContent = tt("factory.calendar.summary.overridesHint", "How many stations diverge from the factory default.");
+        $("planningSummaryLoadLbl").textContent = tt("factory.calendar.summary.load", "Visible Load");
+        $("planningSummaryLoadHint").textContent = tt("factory.calendar.summary.loadHintBase", "Planned hours versus visible capacity in the selected horizon.");
+        $("planningSettingsModalTitle").textContent = tt("factory.calendar.modal.title", "Planning Settings");
+        $("planningSettingsModalHint").textContent = tt("factory.calendar.modal.hint", "Factory defaults, station overrides, workdays, and closed dates.");
+        $("planningSettingsCloseBtn").textContent = tt("common.close", "Close");
+        $("planningSettingsQuickTitle").textContent = tt("factory.calendar.snapshot", "Planning Snapshot");
+        $("planningModalFactoryLbl").textContent = tt("factory.calendar.summary.factory", "Factory Default");
+        $("planningModalFactoryHint").textContent = tt("factory.calendar.modal.factoryHint", "Current default calendar applied across the plant.");
+        $("planningModalStationLbl").textContent = tt("factory.calendar.summary.station", "Selected Station");
+        $("planningModalStationHint").textContent = tt("factory.calendar.modal.stationHint", "Whether the selected station inherits or overrides the factory default.");
+        $("stationCalendarScopeLbl").textContent = tt("factory.calendar.scope", "Scope");
+        const scopeSel = $("stationCalScopeSel");
+        if (scopeSel) {
+          const factoryOpt = scopeSel.querySelector("option[value='factory']");
+          const stationOpt = scopeSel.querySelector("option[value='station']");
+          if (factoryOpt) factoryOpt.textContent = tt("factory.calendar.scope.factory", "Factory default");
+          if (stationOpt) stationOpt.textContent = tt("factory.calendar.scope.station", "Station override");
+        }
+        if (!$("timelineRangeLbl").textContent || $("timelineRangeLbl").textContent === "Range: -") {
+          $("timelineRangeLbl").textContent = tt("factory.erp.timelineRangeEmpty", "Range: -");
+        }
         const spanSel = $("timelineSpanSel");
         if (spanSel) {
           const map = { "7": "7 days", "14": "14 days", "30": "30 days" };
@@ -2106,9 +2984,40 @@
           });
           spanSel.value = String(timelineSpanDays);
         }
+        $("stationCalendarStationLbl").textContent = tt("common.station", "Station");
+        $("stationCalendarProfileLbl").textContent = tt("factory.calendar.profile", "Profile");
+        $("stationCalendarStartLbl").textContent = tt("factory.calendar.startHour", "Start Hour");
+        $("stationCalendarHoursLbl").textContent = tt("factory.calendar.hoursPerDay", "Hours / Day");
+        $("stationCalModeHint").textContent = tt("factory.calendar.scope.factoryHint", "Factory defaults apply to stations without a local override.");
+        const profileSel = $("stationCalProfileSel");
+        if (profileSel) {
+          [...profileSel.options].forEach((opt) => {
+            opt.textContent = calendarProfileLabel(opt.value);
+          });
+        }
+        STATION_CALENDAR_DAY_ORDER.forEach((day) => {
+          const label = $(`stationCalDay${day}Lbl`);
+          if (label) label.textContent = weekdayShortLabel(day);
+        });
+        $("stationCalSaveBtn").textContent = tt("factory.calendar.save", "Save Calendar");
+        $("stationCalResetBtn").textContent = tt("factory.calendar.reset", "Reset");
+        $("stationCalendarPreviewLbl").textContent = tt("factory.calendar.preview", "Capacity Preview");
+        $("stationCalendarOffDateLbl").textContent = tt("factory.calendar.closedDate", "Closed Date");
+        $("stationCalAddOffBtn").textContent = tt("factory.calendar.addClosedDate", "Add Closed Date");
+        $("stationCalendarOffDatesLbl").textContent = tt("factory.calendar.closedDates", "Closed Dates");
+        $("stationCalOffDatesEmpty").textContent = tt("factory.calendar.noneClosedDates", "No closed dates.");
         $("qualitySecurityAuditLbl").textContent = tt("factory.erp.qsa", "Quality + Security + Audit");
         $("qualitySectionLbl").textContent = tt("factory.erp.qualityChecks", "Quality Checks (for done tasks)");
+        $("qualityHeadTask").textContent = tt("common.task", "Task");
+        $("qualityHeadSpec").textContent = tt("common.spec", "Spec");
+        $("qualityHeadResult").textContent = tt("common.result", "Result");
+        $("qualityHeadNote").textContent = tt("common.note", "Note");
+        $("qualityHeadActions").textContent = tt("common.actions", "Actions");
         $("auditSectionLbl").textContent = tt("factory.erp.auditTrail", "Audit Trail (latest)");
+        $("auditHeadWhen").textContent = tt("common.when", "When");
+        $("auditHeadUser").textContent = tt("common.user", "User");
+        $("auditHeadAction").textContent = tt("common.action", "Action");
+        $("auditHeadRef").textContent = tt("common.ref", "Ref");
         $("operatorConsoleLbl").textContent = tt("factory.erp.operator.console", "Operator Console (scan/open by code)");
         $("opGoodLbl").textContent = tt("factory.erp.operator.goodQty", "Good Qty");
         $("opScrapLbl").textContent = tt("factory.erp.operator.scrapQty", "Scrap Qty");
@@ -2132,8 +3041,11 @@
         $("qrCopyBtn").textContent = tt("factory.erp.qr.copy", "Copy code");
         $("qrDownloadBtn").textContent = tt("factory.erp.qr.openImage", "Open image");
         $("qrNote").textContent = tt("factory.erp.qr.note", "Use this QR in printed traveler sheets so operators can scan and load the exact task.");
-        if (!$("opLoadedTaskInfo").textContent || $("opLoadedTaskInfo").textContent === "No task loaded.") {
+        if (!selectedOperatorTaskId) {
           $("opLoadedTaskInfo").textContent = tt("factory.erp.operator.noneLoaded", "No task loaded.");
+        }
+        if (!$("statusLine").textContent || $("statusLine").textContent === "Ready.") {
+          $("statusLine").textContent = tt("factory.status.ready", "Ready.");
         }
         $("woAddBtn").textContent = tt("factory.erp.add_wo", "+ Work Order");
         $("autoPlanBtn").textContent = tt("factory.erp.auto_plan", "Auto Plan (Route -> Station)");
@@ -2142,6 +3054,7 @@
 
       applyTheme();
       applyI18n();
+      cleanupLegacyFactoryDemoData();
       wire();
       render();
       window.CANBus?.emit("factory:ready", { ns: PLAN_NS }, "factory");
