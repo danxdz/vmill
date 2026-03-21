@@ -9,7 +9,7 @@ test("core modules render without auth redirects", async ({ page }) => {
     { path: "/chrono/chrono.html", selector: "#elapsed" },
     { path: "/SPaCial.html", selector: "#routeSel" },
     { path: "/blueprint_manager.html", selector: "#productSel" },
-    { path: "/factory_manager.html", selector: "#rows" },
+    { path: "/factory_manager.html", selector: "#erpSummary" },
     { path: "/logger.html", selector: "#loggerDock" },
     { path: "/shop_tree.html", selector: "#addRootBtn" },
     { path: "/records_manager.html", selector: "#addRecordBtn" },

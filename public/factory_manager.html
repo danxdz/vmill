@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:," />
   <title>Factory Manager</title>
   <style>
     :root {
@@ -145,9 +146,129 @@
       text-decoration: none;
     }
     .act:hover { border-color: color-mix(in srgb, var(--accent) 66%, transparent); color: var(--accent); }
+    .grid2 { display: grid; grid-template-columns: 1.2fr .8fr; gap: 10px; }
+    .erpMini { color: var(--muted); font-size: 11px; }
+    .erpList {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: auto;
+      max-height: 260px;
+      background: rgba(255,255,255,.015);
+    }
+    .erpList table { min-width: 760px; }
+    .erpTag {
+      display: inline-block;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+      padding: 2px 7px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--muted);
+    }
+    .erpTag.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 55%, transparent); }
+    .erpTag.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 55%, transparent); }
+    .erpTag.bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 55%, transparent); }
+    .timelineWrap {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: auto;
+      background: rgba(255,255,255,.015);
+    }
+    .timeline {
+      display: grid;
+      grid-template-columns: 180px repeat(7, minmax(110px, 1fr));
+      min-width: 980px;
+    }
+    .tlHead, .tlCell {
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+      border-right: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+      padding: 7px;
+      font-size: 12px;
+    }
+    .tlHead {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: color-mix(in srgb, var(--panel) 88%, #000);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      font-size: 10px;
+    }
+    .tlCell .bar {
+      border-radius: 8px;
+      border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+      background: color-mix(in srgb, var(--accent) 16%, transparent);
+      padding: 2px 6px;
+      margin-bottom: 4px;
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .modalBack {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      background: rgba(3, 7, 14, 0.7);
+      backdrop-filter: blur(4px);
+    }
+    .modalBack.show { display: flex; }
+    .modalCard {
+      width: min(720px, 100%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+      padding: 12px;
+    }
+    .modalHead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .modalTitle { font-size: 15px; font-weight: 800; }
+    .scanVideo {
+      width: 100%;
+      max-height: 58dvh;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #000;
+      object-fit: contain;
+    }
+    .qrWrap {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+    .qrImg {
+      width: 220px;
+      height: 220px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      object-fit: contain;
+    }
+    .note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
     @media (max-width: 1180px) {
       .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .tableWrap { max-height: 56vh; }
+      .grid2 { grid-template-columns: 1fr; }
+      .qrWrap { grid-template-columns: 1fr; }
+      .qrImg { width: 180px; height: 180px; }
     }
   </style>
 </head>
@@ -160,9 +281,6 @@
       </div>
       <div class="row">
         <button class="btn ghost" id="reloadBtn" type="button">Reload</button>
-        <button class="btn" id="seedBtn" type="button">Auto Seed Targets</button>
-        <button class="btn warn" id="clearBtn" type="button">Clear Visible Plans</button>
-        <button class="btn primary" id="csvBtn" type="button">Export Planning CSV</button>
       </div>
     </div>
 
@@ -184,16 +302,176 @@
     </section>
 
     <section class="card">
-      <div class="mini">Operation Planning Grid</div>
-      <div class="tableWrap">
-        <table>
-          <thead>
-            <tr><th>Operation</th><th>Product</th><th>Station</th><th>Samples</th><th>Avg Sec</th><th>Target Sec</th><th>Gap</th><th>Priority</th><th>Owner</th><th>Status</th><th>Actions</th></tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <div class="mini" id="erpLayerLbl">ERP Layer · Work Orders + Scheduling</div>
+          <div class="erpMini" id="erpSummary">0 work orders | 0 scheduled tasks | 0 running</div>
+        </div>
+        <div class="row">
+          <button class="btn ghost" id="loadDemoBtn" type="button">Load Factory Demo</button>
+          <button class="btn" id="woAddBtn" type="button">+ Work Order</button>
+          <button class="btn primary" id="autoPlanBtn" type="button">Auto Plan (Route -> Station)</button>
+          <button class="btn ghost" id="clearPlanBtn" type="button">Clear Schedule</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <div class="grow"><div class="erpMini" id="woProductLbl">WO Product</div><select id="woProductSel"></select></div>
+        <div class="grow"><div class="erpMini" id="woRouteLbl">WO Route</div><select id="woRouteSel"></select></div>
+        <div style="width:180px;">
+          <div class="erpMini" id="woOpsModeLbl">Operations</div>
+          <select id="woOpsModeSel">
+            <option value="all">All operations</option>
+            <option value="selected">Only selected</option>
+          </select>
+        </div>
+        <div class="grow" style="min-width:260px;">
+          <div class="erpMini" id="woOpsPickLbl">Pick operations</div>
+          <select id="woOpsSel" multiple size="4"></select>
+        </div>
+        <div class="grow"><div class="erpMini" id="woEndStationLbl">End Station (optional)</div><select id="woEndStationSel"></select></div>
+        <div style="width:110px;"><div class="erpMini" id="woQtyLbl">Qty</div><input id="woQtyIn" type="number" min="1" step="1" value="1" /></div>
+        <div style="width:150px;"><div class="erpMini" id="woDueLbl">Due Date</div><input id="woDueIn" type="date" /></div>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:18px;white-space:nowrap;"><input id="woIncludeChildrenChk" type="checkbox" /><span class="erpMini" id="woIncludeChildrenLbl" style="margin:0;">Include child products</span></label>
+      </div>
+      <div class="grid2" style="margin-top:8px;">
+        <div>
+          <div class="erpMini" id="woSectionLbl">Work Orders</div>
+          <div class="erpList">
+            <table>
+              <thead>
+                <tr><th>WO</th><th>Product</th><th>Route</th><th>Qty</th><th>Due</th><th>Status</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="woRows"></tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="erpMini" id="execSectionLbl">Execution Queue</div>
+          <div class="erpList">
+            <table>
+              <thead>
+                <tr><th>Task</th><th>Code</th><th>Station</th><th>Plan</th><th>Exec</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="execRows"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
+
+    <section class="card">
+      <div class="row" style="justify-content:space-between;align-items:flex-end;">
+        <div>
+          <div class="mini" id="timelineSectionLbl">Station Timeline</div>
+          <div class="erpMini" id="timelineRangeLbl">Range: -</div>
+        </div>
+        <div class="row">
+          <button class="btn ghost" id="timelinePrevBtn" type="button">Prev</button>
+          <button class="btn ghost" id="timelineTodayBtn" type="button">Today</button>
+          <button class="btn ghost" id="timelineNextBtn" type="button">Next</button>
+          <select id="timelineSpanSel" style="width:120px;">
+            <option value="7">7 days</option>
+            <option value="14">14 days</option>
+            <option value="30">30 days</option>
+          </select>
+        </div>
+      </div>
+      <div class="timelineWrap">
+        <div class="timeline" id="timelineBoard"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div class="mini" id="qualitySecurityAuditLbl">Quality + Security + Audit</div>
+        <div class="erpMini" id="securitySummary">Role: - | Security profile: basic</div>
+      </div>
+      <div class="grid2" style="margin-top:8px;">
+        <div>
+          <div class="erpMini" id="qualitySectionLbl">Quality Checks (for done tasks)</div>
+          <div class="erpList">
+            <table>
+              <thead>
+                <tr><th>Task</th><th>Spec</th><th>Result</th><th>Note</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="qualityRows"></tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="erpMini" id="auditSectionLbl">Audit Trail (latest)</div>
+          <div class="erpList">
+            <table>
+              <thead>
+                <tr><th>When</th><th>User</th><th>Action</th><th>Ref</th></tr>
+              </thead>
+              <tbody id="auditRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <div class="grow">
+          <div class="erpMini" id="operatorConsoleLbl">Operator Console (scan/open by code)</div>
+          <div class="row">
+            <input id="opScanIn" type="text" class="grow" list="opTaskCodes" placeholder="task code (ex: WO-12345-10)" />
+            <datalist id="opTaskCodes"></datalist>
+            <select id="opTaskSel" class="grow" style="min-width:240px;"></select>
+            <button class="btn ghost" id="opScanCamBtn" type="button">Scan Camera</button>
+            <button class="btn" id="opLoadBtn" type="button">Load</button>
+            <button class="btn ghost" id="opShowQrBtn" type="button">Show QR</button>
+            <button class="btn" id="opStartBtn" type="button">Start</button>
+            <button class="btn" id="opPauseBtn" type="button">Pause</button>
+            <button class="btn primary" id="opDoneBtn" type="button">Done</button>
+          </div>
+          <div class="row" style="margin-top:6px;">
+            <div style="width:120px;"><div class="erpMini" id="opGoodLbl">Good Qty</div><input id="opGoodIn" type="number" min="0" step="1" value="0" /></div>
+            <div style="width:120px;"><div class="erpMini" id="opScrapLbl">Scrap Qty</div><input id="opScrapIn" type="number" min="0" step="1" value="0" /></div>
+            <div class="grow"><div class="erpMini" id="opCommentLbl">Comment</div><input id="opCommentIn" type="text" placeholder="operator note" /></div>
+            <button class="btn ghost" id="opSaveLogBtn" type="button" style="margin-top:18px;">Save Log</button>
+          </div>
+          <div class="erpMini" id="opLoadedTaskInfo" style="margin-top:8px;">No task loaded.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modalBack" id="scanModal" aria-hidden="true">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div class="modalTitle" id="scanModalTitle">Scan task code</div>
+        <button class="btn ghost" id="scanCloseBtn" type="button">Close</button>
+      </div>
+      <video id="scanVideo" class="scanVideo" autoplay playsinline muted></video>
+      <div class="row" style="margin-top:10px;">
+        <div class="note grow" id="scanHelpTxt">Point camera to a QR/barcode. Task loads automatically when detected.</div>
+        <button class="btn" id="scanRetryBtn" type="button">Retry Camera</button>
+      </div>
+      <div class="note" id="scanResult" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <div class="modalBack" id="qrModal" aria-hidden="true">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div class="modalTitle" id="qrModalTitle">Task QR code</div>
+        <button class="btn ghost" id="qrCloseBtn" type="button">Close</button>
+      </div>
+      <div class="qrWrap">
+        <img id="qrImg" class="qrImg" alt="Task QR code" />
+        <div>
+          <div class="mini" id="qrCodeLbl">Task code</div>
+          <div class="mono" id="qrCodeText">-</div>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn" id="qrCopyBtn" type="button">Copy code</button>
+            <a class="btn ghost" id="qrDownloadBtn" href="#" target="_blank" rel="noopener">Open image</a>
+          </div>
+          <div class="note" id="qrNote" style="margin-top:8px;">
+            Use this QR in printed traveler sheets so operators can scan and load the exact task.
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="./modules/module-shell.js"></script>
@@ -210,6 +488,13 @@
       }
 
       const PLAN_NS = "factory_manager_plan_v1";
+      const WO_NS = "factory_work_orders_v1";
+      const SCHEDULE_NS = "factory_schedule_v1";
+      const EXEC_NS = "factory_execution_v1";
+      const QUALITY_NS = "factory_quality_v1";
+      const AUDIT_NS = "factory_audit_v1";
+      const SHIFT_START_HOUR = 8;
+      const SHIFT_MINUTES_PER_DAY = 8 * 60;
       const APP_KEYS = Array.isArray(window.VMillData?.keys?.ALL_APP_KEYS)
         ? window.VMillData.keys.ALL_APP_KEYS.slice()
         : ["vmill:app-state:v1"];
@@ -235,10 +520,44 @@
 
       let rowsCache = [];
       let plansById = new Map();
+      let routesCache = [];
+      let workOrdersCache = [];
+      let scheduleCache = [];
+      let execByTaskId = new Map();
+      let qualityByTaskId = new Map();
+      let auditCache = [];
+      let selectedOperatorTaskId = "";
+      let timelineOffsetDays = 0;
+      let timelineSpanDays = 7;
+      let suppressReactiveRender = 0;
+      let reactiveRenderTimer = 0;
+      let scanStream = null;
+      let scanFrameId = 0;
+      let scanActive = false;
+      let scanDetector = null;
+      let qrTaskCode = "";
 
       function fmt(v, digits = 2) {
         const n = num(v);
         return n ? n.toFixed(digits) : "-";
+      }
+
+      function requestReactiveRender(delay = 100) {
+        if (suppressReactiveRender > 0) return;
+        if (reactiveRenderTimer) clearTimeout(reactiveRenderTimer);
+        reactiveRenderTimer = window.setTimeout(() => {
+          reactiveRenderTimer = 0;
+          render();
+        }, Math.max(0, Number(delay || 0)));
+      }
+
+      function withBulkMutations(fn) {
+        suppressReactiveRender += 1;
+        try {
+          return fn();
+        } finally {
+          suppressReactiveRender = Math.max(0, suppressReactiveRender - 1);
+        }
       }
 
       function applyTheme(event) {
@@ -249,6 +568,278 @@
 
       function readApp() {
         return window.VMillData?.readAppState?.({ seedIfMissing: false }) || window.VMillData?.readAppState?.() || null;
+      }
+
+      function nowIso() {
+        return new Date().toISOString();
+      }
+
+      function currentUser() {
+        return window.VMillAuth?.getUser?.() || null;
+      }
+
+      function currentRole() {
+        return String(currentUser()?.role || "operator").toLowerCase();
+      }
+
+      function roleRank(role) {
+        const r = String(role || "").toLowerCase();
+        if (r === "admin") return 4;
+        if (r === "manager") return 3;
+        if (r === "planner") return 2;
+        if (r === "operator") return 1;
+        return 0;
+      }
+
+      function canEditPlanning() {
+        return roleRank(currentRole()) >= roleRank("planner");
+      }
+
+      function canApproveQuality() {
+        return roleRank(currentRole()) >= roleRank("manager");
+      }
+
+      function requirePermission(check, message) {
+        if (check()) return true;
+        $("statusLine").textContent = message;
+        return false;
+      }
+
+      function addAudit(action, ref = "", detail = "") {
+        const payload = {
+          id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          action: String(action || ""),
+          ref: String(ref || ""),
+          detail: String(detail || ""),
+          user: String(currentUser()?.username || "unknown"),
+          role: currentRole(),
+          at: nowIso(),
+        };
+        window.VMillData?.upsertRecord?.(AUDIT_NS, payload);
+      }
+
+      function readRoutes() {
+        return (window.VMillData?.listRecords?.("spacial_routes") || [])
+          .map((row) => ({
+            id: String(row?.id || ""),
+            routeName: String(row?.routeName || row?.name || "Route"),
+            productId: String(row?.productId || ""),
+            operations: Array.isArray(row?.operations) ? row.operations : [],
+          }))
+          .filter((row) => row.id);
+      }
+
+      function readWorkOrders() {
+        return (window.VMillData?.listRecords?.(WO_NS) || [])
+          .map((row) => ({
+            id: String(row?.id || ""),
+            code: String(row?.code || ""),
+            productId: String(row?.productId || ""),
+            routeId: String(row?.routeId || ""),
+            selectedOperationIds: Array.isArray(row?.selectedOperationIds) ? row.selectedOperationIds.map((x) => String(x || "")).filter(Boolean) : [],
+            qty: Math.max(1, Number(row?.qty || 1) || 1),
+            dueDate: String(row?.dueDate || "").slice(0, 10),
+            status: String(row?.status || "open"),
+            createdAt: String(row?.createdAt || ""),
+          }))
+          .filter((row) => row.id);
+      }
+
+      function readSchedule() {
+        return (window.VMillData?.listRecords?.(SCHEDULE_NS) || [])
+          .map((row) => ({
+            id: String(row?.id || ""),
+            woId: String(row?.woId || ""),
+            woCode: String(row?.woCode || ""),
+            routeId: String(row?.routeId || ""),
+            operationId: String(row?.operationId || ""),
+            operationName: String(row?.operationName || ""),
+            operationSeq: String(row?.operationSeq || ""),
+            operationCode: String(row?.operationCode || ""),
+            taskCode: String(row?.taskCode || ""),
+            stationId: String(row?.stationId || ""),
+            stationName: String(row?.stationName || ""),
+            plannedStart: String(row?.plannedStart || ""),
+            plannedEnd: String(row?.plannedEnd || ""),
+            durationMin: Math.max(1, Number(row?.durationMin || 1) || 1),
+            seq: Number(row?.seq || 0) || 0,
+          }))
+          .filter((row) => row.id);
+      }
+
+      function readExecByTaskId() {
+        const map = new Map();
+        for (const row of (window.VMillData?.listRecords?.(EXEC_NS) || [])) {
+          const id = String(row?.id || "");
+          if (!id) continue;
+          map.set(id, {
+            id,
+            status: String(row?.status || "planned"),
+            actualStart: String(row?.actualStart || ""),
+            actualEnd: String(row?.actualEnd || ""),
+            qtyGood: Math.max(0, Number(row?.qtyGood || 0) || 0),
+            qtyScrap: Math.max(0, Number(row?.qtyScrap || 0) || 0),
+            comments: String(row?.comments || ""),
+            operator: String(row?.operator || ""),
+          });
+        }
+        return map;
+      }
+
+      function readQualityByTaskId() {
+        const map = new Map();
+        for (const row of (window.VMillData?.listRecords?.(QUALITY_NS) || [])) {
+          const id = String(row?.id || "");
+          if (!id) continue;
+          map.set(id, {
+            id,
+            result: String(row?.result || "pending"),
+            note: String(row?.note || ""),
+            checkedBy: String(row?.checkedBy || ""),
+            checkedAt: String(row?.checkedAt || ""),
+          });
+        }
+        return map;
+      }
+
+      function readAuditLatest(limit = 60) {
+        const rows = (window.VMillData?.listRecords?.(AUDIT_NS) || [])
+          .map((row) => ({
+            id: String(row?.id || ""),
+            at: String(row?.at || row?.updatedAt || row?.createdAt || ""),
+            action: String(row?.action || ""),
+            ref: String(row?.ref || ""),
+            user: String(row?.user || ""),
+          }))
+          .filter((row) => row.id);
+        rows.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+        return rows.slice(0, Math.max(1, Number(limit || 60)));
+      }
+
+      function productNameById(app, productId) {
+        const products = Array.isArray(app?.products) ? app.products : [];
+        const row = products.find((p) => String(p?.id || "") === String(productId || ""));
+        return String(row?.name || row?.code || "-");
+      }
+
+      function stationRows(app) {
+        return Array.isArray(app?.stations) ? app.stations : [];
+      }
+
+      function childProductIds(app, rootProductId) {
+        const root = String(rootProductId || "");
+        if (!root) return [];
+        const products = Array.isArray(app?.products) ? app.products : [];
+        const out = [];
+        const queue = [root];
+        const seen = new Set([root]);
+        while (queue.length) {
+          const parent = queue.shift();
+          for (const p of products) {
+            const pid = String(p?.id || "");
+            const pParent = String(p?.parentProductId || "");
+            if (!pid || !pParent) continue;
+            if (pParent !== parent) continue;
+            if (seen.has(pid)) continue;
+            seen.add(pid);
+            out.push(pid);
+            queue.push(pid);
+          }
+        }
+        return out;
+      }
+
+      function routeForProduct(productId, preferredRouteId = "") {
+        const pref = String(preferredRouteId || "");
+        const pid = String(productId || "");
+        if (pref) {
+          const byPref = routesCache.find((r) => String(r.id || "") === pref && String(r.productId || "") === pid);
+          if (byPref) return byPref;
+        }
+        const byProduct = routesCache.find((r) => String(r.productId || "") === pid);
+        if (byProduct) return byProduct;
+        return null;
+      }
+
+      function fillWoOperationOptions() {
+        const modeSel = $("woOpsModeSel");
+        const opsSel = $("woOpsSel");
+        const productId = String($("woProductSel")?.value || "");
+        const routeId = String($("woRouteSel")?.value || "");
+        if (!modeSel || !opsSel) return;
+        const prev = new Set([...opsSel.selectedOptions].map((o) => String(o.value || "")));
+        let ops = [];
+        if (routeId === "__all__") {
+          const seen = new Set();
+          const allRoutes = routesCache.filter((r) => String(r.productId || "") === productId);
+          for (const r of allRoutes) {
+            for (const op of operationsForRoute(r)) {
+              const oid = String(op?.id || "");
+              if (!oid || seen.has(oid)) continue;
+              seen.add(oid);
+              ops.push(op);
+            }
+          }
+          ops.sort((a, b) => Number(a?.seq || 0) - Number(b?.seq || 0));
+        } else {
+          const route = routeById(routeId);
+          ops = operationsForRoute(route).slice().sort((a, b) => Number(a?.seq || 0) - Number(b?.seq || 0));
+        }
+        if (!ops.length) {
+          opsSel.innerHTML = "";
+          opsSel.disabled = true;
+          return;
+        }
+        opsSel.innerHTML = ops.map((op, idx) => {
+          const id = String(op?.id || "");
+          const seq = operationSeqCode(op, idx);
+          const name = String(op?.name || op?.operationName || `Operation ${seq}`);
+          return `<option value="${esc(id)}">${esc(`${seq} · ${name}`)}</option>`;
+        }).join("");
+        let selectedCount = 0;
+        [...opsSel.options].forEach((opt, idx) => {
+          const wanted = prev.has(String(opt.value || ""));
+          opt.selected = wanted;
+          if (wanted) selectedCount += 1;
+          if (modeSel.value === "selected" && !selectedCount && idx === 0) {
+            opt.selected = true;
+            selectedCount = 1;
+          }
+        });
+        const selectedMode = String(modeSel.value || "all") === "selected";
+        opsSel.disabled = !selectedMode;
+      }
+
+      function fillWoFormOptions() {
+        const app = readApp();
+        const products = Array.isArray(app?.products) ? app.products : [];
+        const stations = stationRows(app);
+        const pSel = $("woProductSel");
+        const rSel = $("woRouteSel");
+        const sSel = $("woEndStationSel");
+        if (!pSel || !rSel || !sSel) return;
+        const prevP = String(pSel.value || "");
+        const prevR = String(rSel.value || "");
+        const prevS = String(sSel.value || "");
+        pSel.innerHTML = products.length
+          ? products.map((p) => `<option value="${esc(String(p.id || ""))}">${esc(`${p.code || "--"} - ${p.name || "Product"}`)}</option>`).join("")
+          : `<option value="">No products</option>`;
+        if (products.some((p) => String(p.id || "") === prevP)) pSel.value = prevP;
+        const activeP = String(pSel.value || products[0]?.id || "");
+        const productRoutes = routesCache.filter((r) => String(r.productId || "") === activeP);
+        const routeRows = productRoutes;
+        rSel.innerHTML = routeRows.length
+          ? `<option value="__all__">${esc(tt("factory.erp.routeAll", "All routes"))}</option>${routeRows.map((r) => `<option value="${esc(String(r.id || ""))}">${esc(r.routeName || r.id || "Route")}</option>`).join("")}`
+          : `<option value="">No routes</option>`;
+        if (routeRows.some((r) => String(r.id || "") === prevR)) rSel.value = prevR;
+        sSel.innerHTML = `<option value="">Auto</option>${stations.map((s) => `<option value="${esc(String(s.id || ""))}">${esc(s.name || s.code || s.id)}</option>`).join("")}`;
+        if (stations.some((s) => String(s.id || "") === prevS)) sSel.value = prevS;
+        fillWoOperationOptions();
+        const dueIn = $("woDueIn");
+        if (dueIn && !dueIn.value) {
+          const d = new Date(Date.now() + (3 * 86400000));
+          dueIn.value = formatDateInput(d.getTime());
+        }
       }
 
       function getStatus(avgSec, targetSec, sampleCount) {
@@ -364,6 +955,231 @@
         });
       }
 
+      function routeById(routeId) {
+        return routesCache.find((row) => String(row.id) === String(routeId || "")) || null;
+      }
+
+      function operationsForRoute(route) {
+        return Array.isArray(route?.operations) ? route.operations : [];
+      }
+
+      function startOfShiftTs(seedDate) {
+        const d = new Date(seedDate || Date.now());
+        d.setHours(SHIFT_START_HOUR, 0, 0, 0);
+        return d.getTime();
+      }
+
+      function formatDateInput(ts) {
+        const d = new Date(ts);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      }
+
+      function taskDurationMin(op, qty) {
+        const est = Number(op?.estimatedTimeMin || 0);
+        if (est > 0) return Math.max(1, Math.round(est * Math.max(1, qty)));
+        const byName = rowsCache.find((row) => String(row.id || "") === String(op?.id || ""));
+        if (byName?.avgSec > 0) return Math.max(1, Math.round((byName.avgSec * Math.max(1, qty)) / 60));
+        return Math.max(3, 5 * Math.max(1, qty));
+      }
+
+      function stationForOperation(app, op) {
+        const stations = stationRows(app);
+        const code = String(op?.stationCode || "").trim().toLowerCase();
+        if (code) {
+          const byCode = stations.find((s) => String(s?.code || "").trim().toLowerCase() === code);
+          if (byCode) return byCode;
+          const byName = stations.find((s) => String(s?.name || "").toLowerCase().includes(code));
+          if (byName) return byName;
+        }
+        return stations[0] || null;
+      }
+
+      function stationCandidatesForOperation(app, op) {
+        const stations = stationRows(app);
+        if (!stations.length) return [];
+        const fixedStationId = String(op?.stationId || "").trim();
+        if (fixedStationId) {
+          const row = stations.find((s) => String(s?.id || "") === fixedStationId);
+          return row ? [row] : [];
+        }
+        const allowedStationIds = Array.isArray(op?.allowedStationIds)
+          ? op.allowedStationIds.map((x) => String(x || "").trim()).filter(Boolean)
+          : [];
+        if (allowedStationIds.length) {
+          const out = stations.filter((s) => allowedStationIds.includes(String(s?.id || "")));
+          if (out.length) return out;
+        }
+        const allowedCategoryIds = Array.isArray(op?.allowedStationCategoryIds)
+          ? op.allowedStationCategoryIds.map((x) => String(x || "").trim()).filter(Boolean)
+          : (Array.isArray(op?.allowedStationTypeIds)
+            ? op.allowedStationTypeIds.map((x) => String(x || "").trim()).filter(Boolean)
+            : []);
+        if (allowedCategoryIds.length) {
+          const out = stations.filter((s) => {
+            const cats = Array.isArray(s?.categoryIds) ? s.categoryIds.map((x) => String(x || "")) : [];
+            return cats.some((cid) => allowedCategoryIds.includes(cid));
+          });
+          if (out.length) return out;
+        }
+        const single = stationForOperation(app, op);
+        if (single) return [single];
+        return stations.slice(0, 1);
+      }
+
+      function operationSeqCode(op, idx) {
+        const seq = Number(op?.seq);
+        if (Number.isFinite(seq) && seq > 0) return String(Math.round(seq));
+        return String((idx + 1) * 10);
+      }
+
+      function makeTaskCode(wo, op, idx) {
+        const woCode = String(wo?.code || wo?.id || "WO").replace(/\s+/g, "").toUpperCase();
+        const opCode = String(op?.operationCode || operationSeqCode(op, idx)).replace(/\s+/g, "").toUpperCase();
+        return `${woCode}-${opCode}`;
+      }
+
+      function autoPlanSchedule() {
+        const app = readApp();
+        if (!app) return 0;
+        const woList = readWorkOrders().filter((wo) => String(wo.status || "open") !== "closed");
+        const nextByStation = new Map();
+        const tasks = [];
+        const ordered = woList.slice().sort((a, b) => String(a.dueDate || "").localeCompare(String(b.dueDate || "")));
+        let created = 0;
+        let updated = 0;
+        let removed = 0;
+        for (const wo of ordered) {
+          const selectedSet = new Set((Array.isArray(wo?.selectedOperationIds) ? wo.selectedOperationIds : []).map((x) => String(x || "")));
+          const routeList = String(wo.routeId || "") === "__all__"
+            ? routesCache.filter((r) => String(r.productId || "") === String(wo.productId || ""))
+            : [routeById(wo.routeId)].filter(Boolean);
+          let seqCounter = 0;
+          for (const route of routeList) {
+            let ops = operationsForRoute(route).slice().sort((a, b) => Number(a?.seq || 0) - Number(b?.seq || 0));
+            if (selectedSet.size) {
+              ops = ops.filter((op) => selectedSet.has(String(op?.id || "")));
+            }
+            if (!ops.length) continue;
+            const dueTs = wo.dueDate ? startOfShiftTs(`${wo.dueDate}T00:00:00`) : startOfShiftTs(Date.now());
+            let prevEndTs = startOfShiftTs(Date.now());
+            for (let i = 0; i < ops.length; i += 1) {
+              const op = ops[i] || {};
+              let candidates = stationCandidatesForOperation(app, op);
+              const preferredEndStationId = String(wo?.preferredEndStationId || "");
+              if (preferredEndStationId && i === (ops.length - 1)) {
+                const forced = stationRows(app).find((s) => String(s?.id || "") === preferredEndStationId) || null;
+                if (forced) candidates = [forced];
+              }
+              if (!candidates.length) continue;
+              let station = candidates[0];
+              let bestStart = Number.POSITIVE_INFINITY;
+              for (const cand of candidates) {
+                const sid = String(cand?.id || "");
+                const stationReadyTs = nextByStation.has(sid)
+                  ? Number(nextByStation.get(sid))
+                  : Math.min(dueTs, startOfShiftTs(Date.now()));
+                const candidateStart = Math.max(stationReadyTs, prevEndTs, startOfShiftTs(Date.now()));
+                if (candidateStart < bestStart) {
+                  bestStart = candidateStart;
+                  station = cand;
+                }
+              }
+              if (!station) continue;
+              const stationId = String(station.id || "");
+              const baseTs = nextByStation.has(stationId)
+                ? Number(nextByStation.get(stationId))
+                : Math.min(dueTs, startOfShiftTs(Date.now()));
+              const dur = taskDurationMin(op, wo.qty);
+              const startTs = Math.max(baseTs, prevEndTs, startOfShiftTs(Date.now()));
+              const endTs = startTs + (dur * 60000);
+              nextByStation.set(stationId, endTs);
+              prevEndTs = endTs;
+              seqCounter += 1;
+              const taskId = `${wo.id}_${String(route?.id || "route")}_${String(op.id || i)}_${seqCounter}`;
+              const taskCode = makeTaskCode(wo, op, seqCounter - 1);
+              tasks.push({
+                id: taskId,
+                woId: wo.id,
+                woCode: String(wo.code || wo.id || ""),
+                routeId: route.id,
+                operationId: String(op.id || ""),
+                operationName: String(op.name || `Op ${i + 1}`),
+                operationSeq: operationSeqCode(op, i),
+                operationCode: String(op?.operationCode || operationSeqCode(op, i)),
+                taskCode,
+                stationId,
+                stationName: String(station.name || station.code || stationId),
+                plannedStart: new Date(startTs).toISOString(),
+                plannedEnd: new Date(endTs).toISOString(),
+                durationMin: dur,
+                seq: seqCounter,
+              });
+            }
+          }
+        }
+        const existingRows = (window.VMillData?.listRecords?.(SCHEDULE_NS) || []);
+        const existing = new Map(existingRows.map((row) => [String(row?.id || ""), row]));
+        const nextIds = new Set(tasks.map((t) => String(t.id || "")));
+        const woIds = new Set(woList.map((w) => String(w.id || "")));
+        withBulkMutations(() => {
+          for (const task of tasks) {
+            const prev = existing.get(String(task.id || ""));
+            const changed = !prev
+              || String(prev?.plannedStart || "") !== String(task.plannedStart || "")
+              || String(prev?.plannedEnd || "") !== String(task.plannedEnd || "")
+              || String(prev?.stationId || "") !== String(task.stationId || "")
+              || String(prev?.routeId || "") !== String(task.routeId || "")
+              || String(prev?.operationId || "") !== String(task.operationId || "")
+              || String(prev?.taskCode || "") !== String(task.taskCode || "")
+              || Number(prev?.durationMin || 0) !== Number(task.durationMin || 0)
+              || Number(prev?.seq || 0) !== Number(task.seq || 0);
+            if (changed) {
+              window.VMillData?.upsertRecord?.(SCHEDULE_NS, task);
+              if (prev) updated += 1;
+            }
+            if (!prev) {
+              window.VMillData?.upsertRecord?.(EXEC_NS, {
+                id: task.id,
+                status: "planned",
+                actualStart: "",
+                actualEnd: "",
+                qtyGood: 0,
+                qtyScrap: 0,
+                comments: "",
+                operator: "",
+              });
+              created += 1;
+            }
+          }
+          for (const row of existingRows) {
+            const id = String(row?.id || "");
+            if (!id) continue;
+            const woId = String(row?.woId || "");
+            if (!woIds.has(woId)) continue;
+            if (nextIds.has(id)) continue;
+            window.VMillData?.deleteRecord?.(SCHEDULE_NS, id);
+            removed += 1;
+          }
+        });
+        addAudit("auto_plan", `tasks:${tasks.length}`, `created:${created},updated:${updated},removed:${removed}`);
+        return tasks.length;
+      }
+
+      function woStatusLabel(status) {
+        const s = String(status || "open");
+        if (s === "released") return tt("factory.erp.status.released", "Released");
+        if (s === "closed") return tt("factory.erp.status.closed", "Closed");
+        return tt("factory.erp.status.open", "Open");
+      }
+
+      function execStatusLabel(status) {
+        const s = String(status || "planned");
+        if (s === "running") return tt("factory.erp.exec.running", "Running");
+        if (s === "done") return tt("factory.erp.exec.done", "Done");
+        if (s === "hold") return tt("factory.erp.exec.hold", "Hold");
+        return tt("factory.erp.exec.planned", "Planned");
+      }
+
       function fillFilters(rows) {
         const productSel = $("productSel");
         const stationSel = $("stationSel");
@@ -415,7 +1231,451 @@
         );
       }
 
+      function renderWorkOrders(app) {
+        const host = $("woRows");
+        if (!host) return;
+        if (!workOrdersCache.length) {
+          host.innerHTML = `<tr><td colspan="7">${esc(tt("factory.erp.wo.empty", "No work orders yet."))}</td></tr>`;
+          return;
+        }
+        host.innerHTML = workOrdersCache
+          .slice()
+          .sort((a, b) => String(a.dueDate || "").localeCompare(String(b.dueDate || "")))
+          .map((wo) => {
+            const route = routeById(wo.routeId);
+            const routeLabel = wo.routeId === "__all__"
+              ? tt("factory.erp.routeAll", "All routes")
+              : (route?.routeName || "-");
+            const productLabel = productNameById(app, wo.productId);
+            const statusClass = wo.status === "released" ? "ok" : (wo.status === "closed" ? "warn" : "");
+            return `<tr>
+              <td class="mono">${esc(wo.code || wo.id)}</td>
+              <td>${esc(productLabel)}</td>
+              <td>${esc(routeLabel)}</td>
+              <td class="mono">${wo.qty}</td>
+              <td class="mono">${esc(wo.dueDate || "-")}</td>
+              <td><span class="erpTag ${statusClass}">${esc(woStatusLabel(wo.status))}</span></td>
+              <td class="actions">
+                <button class="act" data-wo-release="${esc(wo.id)}">${esc(tt("factory.erp.action.release", "Release"))}</button>
+                <button class="act" data-wo-close="${esc(wo.id)}">${esc(tt("common.close", "Close"))}</button>
+                <button class="act" data-wo-delete="${esc(wo.id)}">${esc(tt("common.delete", "Delete"))}</button>
+              </td>
+            </tr>`;
+          }).join("");
+      }
+
+      function renderExecution() {
+        const host = $("execRows");
+        if (!host) return;
+        if (!scheduleCache.length) {
+          host.innerHTML = `<tr><td colspan="6">${esc(tt("factory.erp.exec.empty", "No scheduled tasks yet."))}</td></tr>`;
+          return;
+        }
+        const top = scheduleCache
+          .slice()
+          .sort((a, b) => String(a.plannedStart || "").localeCompare(String(b.plannedStart || "")))
+          .slice(0, 120);
+        host.innerHTML = top.map((task) => {
+          const exec = execByTaskId.get(task.id) || { status: "planned", actualStart: "", actualEnd: "", qtyGood: 0, qtyScrap: 0, comments: "" };
+          const tagClass = exec.status === "done" ? "ok" : (exec.status === "hold" ? "bad" : (exec.status === "running" ? "warn" : ""));
+          return `<tr>
+            <td><strong>${esc(task.operationName || "-")}</strong><div class="erpMini mono">${esc(task.woId)}</div></td>
+            <td class="mono">${esc(task.taskCode || "-")}</td>
+            <td>${esc(task.stationName || "-")}</td>
+            <td class="mono">${esc(String(task.plannedStart || "").replace("T", " ").slice(0, 16))}</td>
+            <td><span class="erpTag ${tagClass}">${esc(execStatusLabel(exec.status))}</span><div class="erpMini mono">G:${Number(exec.qtyGood || 0)} S:${Number(exec.qtyScrap || 0)}</div></td>
+            <td class="actions">
+              <button class="act" data-task-top="${esc(task.id)}">Top</button>
+              <button class="act" data-task-up="${esc(task.id)}">↑</button>
+              <button class="act" data-task-down="${esc(task.id)}">↓</button>
+              <button class="act" data-task-start="${esc(task.id)}">${esc(tt("factory.erp.action.start", "Start"))}</button>
+              <button class="act" data-task-hold="${esc(task.id)}">${esc(tt("factory.erp.action.hold", "Hold"))}</button>
+              <button class="act" data-task-done="${esc(task.id)}">${esc(tt("factory.erp.action.done", "Done"))}</button>
+              <button class="act" data-task-qr="${esc(task.id)}">${esc(tt("factory.erp.action.qr", "QR"))}</button>
+              <button class="act" data-task-open-op="${esc(task.id)}">${esc(tt("factory.erp.action.open", "Open"))}</button>
+            </td>
+          </tr>`;
+        }).join("");
+      }
+
+      function renderTimeline(app) {
+        const host = $("timelineBoard");
+        if (!host) return;
+        const stations = stationRows(app);
+        if (!stations.length) {
+          host.innerHTML = `<div class="tlCell" style="grid-column:1 / span 8;">${esc(tt("factory.erp.station.empty", "No stations available."))}</div>`;
+          return;
+        }
+        const span = Math.max(1, Number(timelineSpanDays || 7) || 7);
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        if (timelineOffsetDays) start.setDate(start.getDate() + timelineOffsetDays);
+        const days = [];
+        for (let i = 0; i < span; i += 1) {
+          const d = new Date(start.getTime() + (i * 86400000));
+          days.push({
+            key: formatDateInput(d.getTime()),
+            label: d.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "2-digit" }),
+          });
+        }
+        const end = new Date(start.getTime() + ((span - 1) * 86400000));
+        const rangeLbl = $("timelineRangeLbl");
+        if (rangeLbl) {
+          rangeLbl.textContent = tt(
+            "factory.erp.timelineRange",
+            "Range: {from} -> {to} ({days} days)",
+            {
+              from: formatDateInput(start.getTime()),
+              to: formatDateInput(end.getTime()),
+              days: span,
+            },
+          );
+        }
+        host.style.gridTemplateColumns = `180px repeat(${days.length}, minmax(110px, 1fr))`;
+        host.style.minWidth = `${980 + (Math.max(0, days.length - 7) * 110)}px`;
+        const byStationDay = new Map();
+        for (const task of scheduleCache) {
+          const day = String(task.plannedStart || "").slice(0, 10);
+          const stationId = String(task.stationId || "");
+          const key = `${stationId}|${day}`;
+          if (!byStationDay.has(key)) byStationDay.set(key, []);
+          byStationDay.get(key).push(task);
+        }
+        const out = [];
+        out.push(`<div class="tlHead">${esc(tt("common.station", "Station"))}</div>`);
+        days.forEach((d) => out.push(`<div class="tlHead">${esc(d.label)}</div>`));
+        for (const st of stations) {
+          out.push(`<div class="tlCell"><strong>${esc(st.name || st.code || st.id)}</strong></div>`);
+          for (const d of days) {
+            const items = byStationDay.get(`${String(st.id || "")}|${d.key}`) || [];
+            const bars = items.slice(0, 3).map((task) => `<div class="bar">${esc(task.operationName || tt("factory.erp.task.default", "Task"))} · ${esc(task.woId || "")}</div>`).join("");
+            const more = items.length > 3 ? `<div class="erpMini">+${items.length - 3} ${esc(tt("common.more", "more"))}</div>` : "";
+            out.push(`<div class="tlCell">${bars}${more}</div>`);
+          }
+        }
+        host.innerHTML = out.join("");
+      }
+
+      function shiftTimeline(direction) {
+        const step = Math.max(1, Number(timelineSpanDays || 7) || 7);
+        timelineOffsetDays += (direction > 0 ? step : -step);
+        renderErp();
+      }
+
+      function resetTimeline() {
+        timelineOffsetDays = 0;
+        renderErp();
+      }
+
+      function renderQuality() {
+        const host = $("qualityRows");
+        if (!host) return;
+        const doneTasks = scheduleCache
+          .filter((task) => String(execByTaskId.get(task.id)?.status || "") === "done")
+          .slice(0, 120);
+        if (!doneTasks.length) {
+          host.innerHTML = `<tr><td colspan="5">${esc(tt("factory.erp.quality.empty", "No done tasks for quality yet."))}</td></tr>`;
+          return;
+        }
+        host.innerHTML = doneTasks.map((task) => {
+          const q = qualityByTaskId.get(task.id) || { result: "pending", note: "" };
+          const tagClass = q.result === "pass" ? "ok" : (q.result === "fail" ? "bad" : "warn");
+          return `<tr>
+            <td><strong>${esc(task.operationName || "-")}</strong><div class="erpMini mono">${esc(task.id)}</div></td>
+            <td>${esc(task.stationName || "-")}</td>
+            <td><span class="erpTag ${tagClass}">${esc(String(q.result || "pending").toUpperCase())}</span></td>
+            <td><input class="cellIn" data-quality-note="${esc(task.id)}" value="${esc(q.note || "")}" placeholder="${esc(tt("common.note", "note"))}" /></td>
+            <td class="actions">
+              <button class="act" data-quality-pass="${esc(task.id)}">${esc(tt("factory.erp.quality.pass", "Pass"))}</button>
+              <button class="act" data-quality-fail="${esc(task.id)}">${esc(tt("factory.erp.quality.fail", "Fail"))}</button>
+            </td>
+          </tr>`;
+        }).join("");
+      }
+
+      function renderAudit() {
+        const host = $("auditRows");
+        if (!host) return;
+        if (!auditCache.length) {
+          host.innerHTML = `<tr><td colspan="4">${esc(tt("factory.erp.audit.empty", "No audit events yet."))}</td></tr>`;
+          return;
+        }
+        host.innerHTML = auditCache.slice(0, 80).map((row) => `<tr>
+          <td class="mono">${esc(String(row.at || "").replace("T", " ").slice(0, 16))}</td>
+          <td>${esc(row.user || "-")}</td>
+          <td>${esc(row.action || "-")}</td>
+          <td class="mono">${esc(row.ref || "-")}</td>
+        </tr>`).join("");
+      }
+
+      function taskById(taskId) {
+        return scheduleCache.find((task) => String(task?.id || "") === String(taskId || "")) || null;
+      }
+
+      function taskByCode(code) {
+        const wanted = String(code || "").trim().toUpperCase();
+        if (!wanted) return null;
+        return scheduleCache.find((task) => String(task?.taskCode || "").toUpperCase() === wanted) || null;
+      }
+
+      function resolveTaskFromInput(raw) {
+        const wanted = String(raw || "").trim().toUpperCase();
+        if (!wanted) return null;
+        const exact = taskByCode(wanted) || scheduleCache.find((task) => String(task?.id || "").toUpperCase() === wanted) || null;
+        if (exact) return exact;
+        const hits = scheduleCache.filter((task) => {
+          const code = String(task?.taskCode || "").toUpperCase();
+          const op = String(task?.operationName || "").toUpperCase();
+          const wo = String(task?.woCode || task?.woId || "").toUpperCase();
+          return code.includes(wanted) || op.includes(wanted) || wo.includes(wanted);
+        });
+        if (hits.length === 1) return hits[0];
+        if (hits.length > 1) {
+          $("statusLine").textContent = tt("factory.erp.operator.ambiguous", "Multiple tasks match. Use selector.");
+        }
+        return null;
+      }
+
+      function fillOperatorTaskOptions() {
+        const input = $("opTaskCodes");
+        const sel = $("opTaskSel");
+        if (!input || !sel) return;
+        const sorted = scheduleCache.slice().sort((a, b) => String(a?.plannedStart || "").localeCompare(String(b?.plannedStart || "")));
+        input.innerHTML = sorted.slice(0, 250).map((task) => {
+          const code = String(task?.taskCode || "");
+          const op = String(task?.operationName || "");
+          const wo = String(task?.woCode || task?.woId || "");
+          return `<option value="${esc(code)}">${esc(`${code} · ${op} · ${wo}`)}</option>`;
+        }).join("");
+        const prev = String(sel.value || "");
+        sel.innerHTML = `<option value="">${esc(tt("factory.erp.operator.pick", "Pick task..."))}</option>${
+          sorted.slice(0, 400).map((task) => {
+            const code = String(task?.taskCode || task?.id || "");
+            const op = String(task?.operationName || "-");
+            const st = String(task?.stationName || "-");
+            const wo = String(task?.woCode || task?.woId || "-");
+            return `<option value="${esc(String(task?.id || ""))}">${esc(`${code} · ${op} · ${st} · ${wo}`)}</option>`;
+          }).join("")
+        }`;
+        if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
+      }
+
+      function loadOperatorTask(taskId) {
+        const task = taskById(taskId);
+        if (!task) {
+          selectedOperatorTaskId = "";
+          $("opLoadedTaskInfo").textContent = tt("factory.erp.operator.noneLoaded", "No task loaded.");
+          return;
+        }
+        selectedOperatorTaskId = String(task.id || "");
+        const exec = execByTaskId.get(selectedOperatorTaskId) || { qtyGood: 0, qtyScrap: 0, comments: "", status: "planned" };
+        $("opScanIn").value = String(task.taskCode || "");
+        $("opGoodIn").value = String(Math.max(0, Number(exec.qtyGood || 0) || 0));
+        $("opScrapIn").value = String(Math.max(0, Number(exec.qtyScrap || 0) || 0));
+        $("opCommentIn").value = String(exec.comments || "");
+        if ($("opTaskSel")) $("opTaskSel").value = selectedOperatorTaskId;
+        $("opLoadedTaskInfo").textContent = tt(
+          "factory.erp.operator.loaded",
+          "Loaded {code} | {op} | {station} | status: {status}",
+          {
+            code: task.taskCode || "-",
+            op: task.operationName || "-",
+            station: task.stationName || "-",
+            status: execStatusLabel(exec.status),
+          },
+        );
+      }
+
+      function showModal(id, on) {
+        const node = $(id);
+        if (!node) return;
+        node.classList.toggle("show", !!on);
+        node.setAttribute("aria-hidden", on ? "false" : "true");
+      }
+
+      function closeScanModal() {
+        scanActive = false;
+        if (scanFrameId) cancelAnimationFrame(scanFrameId);
+        scanFrameId = 0;
+        const vid = $("scanVideo");
+        if (vid) {
+          try { vid.pause(); } catch (_) {}
+          vid.srcObject = null;
+        }
+        if (scanStream) {
+          try { scanStream.getTracks().forEach((t) => t.stop()); } catch (_) {}
+        }
+        scanStream = null;
+        showModal("scanModal", false);
+      }
+
+      async function scanTick() {
+        if (!scanActive) return;
+        const vid = $("scanVideo");
+        if (!vid || !scanDetector || vid.readyState < 2) {
+          scanFrameId = requestAnimationFrame(scanTick);
+          return;
+        }
+        try {
+          const found = await scanDetector.detect(vid);
+          const raw = String(found?.[0]?.rawValue || "").trim();
+          if (raw) {
+            $("scanResult").textContent = tt("factory.erp.scan.detected", "Detected: {code}", { code: raw });
+            $("opScanIn").value = raw;
+            const task = taskByCode(raw);
+            if (task) {
+              loadOperatorTask(task.id);
+              $("statusLine").textContent = tt("factory.erp.scan.loaded", "Task loaded from camera scan.");
+            } else {
+              $("statusLine").textContent = tt("factory.erp.scan.notFound", "Code detected but task was not found.");
+            }
+            closeScanModal();
+            return;
+          }
+        } catch (_) {
+          // Keep scanning on intermittent detector errors.
+        }
+        scanFrameId = requestAnimationFrame(scanTick);
+      }
+
+      async function openScanModal() {
+        if (!("BarcodeDetector" in window)) {
+          $("statusLine").textContent = tt("factory.erp.scan.unsupported", "Camera scan needs a modern browser (BarcodeDetector).");
+          return;
+        }
+        try {
+          scanDetector = new window.BarcodeDetector({
+            formats: ["qr_code", "code_128", "code_39", "ean_13", "upc_a"],
+          });
+        } catch (_) {
+          $("statusLine").textContent = tt("factory.erp.scan.unsupported", "Camera scan needs a modern browser (BarcodeDetector).");
+          return;
+        }
+        try {
+          scanStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false,
+          });
+          const vid = $("scanVideo");
+          if (!vid) return;
+          vid.srcObject = scanStream;
+          await vid.play();
+          $("scanResult").textContent = tt("factory.erp.scan.ready", "Scanner ready...");
+          showModal("scanModal", true);
+          scanActive = true;
+          scanFrameId = requestAnimationFrame(scanTick);
+        } catch (_) {
+          $("statusLine").textContent = tt("factory.erp.scan.cameraDenied", "Camera access denied or unavailable.");
+          closeScanModal();
+        }
+      }
+
+      function openQrModal(taskId) {
+        const task = taskById(taskId) || taskByCode($("opScanIn")?.value || "");
+        if (!task) {
+          $("statusLine").textContent = tt("factory.erp.qr.noTask", "Load/select a task first.");
+          return;
+        }
+        const code = String(task.taskCode || task.id || "").trim();
+        if (!code) {
+          $("statusLine").textContent = tt("factory.erp.qr.noCode", "Selected task has no code.");
+          return;
+        }
+        qrTaskCode = code;
+        $("qrCodeText").textContent = code;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(code)}`;
+        const img = $("qrImg");
+        if (img) img.src = qrUrl;
+        const dl = $("qrDownloadBtn");
+        if (dl instanceof HTMLAnchorElement) dl.href = qrUrl;
+        showModal("qrModal", true);
+      }
+
+      function saveOperatorLog() {
+        if (!selectedOperatorTaskId) {
+          $("statusLine").textContent = tt("factory.erp.operator.noTask", "Load a task first.");
+          return;
+        }
+        const prev = execByTaskId.get(selectedOperatorTaskId) || { id: selectedOperatorTaskId, status: "planned", actualStart: "", actualEnd: "" };
+        const next = {
+          ...prev,
+          id: selectedOperatorTaskId,
+          qtyGood: Math.max(0, Number($("opGoodIn")?.value || 0) || 0),
+          qtyScrap: Math.max(0, Number($("opScrapIn")?.value || 0) || 0),
+          comments: String($("opCommentIn")?.value || "").trim(),
+          operator: String(currentUser()?.username || "unknown"),
+          updatedAt: nowIso(),
+        };
+        window.VMillData?.upsertRecord?.(EXEC_NS, next);
+        addAudit("operator_log", selectedOperatorTaskId, `good:${next.qtyGood} scrap:${next.qtyScrap}`);
+        $("statusLine").textContent = tt("factory.erp.operator.saved", "Operator log saved.");
+        render();
+      }
+
+      function renderErp() {
+        const app = readApp() || {};
+        const running = scheduleCache.filter((task) => String(execByTaskId.get(task.id)?.status || "") === "running").length;
+        const done = scheduleCache.filter((task) => String(execByTaskId.get(task.id)?.status || "") === "done").length;
+        const stationEta = new Map();
+        let overallEnd = 0;
+        for (const task of scheduleCache) {
+          const endTs = Date.parse(String(task?.plannedEnd || ""));
+          if (!Number.isFinite(endTs)) continue;
+          const sid = String(task?.stationId || "");
+          if (!sid) continue;
+          const prev = Number(stationEta.get(sid) || 0);
+          if (endTs > prev) stationEta.set(sid, endTs);
+          if (endTs > overallEnd) overallEnd = endTs;
+        }
+        const stationEtaText = [...stationEta.entries()]
+          .slice(0, 3)
+          .map(([sid, ts]) => {
+            const st = stationRows(app).find((s) => String(s?.id || "") === sid);
+            const name = String(st?.code || st?.name || sid);
+            return `${name}:${new Date(ts).toLocaleString([], { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
+          })
+          .join(" | ");
+        const overallText = overallEnd
+          ? new Date(overallEnd).toLocaleString([], { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+          : "-";
+        $("erpSummary").textContent = tt(
+          "factory.erp.summary",
+          "{wo} work orders | {tasks} scheduled tasks | {running} running | {done} done | Overall ETA {overall}{machine}",
+          {
+            wo: workOrdersCache.length,
+            tasks: scheduleCache.length,
+            running,
+            done,
+            overall: overallText,
+            machine: stationEtaText ? ` | ${tt("factory.erp.machineEta", "Machine ETA")} ${stationEtaText}` : "",
+          },
+        );
+        $("securitySummary").textContent = tt(
+          "factory.erp.securitySummary",
+          "Role: {role} | Planning {planning} | Quality approval {quality}",
+          {
+            role: currentRole(),
+            planning: canEditPlanning() ? tt("common.enabled", "enabled") : tt("common.readOnly", "read-only"),
+            quality: canApproveQuality() ? tt("common.enabled", "enabled") : tt("common.restricted", "restricted"),
+          },
+        );
+        fillWoFormOptions();
+        renderWorkOrders(app);
+        renderExecution();
+        renderTimeline(app);
+        renderQuality();
+        renderAudit();
+        fillOperatorTaskOptions();
+        if (selectedOperatorTaskId) loadOperatorTask(selectedOperatorTaskId);
+      }
+
       function render() {
+        routesCache = readRoutes();
+        workOrdersCache = readWorkOrders();
+        scheduleCache = readSchedule();
+        execByTaskId = readExecByTaskId();
+        qualityByTaskId = readQualityByTaskId();
+        auditCache = readAuditLatest(80);
         plansById = readPlans();
         rowsCache = makeRows();
         fillFilters(rowsCache);
@@ -440,139 +1700,422 @@
         $("kAtt").textContent = withTarget.length ? `${((onTarget / withTarget.length) * 100).toFixed(0)}%` : "-";
         $("kAttHint").textContent = `${onTarget}/${withTarget.length || 0} on target`;
         $("kMix").textContent = `${drift}/${risk}/${noTarget}/${noData}`;
-        $("statusLine").textContent = `${rows.length} visible operations | ${drift + risk + noTarget + noData} issue(s) | plans: ${plansById.size}`;
+        $("statusLine").textContent = `${rows.length} visible operations | ${drift + risk + noTarget + noData} issue(s)`;
 
-        const body = $("rows");
-        if (!rows.length) {
-          body.innerHTML = `<tr><td colspan=\"11\">No operations for current filters.</td></tr>`;
+        renderErp();
+      }
+
+      function pickDefaultRouteIdForProduct(productId) {
+        const direct = routesCache.find((route) => String(route.productId || "") === String(productId || ""));
+        return String(direct?.id || "");
+      }
+
+      function addWorkOrder() {
+        if (!requirePermission(canEditPlanning, tt("factory.erp.denied.createWo", "Permission denied: planner/manager/admin required to create work orders."))) return;
+        const app = readApp();
+        const products = Array.isArray(app?.products) ? app.products : [];
+        if (!products.length) {
+          $("statusLine").textContent = tt("factory.erp.noProducts", "No products available.");
           return;
         }
-
-        body.innerHTML = rows.map((row) => {
-          const gap = row.gap == null ? "-" : `${row.gap >= 0 ? "+" : ""}${row.gap.toFixed(2)}`;
-          const ratio = (row.targetSec && row.samples) ? ` (${(row.avgSec / row.targetSec).toFixed(2)}x)` : "";
-          return `<tr id=\"row_${esc(row.id)}\" class=\"state-${esc(row.state)}\">
-            <td><div><strong>${esc(row.name)}</strong></div><div class=\"mono\" style=\"color:var(--muted)\">${esc(row.code || row.id)}</div></td>
-            <td>${esc(row.product)}</td>
-            <td>${esc(row.station)}</td>
-            <td class=\"mono\">${row.samples}</td>
-            <td class=\"mono\">${row.samples ? `${fmt(row.avgSec)} s` : "-"}</td>
-            <td><input class=\"cellIn\" type=\"number\" step=\"0.01\" min=\"0\" data-plan-id=\"${esc(row.id)}\" data-plan-field=\"targetSec\" value=\"${row.targetSec ? esc(row.targetSec) : ""}\" /></td>
-            <td class=\"mono\">${gap}${ratio}</td>
-            <td><select class=\"cellSel\" data-plan-id=\"${esc(row.id)}\" data-plan-field=\"priority\"><option value=\"critical\" ${row.priority === "critical" ? "selected" : ""}>${priLabel("critical")}</option><option value=\"high\" ${row.priority === "high" ? "selected" : ""}>${priLabel("high")}</option><option value=\"normal\" ${row.priority === "normal" ? "selected" : ""}>${priLabel("normal")}</option><option value=\"low\" ${row.priority === "low" ? "selected" : ""}>${priLabel("low")}</option></select></td>
-            <td><input class=\"cellIn\" type=\"text\" data-plan-id=\"${esc(row.id)}\" data-plan-field=\"owner\" value=\"${esc(row.owner)}\" /></td>
-            <td><span class=\"state state-${esc(row.state)}\">${statusLabel(row.state)}</span></td>
-            <td><div class=\"actions\"><a class=\"act\" href=\"${esc(actionUrl("./chrono/chrono.html", row))}\">Chrono</a><a class=\"act\" href=\"${esc(actionUrl("./chrono/chrono_camera.html", row))}\">Camera</a><a class=\"act\" href=\"${esc(actionUrl("./SPaCial.html", row))}\">SPaCial</a></div></td>
-          </tr>`;
-        }).join("");
-      }
-
-      function seedVisible() {
-        const filters = activeFilters();
-        let updated = 0;
-        for (const row of rowsCache.filter((entry) => matches(entry, filters))) {
-          if (!row.samples || row.targetSec) continue;
-          savePlan(row.id, { targetSec: Math.max(0.01, Number((row.avgSec * 0.92).toFixed(2))) });
-          updated += 1;
+        if (!routesCache.length) {
+          $("statusLine").textContent = tt("factory.erp.noRoutes", "No routes available. Create routes in Router first.");
+          return;
         }
+        const selectedProductId = String($("woProductSel")?.value || products[0]?.id || "");
+        const selectedRouteId = String($("woRouteSel")?.value || pickDefaultRouteIdForProduct(selectedProductId));
+        if (!selectedRouteId) {
+          $("statusLine").textContent = tt("factory.erp.noRoutesForProduct", "No routes for selected product.");
+          return;
+        }
+        const endStationId = String($("woEndStationSel")?.value || "");
+        const opsMode = String($("woOpsModeSel")?.value || "all");
+        const selectedOperationIds = opsMode === "selected"
+          ? [...($("woOpsSel")?.selectedOptions || [])].map((opt) => String(opt.value || "")).filter(Boolean)
+          : [];
+        const qty = Math.max(1, Number($("woQtyIn")?.value || 1) || 1);
+        const dueDate = String($("woDueIn")?.value || formatDateInput(Date.now() + (3 * 86400000)));
+        const includeChildren = !!$("woIncludeChildrenChk")?.checked;
+        const productIds = [selectedProductId];
+        if (includeChildren) {
+          for (const cid of childProductIds(app, selectedProductId)) productIds.push(cid);
+        }
+        let created = 0;
+        for (const pid of productIds) {
+          const rootAllRoutes = (pid === selectedProductId && selectedRouteId === "__all__");
+          const preferred = (pid === selectedProductId && selectedRouteId !== "__all__") ? selectedRouteId : "";
+          const route = rootAllRoutes ? { id: "__all__", routeName: tt("factory.erp.routeAll", "All routes") } : routeForProduct(pid, preferred);
+          if (!route?.id) continue;
+          const id = `wo_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}_${created + 1}`;
+          const payload = {
+            id,
+            code: `WO-${String(Date.now()).slice(-5)}-${created + 1}`,
+            productId: String(pid || ""),
+            routeId: String(route.id || ""),
+            selectedOperationIds: pid === selectedProductId ? selectedOperationIds : [],
+            qty,
+            dueDate,
+            preferredEndStationId: endStationId,
+            status: "open",
+            createdAt: nowIso(),
+          };
+          window.VMillData?.upsertRecord?.(WO_NS, payload);
+          addAudit("wo_create", id, payload.code);
+          created += 1;
+        }
+        $("statusLine").textContent = tt("factory.erp.createdWo", "Created {count} work order(s).", { count: created });
         render();
-        $("statusLine").textContent = `Auto-seeded targets for ${updated} operation(s).`;
       }
 
-      function clearVisible() {
-        const filters = activeFilters();
-        const ids = rowsCache.filter((entry) => matches(entry, filters)).map((entry) => entry.id);
-        if (!ids.length) return;
-        if (!confirm(`Clear plans for ${ids.length} visible operation(s)?`)) return;
-        let removed = 0;
-        for (const id of ids) {
-          if (window.VMillData?.deleteRecord?.(PLAN_NS, id)) removed += 1;
-        }
+      function setWorkOrderStatus(id, status) {
+        if (!requirePermission(canEditPlanning, tt("factory.erp.denied.planning", "Permission denied: planner/manager/admin required."))) return;
+        const wo = workOrdersCache.find((row) => String(row.id) === String(id || ""));
+        if (!wo) return;
+        window.VMillData?.upsertRecord?.(WO_NS, { ...wo, status: String(status || "open"), updatedAt: nowIso() });
+        addAudit("wo_status", id, status);
         render();
-        $("statusLine").textContent = `Removed ${removed} plan record(s).`;
       }
 
-      function exportCsv() {
-        const filters = activeFilters();
-        const rows = sortRows(rowsCache.filter((entry) => matches(entry, filters)));
-        const out = [];
-        out.push(["operation_id", "operation_name", "product", "station", "samples", "avg_sec", "target_sec", "gap_sec", "priority", "owner", "status"].join(","));
-        for (const row of rows) {
-          const cols = [
-            row.id,
-            row.name,
-            row.product,
-            row.station,
-            row.samples,
-            row.samples ? row.avgSec.toFixed(3) : "",
-            row.targetSec ?? "",
-            row.gap != null ? row.gap.toFixed(3) : "",
-            row.priority,
-            row.owner,
-            row.state,
-          ];
-          out.push(cols.map((value) => {
-            const str = String(value ?? "");
-            return /[\",\n]/.test(str) ? `\"${str.replace(/\"/g, "\"\"")}\"` : str;
-          }).join(","));
+      function deleteWorkOrder(id) {
+        if (!requirePermission(canEditPlanning, tt("factory.erp.denied.planning", "Permission denied: planner/manager/admin required."))) return;
+        window.VMillData?.deleteRecord?.(WO_NS, String(id || ""));
+        addAudit("wo_delete", id, "");
+        render();
+      }
+
+      function clearSchedule() {
+        if (!requirePermission(canEditPlanning, tt("factory.erp.denied.planning", "Permission denied: planner/manager/admin required."))) return;
+        if (!confirm(tt("factory.erp.confirm.clearSchedule", "Clear all scheduled tasks and execution states?"))) return;
+        for (const row of (window.VMillData?.listRecords?.(SCHEDULE_NS) || [])) {
+          window.VMillData?.deleteRecord?.(SCHEDULE_NS, String(row?.id || ""));
         }
-        const blob = new Blob([out.join("\n")], { type: "text/csv;charset=utf-8" });
-        const anchor = document.createElement("a");
-        anchor.href = URL.createObjectURL(blob);
-        anchor.download = `factory_planning_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        setTimeout(() => {
-          URL.revokeObjectURL(anchor.href);
-          anchor.remove();
-        }, 200);
+        for (const row of (window.VMillData?.listRecords?.(EXEC_NS) || [])) {
+          window.VMillData?.deleteRecord?.(EXEC_NS, String(row?.id || ""));
+        }
+        addAudit("schedule_clear", "all", "");
+        render();
+      }
+
+      function moveTaskInStation(taskId, direction) {
+        if (!requirePermission(canEditPlanning, tt("factory.erp.denied.planning", "Permission denied: planner/manager/admin required."))) return;
+        const id = String(taskId || "");
+        const current = scheduleCache.find((t) => String(t?.id || "") === id);
+        if (!current) return;
+        const sameStation = scheduleCache
+          .filter((t) => String(t?.stationId || "") === String(current.stationId || ""))
+          .sort((a, b) => String(a?.plannedStart || "").localeCompare(String(b?.plannedStart || "")));
+        const idx = sameStation.findIndex((t) => String(t?.id || "") === id);
+        if (idx < 0) return;
+        const swapIdx = direction < 0 ? idx - 1 : idx + 1;
+        if (swapIdx < 0 || swapIdx >= sameStation.length) return;
+        const other = sameStation[swapIdx];
+        const a = {
+          ...current,
+          plannedStart: other.plannedStart,
+          plannedEnd: other.plannedEnd,
+          seq: Number(other.seq || 0),
+        };
+        const b = {
+          ...other,
+          plannedStart: current.plannedStart,
+          plannedEnd: current.plannedEnd,
+          seq: Number(current.seq || 0),
+        };
+        window.VMillData?.upsertRecord?.(SCHEDULE_NS, a);
+        window.VMillData?.upsertRecord?.(SCHEDULE_NS, b);
+        addAudit("task_reorder", id, direction < 0 ? "up" : "down");
+        render();
+      }
+
+      function moveTaskToTop(taskId) {
+        if (!requirePermission(canEditPlanning, tt("factory.erp.denied.planning", "Permission denied: planner/manager/admin required."))) return;
+        const id = String(taskId || "");
+        const current = scheduleCache.find((t) => String(t?.id || "") === id);
+        if (!current) return;
+        const sameStation = scheduleCache
+          .filter((t) => String(t?.stationId || "") === String(current.stationId || ""))
+          .sort((a, b) => String(a?.plannedStart || "").localeCompare(String(b?.plannedStart || "")));
+        if (!sameStation.length) return;
+        const firstStartTs = Date.parse(String(sameStation[0]?.plannedStart || ""));
+        if (!Number.isFinite(firstStartTs)) return;
+        const reordered = [current, ...sameStation.filter((t) => String(t?.id || "") !== id)];
+        let cursor = firstStartTs;
+        withBulkMutations(() => {
+          reordered.forEach((task, idx) => {
+            const dur = Math.max(1, Number(task?.durationMin || 1) || 1);
+            const startIso = new Date(cursor).toISOString();
+            const endIso = new Date(cursor + (dur * 60000)).toISOString();
+            cursor += dur * 60000;
+            window.VMillData?.upsertRecord?.(SCHEDULE_NS, {
+              ...task,
+              plannedStart: startIso,
+              plannedEnd: endIso,
+              seq: idx + 1,
+            });
+          });
+        });
+        addAudit("task_priority_top", id, "top");
+        render();
+      }
+
+      function loadFactoryDemoData() {
+        const app = readApp() || {};
+        const next = { ...app };
+        next.products = Array.isArray(next.products) ? next.products.slice() : [];
+        next.stations = Array.isArray(next.stations) ? next.stations.slice() : [];
+        next.operations = Array.isArray(next.operations) ? next.operations.slice() : [];
+        const upsertById = (arr, row) => {
+          const id = String(row?.id || "");
+          if (!id) return;
+          const idx = arr.findIndex((x) => String(x?.id || "") === id);
+          if (idx >= 0) arr[idx] = { ...arr[idx], ...row };
+          else arr.push(row);
+        };
+        const stations = [
+          { id: "demo_st_cut", code: "CUT", name: "Cutting Cell", categoryIds: ["cut"] },
+          { id: "demo_st_cnc1", code: "CNC1", name: "CNC Mill #1", categoryIds: ["cnc"] },
+          { id: "demo_st_cnc2", code: "CNC2", name: "CNC Mill #2", categoryIds: ["cnc"] },
+          { id: "demo_st_qc", code: "QC", name: "Quality Bench", categoryIds: ["qc"] },
+          { id: "demo_st_pack", code: "PACK", name: "Pack & Ship", categoryIds: ["pack"] },
+        ];
+        const products = [
+          { id: "demo_prod_alpha", code: "D-ALPHA", name: "Demo Alpha Housing", parentProductId: "", imageUrl: "" },
+          { id: "demo_prod_beta", code: "D-BETA", name: "Demo Beta Shaft", parentProductId: "", imageUrl: "" },
+          { id: "demo_prod_gamma", code: "D-GAMMA", name: "Demo Gamma Bracket", parentProductId: "", imageUrl: "" },
+        ];
+        const opsAlpha = [
+          { id: "demo_op_a10", seq: 10, operationCode: "10", name: "Stock Cut", estimatedTimeMin: 12, stationId: "demo_st_cut" },
+          { id: "demo_op_a20", seq: 20, operationCode: "20", name: "Rough CNC", estimatedTimeMin: 22, allowedStationIds: ["demo_st_cnc1", "demo_st_cnc2"] },
+          { id: "demo_op_a30", seq: 30, operationCode: "30", name: "Finish CNC", estimatedTimeMin: 18, allowedStationIds: ["demo_st_cnc1", "demo_st_cnc2"] },
+          { id: "demo_op_a40", seq: 40, operationCode: "40", name: "Final QC", estimatedTimeMin: 8, stationId: "demo_st_qc" },
+        ];
+        const opsBeta = [
+          { id: "demo_op_b10", seq: 10, operationCode: "10", name: "Cut Bar", estimatedTimeMin: 8, stationId: "demo_st_cut" },
+          { id: "demo_op_b20", seq: 20, operationCode: "20", name: "Turn + Mill", estimatedTimeMin: 19, allowedStationIds: ["demo_st_cnc1", "demo_st_cnc2"] },
+          { id: "demo_op_b30", seq: 30, operationCode: "30", name: "Inspection", estimatedTimeMin: 6, stationId: "demo_st_qc" },
+          { id: "demo_op_b40", seq: 40, operationCode: "40", name: "Pack", estimatedTimeMin: 5, stationId: "demo_st_pack" },
+        ];
+        const opsGamma = [
+          { id: "demo_op_g10", seq: 10, operationCode: "10", name: "Laser Cut", estimatedTimeMin: 7, stationId: "demo_st_cut" },
+          { id: "demo_op_g20", seq: 20, operationCode: "20", name: "CNC Drill", estimatedTimeMin: 13, allowedStationIds: ["demo_st_cnc1", "demo_st_cnc2"] },
+          { id: "demo_op_g30", seq: 30, operationCode: "30", name: "Pack", estimatedTimeMin: 4, stationId: "demo_st_pack" },
+        ];
+        stations.forEach((row) => upsertById(next.stations, row));
+        products.forEach((row) => upsertById(next.products, row));
+        [...opsAlpha, ...opsBeta, ...opsGamma].forEach((op) => {
+          const stationId = String(op?.stationId || "");
+          const firstStation = stationId || String((Array.isArray(op?.allowedStationIds) && op.allowedStationIds[0]) || "");
+          const samples = Math.max(1, Number(op.estimatedTimeMin || 5) * 60000);
+          upsertById(next.operations, {
+            id: String(op.id || ""),
+            name: String(op.name || ""),
+            code: String(op.operationCode || ""),
+            productId: String(op.id || "").includes("_a") ? "demo_prod_alpha" : (String(op.id || "").includes("_b") ? "demo_prod_beta" : "demo_prod_gamma"),
+            stationId: firstStation,
+            cycles: [
+              { id: `${op.id}_c1`, totalMs: samples * 0.95, laps: [] },
+              { id: `${op.id}_c2`, totalMs: samples * 1.05, laps: [] },
+            ],
+          });
+        });
+
+        const routeRows = [
+          { id: "demo_route_alpha", routeName: "Demo Alpha Route", productId: "demo_prod_alpha", operations: opsAlpha },
+          { id: "demo_route_beta", routeName: "Demo Beta Route", productId: "demo_prod_beta", operations: opsBeta },
+          { id: "demo_route_gamma", routeName: "Demo Gamma Route", productId: "demo_prod_gamma", operations: opsGamma },
+        ];
+
+        const due = (days) => formatDateInput(Date.now() + (days * 86400000));
+        const woRows = [
+          { id: `demo_wo_${Date.now()}_1`, code: "DEMO-WO-001", productId: "demo_prod_alpha", routeId: "demo_route_alpha", qty: 8, dueDate: due(2), selectedOperationIds: [], status: "open", createdAt: nowIso() },
+          { id: `demo_wo_${Date.now()}_2`, code: "DEMO-WO-002", productId: "demo_prod_beta", routeId: "demo_route_beta", qty: 14, dueDate: due(3), selectedOperationIds: [], status: "open", createdAt: nowIso() },
+          { id: `demo_wo_${Date.now()}_3`, code: "DEMO-WO-003", productId: "demo_prod_gamma", routeId: "demo_route_gamma", qty: 20, dueDate: due(4), selectedOperationIds: [], status: "open", createdAt: nowIso() },
+        ];
+
+        withBulkMutations(() => {
+          window.VMillData?.writeAppState?.(next);
+          routeRows.forEach((route) => window.VMillData?.upsertRecord?.("spacial_routes", route));
+          for (const row of (window.VMillData?.listRecords?.(WO_NS) || [])) {
+            if (String(row?.id || "").startsWith("demo_wo_")) window.VMillData?.deleteRecord?.(WO_NS, String(row.id));
+          }
+          for (const row of (window.VMillData?.listRecords?.(SCHEDULE_NS) || [])) {
+            if (String(row?.woCode || "").startsWith("DEMO-WO-")) window.VMillData?.deleteRecord?.(SCHEDULE_NS, String(row?.id || ""));
+          }
+          for (const row of (window.VMillData?.listRecords?.(EXEC_NS) || [])) {
+            if (String(row?.id || "").includes("demo_wo_")) window.VMillData?.deleteRecord?.(EXEC_NS, String(row?.id || ""));
+          }
+          woRows.forEach((wo) => window.VMillData?.upsertRecord?.(WO_NS, wo));
+        });
+        addAudit("demo_load", "factory", `wo:${woRows.length}`);
+        routesCache = readRoutes();
+        workOrdersCache = readWorkOrders();
+        plansById = readPlans();
+        rowsCache = makeRows();
+        const count = autoPlanSchedule();
+        $("statusLine").textContent = tt(
+          "factory.erp.demo.loaded",
+          "Demo loaded: {routes} routes, {wo} work orders, {count} planned tasks.",
+          { routes: routeRows.length, wo: woRows.length, count },
+        );
+        render();
+      }
+
+      function setTaskExecStatus(taskId, status) {
+        const allowed = canEditPlanning() || status === "running";
+        if (!requirePermission(() => allowed, tt("factory.erp.denied.taskAction", "Permission denied for this task action."))) return;
+        const prev = execByTaskId.get(String(taskId || "")) || { id: String(taskId || ""), status: "planned", actualStart: "", actualEnd: "", qtyGood: 0, qtyScrap: 0, comments: "", operator: "" };
+        const next = { ...prev, id: String(taskId || ""), status: String(status || "planned") };
+        if (status === "running" && !next.actualStart) next.actualStart = nowIso();
+        if (status === "done") {
+          if (!next.actualStart) next.actualStart = nowIso();
+          next.actualEnd = nowIso();
+        }
+        if (status === "hold") next.actualEnd = "";
+        window.VMillData?.upsertRecord?.(EXEC_NS, next);
+        addAudit("task_exec", taskId, status);
+        render();
+      }
+
+      function setQuality(taskId, result) {
+        if (!requirePermission(canApproveQuality, tt("factory.erp.denied.qualityApproval", "Permission denied: manager/admin required for quality approval."))) return;
+        const noteIn = [...document.querySelectorAll("[data-quality-note]")]
+          .find((el) => String(el.getAttribute("data-quality-note") || "") === String(taskId || ""));
+        const note = noteIn instanceof HTMLInputElement ? String(noteIn.value || "").trim() : "";
+        const payload = {
+          id: String(taskId || ""),
+          result: String(result || "pending"),
+          note,
+          checkedBy: String(currentUser()?.username || "unknown"),
+          checkedAt: nowIso(),
+        };
+        window.VMillData?.upsertRecord?.(QUALITY_NS, payload);
+        addAudit("quality_result", taskId, result);
+        render();
       }
 
       function wire() {
         $("reloadBtn").addEventListener("click", render);
-        $("seedBtn").addEventListener("click", seedVisible);
-        $("clearBtn").addEventListener("click", clearVisible);
-        $("csvBtn").addEventListener("click", exportCsv);
+        $("loadDemoBtn").addEventListener("click", loadFactoryDemoData);
+        $("woAddBtn").addEventListener("click", addWorkOrder);
+        $("autoPlanBtn").addEventListener("click", () => {
+          if (!requirePermission(canEditPlanning, tt("factory.erp.denied.schedule", "Permission denied: planner/manager/admin required for scheduling."))) return;
+          const tasks = autoPlanSchedule();
+          $("statusLine").textContent = tt("factory.erp.autoPlanned", "Auto planned {count} task(s).", { count: tasks });
+          render();
+        });
+        $("clearPlanBtn").addEventListener("click", clearSchedule);
         $("productSel").addEventListener("change", render);
         $("stationSel").addEventListener("change", render);
         $("searchIn").addEventListener("input", render);
         $("issuesChk").addEventListener("change", render);
-
-        $("rows").addEventListener("change", (event) => {
-          const target = event.target;
-          if (!(target instanceof HTMLElement)) return;
-          const id = String(target.getAttribute("data-plan-id") || "");
-          const field = String(target.getAttribute("data-plan-field") || "");
-          if (!id || !field) return;
-          if (field === "targetSec") {
-            const value = String(target.value || "").trim();
-            savePlan(id, { targetSec: value ? Number(value) : null });
-          } else if (field === "priority") {
-            savePlan(id, { priority: String(target.value || "normal").toLowerCase() });
-          } else if (field === "owner") {
-            savePlan(id, { owner: String(target.value || "").trim() });
+        $("timelinePrevBtn")?.addEventListener("click", () => shiftTimeline(-1));
+        $("timelineTodayBtn")?.addEventListener("click", resetTimeline);
+        $("timelineNextBtn")?.addEventListener("click", () => shiftTimeline(1));
+        $("timelineSpanSel")?.addEventListener("change", () => {
+          timelineSpanDays = Math.max(1, Number($("timelineSpanSel")?.value || 7) || 7);
+          timelineOffsetDays = 0;
+          renderErp();
+        });
+        $("woProductSel")?.addEventListener("change", fillWoFormOptions);
+        $("woRouteSel")?.addEventListener("change", fillWoOperationOptions);
+        $("woOpsModeSel")?.addEventListener("change", fillWoOperationOptions);
+        $("opLoadBtn")?.addEventListener("click", () => {
+          const code = String($("opScanIn")?.value || "").trim();
+          const task = resolveTaskFromInput(code);
+          if (!task) {
+            $("statusLine").textContent = tt("factory.erp.operator.codeNotFound", "Task code not found.");
+            return;
           }
-          render();
+          loadOperatorTask(task.id);
+        });
+        $("opScanIn")?.addEventListener("change", () => {
+          const task = resolveTaskFromInput($("opScanIn")?.value || "");
+          if (task) loadOperatorTask(task.id);
+        });
+        $("opTaskSel")?.addEventListener("change", () => {
+          const taskId = String($("opTaskSel")?.value || "");
+          if (!taskId) return;
+          loadOperatorTask(taskId);
+        });
+        $("opScanCamBtn")?.addEventListener("click", openScanModal);
+        $("opShowQrBtn")?.addEventListener("click", () => openQrModal(selectedOperatorTaskId));
+        $("opStartBtn")?.addEventListener("click", () => selectedOperatorTaskId && setTaskExecStatus(selectedOperatorTaskId, "running"));
+        $("opPauseBtn")?.addEventListener("click", () => selectedOperatorTaskId && setTaskExecStatus(selectedOperatorTaskId, "hold"));
+        $("opDoneBtn")?.addEventListener("click", () => selectedOperatorTaskId && setTaskExecStatus(selectedOperatorTaskId, "done"));
+        $("opSaveLogBtn")?.addEventListener("click", saveOperatorLog);
+        $("scanCloseBtn")?.addEventListener("click", closeScanModal);
+        $("scanRetryBtn")?.addEventListener("click", () => {
+          closeScanModal();
+          openScanModal();
+        });
+        $("scanModal")?.addEventListener("click", (event) => {
+          if (event.target === $("scanModal")) closeScanModal();
+        });
+        $("qrCloseBtn")?.addEventListener("click", () => showModal("qrModal", false));
+        $("qrModal")?.addEventListener("click", (event) => {
+          if (event.target === $("qrModal")) showModal("qrModal", false);
+        });
+        $("qrCopyBtn")?.addEventListener("click", async () => {
+          const code = String(qrTaskCode || "").trim();
+          if (!code) return;
+          try {
+            await navigator.clipboard.writeText(code);
+            $("statusLine").textContent = tt("factory.erp.qr.copied", "Task code copied.");
+          } catch (_) {
+            $("statusLine").textContent = tt("factory.erp.qr.copyFail", "Could not copy code.");
+          }
         });
 
-        $("rows").addEventListener("blur", (event) => {
-          const target = event.target;
-          if (!(target instanceof HTMLElement)) return;
-          const id = String(target.getAttribute("data-plan-id") || "");
-          const field = String(target.getAttribute("data-plan-field") || "");
-          if (!id || field !== "owner") return;
-          savePlan(id, { owner: String(target.value || "").trim() });
-          render();
-        }, true);
+        $("woRows").addEventListener("click", (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          if (!target) return;
+          const releaseId = target.getAttribute("data-wo-release");
+          if (releaseId) return setWorkOrderStatus(releaseId, "released");
+          const closeId = target.getAttribute("data-wo-close");
+          if (closeId) return setWorkOrderStatus(closeId, "closed");
+          const deleteId = target.getAttribute("data-wo-delete");
+          if (deleteId) return deleteWorkOrder(deleteId);
+        });
+
+        $("execRows").addEventListener("click", (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          if (!target) return;
+          const topId = target.getAttribute("data-task-top");
+          if (topId) return moveTaskToTop(topId);
+          const upId = target.getAttribute("data-task-up");
+          if (upId) return moveTaskInStation(upId, -1);
+          const downId = target.getAttribute("data-task-down");
+          if (downId) return moveTaskInStation(downId, 1);
+          const startId = target.getAttribute("data-task-start");
+          if (startId) return setTaskExecStatus(startId, "running");
+          const holdId = target.getAttribute("data-task-hold");
+          if (holdId) return setTaskExecStatus(holdId, "hold");
+          const doneId = target.getAttribute("data-task-done");
+          if (doneId) return setTaskExecStatus(doneId, "done");
+          const qrId = target.getAttribute("data-task-qr");
+          if (qrId) return openQrModal(qrId);
+          const openOpId = target.getAttribute("data-task-open-op");
+          if (openOpId) return loadOperatorTask(openOpId);
+        });
+
+        $("qualityRows").addEventListener("click", (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          if (!target) return;
+          const passId = target.getAttribute("data-quality-pass");
+          if (passId) return setQuality(passId, "pass");
+          const failId = target.getAttribute("data-quality-fail");
+          if (failId) return setQuality(failId, "fail");
+        });
 
         window.addEventListener("storage", (event) => {
-          if (event.key && WATCH_KEYS.has(event.key)) render();
+          if (event.key && WATCH_KEYS.has(event.key)) requestReactiveRender(120);
         });
         window.CANBus?.onMessage((msg) => {
-          if (String(msg?.type || "").startsWith("data:")) render();
+          if (String(msg?.type || "").startsWith("data:")) requestReactiveRender(120);
         });
         window.addEventListener("vmill:theme:changed", applyTheme);
         window.addEventListener("vmill:lang:changed", applyI18n);
+        window.addEventListener("beforeunload", closeScanModal);
       }
 
       function applyI18n() {
@@ -582,6 +2125,69 @@
         $("stationLbl").textContent = tt("common.station", "Station");
         $("searchLbl").textContent = tt("common.search", "Search");
         $("issuesLbl").textContent = tt("factory.issues_only", "Issues only");
+        $("erpLayerLbl").textContent = tt("factory.erp.layer", "ERP Layer · Work Orders + Scheduling");
+        $("loadDemoBtn").textContent = tt("factory.erp.loadDemo", "Load Factory Demo");
+        $("woProductLbl").textContent = tt("factory.erp.woProduct", "WO Product");
+        $("woRouteLbl").textContent = tt("factory.erp.woRoute", "WO Route");
+        $("woOpsModeLbl").textContent = tt("factory.erp.opsMode", "Operations");
+        $("woOpsPickLbl").textContent = tt("factory.erp.opsPick", "Pick operations");
+        const woOpsModeSel = $("woOpsModeSel");
+        if (woOpsModeSel) {
+          const allOpt = woOpsModeSel.querySelector("option[value='all']");
+          const selectedOpt = woOpsModeSel.querySelector("option[value='selected']");
+          if (allOpt) allOpt.textContent = tt("factory.erp.opsModeAll", "All operations");
+          if (selectedOpt) selectedOpt.textContent = tt("factory.erp.opsModeSelected", "Only selected");
+        }
+        $("woEndStationLbl").textContent = tt("factory.erp.endStation", "End Station (optional)");
+        $("woQtyLbl").textContent = tt("common.qty", "Qty");
+        $("woDueLbl").textContent = tt("factory.erp.dueDate", "Due Date");
+        $("woIncludeChildrenLbl").textContent = tt("factory.erp.includeChildren", "Include child products");
+        $("woSectionLbl").textContent = tt("factory.erp.workOrders", "Work Orders");
+        $("execSectionLbl").textContent = tt("factory.erp.executionQueue", "Execution Queue");
+        $("timelineSectionLbl").textContent = tt("factory.erp.timeline", "Station Timeline");
+        $("timelinePrevBtn").textContent = tt("common.prev", "Prev");
+        $("timelineTodayBtn").textContent = tt("common.today", "Today");
+        $("timelineNextBtn").textContent = tt("common.next", "Next");
+        const spanSel = $("timelineSpanSel");
+        if (spanSel) {
+          const map = { "7": "7 days", "14": "14 days", "30": "30 days" };
+          [...spanSel.options].forEach((opt) => {
+            opt.textContent = tt(`factory.erp.timeline.span.${opt.value}`, map[opt.value] || `${opt.value} days`);
+          });
+          spanSel.value = String(timelineSpanDays);
+        }
+        $("qualitySecurityAuditLbl").textContent = tt("factory.erp.qsa", "Quality + Security + Audit");
+        $("qualitySectionLbl").textContent = tt("factory.erp.qualityChecks", "Quality Checks (for done tasks)");
+        $("auditSectionLbl").textContent = tt("factory.erp.auditTrail", "Audit Trail (latest)");
+        $("operatorConsoleLbl").textContent = tt("factory.erp.operator.console", "Operator Console (scan/open by code)");
+        $("opGoodLbl").textContent = tt("factory.erp.operator.goodQty", "Good Qty");
+        $("opScrapLbl").textContent = tt("factory.erp.operator.scrapQty", "Scrap Qty");
+        $("opCommentLbl").textContent = tt("factory.erp.operator.comment", "Comment");
+        $("opScanCamBtn").textContent = tt("factory.erp.operator.scanCamera", "Scan Camera");
+        $("opLoadBtn").textContent = tt("common.load", "Load");
+        $("opShowQrBtn").textContent = tt("factory.erp.operator.showQr", "Show QR");
+        $("opStartBtn").textContent = tt("factory.erp.action.start", "Start");
+        $("opPauseBtn").textContent = tt("factory.erp.action.hold", "Pause");
+        $("opDoneBtn").textContent = tt("factory.erp.action.done", "Done");
+        $("opSaveLogBtn").textContent = tt("factory.erp.operator.saveLog", "Save Log");
+        $("opScanIn").placeholder = tt("factory.erp.operator.scanPlaceholder", "task code (ex: WO-12345-10)");
+        $("opCommentIn").placeholder = tt("factory.erp.operator.commentPlaceholder", "operator note");
+        $("scanModalTitle").textContent = tt("factory.erp.scan.title", "Scan task code");
+        $("scanCloseBtn").textContent = tt("common.close", "Close");
+        $("scanRetryBtn").textContent = tt("common.retry", "Retry Camera");
+        $("scanHelpTxt").textContent = tt("factory.erp.scan.help", "Point camera to a QR/barcode. Task loads automatically when detected.");
+        $("qrModalTitle").textContent = tt("factory.erp.qr.title", "Task QR code");
+        $("qrCloseBtn").textContent = tt("common.close", "Close");
+        $("qrCodeLbl").textContent = tt("factory.erp.qr.code", "Task code");
+        $("qrCopyBtn").textContent = tt("factory.erp.qr.copy", "Copy code");
+        $("qrDownloadBtn").textContent = tt("factory.erp.qr.openImage", "Open image");
+        $("qrNote").textContent = tt("factory.erp.qr.note", "Use this QR in printed traveler sheets so operators can scan and load the exact task.");
+        if (!$("opLoadedTaskInfo").textContent || $("opLoadedTaskInfo").textContent === "No task loaded.") {
+          $("opLoadedTaskInfo").textContent = tt("factory.erp.operator.noneLoaded", "No task loaded.");
+        }
+        $("woAddBtn").textContent = tt("factory.erp.add_wo", "+ Work Order");
+        $("autoPlanBtn").textContent = tt("factory.erp.auto_plan", "Auto Plan (Route -> Station)");
+        $("clearPlanBtn").textContent = tt("factory.erp.clear_schedule", "Clear Schedule");
       }
 
       applyTheme();
