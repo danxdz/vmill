@@ -603,13 +603,24 @@
 
   function suggestedPlanningForOperation(name = "", index = 0) {
     const text = String(name || "").trim().toLowerCase();
+    if (text.includes("oven") || text.includes("cure") || text.includes("dry") || text.includes("batch")) {
+      return { estimatedTimeMin: 180, estimatedQtyBase: 20 };
+    }
+    if (text.includes("weld")) return { estimatedTimeMin: 60, estimatedQtyBase: 5 };
+    if (text.includes("deburr") || text.includes("grind") || text.includes("sand")) return { estimatedTimeMin: 35, estimatedQtyBase: 10 };
+    if (text.includes("paint") || text.includes("coat") || text.includes("anodiz")) return { estimatedTimeMin: 40, estimatedQtyBase: 10 };
+    if (text.includes("machine") && (text.includes("cycle") || text.includes("#"))) {
+      return { estimatedTimeMin: 95, estimatedQtyBase: 10 };
+    }
     if (text.includes("machine")) return { estimatedTimeMin: 120, estimatedQtyBase: 10 };
-    if (text.includes("prep") || text.includes("pick")) return { estimatedTimeMin: 45, estimatedQtyBase: 10 };
-    if (text.includes("assembly") || text.includes("align") || text.includes("place")) return { estimatedTimeMin: 75, estimatedQtyBase: 10 };
-    if (text.includes("inspect") || text.includes("check") || text.includes("qc")) return { estimatedTimeMin: 35, estimatedQtyBase: 10 };
-    if (text.includes("label")) return { estimatedTimeMin: 20, estimatedQtyBase: 20 };
-    if (text.includes("pack")) return { estimatedTimeMin: 40, estimatedQtyBase: 20 };
-    return { estimatedTimeMin: 50 + ((Math.abs(Number(index || 0)) % 4) * 15), estimatedQtyBase: 10 };
+    if (text.includes("prep") || text.includes("pick") || text.includes("kit")) return { estimatedTimeMin: 40, estimatedQtyBase: 10 };
+    if (text.includes("assembly") || text.includes("align") || text.includes("place")) return { estimatedTimeMin: 70, estimatedQtyBase: 10 };
+    if (text.includes("inspect") || text.includes("check") || text.includes("qc")) return { estimatedTimeMin: 30, estimatedQtyBase: 10 };
+    if (text.includes("finish") || text.includes("polish")) return { estimatedTimeMin: 45, estimatedQtyBase: 10 };
+    if (text.includes("clean") || text.includes("wash")) return { estimatedTimeMin: 25, estimatedQtyBase: 10 };
+    if (text.includes("label")) return { estimatedTimeMin: 15, estimatedQtyBase: 20 };
+    if (text.includes("pack") || text.includes("ship")) return { estimatedTimeMin: 35, estimatedQtyBase: 20 };
+    return { estimatedTimeMin: 55 + ((Math.abs(Number(index || 0)) % 4) * 18), estimatedQtyBase: 10 };
   }
 
   function normalizePlanningDefaults(state) {
@@ -636,7 +647,10 @@
         const op = ops[i];
         if (!op || typeof op !== "object") continue;
         const suggestion = suggestedPlanningForOperation(op.name, i);
-        if (!(Number(op.estimatedTimeMin) > 0)) op.estimatedTimeMin = suggestion.estimatedTimeMin;
+        const curEst = Number(op.estimatedTimeMin || 0);
+        if (!Number.isFinite(curEst) || curEst <= 0 || curEst < 1) {
+          op.estimatedTimeMin = suggestion.estimatedTimeMin;
+        }
         if (!(Number(op.estimatedQtyBase) > 0)) op.estimatedQtyBase = suggestion.estimatedQtyBase;
         if (Array.isArray(op.elements)) {
           op.elements = op.elements.map((element, elIndex) => {
@@ -1289,9 +1303,14 @@
         changed += 1;
       }
     } else if (operations.length) {
-      const avgOperationMin = (op) => {
-        const est = Number(op?.estimatedTimeMin || 0);
-        if (Number.isFinite(est) && est > 0) return Math.max(0.01, Number(est.toFixed(3)));
+      /**
+       * Chrono cycle totalMs is often a few seconds per piece; treating that as "minutes" yields ~0.1 min
+       * and unreal factory schedules. Prefer explicit estimatedTimeMin, else name-based shop minutes,
+       * and only trust cycle averages when they already look like wall-clock minutes (>= ~5 min).
+       */
+      const avgOperationMin = (op, opIndex) => {
+        const rawEst = Number(op?.estimatedTimeMin || 0);
+        const hint = suggestedPlanningForOperation(String(op?.name || ""), opIndex).estimatedTimeMin;
         const cycles = Array.isArray(op?.cycles) ? op.cycles : [];
         let sum = 0;
         let count = 0;
@@ -1301,8 +1320,18 @@
           sum += ms;
           count += 1;
         }
-        if (!count) return null;
-        return Math.max(0.01, Number(((sum / count) / 60000).toFixed(3)));
+        const fromCyclesMin = count ? (sum / count) / 60000 : null;
+        if (Number.isFinite(rawEst) && rawEst >= 3) {
+          return Math.round(Math.max(3, rawEst));
+        }
+        if (fromCyclesMin != null && fromCyclesMin >= 5) {
+          return Math.round(Math.max(5, fromCyclesMin));
+        }
+        if (fromCyclesMin != null && fromCyclesMin > 0) {
+          const scaled = fromCyclesMin * 45;
+          return Math.round(Math.max(hint, scaled, 12));
+        }
+        return Math.round(Math.max(12, hint));
       };
       const byProduct = new Map();
       for (const op of operations) {
@@ -1329,7 +1358,7 @@
             name: String(op?.name || `Operation ${i + 1}`),
             stationCode: String(station?.code || ""),
             workstation: String(station?.name || ""),
-            estimatedTimeMin: avgOperationMin(op),
+            estimatedTimeMin: avgOperationMin(op, i),
             estimatedQtyBase: Math.max(1, Number(op?.estimatedQtyBase || 1) || 1),
             sampleSize: null,
             frequency: "",

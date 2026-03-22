@@ -21,7 +21,6 @@
     })();
   </script>
   <style>
-    @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap");
     :root {
       --bg:var(--vm-theme-bg, #0a0f17);
       --bg2:color-mix(in srgb, var(--vm-theme-bg, #0a0f17) 82%, #000);
@@ -139,7 +138,7 @@
     body {
       margin: 0;
       color: var(--text);
-      font-family: "Space Grotesk", "Sora", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       min-height: 100vh;
       background:
         radial-gradient(1200px 600px at 12% -10%, rgba(var(--accent-rgb), .18), transparent 60%),
@@ -1955,6 +1954,18 @@
               <div id="adminUsersList" class="adminUsersList"></div>
               <div id="adminUsersMsg" class="minor" style="margin-top:6px;"></div>
             </details>
+            <details class="fold" id="adminServerAuthSection" data-admin-only="1">
+              <summary id="adminServerAuthSummary">Server &amp; auth</summary>
+              <p class="minor" id="adminPasswordResetHelp" style="margin-top:8px;line-height:1.45;"></p>
+              <div class="controlRow" style="margin-top:8px;align-items:center;flex-wrap:wrap;gap:8px;">
+                <label class="minor" for="adminPasswordResetUrlIn" id="adminPasswordResetUrlLbl">Password reset base URL</label>
+                <input id="adminPasswordResetUrlIn" type="text" spellcheck="false" autocomplete="off" placeholder="https://your-server/public/login.html" style="flex:1;min-width:220px;max-width:520px;border-radius:10px;border:1px solid var(--border);background:var(--panel3);color:var(--text);padding:8px;" />
+                <button class="btn" id="adminPasswordResetSaveBtn" type="button">Save</button>
+                <button class="btn ghost" id="adminPasswordResetRefreshBtn" type="button">Refresh</button>
+              </div>
+              <div id="adminPasswordResetMsg" class="minor" style="margin-top:6px;"></div>
+              <div id="adminPasswordResetLockNote" class="minor" style="margin-top:4px;display:none;line-height:1.45;"></div>
+            </details>
           </div>
         </article>
 
@@ -2103,6 +2114,12 @@
       const adminCreateRole = document.getElementById("adminCreateRole");
       const adminCreateUserBtn = document.getElementById("adminCreateUserBtn");
       const adminRefreshUsersBtn = document.getElementById("adminRefreshUsersBtn");
+      const adminPasswordResetUrlIn = document.getElementById("adminPasswordResetUrlIn");
+      const adminPasswordResetSaveBtn = document.getElementById("adminPasswordResetSaveBtn");
+      const adminPasswordResetRefreshBtn = document.getElementById("adminPasswordResetRefreshBtn");
+      const adminPasswordResetMsg = document.getElementById("adminPasswordResetMsg");
+      const adminPasswordResetLockNote = document.getElementById("adminPasswordResetLockNote");
+      const adminPasswordResetHelp = document.getElementById("adminPasswordResetHelp");
       let jobsViewMode = "cards";
       let jobsEntityMode = "jobs";
       let jobsCardPrefs = { compact: true, overlayText: true, showCardTitle: true, showCardMeta: true, showListMeta: true };
@@ -2368,6 +2385,11 @@
         setTxt("exportCsvBtn", "hub.data.exportCsv", "Export Cycles CSV");
         setTxt("exportTxtBtn", "hub.data.exportTxt", "Export Summary TXT");
         setTxt("clearBusBtn", "hub.bus.clear", "Clear");
+        setTxt("adminServerAuthSummary", "hub.admin.serverAuth.summary", "Server & auth");
+        setTxt("adminPasswordResetHelp", "hub.admin.passwordReset.help", "Base URL included in password-reset emails (same origin users use to sign in). Example: https://your-server/public/login.html");
+        setTxt("adminPasswordResetUrlLbl", "hub.admin.passwordReset.urlLabel", "Password reset base URL");
+        setTxt("adminPasswordResetSaveBtn", "hub.admin.passwordReset.save", "Save");
+        setTxt("adminPasswordResetRefreshBtn", "hub.admin.passwordReset.refresh", "Refresh");
         setTxt("settingsDisplayTitle", "hub.personalize.title", "Personalize");
         setTxt("settingsTopToolbarTitle", "hub.toolbar.title", "Top Toolbar");
         setTxt("scopeToolbarModeLbl", "hub.toolbar.mode", "Category source");
@@ -3163,6 +3185,7 @@
         else {
           setHeaderRevealed(true);
           clearHeaderRevealHide();
+          if (hasRole("admin")) void refreshAdminServerSettings(false);
         }
         updateTopbarPeekMeta();
       }
@@ -3353,6 +3376,7 @@
         if (inWorkspace) desktop.classList.toggle("desktopHidden", !overlayVisible);
         applyHubUiPrefs(hubUiPrefs, false);
         updateTopbarPeekMeta();
+        updateDockButtons();
       }
 
       function ensureWorkspaceModuleAllowed() {
@@ -3939,6 +3963,52 @@
         adminUsersMsg.style.color = tone === "err"
           ? "var(--danger)"
           : (tone === "ok" ? "var(--ok)" : "var(--muted)");
+      }
+
+      function setAdminPasswordResetMsg(text, tone = "") {
+        if (!adminPasswordResetMsg) return;
+        adminPasswordResetMsg.textContent = String(text || "");
+        adminPasswordResetMsg.style.color =
+          tone === "err" ? "var(--danger)" : tone === "ok" ? "var(--ok)" : "var(--muted)";
+      }
+
+      async function refreshAdminServerSettings(showStatus = true) {
+        if (!hasRole("admin") || !adminPasswordResetUrlIn) return;
+        if (showStatus) setAdminPasswordResetMsg("Loading...");
+        const out = await window.VMillAuth?.adminServerSettingsGet?.();
+        if (!out?.ok) {
+          setAdminPasswordResetMsg(
+            `Load failed: ${String(out?.data?.error || out?.error || out?.status || "failed")}`,
+            "err",
+          );
+          return;
+        }
+        const d = out.data || {};
+        const locked = !!d.password_reset_url_locked_by_environment;
+        const stored = String(d.password_reset_url_stored || "");
+        const eff = String(d.password_reset_url_effective || "");
+        adminPasswordResetUrlIn.value = locked ? eff : stored;
+        adminPasswordResetUrlIn.readOnly = locked;
+        adminPasswordResetUrlIn.title = locked ? eff : "";
+        if (adminPasswordResetLockNote) {
+          adminPasswordResetLockNote.style.display = locked ? "block" : "none";
+          adminPasswordResetLockNote.textContent = locked
+            ? tt(
+                "hub.admin.passwordReset.envLocked",
+                "This value is set by the VMILL_PASSWORD_RESET_URL environment variable and cannot be changed here.",
+              )
+            : "";
+        }
+        if (showStatus) {
+          setAdminPasswordResetMsg(
+            locked
+              ? tt("hub.admin.passwordReset.loadedEnv", "Loaded (environment override).")
+              : tt("hub.admin.passwordReset.loaded", "Loaded."),
+            "ok",
+          );
+        } else if (!locked) {
+          setAdminPasswordResetMsg("", "");
+        }
       }
 
       function adminRoleOptions(activeRole = "operator") {
@@ -6000,6 +6070,36 @@
       if (adminRefreshUsersBtn) {
         adminRefreshUsersBtn.addEventListener("click", () => {
           void refreshAdminUsers(true);
+        });
+      }
+      if (adminPasswordResetRefreshBtn) {
+        adminPasswordResetRefreshBtn.addEventListener("click", () => {
+          void refreshAdminServerSettings(true);
+        });
+      }
+      if (adminPasswordResetSaveBtn) {
+        adminPasswordResetSaveBtn.addEventListener("click", async () => {
+          if (!hasRole("admin") || !adminPasswordResetUrlIn) return;
+          const url = String(adminPasswordResetUrlIn.value || "").trim();
+          setAdminPasswordResetMsg(tt("hub.admin.passwordReset.saving", "Saving..."), "");
+          const out = await window.VMillAuth?.adminServerSettingsPut?.({ password_reset_url: url });
+          if (!out?.ok) {
+            if (Number(out?.status) === 409 || out?.data?.error === "password_reset_url_locked_by_environment") {
+              setAdminPasswordResetMsg(
+                tt("hub.admin.passwordReset.saveLocked", "Cannot save: environment variable overrides this setting."),
+                "err",
+              );
+            } else {
+              setAdminPasswordResetMsg(
+                `Save failed: ${String(out?.data?.error || out?.error || out?.status || "failed")}`,
+                "err",
+              );
+            }
+            await refreshAdminServerSettings(false);
+            return;
+          }
+          setAdminPasswordResetMsg(tt("hub.admin.passwordReset.saved", "Saved."), "ok");
+          await refreshAdminServerSettings(false);
         });
       }
       if (adminUsersList) {

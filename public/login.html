@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>VMill Login</title>
   <style>
-    @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap");
     :root {
       --bg:var(--vm-theme-bg, #0a0f17);
       --bg2:color-mix(in srgb, var(--vm-theme-bg, #0a0f17) 80%, #000);
@@ -27,7 +26,7 @@
       display: grid;
       place-items: center;
       color: var(--text);
-      font-family: "Space Grotesk", ui-sans-serif, system-ui;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       background:
         radial-gradient(1200px 600px at 10% -20%, rgba(var(--accent-rgb),.18), transparent 60%),
         radial-gradient(900px 500px at 100% -10%, rgba(var(--ok-rgb),.14), transparent 60%),
@@ -369,6 +368,25 @@
         msg.className = `msg ${tone}`.trim();
       }
 
+      function applyResetTokenFromUrl() {
+        try {
+          const u = new URL(window.location.href);
+          const t = String(u.searchParams.get("token") || "").trim();
+          if (!t || !resetTokenInput) return;
+          resetTokenInput.value = t;
+          if (recoverFold) {
+            recoverFold.style.display = "";
+            recoverFold.open = true;
+          }
+          setMsg(tt("login.msg.resetTokenFromLink", "Reset link loaded. Enter a new password below."), "ok");
+          resetPasswordInput?.focus();
+          u.searchParams.delete("token");
+          const qs = u.searchParams.toString();
+          const next = `${u.pathname}${qs ? `?${qs}` : ""}${u.hash || ""}`;
+          window.history.replaceState({}, "", next || u.pathname);
+        } catch (_) {}
+      }
+
       function setServerState(nextOnline, text) {
         online = !!nextOnline;
         dot.classList.toggle("ok", online);
@@ -488,13 +506,13 @@
           setMsg(tt("login.msg.recoverFailed", "Reset request failed: {error}", { error: out.error || "unknown" }), "err");
           return;
         }
-        if (out.resetToken) {
+        if (out.devPreview && out.resetToken) {
           resetTokenInput.value = out.resetToken;
           recoverFold.open = true;
-          setMsg(tt("login.msg.recoverToken", "Reset token generated. Use it below to set a new password."), "ok");
+          setMsg(tt("login.msg.recoverToken", "Dev mode: reset token shown below. Set a new password."), "ok");
           return;
         }
-        setMsg(tt("login.msg.recoverSent", "If account exists, reset instructions were sent."), "ok");
+        setMsg(tt("login.msg.recoverSent", "If an account matches, check your inbox for reset instructions."), "ok");
       }
 
       async function handleResetPassword() {
@@ -568,8 +586,11 @@
         applyTexts();
         checkServer();
       });
-      checkServer();
-      applyAuthOptions();
+      (async () => {
+        await checkServer();
+        await applyAuthOptions();
+        applyResetTokenFromUrl();
+      })();
       pingTimer = window.setInterval(checkServer, 2500);
       window.addEventListener("beforeunload", () => {
         if (pingTimer) clearInterval(pingTimer);

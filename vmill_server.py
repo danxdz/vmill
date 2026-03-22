@@ -6,6 +6,7 @@ Run: python vmill_server.py
 from __future__ import annotations
 
 import json
+import logging
 import mimetypes
 import os
 import re
@@ -22,13 +23,16 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 import hashlib
 import socket
 import smtplib
 import sys
 from email.message import EmailMessage
 import xml.etree.ElementTree as ET
+
+log = logging.getLogger("vmill.server")
+
 
 def resolve_frozen_root_dir() -> Path:
     """
@@ -78,7 +82,8 @@ AUTH_PBKDF2_ITERATIONS = max(120_000, int(os.environ.get("VMILL_AUTH_PBKDF2_ITER
 AUTH_PBKDF2_LEGACY_ITERS_RAW = str(os.environ.get("VMILL_AUTH_PBKDF2_LEGACY_ITERS", "120000")).strip()
 AUTH_ALLOW_SELF_REGISTER = str(os.environ.get("VMILL_AUTH_ALLOW_REGISTER", "1")).strip().lower() in {"1", "true", "yes", "on"}
 AUTH_DEV_RESET_PREVIEW = str(os.environ.get("VMILL_AUTH_DEV_RESET_PREVIEW", "0")).strip().lower() in {"1", "true", "yes", "on"}
-PASSWORD_RESET_URL = str(os.environ.get("VMILL_PASSWORD_RESET_URL", "")).strip()
+# When set, overrides the password-reset base URL stored in SQLite (Hub: Data & Backup → Server & auth).
+PASSWORD_RESET_URL_ENV = str(os.environ.get("VMILL_PASSWORD_RESET_URL", "")).strip()
 DEFAULT_ADMIN_USER = str(os.environ.get("VMILL_DEFAULT_ADMIN_USER", "admin")).strip() or "admin"
 DEFAULT_ADMIN_PASSWORD = str(os.environ.get("VMILL_DEFAULT_ADMIN_PASSWORD", "vmill2024"))
 SMTP_HOST = str(os.environ.get("VMILL_SMTP_HOST", "")).strip()
@@ -88,6 +93,14 @@ SMTP_PASS = str(os.environ.get("VMILL_SMTP_PASS", "")).strip()
 SMTP_FROM = str(os.environ.get("VMILL_SMTP_FROM", "")).strip()
 SMTP_USE_SSL = str(os.environ.get("VMILL_SMTP_SSL", "0")).strip().lower() in {"1", "true", "yes", "on"}
 SMTP_USE_TLS = str(os.environ.get("VMILL_SMTP_TLS", "1")).strip().lower() in {"1", "true", "yes", "on"}
+FORGOT_PASSWORD_TIMING_MIN_S = float(os.environ.get("VMILL_FORGOT_TIMING_MIN_S", "0.45"))
+FORGOT_PASSWORD_TIMING_JITTER_S = float(os.environ.get("VMILL_FORGOT_TIMING_JITTER_S", "0.35"))
+FORGOT_PASSWORD_OK_MESSAGE = str(
+    os.environ.get(
+        "VMILL_FORGOT_OK_MESSAGE",
+        "If an account matches what you entered, check your inbox for reset instructions.",
+    )
+).strip() or "If an account matches what you entered, check your inbox for reset instructions."
 ALLOWED_ROOT_STATIC_FILES = {
     "index.html",
     "favicon.ico",
@@ -190,13 +203,60 @@ def hash_reset_token(raw_token: str) -> str:
     return hashlib.sha256(str(raw_token or "").encode("utf-8")).hexdigest()
 
 
+def reset_public_url_safe_for_email(url: str) -> bool:
+    """Only embed reset links in email over HTTPS, or HTTP on localhost (development)."""
+    raw = str(url or "").strip()
+    if not raw:
+        return True
+    try:
+        p = urlparse(raw)
+        scheme = (p.scheme or "").lower()
+        host = (p.hostname or "").lower()
+        if scheme == "https":
+            return True
+        if scheme == "http" and host in ("localhost", "127.0.0.1", "::1", "[::1]"):
+            return True
+        return False
+    except Exception:
+        return False
+
+
+def pad_forgot_password_elapsed(start_perf: float) -> None:
+    """Reduce timing skew between hit/miss and email send success/failure (best-effort)."""
+    if FORGOT_PASSWORD_TIMING_MIN_S <= 0 and FORGOT_PASSWORD_TIMING_JITTER_S <= 0:
+        return
+    jitter = max(FORGOT_PASSWORD_TIMING_JITTER_S, 0.0)
+    target = FORGOT_PASSWORD_TIMING_MIN_S + (secrets.SystemRandom().uniform(0, jitter) if jitter else 0.0)
+    elapsed = time.perf_counter() - start_perf
+    if elapsed < target:
+        time.sleep(target - elapsed)
+
+
+def user_has_deliverable_email(row: Optional[Dict[str, Any]]) -> bool:
+    if not row:
+        return False
+    e = normalize_email(row.get("email"))
+    return bool(e) and bool(EMAIL_RE.fullmatch(e))
+
+
+def warn_password_reset_config() -> None:
+    eff = effective_password_reset_url()
+    if eff and not reset_public_url_safe_for_email(eff):
+        log.warning(
+            "Password reset base URL must use https:// (or http://localhost for dev). "
+            "Reset emails will omit the link and send a paste-token only."
+        )
+
+
 def send_password_reset_email(username: str, email_to: str, token: str, expires_minutes: int) -> bool:
     if not SMTP_HOST or not SMTP_FROM or not email_to:
         return False
+    base_url = effective_password_reset_url()
+    use_link = bool(base_url) and reset_public_url_safe_for_email(base_url)
     reset_link = ""
-    if PASSWORD_RESET_URL:
-        sep = "&" if "?" in PASSWORD_RESET_URL else "?"
-        reset_link = f"{PASSWORD_RESET_URL}{sep}token={token}"
+    if use_link:
+        sep = "&" if "?" in base_url else "?"
+        reset_link = f"{base_url}{sep}token={quote(token, safe='')}"
     msg = EmailMessage()
     msg["Subject"] = "VMill password reset"
     msg["From"] = SMTP_FROM
@@ -205,12 +265,24 @@ def send_password_reset_email(username: str, email_to: str, token: str, expires_
         f"Hello {username or 'user'},",
         "",
         "A password reset was requested for your account.",
-        f"This token expires in {int(expires_minutes)} minutes.",
+        f"This link or token expires in {int(expires_minutes)} minutes.",
     ]
     if reset_link:
-        body_lines.extend(["", f"Reset link: {reset_link}"])
+        body_lines.extend(
+            [
+                "",
+                "Open this link to choose a new password:",
+                reset_link,
+            ]
+        )
     else:
-        body_lines.extend(["", f"Reset token: {token}"])
+        body_lines.extend(
+            [
+                "",
+                "Use this one-time token on the login page (password reset form):",
+                token,
+            ]
+        )
     body_lines.extend(["", "If you did not request this, you can ignore this email."])
     msg.set_content("\n".join(body_lines))
     try:
@@ -227,7 +299,8 @@ def send_password_reset_email(username: str, email_to: str, token: str, expires_
                 smtp.login(SMTP_USER, SMTP_PASS)
             smtp.send_message(msg)
             return True
-    except Exception:
+    except Exception as exc:
+        log.warning("password reset SMTP send failed: %s", exc)
         return False
 
 
@@ -654,6 +727,12 @@ class DB:
                     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
                 );
 
+                CREATE TABLE IF NOT EXISTS server_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
                 CREATE TABLE IF NOT EXISTS workspace (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
@@ -786,6 +865,15 @@ class DB:
             cur.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token_hash)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id)")
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS server_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
             self.conn.commit()
 
     def ensure_default_workspace(self) -> None:
@@ -845,6 +933,30 @@ class DB:
 
 
 db = DB(DB_PATH)
+
+SERVER_SETTING_PASSWORD_RESET_URL = "password_reset_url"
+
+
+def get_server_setting(key: str, default: str = "") -> str:
+    row = db.query_one("SELECT value FROM server_settings WHERE key=?", (key,))
+    if row is None:
+        return default
+    return str(row["value"] or "").strip()
+
+
+def set_server_setting(key: str, value: str) -> None:
+    ts = now_iso()
+    db.execute(
+        """INSERT INTO server_settings(key,value,updated_at) VALUES(?,?,?)
+           ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at""",
+        (key, value, ts),
+    )
+
+
+def effective_password_reset_url() -> str:
+    if PASSWORD_RESET_URL_ENV:
+        return PASSWORD_RESET_URL_ENV
+    return get_server_setting(SERVER_SETTING_PASSWORD_RESET_URL, "")
 
 
 def row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
@@ -1107,6 +1219,13 @@ class VMillHandler(BaseHTTPRequestHandler):
             self.api_users(method, parts)
             return
 
+        if parts == ["api", "admin", "server-settings"] and method == "GET":
+            self.api_admin_server_settings_get()
+            return
+        if parts == ["api", "admin", "server-settings"] and method == "PUT":
+            self.api_admin_server_settings_put()
+            return
+
         # Sync endpoints
         if parts == ["api", "sync", "poll"] and method == "GET":
             user = self.require_auth("operator")
@@ -1329,13 +1448,14 @@ class VMillHandler(BaseHTTPRequestHandler):
         if not identifier:
             self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "missing_identifier"})
             return
+        t0 = time.perf_counter()
+        preview_token = ""
         if "@" in identifier:
             row = db.query_one("SELECT id, username, email FROM users WHERE lower(email)=lower(?)", (identifier,))
         else:
             row = db.query_one("SELECT id, username, email FROM users WHERE username=?", (identifier,))
-        preview_token = ""
-        email_sent = False
-        if row is not None:
+        smtp_ready = bool(SMTP_HOST and SMTP_FROM)
+        if row is not None and smtp_ready and user_has_deliverable_email(row):
             raw_token = secrets.token_urlsafe(32)
             token_hash = hash_reset_token(raw_token)
             now_dt = datetime.now(timezone.utc)
@@ -1358,20 +1478,28 @@ class VMillHandler(BaseHTTPRequestHandler):
                     str(self.headers.get("User-Agent", "") or "")[:400],
                 ),
             )
-            email_sent = send_password_reset_email(
+            sent_ok = send_password_reset_email(
                 str(row["username"] or ""),
                 normalize_email(row["email"]),
                 raw_token,
                 PASSWORD_RESET_TTL_MINUTES,
             )
+            if not sent_ok:
+                log.warning("password reset row created but email not delivered (user_id=%s)", row["id"])
             if AUTH_DEV_RESET_PREVIEW:
                 preview_token = raw_token
+        else:
+            if row is not None and smtp_ready and not user_has_deliverable_email(row):
+                log.info("password reset ignored: no valid email on file (user_id=%s)", row["id"])
+            elif row is not None and not smtp_ready:
+                log.info("password reset ignored: SMTP not configured (user_id=%s)", row["id"])
+            _ = hash_reset_token(secrets.token_urlsafe(32))
+        pad_forgot_password_elapsed(t0)
         payload: Dict[str, Any] = {
             "ok": True,
-            "message": "If an account exists, password reset instructions were generated.",
-            "email_sent": email_sent,
+            "message": FORGOT_PASSWORD_OK_MESSAGE,
         }
-        if preview_token:
+        if AUTH_DEV_RESET_PREVIEW and preview_token:
             payload["reset_token"] = preview_token
             payload["dev_preview"] = True
         self.send_json(HTTPStatus.OK, payload)
@@ -1572,6 +1700,52 @@ class VMillHandler(BaseHTTPRequestHandler):
                 return
 
         self.send_json(HTTPStatus.METHOD_NOT_ALLOWED, {"ok": False, "error": "method_not_allowed"})
+
+    def api_admin_server_settings_get(self) -> None:
+        user = self.require_auth("admin")
+        if not user:
+            return
+        stored = get_server_setting(SERVER_SETTING_PASSWORD_RESET_URL, "")
+        eff = effective_password_reset_url()
+        locked = bool(PASSWORD_RESET_URL_ENV)
+        source = "environment" if locked else ("database" if stored else "none")
+        self.send_json(
+            HTTPStatus.OK,
+            {
+                "ok": True,
+                "password_reset_url_effective": eff,
+                "password_reset_url_stored": stored,
+                "password_reset_url_locked_by_environment": locked,
+                "password_reset_url_source": source,
+            },
+        )
+
+    def api_admin_server_settings_put(self) -> None:
+        user = self.require_auth("admin")
+        if not user:
+            return
+        if PASSWORD_RESET_URL_ENV:
+            self.send_json(
+                HTTPStatus.CONFLICT,
+                {"ok": False, "error": "password_reset_url_locked_by_environment"},
+            )
+            return
+        try:
+            body = self.read_json_body()
+        except ValueError:
+            return
+        url = str(body.get("password_reset_url", "")).strip()
+        set_server_setting(SERVER_SETTING_PASSWORD_RESET_URL, url)
+        self.send_json(
+            HTTPStatus.OK,
+            {
+                "ok": True,
+                "password_reset_url_effective": effective_password_reset_url(),
+                "password_reset_url_stored": get_server_setting(SERVER_SETTING_PASSWORD_RESET_URL, ""),
+                "password_reset_url_locked_by_environment": False,
+                "password_reset_url_source": "database" if url else "none",
+            },
+        )
 
     def api_sync_pull(self, user: Dict[str, Any]) -> None:
         row = db.query_one("SELECT * FROM workspace WHERE id='default'")
@@ -2463,6 +2637,9 @@ class VMillHandler(BaseHTTPRequestHandler):
 
 def run() -> None:
     db.init_schema()
+    if not logging.root.handlers:
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    warn_password_reset_config()
     host = "0.0.0.0"
     port = DEFAULT_PORT
     ip = get_local_ip()

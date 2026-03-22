@@ -213,7 +213,7 @@
         status: Number(out.status || 0),
         error: out.ok ? "" : String(data?.error || "request_failed"),
         message: String(data?.message || ""),
-        emailSent: !!data?.email_sent,
+        devPreview: !!data?.dev_preview,
         resetToken: String(data?.reset_token || ""),
         serverUrl: base,
       };
@@ -223,7 +223,7 @@
         error: String(err?.message || "network_error"),
         status: 0,
         message: "",
-        emailSent: false,
+        devPreview: false,
         resetToken: "",
         serverUrl: base,
       };
@@ -281,6 +281,68 @@
     }
   }
 
+  async function adminServerSettingsGet(serverUrl = "") {
+    const base = normalizeServerUrl(serverUrl || getServerUrl());
+    const token = getToken();
+    if (!base || !token) {
+      return { ok: false, status: 0, data: {}, error: "missing_auth" };
+    }
+    try {
+      const res = await fetch(`${base}/api/admin/server-settings`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      return {
+        ok: !!res.ok,
+        status: Number(res.status || 0),
+        data: data && typeof data === "object" ? data : {},
+        error: res.ok ? "" : String(data?.error || "load_failed"),
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        status: 0,
+        data: {},
+        error: String(err?.message || "network_error"),
+      };
+    }
+  }
+
+  async function adminServerSettingsPut(patch, serverUrl = "") {
+    const base = normalizeServerUrl(serverUrl || getServerUrl());
+    const token = getToken();
+    if (!base || !token) {
+      return { ok: false, status: 0, data: {}, error: "missing_auth" };
+    }
+    try {
+      const res = await fetch(`${base}/api/admin/server-settings`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify(patch && typeof patch === "object" ? patch : {}),
+      });
+      const data = await res.json().catch(() => ({}));
+      return {
+        ok: !!res.ok,
+        status: Number(res.status || 0),
+        data: data && typeof data === "object" ? data : {},
+        error: res.ok ? "" : String(data?.error || "save_failed"),
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        status: 0,
+        data: {},
+        error: String(err?.message || "network_error"),
+      };
+    }
+  }
+
   async function refreshMe(serverUrl = "") {
     const base = normalizeServerUrl(serverUrl || getServerUrl());
     const token = getToken();
@@ -323,6 +385,8 @@
     forgotPassword,
     resetPassword,
     getAuthOptions,
+    adminServerSettingsGet,
+    adminServerSettingsPut,
     refreshMe,
     logout,
     ping,
