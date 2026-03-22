@@ -16,20 +16,20 @@ window.VMillModules = [
     tags: ["capture", "camera", "bookmarks"],
   },
   {
-    id: "spacial",
-    name: "Router",
-    desc: "Dimensional routing and blueprint bubble planning.",
-    href: "./SPaCial.html",
-    status: "ready",
-    tags: ["spc", "routing", "blueprint", "offline"],
-  },
-  {
     id: "factory",
     name: "Factory Operations",
     desc: "Production planning, work orders, scheduling, and execution control.",
     href: "./factory_manager.html",
     status: "ready",
     tags: ["factory", "operations", "capacity", "planning"],
+  },
+  {
+    id: "spacial",
+    name: "Router",
+    desc: "Dimensional routing and blueprint bubble planning.",
+    href: "./SPaCial.html",
+    status: "ready",
+    tags: ["spc", "routing", "blueprint", "offline"],
   },
   {
     id: "contas",

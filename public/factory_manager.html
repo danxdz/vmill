@@ -17,12 +17,241 @@
         radial-gradient(900px 520px at 12% -18%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 55%),
         linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg) 88%, #000));
     }
+    body.factory-mf.vm-theme-light {
+      background:
+        radial-gradient(900px 520px at 12% -18%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 58%),
+        linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg) 94%, var(--text)));
+    }
+    body.factory-mf.vm-theme-light .mfHeroTimeline {
+      border-color: color-mix(in srgb, var(--border) 100%, #1e293b);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 96%, #fff), color-mix(in srgb, var(--panel2) 98%, #f8fafc));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 28px rgba(15, 23, 42, 0.07);
+    }
+    body.factory-mf.vm-theme-light .mfHeroTimeline .timelineWrap,
+    body.factory-mf.vm-theme-light .mfTimeline .timelineWrap {
+      background: color-mix(in srgb, var(--panel) 82%, #fff);
+      border-color: color-mix(in srgb, var(--border) 85%, #334155);
+    }
+    body.factory-mf.vm-theme-light .mfTimelineHead {
+      background: color-mix(in srgb, var(--panel2) 78%, #fff);
+      border-bottom-color: color-mix(in srgb, var(--border) 80%, #334155);
+    }
+    body.factory-mf.vm-theme-light .timelineWrap {
+      background: color-mix(in srgb, var(--panel) 85%, #fff);
+      border-color: color-mix(in srgb, var(--border) 80%, #334155);
+    }
+    body.factory-mf.vm-theme-light .tlScale {
+      background: color-mix(in srgb, var(--panel) 94%, #fff);
+      border-bottom-color: color-mix(in srgb, var(--border) 75%, #334155);
+    }
+    body.factory-mf.vm-theme-light .tlScaleCell {
+      color: color-mix(in srgb, var(--text) 92%, #0f172a);
+      border-right-color: color-mix(in srgb, var(--border) 65%, #475569);
+    }
+    body.factory-mf.vm-theme-light .tlStationHead {
+      background: color-mix(in srgb, var(--panel) 94%, #fff);
+      border-color: color-mix(in srgb, var(--border) 75%, #334155);
+      color: color-mix(in srgb, var(--text) 55%, #475569);
+    }
+    body.factory-mf.vm-theme-light .tlStationCell {
+      background: linear-gradient(90deg, color-mix(in srgb, var(--panel) 90%, #fff), color-mix(in srgb, var(--panel2) 95%, #f8fafc));
+      border-color: color-mix(in srgb, var(--border) 72%, #334155);
+      color: color-mix(in srgb, var(--text) 95%, #0f172a);
+    }
+    body.factory-mf.vm-theme-light .tlLaneSurface {
+      background:
+        linear-gradient(165deg, color-mix(in srgb, var(--panel) 52%, #fff), color-mix(in srgb, var(--panel2) 94%, #f1f5f9)),
+        repeating-linear-gradient(
+          to right,
+          transparent 0,
+          transparent calc((100% / var(--days, 7)) - 1px),
+          color-mix(in srgb, var(--border) 55%, #64748b) calc((100% / var(--days, 7)) - 1px),
+          color-mix(in srgb, var(--border) 55%, #64748b) calc(100% / var(--days, 7))
+        );
+      border-color: color-mix(in srgb, var(--border) 70%, #475569);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 2px 10px rgba(15, 23, 42, 0.05);
+    }
+    body.factory-mf.vm-theme-light .tlLaneSurface--idle {
+      background: color-mix(in srgb, var(--panel2) 88%, #f8fafc);
+      border-color: color-mix(in srgb, var(--border) 60%, #64748b);
+    }
+    body.factory-mf.vm-theme-light .tlIssuesBar {
+      background: color-mix(in srgb, var(--panel2) 85%, #fff);
+      border-color: color-mix(in srgb, var(--border) 78%, #334155);
+    }
+    body.factory-mf.vm-theme-light .tlMergedRow {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+    body.factory-mf.vm-theme-light .tlSeg.tlRouteSeg {
+      border-left-color: color-mix(in srgb, var(--ok) 40%, #0f172a);
+    }
+    body.factory-mf.vm-theme-light .tlSummaryLine {
+      color: color-mix(in srgb, var(--muted) 70%, #0f172a);
+    }
     .mfShell {
       max-width: none;
       margin: 0;
       padding: 0 0 20px;
       min-height: 100dvh;
     }
+
+    /* App shell: context rail + main stage (MES-first layout) */
+    .mfApp {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px 14px 0;
+      align-items: stretch;
+    }
+    @media (min-width: 1180px) {
+      .mfApp { padding: 14px 18px 0; }
+    }
+    .mfStatusLine {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .mfStage {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+    @media (min-width: 1180px) { .mfStage { gap: 14px; } }
+    .mfSnapshot {
+      margin: 0 !important;
+      padding: 12px 14px 14px;
+      border-radius: 12px;
+      border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent) 0%, transparent 42%),
+        linear-gradient(180deg, color-mix(in srgb, var(--panel) 92%, #000), var(--panel2));
+      box-shadow: 0 6px 28px rgba(0, 0, 0, 0.28);
+    }
+    .mfSnapshotHead {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .mfSnapshotKicker {
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .mfSnapshotGrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    @media (min-width: 640px) {
+      .mfSnapshotGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    .mfStatTile {
+      border-radius: 10px;
+      padding: 10px 10px 11px;
+      border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+      background: color-mix(in srgb, var(--panel2) 94%, #000);
+      min-width: 0;
+    }
+    .mfStatTileLbl {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .mfStatTileVal {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+      color: color-mix(in srgb, var(--text) 94%, var(--accent));
+    }
+    .mfStatTile.mfStatTile--eta .mfStatTileVal {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+    .mfLiveLine {
+      margin: 10px 0 0;
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.45;
+      word-break: break-word;
+    }
+    .mfHeroTimeline {
+      margin: 0 !important;
+      border-radius: 12px;
+      border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 95%, #030508), color-mix(in srgb, var(--panel2) 98%, #000));
+      box-shadow: inset 0 1px 0 color-mix(in srgb, var(--accent) 12%, transparent), 0 8px 32px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+    }
+    .mfHeroTimeline .timelineWrap {
+      min-height: min(40vh, 420px);
+      margin: 0 12px 10px;
+      border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.18);
+      min-width: 0;
+      overflow-x: hidden;
+    }
+    .mfTimelineHead {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px 10px;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+      background: color-mix(in srgb, var(--panel2) 70%, transparent);
+    }
+    .mfTimelineHead .mini { margin: 0 0 4px; font-family: var(--mono); letter-spacing: 0.1em; }
+    .mfMesDeck {
+      margin: 0 !important;
+      border-radius: 12px;
+      border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+    }
+    .mfMesDeck .grid2 {
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 1100px) {
+      .mfMesDeck .grid2 { grid-template-columns: 1fr; }
+    }
+    .mfMesDeck .erpList { max-height: min(32vh, 300px); }
+    .mfAnalyticsBand {
+      margin: 0 !important;
+      border-radius: 12px;
+      border: 1px dashed color-mix(in srgb, var(--border) 90%, transparent);
+      background: color-mix(in srgb, var(--panel2) 96%, #000);
+    }
+    .mfAnalyticsBand .mfAnalyticsHead {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: -4px 0 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+    }
+    .mfAnalyticsBand .mfAnalyticsKicker {
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .mfFloorOuter { margin: 12px 14px 0 !important; }
     .mfTopbar {
       position: sticky;
       top: 0;
@@ -32,10 +261,17 @@
       justify-content: space-between;
       gap: 12px;
       flex-wrap: wrap;
-      padding: 8px 14px;
-      border-bottom: 1px solid color-mix(in srgb, var(--mf-glow) 55%, var(--border));
-      background: color-mix(in srgb, var(--panel2) 94%, #000);
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+      padding: 10px 16px;
+      border-bottom: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+      background: linear-gradient(180deg, color-mix(in srgb, var(--panel2) 96%, #000) 0%, color-mix(in srgb, var(--panel2) 88%, #0a0e14) 100%);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.42);
+    }
+    .mfBrandBlock {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      min-width: 0;
     }
     .mfBrandRow {
       display: flex;
@@ -43,6 +279,18 @@
       gap: 10px;
       flex-wrap: wrap;
       min-width: 0;
+    }
+    .mfSubtitle {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      max-width: min(88vw, 720px);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .mfLed {
       width: 8px;
@@ -116,6 +364,15 @@
       margin: 10px 14px 0;
       padding: 10px 12px;
       border-radius: 10px;
+    }
+    .mfAnalyticsBand.kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      padding: 12px 14px 14px;
+    }
+    .mfAnalyticsBand.kpis .mfAnalyticsHead {
+      grid-column: 1 / -1;
     }
     .mfKpis.kpis {
       gap: 6px;
@@ -332,13 +589,59 @@
     .mfTimeline .timelineWrap {
       margin: 0 10px 8px;
       border-radius: 8px;
-      overflow-x: auto;
+      overflow-x: hidden;
       overflow-y: visible;
       max-height: none;
+      min-width: 0;
     }
     .mfTimeline .settingsInsights {
       padding: 0 10px 12px;
       gap: 8px;
+    }
+    .mfTimelineTools {
+      position: relative;
+    }
+    .mfTimelineTools > summary {
+      list-style: none;
+    }
+    .mfTimelineTools > summary::-webkit-details-marker {
+      display: none;
+    }
+    .mfTimelineToolsPanel {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 4px);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      min-width: 200px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+      z-index: 30;
+    }
+    .mfTimelineToolsPanel .btn {
+      width: 100%;
+      justify-content: center;
+      font-size: 12px;
+      padding: 7px 10px;
+    }
+    .tlRouteBulkBar {
+      gap: 10px !important;
+      padding: 6px 0 8px !important;
+    }
+    .opConsoleRow1,
+    .opConsoleRow2 {
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .opConsoleRow1 .btn,
+    .opConsoleRow2 .btn {
+      font-size: 12px;
+      padding: 6px 10px;
     }
     .mfTimeline .settingsInsight .hint {
       display: none;
@@ -654,9 +957,10 @@
     .timelineWrap {
       border: 1px solid var(--border);
       border-radius: 10px;
-      overflow-x: auto;
+      overflow-x: hidden;
       overflow-y: visible;
       background: rgba(255,255,255,.015);
+      min-width: 0;
     }
     .settingsInsights {
       display: grid;
@@ -690,13 +994,23 @@
       font-size: 11px;
     }
     .timeline {
-      min-width: 640px;
       display: block;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+    .tlRoot {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
     }
     .timelineGantt {
-      min-width: 640px;
+      width: 100%;
+      min-width: 0;
       display: grid;
-      grid-template-columns: minmax(76px, 9.5%) 1fr;
+      grid-template-columns: minmax(72px, 11%) minmax(0, 1fr);
       align-items: stretch;
     }
     .tlGanttHead {
@@ -708,21 +1022,23 @@
     .tlStationHead {
       border-right: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
       border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
-      padding: 6px 7px;
+      padding: 4px 6px;
       color: var(--muted);
       text-transform: uppercase;
       letter-spacing: .06em;
-      font-size: 10px;
+      font-size: 9px;
       background: color-mix(in srgb, var(--panel) 92%, #000);
     }
     .tlScale {
       border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
       display: grid;
-      grid-template-columns: repeat(var(--days, 7), minmax(48px, 1fr));
+      grid-template-columns: repeat(var(--days, 7), minmax(0, 1fr));
       background: color-mix(in srgb, var(--panel) 92%, #000);
+      min-width: 0;
     }
     .tlScaleCell {
-      padding: 5px 3px;
+      min-width: 0;
+      padding: 5px 2px;
       font-size: 9px;
       font-weight: 600;
       letter-spacing: .02em;
@@ -731,56 +1047,332 @@
       border-right: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
       text-align: center;
       line-height: 1.2;
+      transition: background 0.2s ease, color 0.2s ease;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tlDense .tlScaleCell {
+      padding: 5px 1px;
+      font-size: 8px;
+      letter-spacing: 0;
+      line-height: 1.15;
+    }
+    .tlDense .tlStationHead {
+      padding: 3px 4px;
+      font-size: 8px;
+    }
+    .tlDense .tlStationCell {
+      padding: 3px 4px;
+      font-size: 10px;
+    }
+    .tlDense .tlTrackCell {
+      min-height: 16px;
+      padding: 1px 0 1px 2px;
+    }
+    .tlDense .tlLaneSurface {
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+    .tlDense .tlMergedRow {
+      height: 11px;
+      min-height: 11px;
+      max-height: 11px;
+    }
+    .tlDense .tlSeg {
+      font-size: 7px;
+      line-height: 11px !important;
+      height: 11px !important;
+      max-height: 11px !important;
+    }
+    .tlDense button.tlSeg {
+      height: 11px !important;
+      max-height: 11px !important;
+      line-height: 11px !important;
+    }
+    .tlDense .tlTrackCell.tlMultiLane {
+      min-height: calc(2px + var(--tl-lanes, 2) * 11px + (var(--tl-lanes, 2) - 1) * 1px);
+    }
+    .tlSummaryLine {
+      margin-top: 3px;
+      opacity: 0.82;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.3;
+    }
+    .tlIssuesBar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 8px;
+      margin: 0 12px 8px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+      background: color-mix(in srgb, var(--panel2) 88%, #000);
+      font-size: 10px;
+      font-family: var(--mono);
+    }
+    .tlIssuesKicker {
+      flex: 0 0 auto;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: color-mix(in srgb, var(--muted) 92%, var(--accent));
+      margin-right: 2px;
+      padding-right: 6px;
+      border-right: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    }
+    .mfTimeline .tlIssuesBar {
+      margin: 0 10px 8px;
+    }
+    .tlIssuesBar--clear {
+      border-color: color-mix(in srgb, var(--ok) 28%, var(--border));
+    }
+    .tlIssueChip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+      max-width: 100%;
+    }
+    .tlIssueChip--clear {
+      color: color-mix(in srgb, var(--ok) 90%, var(--text));
+      border-color: color-mix(in srgb, var(--ok) 35%, transparent);
+      background: color-mix(in srgb, var(--ok) 10%, transparent);
+      text-transform: none;
+      letter-spacing: 0.02em;
+      font-weight: 600;
+    }
+    .tlIssueChip--late {
+      color: color-mix(in srgb, var(--warn) 95%, #fff);
+      border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+      background: color-mix(in srgb, var(--warn) 12%, transparent);
+    }
+    .tlIssueChip--overload {
+      color: color-mix(in srgb, var(--danger) 92%, #fff);
+      border-color: color-mix(in srgb, var(--danger) 38%, transparent);
+      background: color-mix(in srgb, var(--danger) 12%, transparent);
+    }
+    .tlIssueChip--offcal {
+      color: color-mix(in srgb, var(--danger) 88%, #fcc);
+      border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+      background: color-mix(in srgb, var(--danger) 14%, transparent);
+    }
+    .tlScaleCell--overload {
+      color: color-mix(in srgb, var(--danger) 85%, var(--text));
+      background: color-mix(in srgb, var(--danger) 10%, transparent);
+      box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--danger) 55%, transparent);
+    }
+    .tlScaleCell--offcal {
+      color: color-mix(in srgb, var(--danger) 80%, var(--text));
+      background: color-mix(in srgb, var(--danger) 16%, transparent);
+      box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--danger) 70%, transparent);
+    }
+    .tlStationCell.tlStationCell--signal {
+      box-shadow: inset 3px 0 0 color-mix(in srgb, var(--danger) 55%, transparent);
+    }
+    .tlStationCell.tlStationCell--signalWarn {
+      box-shadow: inset 3px 0 0 color-mix(in srgb, var(--warn) 55%, transparent);
+    }
+    .tlTrackCell.tlTrackCell--offcal .tlLaneSurface {
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--danger) 42%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #fff 4%, transparent),
+        0 3px 12px rgba(0, 0, 0, 0.18);
+    }
+    .tlTrackCell.tlTrackCell--overload:not(.tlTrackCell--offcal) .tlLaneSurface {
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--warn) 35%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #fff 4%, transparent),
+        0 3px 12px rgba(0, 0, 0, 0.18);
+    }
+    .tlDayPressure {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: row;
+      z-index: 0;
+      pointer-events: none;
+      border-radius: inherit;
+      overflow: hidden;
+    }
+    .tlDayPressureCell {
+      flex: 1 1 0;
+      min-width: 0;
+      height: 100%;
+      opacity: 0.2;
+      box-sizing: border-box;
+    }
+    .tlDayPressureCell--warn {
+      background: color-mix(in srgb, var(--warn) 80%, transparent);
+      opacity: 0.24;
+    }
+    .tlDayPressureCell--hot {
+      background: color-mix(in srgb, var(--danger) 75%, transparent);
+      opacity: 0.3;
+    }
+    .tlDayPressureCell--off {
+      background: color-mix(in srgb, var(--danger) 65%, #402);
+      opacity: 0.34;
+    }
+    .tlLaneSurface > .tlMergedWrap,
+    .tlLaneSurface > .tlLaneIdleLabel,
+    .tlLaneSurface > .tlNowMarker {
+      position: relative;
+      z-index: 1;
+    }
+    .tlScaleCell--today {
+      color: color-mix(in srgb, var(--text) 88%, var(--accent));
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--accent) 75%, transparent);
     }
     .tlStationCell {
       border-right: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
       border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
-      padding: 4px 7px;
-      font-size: 11px;
+      padding: 2px 5px 3px;
+      font-size: 10px;
       font-weight: 700;
       font-family: var(--mono);
-      background: color-mix(in srgb, var(--panel) 72%, #000);
+      background: linear-gradient(90deg, color-mix(in srgb, var(--panel) 78%, #000), color-mix(in srgb, var(--panel2) 92%, #000));
       min-width: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1px;
+    }
+    .tlStationName {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      line-height: 1.15;
+    }
+    .tlStationCapLine {
+      font-size: 9px;
+      font-weight: 600;
+      opacity: 0.82;
+      line-height: 1.1;
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .tlTrackCell {
       display: flex;
-      align-items: center;
-      border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
-      min-height: 28px;
-      padding: 2px 0;
+      align-items: stretch;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 32%, transparent);
+      min-height: 18px;
+      min-width: 0;
+      padding: 1px 0 1px 3px;
+      background: transparent;
+    }
+    .tlLaneSurface {
+      position: relative;
+      flex: 1;
+      display: block;
+      min-width: 0;
+      min-height: 0;
+      border-radius: 3px;
+      padding: 1px 2px;
+      box-sizing: border-box;
       background:
+        linear-gradient(165deg, color-mix(in srgb, var(--panel) 38%, transparent) 0%, color-mix(in srgb, var(--panel2) 90%, transparent) 100%),
         repeating-linear-gradient(
           to right,
           transparent 0,
           transparent calc((100% / var(--days, 7)) - 1px),
-          color-mix(in srgb, var(--border) 52%, transparent) calc((100% / var(--days, 7)) - 1px),
-          color-mix(in srgb, var(--border) 52%, transparent) calc(100% / var(--days, 7))
+          color-mix(in srgb, var(--border) 28%, transparent) calc((100% / var(--days, 7)) - 1px),
+          color-mix(in srgb, var(--border) 28%, transparent) calc(100% / var(--days, 7))
         );
+      border: 1px solid color-mix(in srgb, var(--border) 48%, transparent);
+      box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 4%, transparent);
+    }
+    .tlLaneSurface--idle {
+      background: color-mix(in srgb, var(--panel2) 75%, #000);
+      border-style: dashed;
+      border-color: color-mix(in srgb, var(--border) 45%, transparent);
+      box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 3%, transparent);
+    }
+    .tlLaneIdleLabel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 12px;
+      font-size: 7px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: color-mix(in srgb, var(--muted) 75%, transparent);
+      pointer-events: none;
+    }
+    .tlNowMarker {
+      position: absolute;
+      top: 1px;
+      bottom: 1px;
+      left: 0%;
+      width: 3px;
+      margin-left: -1.5px;
+      border-radius: 2px;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--danger) 70%, #fff), var(--danger));
+      box-shadow: 0 0 18px color-mix(in srgb, var(--danger) 65%, transparent);
+      z-index: 5;
+      pointer-events: none;
+      opacity: 0.92;
     }
     .tlMergedWrap {
+      position: relative;
+      z-index: 1;
       width: 100%;
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 1px;
     }
     .tlMergedRow {
       display: flex;
       flex-direction: row;
+      align-items: stretch;
       width: 100%;
-      height: 20px;
-      border-radius: 7px;
+      height: 12px;
+      min-height: 12px;
+      max-height: 12px;
+      border-radius: 2px;
       overflow: hidden;
       box-sizing: border-box;
-      background: color-mix(in srgb, var(--panel) 55%, transparent);
-      border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      transition: opacity 0.15s ease;
     }
     .tlMergedRow:hover {
-      border-color: color-mix(in srgb, var(--border) 72%, transparent);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+      opacity: 0.96;
+    }
+    .tlUnifiedTrack {
+      position: relative;
+      width: 100%;
+      height: 12px;
+      box-sizing: border-box;
+    }
+    .tlDense .tlUnifiedTrack {
+      height: 11px;
+    }
+    .tlSegAbs {
+      position: absolute;
+      margin: 0 !important;
+      top: calc(100% * var(--tl-lane, 0) / var(--tl-lanes, 1));
+      height: calc(100% / var(--tl-lanes, 1) - 1px) !important;
+      max-height: none !important;
+      min-height: 0 !important;
+      box-sizing: border-box;
+      border-radius: 2px;
+      overflow: hidden;
+      z-index: calc(2 + var(--tl-lane, 0));
     }
     .tlGap {
       flex: 0 0 auto;
@@ -790,15 +1382,22 @@
     .tlSeg {
       flex: 0 0 auto;
       min-width: 0;
-      height: 100%;
       margin: 0;
       padding: 0 3px;
       border: none;
       border-left: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
       border-radius: 0;
       font-size: 8px;
-      font-weight: 600;
-      line-height: 1.1;
+      font-weight: 700;
+      font-family: var(--mono);
+      line-height: 12px;
+      min-height: 0 !important;
+      height: 12px !important;
+      max-height: 12px !important;
+      align-self: stretch;
+      appearance: none;
+      -webkit-appearance: none;
+      letter-spacing: 0.02em;
       color: var(--text);
       text-align: left;
       cursor: pointer;
@@ -808,42 +1407,74 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       box-sizing: border-box;
-      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 28%, transparent), color-mix(in srgb, var(--accent) 14%, transparent));
-      box-shadow: none;
-      transition: filter 0.12s ease, transform 0.12s ease;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 36%, transparent), color-mix(in srgb, var(--accent) 18%, transparent));
+      box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent);
+      transition: none;
+    }
+    button.tlSeg {
+      margin: 0;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      min-height: 0 !important;
+      height: 12px !important;
+      max-height: 12px !important;
+      line-height: 12px !important;
+      vertical-align: top;
+    }
+    .tlUnifiedTrack button.tlSeg.tlSegAbs {
+      top: calc(100% * var(--tl-lane, 0) / var(--tl-lanes, 1));
+      height: calc(100% / var(--tl-lanes, 1) - 1px) !important;
+      max-height: none !important;
+      line-height: 1 !important;
+    }
+    .tlDense .tlUnifiedTrack button.tlSeg.tlSegAbs {
+      line-height: 1 !important;
     }
     .tlSeg.tlRouteSeg {
-      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 34%, transparent), color-mix(in srgb, var(--ok) 12%, transparent));
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 40%, transparent), color-mix(in srgb, var(--ok) 16%, transparent));
       border-left-color: color-mix(in srgb, var(--ok) 45%, transparent);
     }
     .tlSeg.tlSegLead {
       border-left: none;
+      border-radius: 2px 0 0 2px;
     }
     .tlSeg:hover {
-      filter: brightness(1.1);
+      filter: brightness(1.07);
+      transform: none;
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
       z-index: 1;
     }
+    @media (prefers-reduced-motion: reduce) {
+      .tlSeg:hover {
+        transform: none;
+      }
+    }
     .tlSegNarrow {
-      padding: 0 1px;
-      font-size: 0;
+      justify-content: center;
+      padding: 0 2px;
+    }
+    .tlSegCompact {
+      padding: 0 3px;
+      font-size: 7px;
     }
     .tlSegLbl {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      min-width: 0;
     }
-    .tlTrackCell.tlTrackCell--idle {
-      background:
-        repeating-linear-gradient(
-          to right,
-          transparent 0,
-          transparent calc((100% / var(--days, 7)) - 1px),
-          color-mix(in srgb, var(--border) 38%, transparent) calc((100% / var(--days, 7)) - 1px),
-          color-mix(in srgb, var(--border) 38%, transparent) calc(100% / var(--days, 7))
-        );
+    .tlSegGlyph {
+      flex-shrink: 0;
+      font-size: 8px;
+      font-weight: 800;
+      line-height: 1;
+      color: color-mix(in srgb, var(--text) 94%, var(--accent));
+      text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 50%, transparent);
+      pointer-events: none;
     }
     .tlTrackCell.tlMultiLane {
-      min-height: 42px;
+      min-height: 18px;
+      align-items: stretch;
     }
     .erpRouteLabelRow {
       display: inline-flex;
@@ -941,9 +1572,9 @@
       color: var(--accent);
     }
     .tlEmpty {
-      padding: 20px;
+      padding: 12px 14px;
       color: var(--muted);
-      font-size: 12px;
+      font-size: 11px;
       border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
       grid-column: 1 / span 2;
     }
@@ -1070,7 +1701,8 @@
       line-height: 1.4;
     }
     @media (max-width: 1180px) {
-      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .kpis:not(.mfAnalyticsBand) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .mfAnalyticsBand.kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .tableWrap { max-height: 56vh; }
       .erpComposer { grid-template-columns: repeat(6, minmax(0, 1fr)); }
       .grid2 { grid-template-columns: 1fr; }
@@ -1092,10 +1724,12 @@
 <body class="factory-mf">
   <div class="wrap mfShell">
     <header class="mfTopbar">
-      <div class="mfBrandRow">
-        <span class="mfLed" id="mfRunLed" aria-hidden="true"></span>
-        <h1 class="mfTitle" id="title">Factory Operations</h1>
-        <span class="mfTicker mono" id="erpSummary">0 work orders | 0 scheduled tasks | 0 running</span>
+      <div class="mfBrandBlock">
+        <div class="mfBrandRow">
+          <span class="mfLed" id="mfRunLed" aria-hidden="true"></span>
+          <h1 class="mfTitle" id="title">Factory Operations</h1>
+        </div>
+        <p class="mfSubtitle" id="mfSubtitle">MES · work orders, schedule, and floor execution</p>
       </div>
       <div class="mfTopActions">
         <button type="button" class="btn ghost mfIconBtn" id="opsDeckToggle" aria-expanded="false" aria-controls="opsDeckBody" title="Work order deck">
@@ -1108,24 +1742,94 @@
       </div>
     </header>
 
-    <section class="card mfStrip">
-      <div class="row">
-        <div class="grow" style="flex:1 1 140px;max-width:220px;"><div class="mini" id="productLbl">Product</div><select id="productSel"></select></div>
-        <div class="grow" style="flex:1 1 140px;max-width:220px;"><div class="mini" id="stationLbl">Station</div><select id="stationSel"></select></div>
-        <div class="grow" style="flex:2 1 200px;"><div class="mini" id="searchLbl">Search</div><input id="searchIn" type="text" placeholder="operation / product / station / owner" /></div>
-        <label style="display:flex;align-items:center;gap:8px;margin-top:18px;flex-shrink:0;"><input id="issuesChk" type="checkbox" /><span id="issuesLbl">Issues only</span></label>
+    <div class="mfApp">
+      <div class="mfStage">
+        <section class="card mfSnapshot" aria-label="MES snapshot">
+          <div class="mfSnapshotHead">
+            <span class="mfSnapshotKicker" id="mfSnapshotKicker">MES · live</span>
+          </div>
+          <div class="mfSnapshotGrid">
+            <div class="mfStatTile">
+              <div class="mfStatTileLbl" id="mesTileWoLbl">Work orders</div>
+              <div class="mfStatTileVal mono" id="mesTileWo">0</div>
+            </div>
+            <div class="mfStatTile">
+              <div class="mfStatTileLbl" id="mesTileTasksLbl">Scheduled tasks</div>
+              <div class="mfStatTileVal mono" id="mesTileTasks">0</div>
+            </div>
+            <div class="mfStatTile">
+              <div class="mfStatTileLbl" id="mesTileRunLbl">Running</div>
+              <div class="mfStatTileVal mono" id="mesTileRunning">0</div>
+            </div>
+            <div class="mfStatTile mfStatTile--eta">
+              <div class="mfStatTileLbl" id="mesTileEtaLbl">Overall ETA</div>
+              <div class="mfStatTileVal mono" id="mesTileEta">—</div>
+            </div>
+          </div>
+          <p class="mfLiveLine mono" id="erpSummary" aria-live="polite">—</p>
+          <div id="statusLine" class="mfStatusLine statusLine mono">Ready.</div>
+        </section>
+
+    <section class="card mfTimeline mfHeroTimeline">
+      <div class="mfTimelineHead">
+        <div>
+          <div class="mini" id="timelineSectionLbl">Station Timeline</div>
+          <div class="erpMini mono" id="timelineRangeLbl" style="font-size:10px;">Range: -</div>
+          <div class="tlSummaryLine mono" id="timelineSummaryLbl" aria-live="polite">—</div>
+        </div>
+        <div class="row" style="flex-wrap:wrap;gap:6px;">
+          <button class="btn ghost" id="planningSettingsBtn" type="button">Planning Settings</button>
+          <details class="mfTimelineTools">
+            <summary class="btn ghost" id="factoryToolsSummary" style="list-style:none;">More</summary>
+            <div class="mfTimelineToolsPanel" onclick="event.stopPropagation()">
+              <button type="button" class="btn ghost" id="factoryUndoBtn">Undo planning</button>
+              <button type="button" class="btn ghost" id="factoryExportBtn">Export</button>
+              <button type="button" class="btn ghost" id="factoryImportBtn">Import</button>
+              <button type="button" class="btn ghost" id="repairStationSerialBtn">Fix overlaps</button>
+            </div>
+          </details>
+          <input type="file" id="factoryImportFile" accept="application/json,.json" hidden />
+          <button class="btn ghost" id="timelinePrevBtn" type="button">Prev</button>
+          <button class="btn ghost" id="timelineTodayBtn" type="button">Today</button>
+          <button class="btn ghost" id="timelineNextBtn" type="button">Next</button>
+          <select id="timelineSpanSel" style="width:120px;">
+            <option value="7">7 days</option>
+            <option value="14">14 days</option>
+            <option value="30">30 days</option>
+          </select>
+        </div>
       </div>
-      <div id="statusLine" class="statusLine mono" style="font-size:11px;margin-top:6px;">Ready.</div>
+      <div class="tlIssuesBar tlIssuesBar--clear" id="timelineIssuesBar" role="region" aria-label="Schedule signals" aria-live="polite">
+        <span class="tlIssuesKicker" id="timelineIssuesKicker">Schedule signals</span>
+        <span class="tlIssueChip tlIssueChip--clear" id="timelineIssuesPlaceholder">—</span>
+      </div>
+      <div class="timelineWrap">
+        <div class="timeline" id="timelineBoard"></div>
+      </div>
+      <div class="settingsInsights">
+        <div class="settingsInsight">
+          <div class="label" id="planningSummaryFactoryLbl">Factory Default</div>
+          <div class="value" id="planningSummaryFactoryVal">-</div>
+          <div class="hint" id="planningSummaryFactoryHint">Base calendar for stations without overrides.</div>
+        </div>
+        <div class="settingsInsight">
+          <div class="label" id="planningSummaryOverrideLbl">Station Overrides</div>
+          <div class="value" id="planningSummaryOverrideVal">-</div>
+          <div class="hint" id="planningSummaryOverrideHint">How many stations diverge from the factory default.</div>
+        </div>
+        <div class="settingsInsight">
+          <div class="label" id="planningSummaryLoadLbl">Visible Load</div>
+          <div class="value" id="planningSummaryLoadVal">-</div>
+          <div class="hint" id="planningSummaryLoadHint">Planned hours versus visible capacity in the selected horizon.</div>
+        </div>
+        <div class="settingsInsight">
+          <div class="label" id="planningInsightMergedLbl">Load focus</div>
+          <div class="value mono" id="planningInsightMergedVal" style="font-size:11px;line-height:1.45;white-space:pre-line;">—</div>
+        </div>
+      </div>
     </section>
 
-    <section class="card kpis mfKpis">
-      <article class="kpi"><div class="label" id="kOpsLbl">Visible Ops</div><div id="kOps" class="value">0</div><div id="kOpsHint" class="hint">0 with samples</div></article>
-      <article class="kpi"><div class="label" id="kAvgLbl">Weighted Avg Cycle</div><div id="kAvg" class="value">-</div><div class="hint" id="kAvgHint">seconds</div></article>
-      <article class="kpi"><div class="label" id="kAttLbl">Target Attainment</div><div id="kAtt" class="value">-</div><div id="kAttHint" class="hint">0/0 on target</div></article>
-      <article class="kpi"><div class="label" id="kMixLbl">Issue Mix</div><div id="kMix" class="value">-</div><div class="hint" id="kMixHint">drift / risk / no target / no data</div></article>
-    </section>
-
-    <section id="opsDeckPanel" class="card mfDeck mfDeck--collapsed" aria-label="Work orders">
+    <section id="opsDeckPanel" class="card mfDeck mfMesDeck mfDeck--collapsed" aria-label="Work orders">
       <div class="mfDeckHead">
         <button type="button" class="btn ghost mfIconBtn" id="opsDeckBarToggle" aria-expanded="false" aria-controls="opsDeckBody" title="Toggle deck">
           <span class="mfDeckChevron" aria-hidden="true">▸</span>
@@ -1213,47 +1917,19 @@
       </div>
     </section>
 
-    <section class="card mfTimeline">
-      <div class="row" style="justify-content:space-between;align-items:flex-end;padding:10px 12px 0;">
-        <div>
-          <div class="mini" id="timelineSectionLbl" style="font-family:var(--mono);letter-spacing:0.1em;">Station Timeline</div>
-          <div class="erpMini mono" id="timelineRangeLbl" style="font-size:10px;">Range: -</div>
-        </div>
-        <div class="row">
-          <button class="btn ghost" id="planningSettingsBtn" type="button">Planning Settings</button>
-          <button class="btn ghost" id="timelinePrevBtn" type="button">Prev</button>
-          <button class="btn ghost" id="timelineTodayBtn" type="button">Today</button>
-          <button class="btn ghost" id="timelineNextBtn" type="button">Next</button>
-          <select id="timelineSpanSel" style="width:120px;">
-            <option value="7">7 days</option>
-            <option value="14">14 days</option>
-            <option value="30">30 days</option>
-          </select>
-        </div>
+        <section class="card kpis mfKpis mfAnalyticsBand" aria-label="Chrono metrics">
+          <div class="mfAnalyticsHead">
+            <span class="mfAnalyticsKicker" id="mfAnalyticsKicker">Chrono · operation metrics</span>
+          </div>
+          <article class="kpi"><div class="label" id="kOpsLbl">Visible Ops</div><div id="kOps" class="value">0</div><div id="kOpsHint" class="hint">0 with samples</div></article>
+          <article class="kpi"><div class="label" id="kAvgLbl">Weighted Avg Cycle</div><div id="kAvg" class="value">-</div><div class="hint" id="kAvgHint">seconds</div></article>
+          <article class="kpi"><div class="label" id="kAttLbl">Target Attainment</div><div id="kAtt" class="value">-</div><div id="kAttHint" class="hint">0/0 on target</div></article>
+          <article class="kpi"><div class="label" id="kMixLbl">Issue Mix</div><div id="kMix" class="value">-</div><div class="hint" id="kMixHint">drift / risk / no target / no data</div></article>
+        </section>
       </div>
-      <div class="timelineWrap">
-        <div class="timeline" id="timelineBoard"></div>
-      </div>
-      <div class="settingsInsights">
-        <div class="settingsInsight">
-          <div class="label" id="planningSummaryFactoryLbl">Factory Default</div>
-          <div class="value" id="planningSummaryFactoryVal">-</div>
-          <div class="hint" id="planningSummaryFactoryHint">Base calendar for stations without overrides.</div>
-        </div>
-        <div class="settingsInsight">
-          <div class="label" id="planningSummaryOverrideLbl">Station Overrides</div>
-          <div class="value" id="planningSummaryOverrideVal">-</div>
-          <div class="hint" id="planningSummaryOverrideHint">How many stations diverge from the factory default.</div>
-        </div>
-        <div class="settingsInsight">
-          <div class="label" id="planningSummaryLoadLbl">Visible Load</div>
-          <div class="value" id="planningSummaryLoadVal">-</div>
-          <div class="hint" id="planningSummaryLoadHint">Planned hours versus visible capacity in the selected horizon.</div>
-        </div>
-      </div>
-    </section>
+    </div>
 
-    <section id="floorDeckPanel" class="card mfDeck mfFloorDeck mfDeck--collapsed" style="margin:10px 14px 0;" aria-label="Floor console">
+    <section id="floorDeckPanel" class="card mfDeck mfFloorDeck mfDeck--collapsed mfFloorOuter" aria-label="Floor console">
       <div class="mfDeckHead">
         <button type="button" class="btn ghost mfIconBtn" id="floorDeckBarToggle" aria-expanded="false" aria-controls="floorDeckBody" title="Toggle floor">
           <span class="mfDeckChevron" aria-hidden="true">▸</span>
@@ -1290,18 +1966,20 @@
       <div class="row" style="margin-top:10px;">
         <div class="grow">
           <div class="erpMini" id="operatorConsoleLbl">Operator Console (scan/open by code)</div>
-          <div class="row">
-            <input id="opScanIn" type="text" class="grow" list="opTaskCodes" placeholder="task code (ex: WO-12345-10)" style="max-width:280px;" />
+          <div class="row opConsoleRow1" style="margin-top:4px;">
+            <input id="opScanIn" type="text" class="grow" list="opTaskCodes" placeholder="task code (ex: WO-12345-10)" style="max-width:260px;min-width:120px;" />
             <datalist id="opTaskCodes"></datalist>
-            <select id="opTaskSel" class="grow" style="min-width:180px;max-width:280px;"></select>
-            <button class="btn ghost" id="opScanCamBtn" type="button">Scan Camera</button>
+            <select id="opTaskSel" class="grow" style="min-width:160px;max-width:260px;"></select>
             <button class="btn" id="opLoadBtn" type="button">Load</button>
-            <button class="btn ghost" id="opShowQrBtn" type="button">Show QR</button>
-            <button class="btn" id="opStartBtn" type="button">Start</button>
-            <button class="btn" id="opPauseBtn" type="button">Pause</button>
-            <button class="btn primary" id="opDoneBtn" type="button">Done</button>
+            <button class="btn ghost" id="opScanCamBtn" type="button">Camera</button>
+            <button class="btn ghost" id="opShowQrBtn" type="button">QR</button>
           </div>
-          <div class="row" style="margin-top:6px;">
+          <div class="row opConsoleRow2" style="margin-top:6px;">
+            <button class="btn" id="opStartBtn" type="button">Start</button>
+            <button class="btn ghost" id="opPauseBtn" type="button">Pause</button>
+            <button class="btn primary" id="opDoneOpBtn" type="button">Done</button>
+          </div>
+          <div class="row opConsoleRow2" style="margin-top:6px;">
             <div style="width:100px;"><div class="erpMini" id="opGoodLbl">Good Qty</div><input id="opGoodIn" type="number" min="0" step="1" value="0" /></div>
             <div style="width:100px;"><div class="erpMini" id="opScrapLbl">Scrap Qty</div><input id="opScrapIn" type="number" min="0" step="1" value="0" /></div>
             <div class="grow" style="max-width:360px;"><div class="erpMini" id="opCommentLbl">Comment</div><input id="opCommentIn" type="text" placeholder="operator note" /></div>
@@ -1488,6 +2166,11 @@
         </div>
         <button class="btn ghost" id="timelineRouteModalCloseBtn" type="button">Close</button>
       </div>
+      <div class="tlRouteBulkBar row" id="timelineRouteModalBulkBar" style="flex-wrap:wrap;align-items:center;border-bottom:1px solid rgba(127,140,160,0.22);">
+        <button type="button" class="btn ghost" id="timelineRouteBulkStart" data-tl-route-op="start"></button>
+        <button type="button" class="btn primary" id="timelineRouteBulkDone" data-tl-route-op="done"></button>
+      </div>
+      <div class="erpMini" id="timelineRouteModalHint" style="font-size:10px;opacity:0.72;padding:2px 0 8px;line-height:1.35;"></div>
       <div class="tlRouteOpsScroll" id="timelineRouteOpsList"></div>
     </div>
   </div>
@@ -1550,6 +2233,44 @@
         ? window.VMillData.keys.ALL_APP_KEYS.slice()
         : ["vmill:app-state:v1"];
       const WATCH_KEYS = new Set([...APP_KEYS, String(window.VMillData?.keys?.MODULE_KEY || "vmill:module-data:v1")]);
+      const FACTORY_HUB_SCOPE_KEY = "vmill:hub-scope:v1";
+
+      function safeParseJson(raw, fallback) {
+        try {
+          const p = JSON.parse(String(raw || ""));
+          return p ?? fallback;
+        } catch {
+          return fallback;
+        }
+      }
+
+      function normalizeFactoryHubScope(raw) {
+        const src = raw && typeof raw === "object" ? raw : {};
+        const selectedSrc = src.selected && typeof src.selected === "object" ? src.selected : {};
+        const selected = {};
+        for (const [k, v] of Object.entries(selectedSrc)) {
+          const typeId = String(k || "").trim();
+          if (!typeId) continue;
+          const itemId = String(v || "").trim();
+          selected[typeId] = itemId && itemId !== "all" ? itemId : "all";
+        }
+        return {
+          selected,
+          openTypeId: String(src.openTypeId || "").trim(),
+          query: String(src.query || "").trim(),
+        };
+      }
+
+      function readFactoryHubScope() {
+        return normalizeFactoryHubScope(safeParseJson(localStorage.getItem(FACTORY_HUB_SCOPE_KEY), {}));
+      }
+
+      function factoryScopeRoleTypeId(role, fallbackId) {
+        if (window.VMillData?.resolveEntityTypeIdByRole) {
+          return String(window.VMillData.resolveEntityTypeIdByRole(role) || fallbackId);
+        }
+        return String(fallbackId || "");
+      }
       const PRIORITY_ORDER = { critical: 4, high: 3, normal: 2, low: 1 };
       const STATUS_ORDER = { drift: 5, risk: 4, "no-target": 3, "no-data": 2, "on-target": 1 };
       const $ = (id) => document.getElementById(id);
@@ -2004,6 +2725,239 @@
         return { startTs: fallbackStart, endTs: fallbackStart + (Math.max(1, Number(durationMin || 1) || 1) * 60000) };
       }
 
+      function woPredecessorEndTs(task, byWo) {
+        const seq = Number(task.seq || 0);
+        let maxEnd = 0;
+        for (const o of byWo.get(String(task.woId || "")) || []) {
+          if (Number(o.seq || 0) < seq) {
+            const e = Date.parse(String(o.plannedEnd || ""));
+            if (Number.isFinite(e)) maxEnd = Math.max(maxEnd, e);
+          }
+        }
+        return maxEnd;
+      }
+
+      /** One pass: per station, no overlap; earliest start is max(station cursor, WO predecessors). execMap locks running/hold/done/partial. */
+      function serializeStationsWithPrecedence(app, tasks, execMap) {
+        const stById = new Map(stationRows(app).map((s) => [String(s.id || ""), s]));
+        const locked = (tid) => {
+          if (!execMap) return false;
+          const st = String(execMap.get(String(tid))?.status || "planned");
+          return st === "running" || st === "hold" || st === "done" || st === "partial";
+        };
+        const byWo = new Map();
+        for (const t of tasks) {
+          const w = String(t.woId || "");
+          if (!byWo.has(w)) byWo.set(w, []);
+          byWo.get(w).push(t);
+        }
+        const byStation = new Map();
+        for (const t of tasks) {
+          const sid = String(t.stationId || "");
+          if (!sid || !stById.has(sid)) continue;
+          if (!byStation.has(sid)) byStation.set(sid, []);
+          byStation.get(sid).push(t);
+        }
+        for (const [, arr] of byStation) {
+          arr.sort((a, b) => {
+            const d = Date.parse(String(a.plannedStart || "")) - Date.parse(String(b.plannedStart || ""));
+            if (d) return d;
+            const sq = Number(a.seq || 0) - Number(b.seq || 0);
+            if (sq) return sq;
+            return String(a.id).localeCompare(String(b.id));
+          });
+          let cursor = 0;
+          for (const t of arr) {
+            const station = stById.get(String(t.stationId || ""));
+            if (!station) continue;
+            const t0 = Date.parse(String(t.plannedStart || ""));
+            const t1 = Date.parse(String(t.plannedEnd || ""));
+            const dur = Math.max(1, Number(t.durationMin || 1) || 1);
+            if (!Number.isFinite(t0) || !Number.isFinite(t1)) continue;
+            if (locked(t.id)) {
+              cursor = Math.max(cursor, t1);
+              continue;
+            }
+            const earliest = Math.max(cursor, woPredecessorEndTs(t, byWo));
+            if (t0 < earliest) {
+              const win = scheduleTaskWindowOnStation(station, earliest, dur);
+              t.plannedStart = new Date(win.startTs).toISOString();
+              t.plannedEnd = new Date(win.endTs).toISOString();
+              cursor = win.endTs;
+            } else {
+              cursor = Math.max(cursor, t1);
+            }
+          }
+        }
+      }
+
+      function serializeStationConcurrencyInPlace(app, tasks) {
+        for (let p = 0; p < 3; p += 1) {
+          serializeStationsWithPrecedence(app, tasks, null);
+        }
+      }
+
+      function repairScheduleStationOverlaps() {
+        if (!requirePermission(canEditPlanning, tt("factory.erp.denied.schedule", "Permission denied: planner/manager/admin required for scheduling."))) return 0;
+        const app = readApp();
+        if (!app) return 0;
+        const allWos = readWorkOrders();
+        const woById = new Map(allWos.map((w) => [String(w.id || ""), w]));
+        const rows = (window.VMillData?.listRecords?.(SCHEDULE_NS) || []).filter((r) => {
+          const wo = woById.get(String(r?.woId || ""));
+          return wo && String(wo.status || "open") !== "closed";
+        });
+        if (!rows.length) return 0;
+        pushPlanningUndo("repair_serial");
+        const originals = new Map(
+          rows.map((r) => [String(r.id || ""), { plannedStart: String(r.plannedStart || ""), plannedEnd: String(r.plannedEnd || "") }]),
+        );
+        const tasks = rows.map((r) => ({ ...r }));
+        const execMap = readExecByTaskId();
+        for (let p = 0; p < 3; p += 1) {
+          serializeStationsWithPrecedence(app, tasks, execMap);
+        }
+        let n = 0;
+        withBulkMutations(() => {
+          for (const t of tasks) {
+            const id = String(t.id || "");
+            const o = originals.get(id);
+            if (!o) continue;
+            if (String(t.plannedStart || "") !== o.plannedStart || String(t.plannedEnd || "") !== o.plannedEnd) {
+              window.VMillData?.upsertRecord?.(SCHEDULE_NS, t);
+              n += 1;
+            }
+          }
+        });
+        if (n) addAudit("repair_station_serial", String(n));
+        return n;
+      }
+
+      const PLANNING_UNDO_MAX = 5;
+      let planningUndoStack = [];
+
+      function cloneModuleRecords(ns) {
+        return (window.VMillData?.listRecords?.(ns) || []).map((row) => (row && typeof row === "object" ? { ...row } : row)).filter((row) => row && String(row.id || ""));
+      }
+
+      function wipeModuleNamespace(ns) {
+        const ids = (window.VMillData?.listRecords?.(ns) || []).map((r) => String(r?.id || "")).filter(Boolean);
+        for (const id of ids) window.VMillData?.deleteRecord?.(ns, id);
+      }
+
+      function captureScheduleExecSnapshot() {
+        return {
+          schedule: cloneModuleRecords(SCHEDULE_NS),
+          exec: cloneModuleRecords(EXEC_NS),
+        };
+      }
+
+      function captureFullFactorySnapshot() {
+        const settings = window.VMillData?.getRecord?.(FACTORY_SETTINGS_NS, FACTORY_SETTINGS_ID)
+          || (window.VMillData?.listRecords?.(FACTORY_SETTINGS_NS) || []).find((r) => String(r?.id || "") === FACTORY_SETTINGS_ID)
+          || null;
+        return {
+          schedule: cloneModuleRecords(SCHEDULE_NS),
+          exec: cloneModuleRecords(EXEC_NS),
+          workOrders: cloneModuleRecords(WO_NS),
+          quality: cloneModuleRecords(QUALITY_NS),
+          factorySettings: settings && typeof settings === "object" ? { ...settings } : null,
+        };
+      }
+
+      function pushPlanningUndo(label) {
+        planningUndoStack.push({ label, ...captureScheduleExecSnapshot() });
+        while (planningUndoStack.length > PLANNING_UNDO_MAX) planningUndoStack.shift();
+      }
+
+      function pushFullPlanningUndo(label) {
+        planningUndoStack.push({ label, ...captureFullFactorySnapshot() });
+        while (planningUndoStack.length > PLANNING_UNDO_MAX) planningUndoStack.shift();
+      }
+
+      function restorePlanningUndoEntry(entry) {
+        if (!entry || typeof window.VMillData?.upsertRecord !== "function") return false;
+        withBulkMutations(() => {
+          wipeModuleNamespace(SCHEDULE_NS);
+          wipeModuleNamespace(EXEC_NS);
+          for (const r of entry.schedule || []) window.VMillData?.upsertRecord?.(SCHEDULE_NS, r);
+          for (const r of entry.exec || []) window.VMillData?.upsertRecord?.(EXEC_NS, r);
+          if (Array.isArray(entry.workOrders)) {
+            wipeModuleNamespace(WO_NS);
+            for (const r of entry.workOrders) window.VMillData?.upsertRecord?.(WO_NS, r);
+          }
+          if (Array.isArray(entry.quality)) {
+            wipeModuleNamespace(QUALITY_NS);
+            for (const r of entry.quality) window.VMillData?.upsertRecord?.(QUALITY_NS, r);
+          }
+          if (entry.factorySettings && typeof entry.factorySettings === "object" && String(entry.factorySettings.id || "")) {
+            window.VMillData?.upsertRecord?.(FACTORY_SETTINGS_NS, entry.factorySettings);
+          }
+        });
+        return true;
+      }
+
+      function undoLastPlanningMutation() {
+        if (!requirePermission(canEditPlanning, tt("factory.erp.denied.schedule", "Permission denied: planner/manager/admin required for scheduling."))) return false;
+        const entry = planningUndoStack.pop();
+        if (!entry) return false;
+        restorePlanningUndoEntry(entry);
+        addAudit("planning_undo", String(entry.label || ""), "");
+        return true;
+      }
+
+      function exportFactoryPlanningSnapshot() {
+        const payload = {
+          vmillFactoryExport: true,
+          version: 1,
+          exportedAt: nowIso(),
+          schedule: cloneModuleRecords(SCHEDULE_NS),
+          exec: cloneModuleRecords(EXEC_NS),
+          workOrders: cloneModuleRecords(WO_NS),
+          quality: cloneModuleRecords(QUALITY_NS),
+          factorySettings: (() => {
+            const s = window.VMillData?.getRecord?.(FACTORY_SETTINGS_NS, FACTORY_SETTINGS_ID)
+              || (window.VMillData?.listRecords?.(FACTORY_SETTINGS_NS) || []).find((r) => String(r?.id || "") === FACTORY_SETTINGS_ID);
+            return s && typeof s === "object" ? { ...s } : null;
+          })(),
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `factory-planning-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function applyImportedFactorySnapshot(obj) {
+        if (!obj || obj.vmillFactoryExport !== true) throw new Error("INVALID_EXPORT");
+        withBulkMutations(() => {
+          if (Array.isArray(obj.schedule)) {
+            wipeModuleNamespace(SCHEDULE_NS);
+            for (const r of obj.schedule) window.VMillData?.upsertRecord?.(SCHEDULE_NS, r);
+          }
+          if (Array.isArray(obj.exec)) {
+            wipeModuleNamespace(EXEC_NS);
+            for (const r of obj.exec) window.VMillData?.upsertRecord?.(EXEC_NS, r);
+          }
+          if (Array.isArray(obj.workOrders)) {
+            wipeModuleNamespace(WO_NS);
+            for (const r of obj.workOrders) window.VMillData?.upsertRecord?.(WO_NS, r);
+          }
+          if (Array.isArray(obj.quality)) {
+            wipeModuleNamespace(QUALITY_NS);
+            for (const r of obj.quality) window.VMillData?.upsertRecord?.(QUALITY_NS, r);
+          }
+          if (obj.factorySettings && typeof obj.factorySettings === "object" && String(obj.factorySettings.id || "")) {
+            window.VMillData?.upsertRecord?.(FACTORY_SETTINGS_NS, obj.factorySettings);
+          }
+        });
+        addAudit("factory_import", "snapshot", String(obj.exportedAt || ""));
+      }
+
       function updateStationRecord(stationId, patch) {
         const sid = String(stationId || "");
         if (!sid) return false;
@@ -2211,6 +3165,28 @@
         return (end - start) / 60000;
       }
 
+      /** Planned work minutes that fall inside station shift segments (not raw wall-clock day overlap). */
+      function taskWorkingOverlapMinutesInRange(station, task, rangeStartTs, rangeEndTs) {
+        const t0 = Date.parse(String(task?.plannedStart || ""));
+        const t1 = Date.parse(String(task?.plannedEnd || ""));
+        if (!Number.isFinite(t0) || !Number.isFinite(t1)) return 0;
+        const rs = Number(rangeStartTs || 0);
+        const re = Number(rangeEndTs || 0);
+        const ws = Math.max(t0, rs);
+        const we = Math.min(t1, re);
+        if (!(we > ws)) return 0;
+        let total = 0;
+        const v = new Date(localDayStartTs(ws));
+        for (let guard = 0; guard < 500 && v.getTime() < re; guard += 1) {
+          const dayTs = v.getTime();
+          for (const seg of stationDaySegments(station, dayTs)) {
+            total += overlapMinutes(ws, we, seg.startTs, seg.endTs);
+          }
+          v.setDate(v.getDate() + 1);
+        }
+        return total;
+      }
+
       function stationCapacityMinutesInRange(station, startTs, endTs) {
         let total = 0;
         const v = new Date(localDayStartTs(startTs));
@@ -2224,17 +3200,224 @@
         return total;
       }
 
+      function endOfDueDateLocal(ymd) {
+        const s = String(ymd || "").slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return NaN;
+        const [y, m, d] = s.split("-").map(Number);
+        return new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+      }
+
+      function computeTimelineScheduleDiagnostics(app, startTs, endTs, days, stations) {
+        const TOL = 1.02;
+        const HOT_BAND = 0.92;
+        const woById = new Map((workOrdersCache || []).map((wo) => [String(wo.id || ""), wo]));
+        let lateCount = 0;
+        const lateLines = [];
+        for (const task of scheduleCache) {
+          if (String(execByTaskId.get(String(task.id))?.status || "") === "done") continue;
+          const wo = woById.get(String(task.woId || ""));
+          if (!wo || !wo.dueDate) continue;
+          const t0 = Date.parse(String(task.plannedStart || ""));
+          const t1 = Date.parse(String(task.plannedEnd || ""));
+          if (!Number.isFinite(t0) || !Number.isFinite(t1) || !(t1 > t0)) continue;
+          if (!(t1 > startTs && t0 < endTs)) continue;
+          const dueEnd = endOfDueDateLocal(wo.dueDate);
+          if (!Number.isFinite(dueEnd) || t1 <= dueEnd) continue;
+          lateCount += 1;
+          if (lateLines.length < 10) {
+            lateLines.push(`${task.woCode || task.taskCode || task.id} · due ${wo.dueDate}`);
+          }
+        }
+
+        const dayHasOff = days.map(() => false);
+        const dayHasOverload = days.map(() => false);
+        let overloadPairs = 0;
+        const overloadLines = [];
+        let offCalPairs = 0;
+        const offCalLines = [];
+        const stationRowMeta = new Map();
+
+        for (const st of stations) {
+          const sid = String(st.id || "");
+          const tasksRaw = scheduleCache.filter((task) => {
+            if (String(task.stationId || "") !== sid) return false;
+            const t0 = Date.parse(String(task.plannedStart || ""));
+            const t1 = Date.parse(String(task.plannedEnd || ""));
+            if (!Number.isFinite(t0) || !Number.isFinite(t1)) return false;
+            return t1 > startTs && t0 < endTs;
+          });
+          const pressureCells = [];
+          const rowBits = [];
+          for (let di = 0; di < days.length; di += 1) {
+            const ds = days[di].startTs;
+            const de = ds + 86400000;
+            const cap = stationCapacityMinutesInRange(st, ds, de);
+            let loadWall = 0;
+            let loadShift = 0;
+            for (const task of tasksRaw) {
+              const t0 = Date.parse(String(task.plannedStart || ""));
+              const t1 = Date.parse(String(task.plannedEnd || ""));
+              if (!Number.isFinite(t0) || !Number.isFinite(t1)) continue;
+              loadWall += overlapMinutes(t0, t1, ds, de);
+              loadShift += taskWorkingOverlapMinutesInRange(st, task, ds, de);
+            }
+            let cellClass = "";
+            if (cap <= 0 && loadWall > 0.5) {
+              cellClass = " tlDayPressureCell--off";
+              offCalPairs += 1;
+              dayHasOff[di] = true;
+              if (offCalLines.length < 10) {
+                offCalLines.push(`${timelineStationLabel(st)} · ${days[di].key}`);
+              }
+              rowBits.push(`${days[di].key}: ${tt("factory.erp.timeline.row.offcal", "off-calendar work")}`);
+            } else if (cap > 0 && loadShift > cap * TOL) {
+              cellClass = " tlDayPressureCell--hot";
+              overloadPairs += 1;
+              dayHasOverload[di] = true;
+              const pct = Math.round((loadShift / cap) * 100);
+              if (overloadLines.length < 10) {
+                overloadLines.push(`${timelineStationLabel(st)} · ${days[di].key} (${pct}%)`);
+              }
+              rowBits.push(`${days[di].key}: ${pct}% ${tt("factory.erp.timeline.row.vsCap", "vs capacity")}`);
+            } else if (cap > 0 && loadShift > cap * HOT_BAND) {
+              cellClass = " tlDayPressureCell--warn";
+            }
+            pressureCells.push(cellClass);
+          }
+          let rowClass = "";
+          if (pressureCells.some((c) => c.includes("--off"))) rowClass = " tlTrackCell--offcal";
+          else if (pressureCells.some((c) => c.includes("--hot"))) rowClass = " tlTrackCell--overload";
+          const rangeCap = stationCapacityMinutesInRange(st, startTs, endTs);
+          let rangeLoad = 0;
+          for (const task of tasksRaw) {
+            rangeLoad += taskWorkingOverlapMinutesInRange(st, task, startTs, endTs);
+          }
+          const rangePct = rangeCap > 0 ? Math.round((rangeLoad / rangeCap) * 100) : (rangeLoad > 0.5 ? 100 : 0);
+          stationRowMeta.set(sid, { pressureCells, rowClass, rowBits, rangeLoadMin: rangeLoad, rangeCapMin: rangeCap, rangePct });
+        }
+
+        const dayHeadClass = days.map((_, di) => {
+          if (dayHasOff[di]) return " tlScaleCell--offcal";
+          if (dayHasOverload[di]) return " tlScaleCell--overload";
+          return "";
+        });
+        const dayHeadTitle = days.map((d, di) => {
+          const parts = [];
+          if (dayHasOff[di]) parts.push(tt("factory.erp.timeline.day.offcal", "Work on closed day"));
+          if (dayHasOverload[di]) parts.push(tt("factory.erp.timeline.day.overload", "Overload vs capacity"));
+          if (!parts.length) return d.titleTip || "";
+          const joined = parts.join(" · ");
+          return d.titleTip ? `${joined} · ${d.titleTip}` : joined;
+        });
+
+        return {
+          lateCount,
+          lateLines,
+          overloadPairs,
+          overloadLines,
+          offCalPairs,
+          offCalLines,
+          dayHeadClass,
+          dayHeadTitle,
+          stationRowMeta,
+        };
+      }
+
+      function flushTimelineIssuesBar(diag) {
+        const host = $("timelineIssuesBar");
+        if (!host) return;
+        const kicker = `<span class="tlIssuesKicker" id="timelineIssuesKicker">${esc(
+          tt("factory.erp.timeline.signalsKicker", "Schedule signals"),
+        )}</span>`;
+        const hasAny = diag.lateCount > 0 || diag.overloadPairs > 0 || diag.offCalPairs > 0;
+        if (!hasAny) {
+          host.className = "tlIssuesBar tlIssuesBar--clear";
+          host.innerHTML = `${kicker}<span class="tlIssueChip tlIssueChip--clear">${esc(
+            tt("factory.erp.timeline.issue.clear", "No schedule risks in this view."),
+          )}</span>`;
+          return;
+        }
+        host.className = "tlIssuesBar";
+        const chips = [];
+        if (diag.lateCount > 0) {
+          chips.push(
+            `<span class="tlIssueChip tlIssueChip--late" title="${esc(diag.lateLines.join("\n"))}">${esc(
+              tt("factory.erp.timeline.issue.late", "{n} late vs due", { n: diag.lateCount }),
+            )}</span>`,
+          );
+        }
+        if (diag.overloadPairs > 0) {
+          chips.push(
+            `<span class="tlIssueChip tlIssueChip--overload" title="${esc(diag.overloadLines.join("\n"))}">${esc(
+              tt("factory.erp.timeline.issue.overload", "{n} overloads", { n: diag.overloadPairs }),
+            )}</span>`,
+          );
+        }
+        if (diag.offCalPairs > 0) {
+          chips.push(
+            `<span class="tlIssueChip tlIssueChip--offcal" title="${esc(diag.offCalLines.join("\n"))}">${esc(
+              tt("factory.erp.timeline.issue.offcal", "{n} off-calendar", { n: diag.offCalPairs }),
+            )}</span>`,
+          );
+        }
+        host.innerHTML = `${kicker}${chips.join("")}`;
+      }
+
+      function computeFactoryPlanningInsights(app, startTs, endTs) {
+        const stations = stationRows(app || {});
+        const stById = new Map(stations.map((s) => [String(s.id || ""), s]));
+        let bottleneck = { station: null, ratio: 0, loadMin: 0, capMin: 0, pct: 0 };
+        for (const st of stations) {
+          const sid = String(st.id || "");
+          let loadMin = 0;
+          for (const task of scheduleCache) {
+            if (String(task?.stationId || "") !== sid) continue;
+            loadMin += taskWorkingOverlapMinutesInRange(st, task, startTs, endTs);
+          }
+          const capMin = stationCapacityMinutesInRange(st, startTs, endTs);
+          const ratio = capMin > 0 ? loadMin / capMin : (loadMin > 0.5 ? 100 : 0);
+          if (ratio > bottleneck.ratio) {
+            bottleneck = {
+              station: st,
+              ratio,
+              loadMin,
+              capMin,
+              pct: capMin > 0 ? Math.round((loadMin / capMin) * 100) : (loadMin > 0.5 ? 100 : 0),
+            };
+          }
+        }
+        let focusWo = null;
+        let bestSpanMs = 0;
+        for (const wo of workOrdersCache || []) {
+          if (String(wo?.status || "open") === "closed") continue;
+          const tasks = (scheduleCache || []).filter((t) => String(t?.woId || "") === String(wo?.id || ""));
+          const openTasks = tasks.filter((t) => String(execByTaskId.get(String(t.id))?.status || "") !== "done");
+          if (!openTasks.length) continue;
+          const starts = openTasks.map((t) => Date.parse(String(t.plannedStart || ""))).filter(Number.isFinite);
+          const ends = openTasks.map((t) => Date.parse(String(t.plannedEnd || ""))).filter(Number.isFinite);
+          if (!starts.length || !ends.length) continue;
+          const spanMs = Math.max(...ends) - Math.min(...starts);
+          let remWorkMin = 0;
+          for (const t of openTasks) remWorkMin += Math.max(1, Number(t.durationMin || 1) || 1);
+          if (spanMs > bestSpanMs) {
+            bestSpanMs = spanMs;
+            focusWo = { wo, spanMs, remWorkMin };
+          }
+        }
+        return { bottleneck, focusWo };
+      }
+
       function renderPlanningSummary(app) {
         const stations = stationRows(app || {});
         const factoryCal = readFactoryCalendar();
         const overrides = stations.filter((station) => hasStationCalendarOverride(station));
         const { startTs, endTs, span } = visibleTimelineRange();
         let loadMin = 0;
+        const stById = new Map(stations.map((s) => [String(s.id || ""), s]));
         for (const task of scheduleCache) {
-          const taskStart = Date.parse(String(task?.plannedStart || ""));
-          const taskEnd = Date.parse(String(task?.plannedEnd || ""));
-          if (!Number.isFinite(taskStart) || !Number.isFinite(taskEnd)) continue;
-          loadMin += overlapMinutes(taskStart, taskEnd, startTs, endTs);
+          const st = stById.get(String(task?.stationId || ""));
+          if (!st) continue;
+          loadMin += taskWorkingOverlapMinutesInRange(st, task, startTs, endTs);
         }
         const capacityMin = stations.reduce((sum, station) => sum + stationCapacityMinutesInRange(station, startTs, endTs), 0);
         const loadPct = capacityMin > 0 ? Math.round((loadMin / capacityMin) * 100) : 0;
@@ -2263,12 +3446,37 @@
             days: span,
           });
         }
+        const ins = computeFactoryPlanningInsights(app, startTs, endTs);
+        const mergedVal = $("planningInsightMergedVal");
+        if (mergedVal) {
+          let line1;
+          if (!ins.bottleneck.station || (ins.bottleneck.capMin <= 0 && ins.bottleneck.loadMin <= 0.5)) {
+            line1 = tt("factory.erp.insight.bottleneckEmpty", "No load in this horizon.");
+          } else {
+            const nm = timelineStationLabel(ins.bottleneck.station);
+            line1 = tt("factory.erp.insight.lineBottleneck", "Tightest station: {station} ({pct}%)", { station: nm, pct: ins.bottleneck.pct });
+          }
+          let line2;
+          if (!ins.focusWo) {
+            line2 = tt("factory.erp.insight.criticalEmpty", "No open planned work.");
+          } else {
+            const w = ins.focusWo.wo;
+            const spanH = Number((ins.focusWo.spanMs / 3600000).toFixed(1));
+            const remH = Math.round((ins.focusWo.remWorkMin / 60) * 10) / 10;
+            line2 = tt(
+              "factory.erp.insight.lineFocus",
+              "Longest open block: {code} (~{span}h span, ~{rem}h work)",
+              { code: String(w.code || w.id || ""), span: spanH, rem: remH },
+            );
+          }
+          mergedVal.textContent = `${line1}\n${line2}`;
+        }
       }
 
       function replanAfterCalendarChange() {
         const openOrders = readWorkOrders().filter((wo) => String(wo?.status || "open") !== "closed");
         if (!openOrders.length) return 0;
-        return autoPlanSchedule();
+        return autoPlanSchedule({ skipUndo: true });
       }
 
       function saveCalendarSettings() {
@@ -2782,6 +3990,139 @@
         return null;
       }
 
+      function routeModalKeyForTask(task) {
+        if (!task) return "";
+        return encodeRouteGroupKey({
+          woId: task.woId,
+          routeId: task.routeId,
+          stationId: task.stationId,
+        });
+      }
+
+      function routeOperationTasksForAnchorTask(anchorTaskId) {
+        const task = taskById(anchorTaskId);
+        if (!task) return [];
+        return tasksForRouteModalKey(routeModalKeyForTask(task));
+      }
+
+      /** Start / hold / complete all scheduled steps in this WO+route+station group (one shop-floor operation). */
+      function setRouteOperationGroupStatusForModalKey(modalKey, status) {
+        const st = String(status || "");
+        const tasks = tasksForRouteModalKey(String(modalKey || ""));
+        if (!tasks.length) return 0;
+        const opMayAct = st === "running" || st === "hold" || st === "done";
+        const allowed = canEditPlanning() || opMayAct;
+        if (!requirePermission(() => allowed, tt("factory.erp.denied.taskAction", "Permission denied for this task action."))) return 0;
+        const first = tasks[0];
+        if (!first) return 0;
+        if (!canEditPlanning() && (st === "running" || st === "done") && !woEarlierStepsAllDone(first)) {
+          $("statusLine").textContent = tt(
+            "factory.erp.operator.sequenceBlock",
+            "Finish earlier steps on this work order first (or ask a planner to override).",
+          );
+          return 0;
+        }
+        const now = nowIso();
+        let changed = 0;
+        if (st === "running") {
+          const target = tasks.find((t) => String(execByTaskId.get(String(t.id))?.status || "planned") !== "done");
+          if (!target) return 0;
+          const prev = execByTaskId.get(String(target.id)) || {
+            id: String(target.id),
+            status: "planned",
+            actualStart: "",
+            actualEnd: "",
+            qtyGood: 0,
+            qtyScrap: 0,
+            comments: "",
+            operator: "",
+          };
+          const next = { ...prev, id: String(target.id), status: "running", actualStart: prev.actualStart || now };
+          window.VMillData?.upsertRecord?.(EXEC_NS, next);
+          addAudit("task_exec", target.id, "running");
+          changed = 1;
+        } else if (st === "hold") {
+          withBulkMutations(() => {
+            for (const t of tasks) {
+              const cur = String(execByTaskId.get(String(t.id))?.status || "planned");
+              if (cur !== "running") continue;
+              const prev = execByTaskId.get(String(t.id)) || {
+                id: String(t.id),
+                status: "running",
+                actualStart: "",
+                actualEnd: "",
+                qtyGood: 0,
+                qtyScrap: 0,
+                comments: "",
+                operator: "",
+              };
+              window.VMillData?.upsertRecord?.(EXEC_NS, { ...prev, id: String(t.id), status: "hold", actualEnd: "" });
+              addAudit("task_exec", t.id, "hold");
+              changed += 1;
+            }
+          });
+        } else if (st === "done") {
+          withBulkMutations(() => {
+            for (const t of tasks) {
+              const cur = String(execByTaskId.get(String(t.id))?.status || "planned");
+              if (cur === "done") continue;
+              const prev = execByTaskId.get(String(t.id)) || {
+                id: String(t.id),
+                status: "planned",
+                actualStart: "",
+                actualEnd: "",
+                qtyGood: 0,
+                qtyScrap: 0,
+                comments: "",
+                operator: "",
+              };
+              window.VMillData?.upsertRecord?.(EXEC_NS, {
+                ...prev,
+                id: String(t.id),
+                status: "done",
+                actualStart: prev.actualStart || now,
+                actualEnd: now,
+              });
+              addAudit("task_exec", t.id, "done");
+              changed += 1;
+            }
+          });
+        } else {
+          return 0;
+        }
+        if (changed > 0) {
+          addAudit("route_op_group", String(modalKey || "").slice(0, 120), st);
+          render();
+          refreshOpenTimelineRouteModal();
+          if (st === "done") {
+            const last = tasks[tasks.length - 1];
+            const nxt = nextIncompleteWoTask(last);
+            if (nxt) {
+              loadOperatorTask(nxt.id);
+              $("statusLine").textContent = tt(
+                "factory.erp.operator.autoNext",
+                "Step closed. Next loaded: {code} — {op}",
+                { code: String(nxt.taskCode || nxt.id || ""), op: String(nxt.operationName || "-") },
+              );
+            } else {
+              $("statusLine").textContent = tt(
+                "factory.erp.operator.woTrailDone",
+                "Step closed. No further open steps on this work order after this one.",
+              );
+            }
+          }
+        } else if (st === "hold") {
+          $("statusLine").textContent = tt("factory.erp.routeOp.holdNone", "Nothing was running on this operation.");
+        }
+        return changed;
+      }
+
+      function setRouteOperationGroupStatusForAnchorTask(anchorTaskId, status) {
+        const task = taskById(anchorTaskId);
+        if (!task) return 0;
+        return setRouteOperationGroupStatusForModalKey(routeModalKeyForTask(task), status);
+      }
+
       let timelineRouteModalKey = "";
 
       function openTimelineRouteModal(key) {
@@ -2817,16 +4158,19 @@
               <div class="tlOpCardMeta">${esc(tt("factory.erp.timeline.qtyLine", "Good / scrap"))}: G:${Number(ex.qtyGood || 0)} · S:${Number(ex.qtyScrap || 0)}</div>
             </header>
             <div class="tlOpCardBar">
-              <button type="button" class="btn ghost act" data-tl-op-action="start" data-tl-op-task="${tid}">${esc(tt("factory.erp.action.start", "Start"))}</button>
-              <button type="button" class="btn ghost act" data-tl-op-action="hold" data-tl-op-task="${tid}">${esc(tt("factory.erp.action.hold", "Hold"))}</button>
-              <button type="button" class="btn ghost act" data-tl-op-action="done" data-tl-op-task="${tid}">${esc(tt("factory.erp.action.done", "Done"))}</button>
-              <button type="button" class="btn ghost act" data-tl-op-action="qr" data-tl-op-task="${tid}">${esc(tt("factory.erp.action.qr", "QR"))}</button>
-              <button type="button" class="btn ghost act" data-tl-op-action="detail" data-tl-op-task="${tid}">${esc(tt("factory.erp.timeline.routeOpDetail", "Schedule"))}</button>
-              <button type="button" class="btn ghost act" data-tl-op-action="open" data-tl-op-task="${tid}">${esc(tt("factory.erp.action.open", "Open"))}</button>
-              <button type="button" class="btn primary act" data-tl-op-action="operator" data-tl-op-task="${tid}">${esc(tt("factory.erp.timeline.routeOpOperator", "Operator"))}</button>
+              <button type="button" class="btn ghost act" data-tl-op-action="detail" data-tl-op-task="${tid}">${esc(tt("factory.erp.timeline.routeOpDetail", "Plan"))}</button>
+              <button type="button" class="btn primary act" data-tl-op-action="operator" data-tl-op-task="${tid}">${esc(tt("factory.erp.timeline.routeOpOperator", "Console"))}</button>
             </div>
           </article>`;
         }).join("");
+        const hintEl = $("timelineRouteModalHint");
+        if (hintEl) {
+          hintEl.textContent = tt(
+            "factory.erp.routeOp.modalHintShort",
+            "The buttons above apply to all {n} steps on this station (use Pause in the console if needed).",
+            { n: tasks.length },
+          );
+        }
         showModal("timelineRouteModal", true);
       }
 
@@ -2863,7 +4207,7 @@
         if (est > 0) return Math.max(1, Math.round(est * (Math.max(1, qty) / qtyBase)));
         const byName = rowsCache.find((row) => String(row.id || "") === String(op?.id || ""));
         if (byName?.avgSec > 0) return Math.max(1, Math.round((byName.avgSec * Math.max(1, qty)) / 60));
-        return Math.max(3, 5 * Math.max(1, qty));
+        return Math.max(20, 14 * Math.max(1, qty));
       }
 
       function stationForOperation(app, op) {
@@ -2922,9 +4266,10 @@
         return `${woCode}-${opCode}`;
       }
 
-      function autoPlanSchedule() {
+      function autoPlanSchedule(opts = {}) {
         const app = readApp();
         if (!app) return 0;
+        if (!opts.skipUndo) pushPlanningUndo("auto_plan");
         const allWos = readWorkOrders();
         const woById = new Map(allWos.map((w) => [String(w.id || ""), w]));
         const woList = allWos.filter((wo) => String(wo.status || "open") !== "closed");
@@ -3073,13 +4418,14 @@
         return workOrdersCache.find((w) => String(w.id) === String(woId || "")) || null;
       }
 
-      function isScheduleTaskOnFloor(task) {
+      function isScheduleTaskInExecutionQueue(task) {
         const wo = workOrderById(task?.woId);
-        return String(wo?.status || "open") === "released";
+        if (!wo) return false;
+        return String(wo.status || "open") !== "closed";
       }
 
       function scheduleTasksForExecutionView() {
-        return scheduleCache.filter((t) => isScheduleTaskOnFloor(t));
+        return scheduleCache.filter((t) => isScheduleTaskInExecutionQueue(t));
       }
 
       function execStatusLabel(status) {
@@ -3137,40 +4483,29 @@
       }
 
       function fillFilters(rows) {
-        const productSel = $("productSel");
-        const stationSel = $("stationSel");
-        const prevProduct = String(productSel.value || "all");
-        const prevStation = String(stationSel.value || "all");
-        const products = new Map();
-        const stations = new Map();
-        for (const row of rows) {
-          if (row.productId) products.set(row.productId, row.product);
-          if (row.stationId) stations.set(row.stationId, row.station);
-        }
-        productSel.innerHTML = `<option value=\"all\">${esc(tt("common.all", "All"))} (${rows.length})</option>`;
-        stationSel.innerHTML = `<option value=\"all\">${esc(tt("common.all", "All"))} (${rows.length})</option>`;
-        for (const [id, label] of [...products.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1])))) {
-          productSel.insertAdjacentHTML("beforeend", `<option value=\"${esc(id)}\">${esc(label)}</option>`);
-        }
-        for (const [id, label] of [...stations.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1])))) {
-          stationSel.insertAdjacentHTML("beforeend", `<option value=\"${esc(id)}\">${esc(label)}</option>`);
-        }
-        if ([...productSel.options].some((option) => option.value === prevProduct)) productSel.value = prevProduct;
-        if ([...stationSel.options].some((option) => option.value === prevStation)) stationSel.value = prevStation;
+        void rows;
       }
 
       function activeFilters() {
-        return {
-          product: String($("productSel").value || "all"),
-          station: String($("stationSel").value || "all"),
-          query: String($("searchIn").value || "").trim().toLowerCase(),
-          issuesOnly: !!$("issuesChk").checked,
-        };
+        const hub = readFactoryHubScope();
+        const selected = hub.selected || {};
+        const productTypeId = factoryScopeRoleTypeId("product", "product");
+        const stationTypeId = factoryScopeRoleTypeId("station", "station");
+        const jobTypeId = factoryScopeRoleTypeId("job", "job");
+        let product = String(selected[productTypeId] || "all");
+        let station = String(selected[stationTypeId] || "all");
+        let job = String(selected[jobTypeId] || "all");
+        if (!product) product = "all";
+        if (!station) station = "all";
+        if (!job) job = "all";
+        const query = String(hub.query || "").trim().toLowerCase();
+        return { product, station, job, query, issuesOnly: false };
       }
 
       function matches(row, filters) {
         if (filters.product !== "all" && row.productId !== filters.product) return false;
         if (filters.station !== "all" && row.stationId !== filters.station) return false;
+        if (filters.job !== "all" && String(row.id) !== filters.job) return false;
         if (filters.issuesOnly && row.state === "on-target") return false;
         if (!filters.query) return true;
         return `${row.name} ${row.product} ${row.station} ${row.owner} ${row.code}`
@@ -3227,18 +4562,21 @@
         if (!host) return;
         const floorTasks = scheduleTasksForExecutionView();
         if (!floorTasks.length) {
-          const hintLong = scheduleCache.length
-            ? tt(
-                "factory.erp.exec.emptyNeedRelease",
-                "Work is planned on the timeline, but nothing is released for the floor yet. Use Release on a work order.",
-              )
-            : tt(
-                "factory.erp.exec.emptyReleased",
-                "No scheduled steps yet. Create or open a work order, then Auto Plan, then Release when ready for the floor.",
-              );
-          const hintShort = scheduleCache.length
-            ? tt("factory.erp.exec.emptyUiRelease", "QUEUE · release a work order")
-            : tt("factory.erp.exec.emptyUiPlan", "QUEUE · OF + auto plan + release");
+          let hintLong;
+          let hintShort;
+          if (!scheduleCache.length) {
+            hintLong = tt(
+              "factory.erp.exec.emptyNoPlan",
+              "No scheduled steps yet. Create a work order, then Auto Plan to populate the timeline and this queue.",
+            );
+            hintShort = tt("factory.erp.exec.emptyUiPlan", "QUEUE · work order + auto plan");
+          } else {
+            hintLong = tt(
+              "factory.erp.exec.emptyAllClosed",
+              "Scheduled work exists only on closed orders. Reopen a work order or create a new one to see it here.",
+            );
+            hintShort = tt("factory.erp.exec.emptyUiClosed", "QUEUE · no active work orders");
+          }
           host.innerHTML = `<tr><td colspan="6" class="woExecEmpty" title="${esc(hintLong)}">${esc(hintShort)}</td></tr>`;
           return;
         }
@@ -3254,8 +4592,11 @@
           const planFrom = g.planStart ? new Date(g.planStart).toISOString() : "";
           const planTo = g.planEnd ? new Date(g.planEnd).toISOString() : "";
           const rkey = encodeExecRouteKey(g.woId, g.routeId);
+          const woRow = workOrderById(g.woId);
+          const woSt = String(woRow?.status || "open");
+          const woTagClass = woSt === "released" ? "ok" : (woSt === "closed" ? "warn" : "");
           return `<tr>
-            <td><strong>${esc(g.routeName || "-")}</strong><div class="erpMini mono">${esc(g.woCode || g.woId)}</div></td>
+            <td><strong>${esc(g.routeName || "-")}</strong><div class="erpMini mono">${esc(g.woCode || g.woId)}</div><span class="erpTag ${woTagClass}" style="margin-top:4px;display:inline-block;">${esc(woStatusLabel(woSt))}</span></td>
             <td class="mono">${esc(tt("factory.erp.exec.opCount", "{n} ops", { n: g.tasks.length }))}</td>
             <td>${esc(g.stationsShort || "-")}</td>
             <td class="mono">${esc(formatPlanRange(planFrom, planTo))}</td>
@@ -3268,91 +4609,86 @@
       }
 
       function assignTimelineLanes(sortedViewTasks) {
-        const laneEnds = [];
-        return sortedViewTasks.map((t) => {
-          const vs = Number(t.viewStartTs);
-          const ve = Number(t.viewEndTs);
-          let lane = 0;
-          while (lane < laneEnds.length && laneEnds[lane] > vs) lane += 1;
-          if (lane === laneEnds.length) laneEnds.push(ve);
-          else laneEnds[lane] = ve;
-          return { ...t, _tlLane: lane };
-        });
+        return sortedViewTasks.map((t) => ({ ...t, _tlLane: 0 }));
       }
 
-      function buildTimelineFlexParts(startTs, endTs, rangeMs, laneGroups) {
-        const sorted = laneGroups.slice().sort((a, b) => Number(a.viewStartTs) - Number(b.viewStartTs));
-        const parts = [];
-        let cursor = startTs;
-        for (const grp of sorted) {
-          const vs0 = Number(grp.viewStartTs);
-          const ve0 = Number(grp.viewEndTs);
-          if (!(ve0 > vs0)) continue;
-          const vs = Math.max(vs0, startTs);
-          const veC = Math.min(ve0, endTs);
-          if (!(veC > vs)) continue;
-          if (vs > cursor) {
-            const g = ((vs - cursor) / rangeMs) * 100;
-            if (g > 1e-6) parts.push({ type: "gap", pct: g });
-          }
-          const w = ((veC - vs) / rangeMs) * 100;
-          if (w > 1e-6) parts.push({ type: "routeGroup", pct: w, group: grp });
-          cursor = Math.max(cursor, veC);
-        }
-        if (endTs > cursor) {
-          const g = ((endTs - cursor) / rangeMs) * 100;
-          if (g > 1e-6) parts.push({ type: "gap", pct: g });
-        }
-        const sum = parts.reduce((acc, p) => acc + p.pct, 0);
-        if (sum <= 0) return [];
-        const scale = 100 / sum;
-        return parts.map((p) => ({ ...p, pct: p.pct * scale }));
-      }
-
-      function renderTimelineMergedRow(parts, fullStationName) {
-        let firstSeg = true;
-        const chunks = parts.map((p) => {
-          if (p.type === "gap") {
-            return `<div class="tlGap" style="flex:0 0 ${p.pct.toFixed(4)}%;"></div>`;
-          }
-          if (p.type !== "routeGroup") return "";
-          const g = p.group;
+      function renderTimelineUnifiedTrack(startTs, endTs, rangeMs, tasked, fullStationName) {
+        const laneCount = tasked.length ? Math.max(...tasked.map((t) => Number(t._tlLane) || 0)) + 1 : 1;
+        const sorted = tasked.slice().sort((a, b) => Number(a.viewStartTs) - Number(b.viewStartTs));
+        const bits = [];
+        for (const g of sorted) {
+          const vs = Math.max(Number(g.viewStartTs), startTs);
+          const ve = Math.min(Number(g.viewEndTs), endTs);
+          if (!(ve > vs)) continue;
+          const L = ((vs - startTs) / rangeMs) * 100;
+          const W = ((ve - vs) / rangeMs) * 100;
+          if (W <= 1e-6) continue;
           const rn = String(g.routeName || "").trim();
           const shortRoute = rn.length > 16 ? `${rn.slice(0, 14)}…` : rn;
-          const label = `${g.woCode || g.woId || "WO"} · ${shortRoute}`;
+          const woShort = String(g.woCode || g.woId || "WO").trim();
+          const label = `${woShort} · ${shortRoute}`;
           const title = `${fullStationName} — ${g.woCode || g.woId} — ${rn} — ${tt("factory.erp.timeline.routeBarHint", "Click for operations")}`;
-          const narrow = p.pct < 3.2;
-          const lead = firstSeg ? " tlSegLead" : "";
-          firstSeg = false;
-          const inner = narrow ? "" : `<span class="tlSegLbl">${esc(label)}</span>`;
-          const narrowCls = narrow ? " tlSegNarrow" : "";
+          const micro = W < 1.15;
+          const compact = !micro && W < 6.5;
+          let inner;
+          let extraCls = "";
+          if (micro) {
+            inner = `<span class="tlSegGlyph" aria-hidden="true">●</span>`;
+            extraCls = " tlSegNarrow";
+          } else if (compact) {
+            const chip = woShort.length > 10 ? `${woShort.slice(0, 9)}…` : woShort;
+            inner = `<span class="tlSegLbl">${esc(chip)}</span>`;
+            extraCls = " tlSegCompact";
+          } else {
+            inner = `<span class="tlSegLbl">${esc(label)}</span>`;
+          }
           const rkey = encodeRouteGroupKey(g);
           const hi =
             timelineRouteHighlightId && String(g.routeId || "") === String(timelineRouteHighlightId) ? " tlSegRouteHi" : "";
-          return `<button type="button" class="tlSeg tlRouteSeg${lead}${narrowCls}${hi}" style="flex:0 0 ${p.pct.toFixed(4)}%;" data-tl-route="${esc(rkey)}" title="${esc(title)}">${inner}</button>`;
-        });
-        return `<div class="tlMergedRow">${chunks.join("")}</div>`;
+          const lane = Number(g._tlLane) || 0;
+          bits.push(
+            `<button type="button" class="tlSeg tlRouteSeg tlSegAbs${extraCls}${hi}" style="left:${L.toFixed(4)}%;width:${W.toFixed(4)}%;--tl-lane:${lane};" data-tl-route="${esc(rkey)}" title="${esc(title)}">${inner}</button>`,
+          );
+        }
+        return `<div class="tlUnifiedTrack" style="--tl-lanes:${laneCount};">${bits.join("")}</div>`;
       }
 
       function renderTimeline(app) {
         const host = $("timelineBoard");
         if (!host) return;
         const stations = stationRows(app);
+        const summaryEl = $("timelineSummaryLbl");
         if (!stations.length) {
-          host.className = "timeline timelineGantt";
+          host.className = "timeline timelineGantt tlRoot";
+          host.style.minWidth = "";
           host.innerHTML = `<div class="tlEmpty">${esc(tt("factory.erp.station.empty", "No stations available."))}</div>`;
+          if (summaryEl) summaryEl.textContent = "—";
+          flushTimelineIssuesBar({
+            lateCount: 0,
+            lateLines: [],
+            overloadPairs: 0,
+            overloadLines: [],
+            offCalPairs: 0,
+            offCalLines: [],
+          });
           return;
         }
         const { startTs, endTs, span } = visibleTimelineRange();
         const rangeStart = new Date(startTs);
+        const denseHorizon = span > 14;
         const days = [];
         for (let i = 0; i < span; i += 1) {
           const d = new Date(rangeStart);
           d.setDate(rangeStart.getDate() + i);
+          const longLabel = d.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "2-digit" });
+          const titleTip = denseHorizon
+            ? d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+            : "";
           days.push({
             startTs: d.getTime(),
             key: formatDateInput(d.getTime()),
-            label: d.toLocaleDateString(undefined, { weekday: "short", day: "2-digit", month: "2-digit" }),
+            label: denseHorizon ? String(d.getDate()) : longLabel,
+            titleTip,
           });
         }
         const rangeLast = new Date(rangeStart);
@@ -3369,10 +4705,19 @@
             },
           );
         }
-        host.className = "timeline timelineGantt";
-        const dayColPx = 52;
-        host.style.minWidth = `${Math.max(480, 76 + days.length * dayColPx)}px`;
+        host.className = `timeline timelineGantt tlRoot${denseHorizon ? " tlDense" : ""}`;
+        host.style.minWidth = "";
         const rangeMs = Math.max(1, endTs - startTs);
+        const todayKey = formatDateInput(Date.now());
+        const tNow = Date.now();
+        let nowPct = null;
+        if (tNow > startTs && tNow < endTs) {
+          nowPct = ((tNow - startTs) / rangeMs) * 100;
+        }
+        const nowMarkerHtml =
+          nowPct != null && Number.isFinite(nowPct)
+            ? `<div class="tlNowMarker" style="left:${nowPct.toFixed(4)}%;" aria-hidden="true"></div>`
+            : "";
         const byStation = new Map();
         for (const task of scheduleCache) {
           const taskStartTs = Date.parse(String(task.plannedStart || ""));
@@ -3389,10 +4734,44 @@
             rawEndTs: taskEndTs,
           });
         }
+        let taskCount = 0;
+        let busyStationCount = 0;
+        const orderKeys = new Set();
+        for (const [, arr] of byStation) {
+          if (!arr.length) continue;
+          busyStationCount += 1;
+          taskCount += arr.length;
+          for (const t of arr) {
+            const ok = String(t.woCode || t.woId || "").trim();
+            if (ok) orderKeys.add(ok);
+          }
+        }
+        if (summaryEl) {
+          if (!taskCount) {
+            summaryEl.textContent = tt("factory.erp.timeline.summaryEmpty", "No scheduled tasks in this window.");
+          } else {
+            summaryEl.textContent = tt(
+              "factory.erp.timeline.summary",
+              "{tasks} tasks · {stations} stations with work · {orders} work orders",
+              { tasks: taskCount, stations: busyStationCount, orders: orderKeys.size },
+            );
+          }
+        }
+        const diag = computeTimelineScheduleDiagnostics(app, startTs, endTs, days, stations);
         const out = [];
         out.push(`<div class="tlGanttHead">`);
         out.push(`<div class="tlStationHead">${esc(tt("common.station", "Station"))}</div>`);
-        out.push(`<div class="tlScale" style="--days:${days.length};">${days.map((d) => `<div class="tlScaleCell">${esc(d.label)}</div>`).join("")}</div>`);
+        out.push(
+          `<div class="tlScale" style="--days:${days.length};">${days
+            .map((d, di) => {
+              const todayCls = d.key === todayKey ? " tlScaleCell--today" : "";
+              const riskCls = diag.dayHeadClass[di] || "";
+              const headTip = diag.dayHeadTitle[di];
+              const tip = headTip ? ` title="${esc(headTip)}"` : d.titleTip ? ` title="${esc(d.titleTip)}"` : "";
+              return `<div class="tlScaleCell${todayCls}${riskCls}"${tip}>${esc(d.label)}</div>`;
+            })
+            .join("")}</div>`,
+        );
         out.push(`</div>`);
         for (const st of stations) {
           const stationTasks = (byStation.get(String(st.id || "")) || [])
@@ -3400,38 +4779,63 @@
             .sort((a, b) => Number(a.viewStartTs || 0) - Number(b.viewStartTs || 0));
           const fullStationName = String(st.name || st.code || st.id || "-");
           const rowLabel = timelineStationLabel(st);
+          const meta = diag.stationRowMeta.get(String(st.id || "")) || {
+            pressureCells: days.map(() => ""),
+            rowClass: "",
+            rowBits: [],
+            rangeLoadMin: 0,
+            rangeCapMin: 0,
+            rangePct: 0,
+          };
+          const stationSigCls = meta.rowClass.includes("offcal")
+            ? " tlStationCell--signal"
+            : meta.rowClass.includes("overload")
+              ? " tlStationCell--signalWarn"
+              : "";
+          const stationTitleBits = meta.rowBits.length ? ` · ${meta.rowBits.join(" · ")}` : "";
+          const pctDisp = meta.rangeCapMin > 0 ? Math.min(999, Number(meta.rangePct) || 0) : (meta.rangeLoadMin > 0.5 ? 100 : 0);
+          const capLine = tt("factory.erp.timeline.stationCap", "{pct}% · {load}h / {cap}h", {
+            pct: pctDisp,
+            load: Number(((meta.rangeLoadMin || 0) / 60).toFixed(1)),
+            cap: Number(((meta.rangeCapMin || 0) / 60).toFixed(1)),
+          });
           out.push(
-            `<div class="tlStationCell" title="${esc(fullStationName)}">${esc(rowLabel)}</div>`,
+            `<div class="tlStationCell${stationSigCls}" title="${esc(`${fullStationName}${stationTitleBits} · ${capLine}`)}">` +
+              `<span class="tlStationName">${esc(rowLabel)}</span>` +
+              `<span class="tlStationCapLine">${esc(capLine)}</span>` +
+              `</div>`,
           );
           let trackInner = "";
-          let multiClass = "";
-          let idleClass = "";
-          if (!stationTasks.length) {
-            idleClass = " tlTrackCell--idle";
-          } else {
+          if (stationTasks.length) {
             const stationGroups = groupStationTasksByRoute(stationTasks);
             const tasked = assignTimelineLanes(stationGroups);
-            const maxLane = tasked.length ? Math.max(...tasked.map((t) => t._tlLane)) : 0;
-            if (maxLane > 0) multiClass = " tlMultiLane";
-            const rowHtml = [];
-            for (let lane = 0; lane <= maxLane; lane += 1) {
-              const laneGroups = tasked.filter((t) => t._tlLane === lane);
-              const parts = buildTimelineFlexParts(startTs, endTs, rangeMs, laneGroups);
-              if (!parts.length) continue;
-              rowHtml.push(renderTimelineMergedRow(parts, fullStationName));
-            }
-            if (rowHtml.length) {
-              trackInner = `<div class="tlMergedWrap">${rowHtml.join("")}</div>`;
-            } else {
-              idleClass = " tlTrackCell--idle";
+            if (tasked.length) {
+              trackInner = `<div class="tlMergedWrap">${renderTimelineUnifiedTrack(
+                startTs,
+                endTs,
+                rangeMs,
+                tasked,
+                fullStationName,
+              )}</div>`;
             }
           }
-          const idleHint = idleClass
+          const idleSurface = !trackInner;
+          const idleHint = idleSurface
             ? ` title="${esc(tt("factory.erp.timeline.noTask", "No task in selected range."))}"`
             : "";
-          out.push(`<div class="tlTrackCell${multiClass}${idleClass}" style="--days:${days.length};"${idleHint}>${trackInner}</div>`);
+          const idleLabel = `<span class="tlLaneIdleLabel">${esc(tt("factory.erp.timeline.laneOpen", "Open capacity"))}</span>`;
+          const innerBody = trackInner || idleLabel;
+          const surfaceCls = idleSurface ? " tlLaneSurface--idle" : "";
+          const pressureHtml = `<div class="tlDayPressure" aria-hidden="true">${meta.pressureCells
+            .map((c) => `<span class="tlDayPressureCell${c}"></span>`)
+            .join("")}</div>`;
+          const laneBlock = `<div class="tlLaneSurface${surfaceCls}">${pressureHtml}${nowMarkerHtml}${innerBody}</div>`;
+          out.push(
+            `<div class="tlTrackCell${meta.rowClass}" style="--days:${days.length};"${idleHint}>${laneBlock}</div>`,
+          );
         }
         host.innerHTML = out.join("");
+        flushTimelineIssuesBar(diag);
       }
 
       function shiftTimeline(direction) {
@@ -3568,7 +4972,7 @@
       function resolveTaskFromInput(raw) {
         const wanted = String(raw || "").trim().toUpperCase();
         if (!wanted) return null;
-        const pool = scheduleCache.filter((t) => isScheduleTaskOnFloor(t));
+        const pool = scheduleCache.filter((t) => isScheduleTaskInExecutionQueue(t));
         const exact = pool.find((task) => String(task?.taskCode || "").toUpperCase() === wanted)
           || pool.find((task) => String(task?.id || "").toUpperCase() === wanted)
           || null;
@@ -3638,6 +5042,14 @@
         );
         if (!canEditPlanning() && !woEarlierStepsAllDone(task)) {
           loaded += ` ${tt("factory.erp.operator.sequenceWarn", "— Earlier WO steps are not done yet; Start may be blocked until they are.")}`;
+        }
+        const opGrp = routeOperationTasksForAnchorTask(task.id);
+        if (opGrp.length > 1) {
+          loaded += ` ${tt(
+            "factory.erp.operator.operationGroupHint",
+            "— Start / Pause / Complete apply to all {n} steps of this route at this station.",
+            { n: opGrp.length },
+          )}`;
         }
         $("opLoadedTaskInfo").textContent = loaded;
       }
@@ -3856,6 +5268,14 @@
         const overallText = overallEnd
           ? new Date(overallEnd).toLocaleString([], { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
           : "-";
+        const mesTileWo = $("mesTileWo");
+        if (mesTileWo) mesTileWo.textContent = String(workOrdersCache.length);
+        const mesTileTasks = $("mesTileTasks");
+        if (mesTileTasks) mesTileTasks.textContent = String(scheduleCache.length);
+        const mesTileRunning = $("mesTileRunning");
+        if (mesTileRunning) mesTileRunning.textContent = String(running);
+        const mesTileEta = $("mesTileEta");
+        if (mesTileEta) mesTileEta.textContent = overallText;
         $("erpSummary").textContent = tt(
           "factory.erp.summary",
           "{wo} work orders | {tasks} scheduled tasks | {running} running | {done} done | Overall ETA {overall}{machine}",
@@ -4019,6 +5439,7 @@
       function clearSchedule() {
         if (!requirePermission(canEditPlanning, tt("factory.erp.denied.planning", "Permission denied: planner/manager/admin required."))) return;
         if (!confirm(tt("factory.erp.confirm.clearSchedule", "Clear all scheduled tasks and execution states?"))) return;
+        pushPlanningUndo("clear_schedule");
         for (const row of (window.VMillData?.listRecords?.(SCHEDULE_NS) || [])) {
           window.VMillData?.deleteRecord?.(SCHEDULE_NS, String(row?.id || ""));
         }
@@ -4186,11 +5607,13 @@
       }
 
       function initFactoryDeckPrefs() {
-        let deckOpen = false;
+        let deckOpen = true;
         let floorOpen = false;
         try {
-          deckOpen = sessionStorage.getItem("factory_mf_deck") === "1";
-          floorOpen = sessionStorage.getItem("factory_mf_floor") === "1";
+          const d = sessionStorage.getItem("factory_mf_deck");
+          deckOpen = d === null ? true : d === "1";
+          const f = sessionStorage.getItem("factory_mf_floor");
+          floorOpen = f === null ? false : f === "1";
         } catch {}
         setOpsDeckOpen(deckOpen);
         setFloorDeckOpen(floorOpen);
@@ -4225,14 +5648,61 @@
           $("statusLine").textContent = tt("factory.erp.autoPlanned", "Auto planned {count} task(s).", { count: tasks });
           render();
         });
+        const closeFactoryToolsMenu = () => {
+          const d = document.querySelector("details.mfTimelineTools");
+          if (d) d.open = false;
+        };
+        $("factoryUndoBtn")?.addEventListener("click", () => {
+          if (!undoLastPlanningMutation()) {
+            $("statusLine").textContent = tt("factory.erp.tools.nothingToUndo", "Nothing to undo.");
+          } else {
+            $("statusLine").textContent = tt("factory.erp.tools.undone", "Reverted last planning change.");
+            closeFactoryToolsMenu();
+            render();
+          }
+        });
+        $("factoryExportBtn")?.addEventListener("click", () => {
+          exportFactoryPlanningSnapshot();
+          closeFactoryToolsMenu();
+          $("statusLine").textContent = tt("factory.erp.tools.exported", "Planning export downloaded.");
+        });
+        $("factoryImportBtn")?.addEventListener("click", () => {
+          $("factoryImportFile")?.click();
+        });
+        $("factoryImportFile")?.addEventListener("change", (ev) => {
+          const input = ev.target;
+          const file = input.files && input.files[0];
+          if (input instanceof HTMLInputElement) input.value = "";
+          if (!file) return;
+          if (!requirePermission(canEditPlanning, tt("factory.erp.denied.schedule", "Permission denied: planner/manager/admin required for scheduling."))) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const obj = JSON.parse(String(reader.result || ""));
+              applyImportedFactorySnapshot(obj);
+              $("statusLine").textContent = tt("factory.erp.tools.importOk", "Planning data imported.");
+              closeFactoryToolsMenu();
+              render();
+            } catch (err) {
+              void err;
+              $("statusLine").textContent = tt("factory.erp.tools.importFail", "Import failed: invalid or unsupported file.");
+            }
+          };
+          reader.readAsText(file, "UTF-8");
+        });
+        $("repairStationSerialBtn")?.addEventListener("click", () => {
+          if (!requirePermission(canEditPlanning, tt("factory.erp.denied.schedule", "Permission denied: planner/manager/admin required for scheduling."))) return;
+          const n = repairScheduleStationOverlaps();
+          $("statusLine").textContent = n
+            ? tt("factory.erp.repair_station_serial_done", "Serialized schedule: updated {count} task(s) so each station has one job at a time.", { count: n })
+            : tt("factory.erp.repair_station_serial_none", "No station overlap to fix (or nothing to change).");
+          closeFactoryToolsMenu();
+          render();
+        });
         $("clearPlanBtn").addEventListener("click", () => {
           if ($("opsDeckBody")?.hidden) setOpsDeckOpen(true);
           clearSchedule();
         });
-        $("productSel").addEventListener("change", render);
-        $("stationSel").addEventListener("change", render);
-        $("searchIn").addEventListener("input", render);
-        $("issuesChk").addEventListener("change", render);
         $("timelinePrevBtn")?.addEventListener("click", () => shiftTimeline(-1));
         $("timelineTodayBtn")?.addEventListener("click", resetTimeline);
         $("timelineNextBtn")?.addEventListener("click", () => shiftTimeline(1));
@@ -4316,9 +5786,16 @@
         });
         $("opScanCamBtn")?.addEventListener("click", openScanModal);
         $("opShowQrBtn")?.addEventListener("click", () => openQrModal(selectedOperatorTaskId));
-        $("opStartBtn")?.addEventListener("click", () => selectedOperatorTaskId && setTaskExecStatus(selectedOperatorTaskId, "running"));
-        $("opPauseBtn")?.addEventListener("click", () => selectedOperatorTaskId && setTaskExecStatus(selectedOperatorTaskId, "hold"));
-        $("opDoneBtn")?.addEventListener("click", () => selectedOperatorTaskId && setTaskExecStatus(selectedOperatorTaskId, "done"));
+        $("opStartBtn")?.addEventListener("click", () => selectedOperatorTaskId && setRouteOperationGroupStatusForAnchorTask(selectedOperatorTaskId, "running"));
+        $("opPauseBtn")?.addEventListener("click", () => selectedOperatorTaskId && setRouteOperationGroupStatusForAnchorTask(selectedOperatorTaskId, "hold"));
+        $("opDoneOpBtn")?.addEventListener("click", () => selectedOperatorTaskId && setRouteOperationGroupStatusForAnchorTask(selectedOperatorTaskId, "done"));
+        $("timelineRouteModalBulkBar")?.addEventListener("click", (event) => {
+          const btn = event.target instanceof Element ? event.target.closest("[data-tl-route-op]") : null;
+          if (!(btn instanceof Element) || !timelineRouteModalKey) return;
+          const op = String(btn.getAttribute("data-tl-route-op") || "");
+          if (!op) return;
+          setRouteOperationGroupStatusForModalKey(timelineRouteModalKey, op);
+        });
         $("opSaveLogBtn")?.addEventListener("click", saveOperatorLog);
         $("scanCloseBtn")?.addEventListener("click", closeScanModal);
         $("scanRetryBtn")?.addEventListener("click", () => {
@@ -4405,16 +5882,6 @@
           const taskId = String(el.getAttribute("data-tl-op-task") || "");
           const action = String(el.getAttribute("data-tl-op-action") || "");
           if (!taskId) return;
-          if (action === "start") return setTaskExecStatus(taskId, "running");
-          if (action === "hold") return setTaskExecStatus(taskId, "hold");
-          if (action === "done") return setTaskExecStatus(taskId, "done");
-          if (action === "qr") return openQrModal(taskId);
-          if (action === "open") {
-            loadOperatorTask(taskId);
-            $("statusLine").textContent = tt("factory.erp.timeline.loadedTask", "Loaded task from timeline.");
-            closeTimelineRouteModal();
-            return;
-          }
           if (action === "operator") {
             loadOperatorTask(taskId);
             $("statusLine").textContent = tt("factory.erp.timeline.loadedTask", "Loaded task from timeline.");
@@ -4439,8 +5906,10 @@
         });
 
         window.addEventListener("storage", (event) => {
+          if (event.key === FACTORY_HUB_SCOPE_KEY) requestReactiveRender(120);
           if (event.key && WATCH_KEYS.has(event.key)) requestReactiveRender(120);
         });
+        window.addEventListener("vmill:hub-scope:changed", () => requestReactiveRender(80));
         window.CANBus?.onMessage((msg) => {
           if (String(msg?.type || "").startsWith("data:")) requestReactiveRender(120);
         });
@@ -4477,16 +5946,19 @@
       function applyI18n() {
         document.title = tt("hub.mod.factory.name", "Factory Operations");
         $("title").textContent = tt("factory.mf.header", "MES // FACTORY");
+        if ($("mfSubtitle")) $("mfSubtitle").textContent = tt("factory.mf.subtitle", "Work orders, schedule, and floor execution");
+        if ($("mfRailTitle")) $("mfRailTitle").textContent = tt("factory.mf.railTitle", "Scope");
+        if ($("mfSnapshotKicker")) $("mfSnapshotKicker").textContent = tt("factory.mf.snapshotKicker", "MES · live");
+        if ($("mesTileWoLbl")) $("mesTileWoLbl").textContent = tt("factory.mf.tile.wo", "Work orders");
+        if ($("mesTileTasksLbl")) $("mesTileTasksLbl").textContent = tt("factory.mf.tile.tasks", "Scheduled tasks");
+        if ($("mesTileRunLbl")) $("mesTileRunLbl").textContent = tt("factory.mf.tile.running", "Running");
+        if ($("mesTileEtaLbl")) $("mesTileEtaLbl").textContent = tt("factory.mf.tile.eta", "Overall ETA");
+        if ($("mfAnalyticsKicker")) $("mfAnalyticsKicker").textContent = tt("factory.mf.analyticsKicker", "Chrono · operation metrics");
         $("reloadBtn").setAttribute("title", tt("common.refresh", "Refresh"));
         $("opsDeckToggle")?.setAttribute("title", tt("factory.erp.deck.toggle", "Work orders & schedule"));
         $("opsDeckBarToggle")?.setAttribute("title", tt("factory.erp.deck.toggleBar", "Toggle work order deck"));
         $("floorDeckToggle")?.setAttribute("title", tt("factory.erp.floor.toggle", "Quality, audit & operator"));
         $("floorDeckBarToggle")?.setAttribute("title", tt("factory.erp.floor.toggleBar", "Toggle floor console"));
-        $("productLbl").textContent = tt("common.product", "Product");
-        $("stationLbl").textContent = tt("common.station", "Station");
-        $("searchLbl").textContent = tt("common.search", "Search");
-        $("searchIn").placeholder = tt("factory.search.placeholder", "operation / product / station / owner");
-        $("issuesLbl").textContent = tt("factory.issues_only", "Issues only");
         $("kOpsLbl").textContent = tt("factory.kpi.visibleOps", "Visible Ops");
         $("kAvgLbl").textContent = tt("factory.kpi.weightedAvg", "Weighted Avg Cycle");
         $("kAvgHint").textContent = tt("factory.kpi.seconds", "seconds");
@@ -4528,6 +6000,12 @@
         $("execHeadExec").textContent = tt("factory.erp.head.exec", "Exec");
         $("execHeadActions").textContent = tt("common.actions", "Actions");
         $("timelineSectionLbl").textContent = tt("factory.erp.timeline", "Station Timeline");
+        if ($("timelineIssuesKicker")) {
+          $("timelineIssuesKicker").textContent = tt("factory.erp.timeline.signalsKicker", "Schedule signals");
+        }
+        if ($("timelineIssuesPlaceholder")) {
+          $("timelineIssuesPlaceholder").textContent = tt("factory.erp.timeline.issue.clear", "No schedule risks in this view.");
+        }
         $("planningSettingsBtn").textContent = tt("factory.calendar.open", "Planning Settings");
         $("timelinePrevBtn").textContent = tt("common.prev", "Prev");
         $("timelineTodayBtn").textContent = tt("common.today", "Today");
@@ -4538,6 +6016,9 @@
         $("planningSummaryOverrideHint").textContent = "";
         $("planningSummaryLoadLbl").textContent = tt("factory.calendar.summary.load", "Visible Load");
         $("planningSummaryLoadHint").textContent = "";
+        if ($("planningInsightMergedLbl")) {
+          $("planningInsightMergedLbl").textContent = tt("factory.erp.insight.mergedTitle", "Load focus");
+        }
         $("planningSettingsModalTitle").textContent = tt("factory.calendar.modal.title", "Planning Settings");
         $("planningSettingsModalHint").textContent = tt("factory.calendar.modal.hintShort", "Calendars & closed days.");
         $("planningSettingsCloseBtn").textContent = tt("common.close", "Close");
@@ -4603,12 +6084,15 @@
         $("opGoodLbl").textContent = tt("factory.erp.operator.goodQty", "Good Qty");
         $("opScrapLbl").textContent = tt("factory.erp.operator.scrapQty", "Scrap Qty");
         $("opCommentLbl").textContent = tt("factory.erp.operator.comment", "Comment");
-        $("opScanCamBtn").textContent = tt("factory.erp.operator.scanCamera", "Scan Camera");
+        $("opScanCamBtn").textContent = tt("factory.erp.operator.scanCameraShort", "Camera");
         $("opLoadBtn").textContent = tt("common.load", "Load");
         $("opShowQrBtn").textContent = tt("factory.erp.operator.showQr", "Show QR");
-        $("opStartBtn").textContent = tt("factory.erp.action.start", "Start");
-        $("opPauseBtn").textContent = tt("factory.erp.action.hold", "Pause");
-        $("opDoneBtn").textContent = tt("factory.erp.action.done", "Done");
+        if ($("factoryToolsSummary")) $("factoryToolsSummary").textContent = tt("factory.erp.tools.menu", "More");
+        if ($("timelineRouteBulkStart")) $("timelineRouteBulkStart").textContent = tt("factory.erp.routeOp.startShort", "Start");
+        if ($("timelineRouteBulkDone")) $("timelineRouteBulkDone").textContent = tt("factory.erp.routeOp.completeShort", "Complete");
+        $("opStartBtn").textContent = tt("factory.erp.routeOp.startShort", "Start");
+        $("opPauseBtn").textContent = tt("factory.erp.routeOp.holdShort", "Pause");
+        $("opDoneOpBtn").textContent = tt("factory.erp.routeOp.completeShort", "Complete");
         $("opSaveLogBtn").textContent = tt("factory.erp.operator.saveLog", "Save Log");
         $("opScanIn").placeholder = tt("factory.erp.operator.scanPlaceholder", "task code (ex: WO-12345-10)");
         $("opCommentIn").placeholder = tt("factory.erp.operator.commentPlaceholder", "operator note");
@@ -4640,6 +6124,9 @@
         }
         $("woAddBtn").textContent = tt("factory.erp.add_wo", "+ Work Order");
         $("autoPlanBtn").textContent = tt("factory.erp.auto_plan", "Auto Plan (Route -> Station)");
+        if ($("repairStationSerialBtn")) {
+          $("repairStationSerialBtn").textContent = tt("factory.erp.repair_station_serial_short", "Fix overlaps");
+        }
         $("clearPlanBtn").textContent = tt("factory.erp.clear_schedule", "Clear Schedule");
       }
 

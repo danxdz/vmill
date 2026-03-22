@@ -368,6 +368,12 @@
       box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .14);
       flex: 0 0 auto;
     }
+    .dockSep {
+      height: 1px;
+      margin: 2px 4px;
+      background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--border) 85%, transparent), transparent);
+      flex-shrink: 0;
+    }
     .main {
       padding: 16px;
       padding-top: 74px;
@@ -925,6 +931,7 @@
     .launchIconBtn.chrono { color: color-mix(in srgb, var(--accent) 78%, var(--text)); }
     .launchIconBtn.camera { color: color-mix(in srgb, var(--ok) 74%, var(--text)); }
     .launchIconBtn.spacial { color: color-mix(in srgb, var(--accent) 86%, var(--text)); }
+    .launchIconBtn.factory { color: color-mix(in srgb, var(--warn) 55%, color-mix(in srgb, var(--accent) 70%, var(--text))); }
     .jobsLaunchInline {
       display: inline-flex;
       align-items: center;
@@ -1697,14 +1704,14 @@
     <div class="menuBackdrop" id="menuBackdrop"></div>
     <aside class="dock" id="leftDock">
       <a class="dockBtn" data-dock-id="hub" data-module-id="hub" href="./vmill_hub.html">Hub</a>
+      <a class="dockBtn" data-dock-id="factory" data-module-id="factory" href="./factory_manager.html">Factory</a>
+      <span class="dockSep" aria-hidden="true"></span>
       <a class="dockBtn" data-dock-id="chrono" data-module-id="chrono" href="./chrono/chrono.html">Chrono</a>
       <a class="dockBtn" data-dock-id="chrono-camera" data-module-id="chrono-camera" href="./chrono/chrono_camera.html">Camera</a>
       <a class="dockBtn" data-dock-id="spacial" data-module-id="spacial" href="./SPaCial.html">Router</a>
       <a class="dockBtn" data-dock-id="blueprint-manager" data-module-id="blueprint-manager" href="./blueprint_manager.html">Drawings</a>
-      <a class="dockBtn" data-dock-id="factory" data-module-id="factory" href="./factory_manager.html">Factory</a>
       <a class="dockBtn" data-dock-id="shop-tree" data-module-id="shop-tree" href="./shop_tree.html">Shop</a>
       <a class="dockBtn" data-dock-id="records" data-module-id="records" href="./records_manager.html">Item Master</a>
-      <a class="dockBtn" data-dock-id="can-bus" data-module-id="can-bus" href="./logger.html">Logger</a>
       <a class="dockBtn" data-dock-id="contas" data-module-id="contas" href="./contas_calc.html">Contas</a>
       <a class="dockBtn" data-dock-id="cnc-sim" data-module-id="cnc-sim" href="./cnc_sim.html">CNC</a>
     </aside>
@@ -2017,9 +2024,9 @@
       const FALLBACK_MODULES = [
         { id: "chrono", name: "Chrono Study", desc: "Timing, timeline editing, KPI, and cycle analysis.", href: "./chrono/chrono.html", status: "ready", tags: ["time-study", "timeline", "kpi"] },
         { id: "chrono-camera", name: "Chrono Camera", desc: "Camera-assisted capture with sequence marks and bookmark export.", href: "./chrono/chrono_camera.html", status: "ready", tags: ["capture", "camera", "bookmarks"] },
+        { id: "factory", name: "Factory Operations", desc: "Production planning, work orders, scheduling, and execution control.", href: "./factory_manager.html", status: "ready", tags: ["factory", "operations", "capacity", "planning"] },
         { id: "spacial", name: "Router", desc: "Route and operation planning with linked drawings, specs, and control exports.", href: "./SPaCial.html", status: "ready", tags: ["router", "operations", "quality", "control"] },
         { id: "blueprint-manager", name: "Drawing Manager", desc: "Product-level drawings, OCR sources, styles, and master marks linked into Router operations.", href: "./blueprint_manager.html", status: "ready", tags: ["drawings", "ocr", "annotations", "product-docs"] },
-        { id: "factory", name: "Factory Operations", desc: "Production planning, work orders, scheduling, and execution control.", href: "./factory_manager.html", status: "ready", tags: ["factory", "operations", "capacity", "planning"] },
         { id: "shop-tree", name: "Shop Organizer", desc: "Recursive shop hierarchy with node CRUD, linked jobs, and drag reparenting.", href: "./shop_tree.html", status: "ready", tags: ["shop", "tree", "nodes", "crud"] },
         { id: "records", name: "Item Master", desc: "Item and assembly master data with BOM links and custom forms.", href: "./records_manager.html", status: "ready", tags: ["items", "bom", "crud", "forms", "schema"] },
         { id: "contas", name: "Contas CNC", desc: "Legacy CNC calculators: thread, milling, turning, and trig helpers.", href: "./contas_calc.html", status: "ready", tags: ["cnc", "calculator", "thread", "milling", "turning"] },
@@ -2074,7 +2081,7 @@
       const hubReduceMotionChk = document.getElementById("hubReduceMotionChk");
       const hubPollOcrLogsChk = document.getElementById("hubPollOcrLogsChk");
       const USE_SINGLE_GLOBAL_SCOPE = true;
-      const HIDE_HUB_LOGGER_WIDGET = true;
+      const HIDE_HUB_LOGGER_WIDGET = false;
       if (USE_SINGLE_GLOBAL_SCOPE) document.body.classList.add("hubSingleScope");
       const overviewWidget = document.querySelector('.widget[data-widget="overview"]');
       const overviewKpis = document.getElementById("overviewKpis");
@@ -2297,14 +2304,13 @@
 
         const dockMap = [
           ["hub", "hub.dock.hub", "Hub"],
+          ["factory", "hub.dock.factory", "Factory"],
           ["chrono", "hub.dock.chrono", "Chrono"],
           ["chrono-camera", "hub.dock.camera", "Camera"],
           ["spacial", "hub.dock.spacial", "Router"],
           ["blueprint-manager", "", "Drawings"],
-          ["factory", "hub.dock.factory", "Factory"],
           ["shop-tree", "hub.dock.shopTree", "Shop"],
           ["records", "hub.dock.records", "Item Master"],
-          ["can-bus", "hub.dock.logger", "Logger"],
           ["contas", "hub.dock.contas", "Contas"],
           ["cnc-sim", "hub.dock.cnc", "CNC"],
         ];
@@ -4256,6 +4262,7 @@
       }
 
       function iconSvg(kind) {
+        if (kind === "factory") return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 21V9l6 3V9l6 3V5l6 3v13H3Z" stroke="currentColor" stroke-width="1.8"/><path d="M7 21v-4m4 4v-4m4 4v-4" stroke="currentColor" stroke-width="1.8"/></svg>`;
         if (kind === "camera") return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6h2l1.2-2h3.6L15 6h2a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V9a3 3 0 0 1 3-3Zm5 3.2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6Zm0 2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg>`;
         if (kind === "spacial") return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4V4Zm2 2v12h12V6H6Zm2 8h3.5v2H8v-2Zm0-3.5h8v2H8v-2Zm0-3.5h8v2H8V7Z"/></svg>`;
         return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6a1 1 0 0 1 1 1v4.38l3.26 1.88a1 1 0 1 1-1 1.74l-3.76-2.17A1 1 0 0 1 11 12V7a1 1 0 0 1 1-1Zm0-4a10 10 0 1 1 0 20 10 10 0 0 1 0-20Z"/></svg>`;
@@ -4264,6 +4271,7 @@
       function launchIconsHtml(links) {
         return `
           <span class="launchIcons">
+            <a class="btn ghost launchIconBtn factory" ${links.factory} title="${escHtml(tt("hub.dock.factory", "Factory"))}">${iconSvg("factory")}</a>
             <a class="btn ghost launchIconBtn chrono" ${links.chrono} title="${escHtml(tt("hub.dock.chrono", "Chrono"))}">${iconSvg("chrono")}</a>
             <a class="btn ghost launchIconBtn camera" ${links.cam} title="${escHtml(tt("hub.dock.camera", "Camera"))}">${iconSvg("camera")}</a>
             <a class="btn ghost launchIconBtn spacial" ${links.spc} title="${escHtml(tt("hub.dock.spacial", "Router"))}">${iconSvg("spacial")}</a>
@@ -5440,7 +5448,9 @@
           const chronoHref = makeShortcut("./chrono/chrono.html", { job: job?.id, station: job?.stationId });
           const camHref = makeShortcut("./chrono/chrono_camera.html", { job: job?.id, station: job?.stationId });
           const spcHref = makeShortcut("./SPaCial.html", { job: job?.id, station: job?.stationId, handoff: buildSpacialHandoff(job, station) });
+          const factoryHref = makeShortcut("./factory_manager.html", { job: job?.id, station: job?.stationId });
           return {
+            factory: (canAccessModule("factory") && isModuleEnabled("factory")) ? `href="${factoryHref}" data-module-id="factory"` : 'href="#" aria-disabled="true"',
             chrono: (canAccessModule("chrono") && isModuleEnabled("chrono")) ? `href="${chronoHref}" data-module-id="chrono"` : 'href="#" aria-disabled="true"',
             cam: (canAccessModule("chrono-camera") && isModuleEnabled("chrono-camera")) ? `href="${camHref}" data-module-id="chrono-camera"` : 'href="#" aria-disabled="true"',
             spc: (canAccessModule("spacial") && isModuleEnabled("spacial")) ? `href="${spcHref}" data-module-id="spacial"` : 'href="#" aria-disabled="true"',

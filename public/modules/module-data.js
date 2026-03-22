@@ -604,23 +604,23 @@
   function suggestedPlanningForOperation(name = "", index = 0) {
     const text = String(name || "").trim().toLowerCase();
     if (text.includes("oven") || text.includes("cure") || text.includes("dry") || text.includes("batch")) {
-      return { estimatedTimeMin: 180, estimatedQtyBase: 20 };
+      return { estimatedTimeMin: 360, estimatedQtyBase: 20 };
     }
-    if (text.includes("weld")) return { estimatedTimeMin: 60, estimatedQtyBase: 5 };
-    if (text.includes("deburr") || text.includes("grind") || text.includes("sand")) return { estimatedTimeMin: 35, estimatedQtyBase: 10 };
-    if (text.includes("paint") || text.includes("coat") || text.includes("anodiz")) return { estimatedTimeMin: 40, estimatedQtyBase: 10 };
+    if (text.includes("weld")) return { estimatedTimeMin: 120, estimatedQtyBase: 5 };
+    if (text.includes("deburr") || text.includes("grind") || text.includes("sand")) return { estimatedTimeMin: 70, estimatedQtyBase: 10 };
+    if (text.includes("paint") || text.includes("coat") || text.includes("anodiz")) return { estimatedTimeMin: 85, estimatedQtyBase: 10 };
     if (text.includes("machine") && (text.includes("cycle") || text.includes("#"))) {
-      return { estimatedTimeMin: 95, estimatedQtyBase: 10 };
+      return { estimatedTimeMin: 200, estimatedQtyBase: 10 };
     }
-    if (text.includes("machine")) return { estimatedTimeMin: 120, estimatedQtyBase: 10 };
-    if (text.includes("prep") || text.includes("pick") || text.includes("kit")) return { estimatedTimeMin: 40, estimatedQtyBase: 10 };
-    if (text.includes("assembly") || text.includes("align") || text.includes("place")) return { estimatedTimeMin: 70, estimatedQtyBase: 10 };
-    if (text.includes("inspect") || text.includes("check") || text.includes("qc")) return { estimatedTimeMin: 30, estimatedQtyBase: 10 };
-    if (text.includes("finish") || text.includes("polish")) return { estimatedTimeMin: 45, estimatedQtyBase: 10 };
-    if (text.includes("clean") || text.includes("wash")) return { estimatedTimeMin: 25, estimatedQtyBase: 10 };
-    if (text.includes("label")) return { estimatedTimeMin: 15, estimatedQtyBase: 20 };
-    if (text.includes("pack") || text.includes("ship")) return { estimatedTimeMin: 35, estimatedQtyBase: 20 };
-    return { estimatedTimeMin: 55 + ((Math.abs(Number(index || 0)) % 4) * 18), estimatedQtyBase: 10 };
+    if (text.includes("machine")) return { estimatedTimeMin: 240, estimatedQtyBase: 10 };
+    if (text.includes("prep") || text.includes("pick") || text.includes("kit")) return { estimatedTimeMin: 85, estimatedQtyBase: 10 };
+    if (text.includes("assembly") || text.includes("align") || text.includes("place")) return { estimatedTimeMin: 140, estimatedQtyBase: 10 };
+    if (text.includes("inspect") || text.includes("check") || text.includes("qc")) return { estimatedTimeMin: 55, estimatedQtyBase: 10 };
+    if (text.includes("finish") || text.includes("polish")) return { estimatedTimeMin: 90, estimatedQtyBase: 10 };
+    if (text.includes("clean") || text.includes("wash")) return { estimatedTimeMin: 45, estimatedQtyBase: 10 };
+    if (text.includes("label")) return { estimatedTimeMin: 30, estimatedQtyBase: 20 };
+    if (text.includes("pack") || text.includes("ship")) return { estimatedTimeMin: 70, estimatedQtyBase: 20 };
+    return { estimatedTimeMin: 110 + ((Math.abs(Number(index || 0)) % 4) * 45), estimatedQtyBase: 10 };
   }
 
   function normalizePlanningDefaults(state) {
@@ -1328,10 +1328,10 @@
           return Math.round(Math.max(5, fromCyclesMin));
         }
         if (fromCyclesMin != null && fromCyclesMin > 0) {
-          const scaled = fromCyclesMin * 45;
-          return Math.round(Math.max(hint, scaled, 12));
+          const scaled = fromCyclesMin * 120;
+          return Math.round(Math.max(hint, scaled, 25));
         }
-        return Math.round(Math.max(12, hint));
+        return Math.round(Math.max(25, hint));
       };
       const byProduct = new Map();
       for (const op of operations) {
