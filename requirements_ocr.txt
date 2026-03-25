@@ -21,6 +21,9 @@ httpx==0.25.2
 # Image processing utilities
 Pillow==11.2.1
 
+# Windows system tray (optional elsewhere; disable with OCR_TRAY=0)
+pystray>=0.19.5
+
 # File handling
 python-multipart==0.0.6
 

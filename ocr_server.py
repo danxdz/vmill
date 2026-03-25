@@ -323,6 +323,91 @@ OCR_WORKERS = max(1, int(os.getenv("OCR_WORKERS", "1")))
 executor = None
 ocr_predict_lock = threading.Lock()
 
+# --- Optional system tray (Windows by default; OCR_TRAY=0 to disable) ---
+try:
+    import pystray
+    from PIL import Image as _TrayPILImage
+    from PIL import ImageDraw as _TrayImageDraw
+
+    PYSTRAY_AVAILABLE = True
+except ImportError:
+    pystray = None  # type: ignore[assignment]
+    _TrayPILImage = None  # type: ignore[assignment]
+    _TrayImageDraw = None  # type: ignore[assignment]
+    PYSTRAY_AVAILABLE = False
+
+_uvicorn_server_for_tray = None
+_tray_icon_holder: dict = {}
+_tray_lock = threading.Lock()
+_tray_last_rgb: tuple[int, int, int] | None = None
+_tray_run_config: dict = {"host": "0.0.0.0", "port": 8000}
+_tray_server_state: dict = {"running": False, "thread": None}
+
+_TRAY_RGB_STOPPED = (88, 88, 96)
+_TRAY_RGB_READY = (52, 199, 89)
+_TRAY_RGB_PADDLE = (255, 214, 10)
+
+
+def ocr_tray_enabled() -> bool:
+    if not PYSTRAY_AVAILABLE:
+        return False
+    raw = str(os.getenv("OCR_TRAY", "") or "").strip().lower()
+    if raw in ("0", "false", "no", "off"):
+        return False
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    return sys.platform == "win32"
+
+
+def _tray_make_icon(rgb: tuple[int, int, int]):
+    size = 64
+    margin = size // 7
+    img = _TrayPILImage.new("RGB", (size, size), (24, 24, 24))
+    draw = _TrayImageDraw.Draw(img)
+    draw.ellipse([margin, margin, size - margin - 1, size - margin - 1], fill=rgb)
+    return img
+
+
+def _tray_title_for_rgb(rgb: tuple[int, int, int]) -> str:
+    port = _tray_run_config.get("port", "")
+    if rgb == _TRAY_RGB_STOPPED:
+        return "OCR server (stopped)"
+    if rgb == _TRAY_RGB_READY:
+        return f"OCR server :{port} — ready"
+    if rgb == _TRAY_RGB_PADDLE:
+        return f"OCR server :{port} — loading…"
+    return "OCR server"
+
+
+def ocr_tray_set_color(rgb: tuple[int, int, int]) -> None:
+    if not ocr_tray_enabled():
+        return
+    global _tray_last_rgb
+    icon = _tray_icon_holder.get("icon")
+    if icon is None or _TrayPILImage is None:
+        return
+    with _tray_lock:
+        if _tray_last_rgb == rgb:
+            return
+        _tray_last_rgb = rgb
+        try:
+            icon.icon = _tray_make_icon(rgb)
+            icon.title = _tray_title_for_rgb(rgb)
+        except Exception:
+            pass
+
+
+def ocr_tray_set_stopped() -> None:
+    ocr_tray_set_color(_TRAY_RGB_STOPPED)
+
+
+def ocr_tray_set_ready() -> None:
+    ocr_tray_set_color(_TRAY_RGB_READY)
+
+
+def ocr_tray_set_paddle_started() -> None:
+    ocr_tray_set_color(_TRAY_RGB_PADDLE)
+
 
 def ocr_predict_safe(image_path: str):
     """Thread-safe OCR predict wrapper."""
@@ -532,7 +617,9 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 STARTING APPLICATION INITIALIZATION")
     logger.info("="*60)
     logger.info("Initializing PaddleOCR model...")
-    
+    if ocr_tray_enabled():
+        ocr_tray_set_paddle_started()
+
     # Single OCR instance (auto GPU detection for newer PaddleOCR)
     try:
         configure_paddlex_offline_cache_mode()
@@ -592,7 +679,9 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info("PaddleOCR startup complete")
     logger.info("=" * 60)
-    
+    if ocr_tray_enabled():
+        ocr_tray_set_ready()
+
     yield
     
     # Shutdown
@@ -625,6 +714,88 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+
+def _run_uvicorn_for_tray(host: str, port: int) -> None:
+    global _uvicorn_server_for_tray
+    config = uvicorn.Config(app, host=host, port=port, log_level="info")
+    _uvicorn_server_for_tray = uvicorn.Server(config)
+    _uvicorn_server_for_tray.run()
+
+
+def _ocr_tray_main(host: str, port: int) -> None:
+    """Tray on main thread: Start/Stop/Quit. Icon colors only (no updates from OCR worker threads)."""
+    if not PYSTRAY_AVAILABLE or pystray is None:
+        return
+
+    _tray_run_config["host"] = host
+    _tray_run_config["port"] = port
+    _tray_server_state["running"] = False
+    _tray_server_state["thread"] = None
+
+    def on_start_server(_icon, _item):
+        if _tray_server_state["running"]:
+            return
+        _tray_server_state["running"] = True
+        ocr_tray_set_paddle_started()
+
+        def serve():
+            global _uvicorn_server_for_tray
+            try:
+                _run_uvicorn_for_tray(host, port)
+            finally:
+                _tray_server_state["running"] = False
+                _tray_server_state["thread"] = None
+                _uvicorn_server_for_tray = None
+                ocr_tray_set_stopped()
+
+        t = threading.Thread(target=serve, name="uvicorn-ocr", daemon=False)
+        _tray_server_state["thread"] = t
+        t.start()
+
+    def on_stop_server(_icon, _item):
+        global _uvicorn_server_for_tray
+        if not _tray_server_state["running"]:
+            return
+        s = _uvicorn_server_for_tray
+        if s is not None:
+            s.should_exit = True
+        th = _tray_server_state.get("thread")
+        if th is not None and th.is_alive():
+            th.join(timeout=60.0)
+        _tray_server_state["running"] = False
+        _tray_server_state["thread"] = None
+        _uvicorn_server_for_tray = None
+        ocr_tray_set_stopped()
+
+    def on_quit(_icon, _item):
+        if _tray_server_state["running"]:
+            on_stop_server(_icon, _item)
+        _icon.stop()
+
+    menu = pystray.Menu(
+        pystray.MenuItem(
+            "Start server",
+            on_start_server,
+            enabled=lambda _i: not _tray_server_state["running"],
+        ),
+        pystray.MenuItem(
+            "Stop server",
+            on_stop_server,
+            enabled=lambda _i: _tray_server_state["running"],
+        ),
+        pystray.MenuItem("Quit", on_quit),
+    )
+    icon = pystray.Icon(
+        "vmill_ocr_server",
+        _tray_make_icon(_TRAY_RGB_STOPPED),
+        _tray_title_for_rgb(_TRAY_RGB_STOPPED),
+        menu,
+    )
+    _tray_icon_holder["icon"] = icon
+    _tray_last_rgb = None
+    ocr_tray_set_stopped()
+    icon.run()
 
 
 @app.post("/debug-log")
@@ -5348,8 +5519,10 @@ async def validate_training_sample(sample_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    import uvicorn
     ensure_single_ocr_server_instance()
-    # Prefer OCR_PORT for local/portable OCR runs, then PORT for hosting platforms.
     port = int(os.getenv("OCR_PORT") or os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    host = "0.0.0.0"
+    if ocr_tray_enabled():
+        _ocr_tray_main(host, port)
+    else:
+        uvicorn.run(app, host=host, port=port)

@@ -44,6 +44,7 @@ mkdir -p "$DIST_BASE"
   --collect-all numpy \
   --collect-all openpyxl \
   --collect-all PIL \
+  --collect-all pystray \
   --hidden-import python_multipart \
   "$ROOT_DIR/ocr_server.py"
 

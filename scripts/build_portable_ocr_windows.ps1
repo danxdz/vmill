@@ -4,11 +4,16 @@ $ErrorActionPreference = "Stop"
 $RootDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location $RootDir
 
+# Aligns with requirements_ocr.txt / requirements_ocr_py313.lock.txt by default.
+# Use OCR_BUILD_PYTHON=3.11 if you need the older Render-matching toolchain.
+$OcrPythonVersion = if ($env:OCR_BUILD_PYTHON) { $env:OCR_BUILD_PYTHON.Trim() } else { "3.13" }
+$PyLauncherArgs = @("-$OcrPythonVersion")
+
 $VenvOcr = Join-Path $RootDir ".venv_ocr"
 $pythonInVenv = Join-Path $VenvOcr "Scripts\python.exe"
 $pyLauncher = Get-Command py -ErrorAction SilentlyContinue
 if (-not $pyLauncher) {
-  throw "[pack] Python launcher 'py' not found. Install Python 3.11 with the launcher enabled."
+  throw "[pack] Python launcher 'py' not found. Install Python $OcrPythonVersion (or set OCR_BUILD_PYTHON) with the launcher enabled."
 }
 
 # Detect cross-OS mixed venvs (e.g., created from WSL/Linux), then recreate for Windows.
@@ -29,8 +34,8 @@ if ($needsRecreateVenv) {
     Write-Host "[pack] moved incompatible .venv_ocr to $backupPath"
   }
 
-  Write-Host "[pack] creating .venv_ocr with Python 3.11"
-  & py -3.11 -m venv $VenvOcr
+  Write-Host "[pack] creating .venv_ocr with Python $OcrPythonVersion"
+  & py @PyLauncherArgs -m venv $VenvOcr
 }
 
 if (-not (Test-Path $pythonInVenv)) {
@@ -92,6 +97,7 @@ $pyiArgs = @(
   "--collect-all", "pyclipper",
   "--collect-all", "pypdfium2",
   "--collect-all", "shapely",
+  "--collect-all", "pystray",
   "--recursive-copy-metadata", "paddlex",
   "--recursive-copy-metadata", "paddleocr",
   "--recursive-copy-metadata", "requests",
