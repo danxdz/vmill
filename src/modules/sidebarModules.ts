@@ -5,6 +5,7 @@ import ViewPanel from '../ViewPanel';
 import ToolVisualPanel from '../ToolVisualPanel';
 import ToolManagerPanel from '../ToolManagerPanel';
 import ToolStationsPanel from '../ToolStationsPanel';
+import ArmSimulatorModule from '../ArmSimulatorModule';
 import type { SidebarModuleDefinition } from './moduleTypes';
 
 export const sidebarModules: SidebarModuleDefinition[] = [
@@ -49,5 +50,12 @@ export const sidebarModules: SidebarModuleDefinition[] = [
     title: 'TOOL STATIONS',
     order: 45,
     Component: ToolStationsPanel,
+  },
+
+  {
+    id: 'arm-simulator',
+    title: 'ARM SIM',
+    order: 50,
+    Component: ArmSimulatorModule,
   },
 ];
