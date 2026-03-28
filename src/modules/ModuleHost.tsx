@@ -9,7 +9,7 @@ interface ModuleHostProps {
 }
 
 const LAYOUT_KEY = 'vmill_sidebar_layout_v1';
-const PINNED_LAST_ID = 'view';
+const PINNED_LAST_ID = 'arm-simulator';
 
 interface ModuleLayoutPrefs {
   order: string[];
